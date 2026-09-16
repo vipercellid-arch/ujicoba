@@ -13,18 +13,21 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="theme-color" content="#020617" id="meta-theme-color">
+    <link rel="manifest" href="manifest.json">
     <title>Vipercell - Premium App & Game Top Up</title>
     
     <!-- Dynamic Favicon -->
     <link rel="icon" id="favicon" href="data:image/x-icon;base64,">
     
-    <!-- Preconnect untuk Performa Cepat -->
+    <!-- Preconnect & Eksternal Library -->
     <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
     <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin>
-    
-    <!-- OPTIMASI PAGESPEED: Asynchronous FontAwesome -->
     <link rel="preload" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" as="style" onload="this.onload=null;this.rel='stylesheet'">
     <noscript><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"></noscript>
+    
+    <!-- Script Pihak Ketiga (QRIS Dinamis & reCAPTCHA) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <script src="https://www.google.com/recaptcha/api.js" async defer></script>
     
     <!-- CSS Modular -->
     <link rel="stylesheet" href="css/main.css">
@@ -36,9 +39,18 @@
     </script>
 </head>
 <body>
-    <!-- WADAH NOTIFIKASI TOAST MELAYANG & SUARA FALLBACK -->
+    <!-- WADAH NOTIFIKASI TOAST MELAYANG -->
     <div id="toast-container" class="toast-container"></div>
-    <audio id="notif-sound" src="https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3" preload="none"></audio>
+    
+    <!-- PWA CUSTOM INSTALL PROMPT -->
+    <div id="pwa-install-prompt" class="toast-item toast-info" style="display:none; position: fixed; bottom: 80px; right: 20px; z-index: 99999; cursor: pointer; width: auto; max-width: 320px; box-shadow: 0 10px 25px rgba(37,99,235,0.4); border-color: var(--primary-light);">
+        <div class="toast-icon" style="color: var(--primary-light);"><i class="fa-solid fa-download"></i></div>
+        <div class="toast-content" style="flex:1;">
+            <h4 style="color: var(--text);">Instal Aplikasi</h4>
+            <p style="color: var(--text-muted); font-size: 0.75rem;">Akses Vipercell lebih cepat dari layar utama Anda.</p>
+        </div>
+        <button id="btn-close-pwa" style="color:var(--text-muted); padding:5px; background:none; border:none; cursor:pointer;"><i class="fa-solid fa-xmark"></i></button>
+    </div>
 
     <div id="store-view">
         <header>
@@ -62,12 +74,11 @@
                         <a onclick="window.switchMainTab('berita')" id="nav-berita" title="Komunitas & Berita" role="button" tabindex="0">
                             <i class="fa-solid fa-newspaper"></i> <span class="hide-mobile">Komunitas</span>
                         </a>
-                        <a onclick="window.switchMainTab('profil')" id="nav-profil" style="display:none;" title="Profil & Membership" role="button" tabindex="0">
+                        <a onclick="window.switchMainTab('profil')" id="nav-profil" style="display:none;" title="Profil" role="button" tabindex="0">
                             <i class="fa-solid fa-circle-user"></i> <span class="hide-mobile">Profil</span>
                         </a>
                     </nav>
                 </div>
-
                 <div class="header-actions">
                     <button id="btn-theme-toggle" class="btn btn-icon-only" aria-label="Ganti Tema" onclick="window.toggleTheme()" title="Ganti Tema">
                         <i class="fa-solid fa-moon" id="theme-icon"></i>
@@ -173,64 +184,20 @@
                     <i class="fa-solid fa-user-group"></i> Join Saluran WA
                 </a>
             </div>
-
-            <!-- FITUR BARU: KOTAK SARAN & REQUEST FITUR -->
-            <div style="background: var(--surface); border: 1px solid var(--border); padding: 1.5rem; border-radius: 12px; margin-bottom: 2.5rem; max-width: 800px; margin-left: auto; margin-right: auto;">
-                <h3 style="color: var(--primary-light); margin-bottom: 10px;"><i class="fa-solid fa-envelope-open-text"></i> Kotak Saran & Request</h3>
-                <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 15px;">Punya ide fitur baru, request aplikasi, atau menemukan bug? Beritahu kami agar Vipercell bisa lebih baik lagi!</p>
-                <div class="form-group">
-                    <label for="saran-name">Nama Panggilan (Opsional)</label>
-                    <input type="text" id="saran-name" class="form-control" placeholder="Nama kamu">
-                </div>
-                <div class="form-group">
-                    <label for="saran-message">Pesan / Saran <span style="color:var(--danger)">*</span></label>
-                    <textarea id="saran-message" class="form-control" rows="4" placeholder="Tulis masukan atau request item di sini..." required></textarea>
-                </div>
-                <button id="btn-kirim-saran" class="btn btn-primary" style="width: 100%; font-weight:bold;" onclick="window.kirimSaran()">
-                    <i class="fa-solid fa-paper-plane"></i> Kirim Masukan
-                </button>
-            </div>
             
             <div class="tutorial-grid" id="public-news-list">
                 <div style="text-align:center; color:var(--text-muted)">Memuat berita...</div>
             </div>
         </div>
 
-        <!-- TAB: PROFIL & MEMBERSHIP -->
+        <!-- TAB: PROFIL -->
         <div id="tab-profil" class="main-tab-content container">
             <div class="section-header">
-                <h2>Profil & Membership+</h2>
-                <p>Kelola data akun, tingkatkan paket member, dan nikmati fitur eksklusif.</p>
+                <h2>Pengaturan Profil</h2>
+                <p>Kelola data akun dan lihat statistik transaksi Anda.</p>
             </div>
             
             <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.5rem;">
-                
-                <!-- MEMBERSHIP+ STATUS BOX -->
-                <div style="background: var(--primary-gradient); border-radius: 16px; padding: 2rem; color: white; display: flex; flex-direction: column; justify-content: center; box-shadow: 0 10px 30px rgba(37,99,235,0.3); position: relative; overflow: hidden; grid-column: 1 / -1;">
-                    <i class="fa-solid fa-crown" style="position: absolute; right: -20px; bottom: -20px; font-size: 10rem; opacity: 0.1;"></i>
-                    <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 15px; position: relative; z-index: 2;">
-                        <div>
-                            <span style="background: rgba(0,0,0,0.3); padding: 5px 12px; border-radius: 20px; font-size: 0.75rem; font-weight: bold; text-transform: uppercase;" id="user-tier-badge">MEMBER BASIC</span>
-                            <h2 style="font-size: 2.2rem; margin-top: 10px; font-weight: 800;" id="user-tier-name">Bronze</h2>
-                            <p style="opacity: 0.9; font-size: 0.9rem; margin-top: 5px;" id="user-tier-desc">Nikmati harga standar. Upgrade ke Member+ untuk diskon otomatis, promo eksklusif, dan refund garansi.</p>
-                            <div style="margin-top: 15px; display: flex; gap: 15px; align-items: center; flex-wrap:wrap;">
-                                <div style="background: rgba(0,0,0,0.2); padding: 8px 15px; border-radius: 8px; font-size: 0.85rem;">
-                                    <span style="opacity:0.8; display:block; font-size:0.75rem;">Aktif Hingga:</span>
-                                    <strong id="user-tier-validity">Selamanya</strong>
-                                </div>
-                                <div style="background: rgba(0,0,0,0.2); padding: 8px 15px; border-radius: 8px; font-size: 0.85rem;">
-                                    <span style="opacity:0.8; display:block; font-size:0.75rem;">Total Hemat:</span>
-                                    <strong id="user-tier-saved">Rp0</strong>
-                                </div>
-                            </div>
-                        </div>
-                        <div>
-                            <button class="btn btn-success" style="background: white; color: var(--primary-dark); font-weight: 800; box-shadow: 0 4px 15px rgba(0,0,0,0.2);" onclick="window.openUpgradeModal()">
-                                <i class="fa-solid fa-rocket"></i> Upgrade ke Member+ VIP
-                            </button>
-                        </div>
-                    </div>
-                </div>
                 
                 <!-- INFO AKUN -->
                 <div style="background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 1.5rem;">
@@ -255,20 +222,8 @@
                     </div>
                 </div>
                 
-                <!-- KEAMANAN, NOTIFIKASI & STATISTIK -->
+                <!-- KEAMANAN & STATISTIK -->
                 <div style="display:flex; flex-direction:column; gap:1.5rem;">
-                    
-                    <!-- PANEL NOTIFIKASI HP -->
-                    <div style="background: var(--surface); border: 1px solid var(--primary-light); border-radius: 14px; padding: 1.5rem; position: relative; overflow: hidden;">
-                        <div style="position: absolute; top: -15px; right: -15px; font-size: 6rem; color: var(--primary-light); opacity: 0.05;">
-                            <i class="fa-solid fa-bell"></i>
-                        </div>
-                        <h3 style="color: var(--primary-light); margin-bottom: 0.5rem;"><i class="fa-solid fa-bell-concierge"></i> Notifikasi Perangkat</h3>
-                        <p style="font-size:0.85rem; color:var(--text-muted); margin-bottom: 1rem; position: relative; z-index: 1;">Izinkan notifikasi agar kamu mendengar dering bawaan HP saat pesanan berhasil atau ada balasan Chat Admin.</p>
-                        <button id="btn-enable-notif" aria-label="Aktifkan Notifikasi" class="btn btn-primary" style="width:100%; position: relative; z-index: 1;" onclick="window.requestSystemNotification()">
-                            <i class="fa-solid fa-check-double"></i> Aktifkan Notifikasi HP
-                        </button>
-                    </div>
                     <div style="background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 1.5rem;">
                         <h3 style="color: var(--text); margin-bottom: 1rem;"><i class="fa-solid fa-shield-halved"></i> Keamanan Akun</h3>
                         <p style="font-size:0.85rem; color:var(--text-muted); margin-bottom: 1rem;">Lupa sandi atau ingin mengubahnya? Kami akan mengirimkan tautan reset ke emailmu.</p>
@@ -288,7 +243,7 @@
             <div class="auth-fullscreen-card reveal">
                 <div class="auth-header-text">
                     <h2 id="auth-title">Masuk Akun</h2>
-                    <p id="auth-subtitle">Silakan masuk untuk melanjutkan transaksi dan menikmati keuntungan membership.</p>
+                    <p id="auth-subtitle">Silakan masuk untuk melanjutkan transaksi dan menyimpan riwayat.</p>
                 </div>
                 <div class="auth-tabs-toggle">
                     <button aria-label="Tab Masuk" id="tab-login" class="active" onclick="window.switchAuthTab('login')">Masuk</button>
@@ -307,7 +262,6 @@
                 
                 <div id="form-register" class="auth-form-body" style="display: none;">
                     <div class="form-group"><label for="auth-r-name">Nama Panggilan</label><input type="text" id="auth-r-name" class="form-control" placeholder="Siapa namamu?"></div>
-                    <div class="form-group"><label for="auth-r-wa">Nomor WhatsApp Aktif</label><input type="number" id="auth-r-wa" class="form-control" placeholder="Contoh: 081234567..."></div>
                     <div class="form-group"><label for="auth-r-email">Alamat Email</label><input type="email" id="auth-r-email" class="form-control" placeholder="Email aktif kamu"></div>
                     <div class="form-group"><label for="auth-r-pass">Kata Sandi (Min 6 Karakter)</label><input type="password" id="auth-r-pass" class="form-control" placeholder="Buat kata sandi yang aman"></div>
                     <button aria-label="Proses Daftar" id="btn-do-register" class="btn btn-primary btn-auth-action" style="margin-top:1rem;" onclick="window.processRegister()">
@@ -383,7 +337,6 @@
         <i class="fa-solid fa-headset"></i>
         <div class="notif-badge" id="user-chat-badge"></div>
     </div>
-
     <div class="chat-window" id="user-chat-window">
         <div class="chat-header">
             Bantuan Langsung
@@ -393,7 +346,6 @@
             <i class="fa-regular fa-face-smile-wink" style="font-size:3rem; color:var(--primary-light); margin-bottom:15px; text-align:center;"></i>
             <p style="text-align:center; color:var(--text); margin-bottom:15px; font-size:0.9rem;">Halo! Masukkan nama panggilanmu untuk memulai obrolan dengan Admin.</p>
             <input type="text" id="chat-anon-name" class="form-control" placeholder="Siapa namamu?" aria-label="Nama Panggilan">
-            
             <button id="btn-start-chat" class="btn btn-primary" style="width:100%; margin-top:10px;" onclick="window.startAnonChat()">
                 <i class="fa-solid fa-paper-plane"></i> <span>Mulai Obrolan</span>
             </button>
@@ -405,68 +357,7 @@
         </div>
     </div>
 
-    <!-- MODAL UPGRADE MEMBERSHIP+ -->
-    <div class="modal-overlay" id="modal-upgrade-member">
-        <div class="modal-content large" style="background: var(--surface);">
-            <div class="modal-header">
-                <h2 style="color: var(--warning);"><i class="fa-solid fa-crown"></i> Bergabung Member+ VIP</h2>
-                <button class="close-btn" aria-label="Tutup" onclick="window.closeModal('modal-upgrade-member')"><i class="fa-solid fa-xmark"></i></button>
-            </div>
-            
-            <p style="text-align:center; color:var(--text-muted); font-size:0.95rem; margin-bottom: 1.5rem;">Dapatkan diskon eksklusif di setiap transaksi dan prioritas layanan.</p>
-            
-            <div style="display:flex; flex-wrap:wrap; gap:10px; justify-content:center; margin-bottom:20px; background:rgba(37,99,235,0.05); padding:15px; border-radius:12px; border:1px dashed var(--warning);">
-                <span style="font-size:0.85rem; color:var(--warning); font-weight:bold;"><i class="fa-solid fa-tags"></i> Diskon Otomatis</span>
-                <span style="font-size:0.85rem; color:var(--primary-light); font-weight:bold;"><i class="fa-solid fa-shield-halved"></i> Garansi Refund Instan</span>
-                <span style="font-size:0.85rem; color:var(--success); font-weight:bold;"><i class="fa-solid fa-bolt"></i> Prioritas Antrean</span>
-            </div>
-
-            <div id="membership-checkout-section" style="background: var(--bg); padding: 1.5rem; border-radius: 12px; border: 1px solid var(--border);">
-                <h3 style="margin-bottom: 10px; font-size: 1.1rem; color:var(--primary-light);">Pilih Durasi Langganan</h3>
-                
-                <div class="type-grid" id="membership-duration-grid" style="grid-template-columns: repeat(3, 1fr); margin-bottom: 15px;">
-                    <label class="type-card active" onclick="window.selectMembershipDuration(1, this)">
-                        <input type="radio" name="member_duration" value="1" checked style="display:none;">
-                        <strong>1 Bulan</strong>
-                        <small>Normal</small>
-                    </label>
-                    <label class="type-card" onclick="window.selectMembershipDuration(6, this)">
-                        <input type="radio" name="member_duration" value="6" style="display:none;">
-                        <strong>6 Bulan</strong>
-                        <small style="color:var(--success)">Hemat 10%</small>
-                    </label>
-                    <label class="type-card" onclick="window.selectMembershipDuration(12, this)">
-                        <input type="radio" name="member_duration" value="12" style="display:none;">
-                        <strong>1 Tahun</strong>
-                        <small style="color:var(--success)">Hemat 25%</small>
-                    </label>
-                </div>
-                
-                <h3 style="margin-bottom: 10px; font-size: 1.1rem; color:var(--primary-light); margin-top: 15px;">Metode Pembayaran</h3>
-                <div class="type-grid" style="grid-template-columns: 1fr 1fr; margin-bottom: 15px;">
-                    <label class="type-card active" onclick="window.selectMembershipPayment('qris', this)">
-                        <input type="radio" name="member_payment" value="qris" checked style="display:none;">
-                        <i class="fa-solid fa-qrcode"></i><strong>QRIS</strong>
-                    </label>
-                    <label class="type-card" onclick="window.selectMembershipPayment('cash', this)">
-                        <input type="radio" name="member_payment" value="cash" style="display:none;">
-                        <i class="fa-solid fa-money-bill-wave"></i><strong>Cash/TF</strong>
-                    </label>
-                </div>
-                
-                <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px dashed var(--border); padding-top: 15px; margin-bottom: 15px;">
-                    <span style="font-weight: bold; color: var(--text);">Total Tagihan:</span>
-                    <span id="membership-checkout-total" style="font-weight: 800; font-size: 1.3rem; color: var(--success);">Rp0</span>
-                </div>
-                
-                <button id="btn-process-member" class="btn btn-primary" style="width: 100%; padding: 12px; font-size: 1.05rem;" onclick="window.processMembershipCheckout()">
-                    <i class="fa-solid fa-cart-shopping"></i> <span>Bayar Sekarang</span>
-                </button>
-            </div>
-        </div>
-    </div>
-
-    <!-- DIRECT BUY MODAL -->
+    <!-- DIRECT BUY MODAL (PEMBARUAN CHECKOUT ALUR EMAIL & ROBLOX) -->
     <div class="modal-overlay" id="modal-buy-direct">
         <div class="modal-content wide">
             <div class="modal-header">
@@ -486,6 +377,27 @@
                 <h4 style="font-size:0.9rem; margin-bottom:10px; color:var(--text);">1. Informasi Tujuan</h4>
                 <div id="buy-detail-fields"></div>
             </div>
+            
+            <!-- TEMPLATE ROBLOX AVATAR CHECKER (Akan dirender via JS jika produknya Roblox) -->
+            <template id="roblox-checker-template">
+                <div style="background: rgba(37,99,235,0.05); padding: 15px; border-radius: 12px; border: 1px dashed var(--primary-light); margin-bottom: 15px;">
+                    <label style="color:var(--text); font-size: 0.85rem; font-weight:600; margin-bottom:10px; display:block;">Username Roblox</label>
+                    <div style="display: flex; align-items: center; gap: 15px;">
+                        <div style="position: relative; width: 64px; height: 64px; flex-shrink: 0; border-radius: 50%; border: 2px solid var(--primary-light); padding: 2px; background: var(--bg);">
+                            <img id="roblox-avatar-img" src="https://ui-avatars.com/api/?name=?&background=random" alt="Avatar" style="width: 100%; height: 100%; border-radius: 50%; object-fit: cover;">
+                        </div>
+                        <div style="flex-grow: 1; position: relative;">
+                            <input type="text" id="buy-id" class="form-control" placeholder="Masukkan Username" required style="padding-right: 40px;">
+                            <div style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%);">
+                                <i id="roblox-status-icon" class="fa-solid fa-check" style="color: var(--success); font-size: 1.2rem; display: none;"></i>
+                                <i id="roblox-loading-icon" class="fa-solid fa-circle-notch fa-spin" style="color: var(--primary-light); font-size: 1.2rem; display: none;"></i>
+                            </div>
+                        </div>
+                    </div>
+                    <small style="color:var(--text-muted); display:block; margin-top:10px;">*Avatar akan muncul jika username ditemukan (API Cepat).</small>
+                </div>
+            </template>
+            <!-- END OF TEMPLATE -->
 
             <div style="margin-bottom: 1.5rem;">
                 <h4 style="font-size:0.9rem; margin-bottom:10px; color:var(--text);">2. Pilih Item / Nominal</h4>
@@ -494,16 +406,17 @@
             
             <div style="margin-top: 1.5rem; background: var(--surface-hover); padding: 1.2rem; border-radius: 12px; border: 1px solid var(--border);">
                 <h4 style="font-size:0.9rem; margin-bottom:10px; color:var(--text);">3. Detail Checkout</h4>
-                
                 <div class="promo-box">
                     <input type="text" id="buy-promo-code" aria-label="Kode Promo" class="form-control" placeholder="Punya kode promo?" style="text-transform: uppercase;">
                     <button class="btn btn-outline" aria-label="Cek Promo" onclick="window.applyPromoDirect()"><i class="fa-solid fa-tag"></i> Cek</button>
                 </div>
                 <div id="buy-promo-msg" class="promo-msg"></div>
                 
-                <div id="buy-wa-group" class="form-group" style="margin-top: 1rem;">
-                    <label for="buy-wa" style="color:var(--text);">Nomor WhatsApp Aktif <small style="color:var(--danger)">*</small></label>
-                    <input type="number" id="buy-wa" class="form-control" placeholder="08123..." required>
+                <!-- INPUT HANYA EMAIL & OTOMATIS GUEST ACCOUNT -->
+                <div id="buy-email-group" class="form-group" style="margin-top: 1rem;">
+                    <label for="buy-email" style="color:var(--text);">Alamat Email (Untuk Bukti & Akses) <small style="color:var(--danger)">*</small></label>
+                    <input type="email" id="buy-email" class="form-control" placeholder="contoh@email.com" required>
+                    <small style="color:var(--text-muted); display:block; margin-top:5px;">Jika email belum terdaftar, akun Guest akan otomatis dibuat (Bersifat Sementara/Unverified).</small>
                 </div>
                 
                 <div id="buy-payment-method" class="form-group" style="margin-top: 1rem;">
@@ -524,8 +437,13 @@
                     <span>Total Bayar</span>
                     <div style="text-align:right;">
                         <span id="buy-total-price" style="color:var(--primary-light); font-size: 1.4rem;">Rp0</span>
-                        <div class="unique-code-info" id="buy-unique-info"></div>
                     </div>
+                </div>
+
+                <!-- INTEGRASI GOOGLE reCAPTCHA (Sistem Anti-Bot) -->
+                <div id="recaptcha-container" style="margin-top: 1.5rem; display: flex; justify-content: center; width: 100%; overflow: hidden;">
+                    <!-- Ganti SITE_KEY di bawah ini dengan milik Anda nantinya -->
+                    <div class="g-recaptcha" data-sitekey="YOUR_RECAPTCHA_SITE_KEY" id="captcha-box"></div>
                 </div>
                 
                 <button aria-label="Proses Pembelian" id="btn-process-buy" class="btn btn-primary" style="width:100%; padding:1rem; margin-top:1.2rem; font-size:1.05rem;" onclick="window.processDirectCheckout()" disabled>
@@ -535,7 +453,7 @@
         </div>
     </div>
 
-    <!-- PAYMENT QRIS MODAL DENGAN TIMER EXPIRY (UI 4 Menit) -->
+    <!-- PAYMENT QRIS MODAL DENGAN TIMER EXPIRY & QR DINAMIS -->
     <div class="modal-overlay" id="modal-payment">
         <div class="modal-content" style="max-width: 400px; text-align: center; background: var(--surface); padding: 2rem 1.5rem;">
             <div class="modal-header" style="border-bottom: none; justify-content: center; margin-bottom: 0;">
@@ -545,16 +463,16 @@
             
             <div id="qris-main-ui">
                 <p id="pay-modal-desc" style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 1.5rem;">Scan QRIS di bawah ini menggunakan e-Wallet / M-Banking Anda.</p>
-                
                 <div id="qris-payment-section" class="qris-box">
-                    <div id="qris-error-msg" style="display:none; padding:1rem; background:rgba(239,68,68,0.1); color:var(--danger); border-radius:8px; font-size: 0.85rem; margin-bottom: 1rem;"><i class="fa-solid fa-triangle-exclamation"></i> Admin belum mengunggah QRIS Pembayaran.</div>
+                    <div id="qris-error-msg" style="display:none; padding:1rem; background:rgba(239,68,68,0.1); color:var(--danger); border-radius:8px; font-size: 0.85rem; margin-bottom: 1rem;"><i class="fa-solid fa-triangle-exclamation"></i> String QRIS belum dikonfigurasi admin.</div>
                     
                     <!-- Timer Countdown QRIS 4 Menit -->
                     <div id="qris-timer-display" style="font-size:1.2rem; font-weight:800; color:var(--danger); margin-bottom:10px; display:none;">
                         <i class="fa-solid fa-stopwatch"></i> <span id="qris-time-left">04:00</span>
                     </div>
                     
-                    <img id="qris-image-display" src="" alt="Barcode QRIS" width="250" height="250" style="width: 100%; max-width: 250px; margin: 0 auto; display: none; border-radius: 8px;">
+                    <!-- CONTAINER QR CODE DINAMIS -->
+                    <div id="qris-qrcode-display" style="width: 100%; max-width: 250px; margin: 0 auto; display: none; background: white; padding: 15px; border-radius: 8px; justify-content: center; border: 1px solid var(--border);"></div>
                     
                     <div style="margin-top: 1rem; border-top: 2px dashed var(--border); padding-top: 1rem;">
                         <p style="color: var(--text-muted); font-size: 0.8rem; margin-bottom: 0.3rem;">Total Tagihan (Transfer Sesuai Nominal)</p>
@@ -566,7 +484,6 @@
                     </div>
                     <button aria-label="Download QRIS" id="btn-download-qris" class="btn btn-outline" style="width: 100%; margin-top: 1rem; color: var(--primary-light); border-color: var(--primary-light); font-weight: 600;" onclick="window.downloadQRIS()"><i class="fa-solid fa-download"></i> Simpan Gambar QRIS</button>
                 </div>
-
                 <button aria-label="Sudah Bayar" id="btn-final-pay" class="btn btn-success" style="width:100%; padding:1rem; font-size:1.1rem; border-radius: 12px; font-weight: 700; box-shadow: 0 8px 20px rgba(16, 185, 129, 0.3);" onclick="window.goToPesananFromPay()">Cek Status Pembayaran</button>
             </div>
         </div>
@@ -579,7 +496,6 @@
                 <h2>Lacak Pesanan</h2>
                 <button class="close-btn" aria-label="Tutup" onclick="window.closeModal('modal-cek-pesanan')"><i class="fa-solid fa-xmark"></i></button>
             </div>
-            
             <div class="form-group">
                 <label for="track-id">Masukkan Invoice ID</label>
                 <div style="display: flex; gap: 8px;">
@@ -604,7 +520,7 @@
         </div>
     </div>
     
-    <!-- MODAL KONFIRMASI MATANG (IKON DINAMIS) -->
+    <!-- MODAL KONFIRMASI MATANG -->
     <div class="msg-overlay" id="modal-confirm">
         <div class="msg-box">
             <div class="msg-icon" id="mc-icon-container" style="font-size:2.5rem; margin-bottom:0.5rem; color:var(--primary-light);">
@@ -612,7 +528,6 @@
             </div>
             <h3 id="mc-title" class="msg-title">Konfirmasi</h3>
             <p id="mc-desc" class="msg-desc" style="margin-bottom:1.5rem;"></p>
-            
             <div style="display:flex; gap:10px;" id="mc-btn-group">
                 <button aria-label="Batal" class="btn btn-outline" style="flex:1;" onclick="window.resolveConfirm(false)">Tidak</button>
                 <button aria-label="Konfirmasi" class="btn btn-primary" id="mc-confirm-btn" style="flex:1; background:var(--primary); border-color:var(--primary);" onclick="window.resolveConfirm(true)">Ya, Yakin</button>

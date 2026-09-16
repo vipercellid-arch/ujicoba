@@ -11,7 +11,6 @@ import {
 // ==========================================
 const appId = typeof __app_id !== 'undefined' ? __app_id : 'vipercell-prod';
 const isWorkspace = typeof __app_id !== 'undefined';
-
 const pathProducts = isWorkspace ? `artifacts/${appId}/public/data/products` : 'products';
 const pathOrders = isWorkspace ? `artifacts/${appId}/public/data/orders` : 'orders';
 const pathSettings = isWorkspace ? `artifacts/${appId}/public/data/settings` : 'settings';
@@ -19,10 +18,9 @@ const pathUsers = isWorkspace ? `artifacts/${appId}/public/data/users` : 'users'
 const pathPromos = isWorkspace ? `artifacts/${appId}/public/data/promos` : 'promos';
 const pathChats = isWorkspace ? `artifacts/${appId}/public/data/chats` : 'chats';
 const pathStocks = isWorkspace ? `artifacts/${appId}/public/data/stocks` : 'stocks';
-const pathSaran = isWorkspace ? `artifacts/${appId}/public/data/saran` : 'saran'; // PATH BARU
 
 // ==========================================
-// STATE & VARIABEL GLOBAL (MURNI FRONTEND)
+// STATE & VARIABEL GLOBAL
 // ==========================================
 let products = [];
 let groupedBrands = []; 
@@ -30,12 +28,10 @@ let orders = [];
 let promos = [];
 let siteSettings = { 
     logoText: 'VIPER', logoAccent: 'CELL', logoImgBase64: '', marquee: 'Selamat Datang di Vipercell',
-    qrisImageBase64: '', adminWa: '085656321860', igLink: '', ttLink: '',
-    newsList: [], banners: [], isStoreOpen: true, waChannelLink: '', botQrisActive: false,
-    membership: { price: 50000, disc: 5 }
+    qrisRawString: '', adminWa: '085656321860', igLink: '', ttLink: '',
+    newsList: [], banners: [], isStoreOpen: true, waChannelLink: '', botQrisActive: false
 };
-
-let userProfile = { name: '', phone: '', tier: 'bronze', tierExp: 0 };
+let userProfile = { name: '', phone: '' };
 let currentUser = null;
 let currentCheckoutBrand = null;
 let selectedProductForBuy = null;
@@ -47,9 +43,46 @@ let initialOrderLoad = true;
 let isSettingsLoaded = false; 
 let previousOrdersData = {}; 
 let qrisInterval = null;
+let isRobloxValid = false;
 
 // ==========================================
-// SISTEM TEMA (DARK / LIGHT MODE)
+// SISTEM PWA & CUSTOM INSTALL PROMPT
+// ==========================================
+let deferredPrompt;
+window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    deferredPrompt = e;
+    const pwaPrompt = document.getElementById('pwa-install-prompt');
+    if(pwaPrompt) pwaPrompt.style.display = 'flex';
+});
+
+document.addEventListener('click', async (e) => {
+    const pwaPrompt = document.getElementById('pwa-install-prompt');
+    if (!pwaPrompt || pwaPrompt.style.display === 'none') return;
+    
+    if (e.target.closest('#btn-close-pwa')) {
+        pwaPrompt.style.display = 'none';
+        return;
+    }
+    
+    if (e.target.closest('#pwa-install-prompt') && deferredPrompt) {
+        deferredPrompt.prompt();
+        const { outcome } = await deferredPrompt.userChoice;
+        if (outcome === 'accepted') {
+            pwaPrompt.style.display = 'none';
+        }
+        deferredPrompt = null;
+    }
+});
+
+if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js').catch(err => console.log('SW Reg Failed:', err));
+    });
+}
+
+// ==========================================
+// SISTEM TEMA & UX DASAR
 // ==========================================
 window.toggleTheme = function() {
     const html = document.documentElement;
@@ -65,74 +98,18 @@ window.toggleTheme = function() {
     if(icon) icon.className = newTheme === 'dark' ? 'fa-solid fa-moon' : 'fa-solid fa-sun';
 };
 
-// ==========================================
-// NOTIFIKASI NATIVE & IN-APP (TOAST)
-// ==========================================
-window.requestSystemNotification = async function() {
-    const btn = document.getElementById('btn-enable-notif');
-    if (!('Notification' in window)) {
-        window.customAlert('Tidak Didukung', 'Browser ini tidak mendukung notifikasi sistem.', 'warning');
-        return;
-    }
-    
-    // Trik untuk mengizinkan (unlock) pemutaran audio di perangkat mobile
-    const audio = document.getElementById('notif-sound');
-    if(audio) { 
-        audio.volume = 0; 
-        audio.play().catch(()=>{}); 
-        setTimeout(()=>{ audio.volume = 1; }, 500); 
-    }
-    
-    try {
-        const permission = await Notification.requestPermission();
-        if (permission === 'granted') {
-            window.customAlert('Berhasil', 'Sistem notifikasi aktif! Dering HP akan berbunyi saat pesanan selesai.', 'success');
-            if(btn) { 
-                btn.innerHTML = '<i class="fa-solid fa-check-double"></i> Notifikasi Aktif'; 
-                btn.style.background = 'var(--success)';
-                btn.style.borderColor = 'var(--success)';
-            }
-        } else {
-            window.customAlert('Ditolak', 'Izin notifikasi ditolak. Silakan izinkan melalui pengaturan browser.', 'warning');
-        }
-    } catch(e) {
-        console.error("Notification permission error:", e);
-    }
-};
-
-window.fireNativeNotification = function(title, msg, type = 'info', actionCallback = null) {
-    // Selalu tampilkan Toast UI In-App sebagai default
-    window.showToast(title, msg, type, actionCallback);
-    
-    // Bunyikan suara
-    const audio = document.getElementById('notif-sound');
-    if (audio) audio.play().catch(()=>{});
-    
-    // Tembak Notifikasi Native jika sudah diizinkan
-    if ('Notification' in window && Notification.permission === 'granted') {
-        try { new Notification(title, { body: msg, icon: '/favicon.ico' }); } catch(e) {}
-    }
-};
-
 window.showToast = function(title, msg, type = 'info', actionCallback = null) {
     const container = document.getElementById('toast-container');
     if(!container) return;
     
     const toast = document.createElement('div');
     toast.className = `toast-item toast-${type}`;
-    
     let icon = '<i class="fa-solid fa-circle-info"></i>';
     if(type === 'success') icon = '<i class="fa-solid fa-circle-check"></i>';
     if(type === 'warning') icon = '<i class="fa-solid fa-triangle-exclamation"></i>';
     if(type === 'error') icon = '<i class="fa-solid fa-circle-xmark"></i>';
     
-    toast.innerHTML = `
-        <div class="toast-icon">${icon}</div>
-        <div class="toast-content">
-            <h4>${title}</h4>
-            <p>${msg}</p>
-        </div>
-    `;
+    toast.innerHTML = `<div class="toast-icon">${icon}</div><div class="toast-content"><h4>${title}</h4><p>${msg}</p></div>`;
     
     if(actionCallback) {
         toast.style.cursor = 'pointer';
@@ -147,13 +124,11 @@ window.showToast = function(title, msg, type = 'info', actionCallback = null) {
     }, 5000);
 };
 
-// ==========================================
-// FUNGSI UI / UX DASAR
-// ==========================================
 window.openModal = (id) => {
     const el = document.getElementById(id);
     if(el) { el.classList.add('active'); document.body.classList.add('no-scroll'); }
 };
+
 window.closeModal = (id) => {
     const el = document.getElementById(id);
     if(el) { 
@@ -189,46 +164,10 @@ window.closeAlert = () => {
     document.body.classList.remove('no-scroll');
 };
 
-let promptCallback = null;
-window.openConfirm = function(title, message, callback, actionType = 'warning') {
-    const titleEl = document.getElementById('mc-title');
-    const descEl = document.getElementById('mc-desc');
-    const iconContainer = document.getElementById('mc-icon-container');
-    const confirmBtn = document.getElementById('mc-confirm-btn');
-    
-    if(titleEl) titleEl.innerText = title;
-    if(descEl) descEl.innerHTML = message;
-    promptCallback = callback;
-    
-    if (iconContainer && confirmBtn) {
-        if (actionType === 'delete') {
-            iconContainer.innerHTML = '<i class="fa-solid fa-trash-can"></i>';
-            iconContainer.style.color = 'var(--danger)';
-            confirmBtn.style.background = 'var(--danger)';
-            confirmBtn.style.borderColor = 'var(--danger)';
-        } else if (actionType === 'success') {
-            iconContainer.innerHTML = '<i class="fa-solid fa-circle-check"></i>';
-            iconContainer.style.color = 'var(--success)';
-            confirmBtn.style.background = 'var(--success)';
-            confirmBtn.style.borderColor = 'var(--success)';
-        } else {
-            iconContainer.innerHTML = '<i class="fa-solid fa-circle-question"></i>';
-            iconContainer.style.color = 'var(--primary-light)';
-            confirmBtn.style.background = 'var(--primary)';
-            confirmBtn.style.borderColor = 'var(--primary)';
-        }
-    }
-    window.openModal('modal-confirm');
-};
-
-window.resolveConfirm = function(isConfirmed) {
-    window.closeModal('modal-confirm');
-    if(promptCallback) promptCallback(isConfirmed);
-};
-
 const revealObserver = new IntersectionObserver((entries) => {
     entries.forEach(entry => { if(entry.isIntersecting) entry.target.classList.add('reveal-visible'); });
 }, { threshold: 0.1 });
+
 function observeReveals() { document.querySelectorAll('.reveal').forEach(el => revealObserver.observe(el)); }
 
 function typeWriterEffect() {
@@ -251,46 +190,6 @@ function typeWriterEffect() {
 }
 
 // ==========================================
-// KOTAK SARAN & REQUEST (FITUR BARU)
-// ==========================================
-window.kirimSaran = async function() {
-    const nameEl = document.getElementById('saran-name');
-    const msgEl = document.getElementById('saran-message');
-    const name = nameEl ? nameEl.value.trim() : '';
-    const msg = msgEl ? msgEl.value.trim() : '';
-    
-    if(!msg) {
-        window.customAlert('Peringatan', 'Pesan atau saran tidak boleh kosong.', 'warning');
-        return;
-    }
-
-    const btn = document.getElementById('btn-kirim-saran');
-    const ogHtml = btn.innerHTML;
-    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Mengirim...';
-    btn.disabled = true;
-
-    try {
-        const payload = {
-            name: name || (currentUser && !currentUser.isAnonymous && userProfile.name ? userProfile.name : 'Anonim'),
-            email: currentUser && !currentUser.isAnonymous ? currentUser.email : '-',
-            message: msg,
-            createdAt: Date.now()
-        };
-        
-        await addDoc(collection(db, pathSaran), payload);
-        
-        window.customAlert('Terkirim', 'Terima kasih atas masukan kamu! Saran berhasil dikirim ke pengembang.', 'success');
-        if(nameEl) nameEl.value = '';
-        if(msgEl) msgEl.value = '';
-    } catch(error) {
-        window.customAlert('Error', 'Gagal mengirim saran. Cek koneksi internetmu.', 'error');
-    } finally {
-        btn.innerHTML = ogHtml;
-        btn.disabled = false;
-    }
-};
-
-// ==========================================
 // INIT APP & FIREBASE AUTHENTICATION
 // ==========================================
 async function initApp() {
@@ -306,45 +205,27 @@ async function initApp() {
         
         onAuthStateChanged(auth, async (user) => {
             currentUser = user;
-            if (user) {
-                if (user.isAnonymous) {
-                    const savedAnonName = localStorage.getItem('vipercell_anon_name') || '';
-                    userProfile = { name: savedAnonName, phone: '', tier: 'bronze', tierExp: 0 };
-                    
-                    document.getElementById('btn-login-user').style.display = 'inline-flex';
-                    document.getElementById('nav-profil').style.display = 'none';
-                    document.getElementById('nav-pesanan').style.display = 'none';
-                    document.getElementById('nav-bot-pesanan').style.display = 'none';
-                    
-                    if(document.getElementById('nav-bot-lacak')) document.getElementById('nav-bot-lacak').style.display = 'flex';
-                    if(document.getElementById('btn-cek-pesanan')) document.getElementById('btn-cek-pesanan').style.display = 'inline-flex';
+            if (user && !user.isAnonymous) {
+                document.getElementById('btn-login-user').style.display = 'none';
+                const userDoc = await getDoc(doc(db, pathUsers, user.uid));
+                if(userDoc.exists()) {
+                    userProfile = { ...userProfile, ...userDoc.data() };
+                    document.getElementById('prof-name').value = userProfile.name || '';
+                    document.getElementById('prof-phone').value = userProfile.phone || '';
                 } else {
-                    document.getElementById('btn-login-user').style.display = 'none';
-                    const userDoc = await getDoc(doc(db, pathUsers, user.uid));
-                    if(userDoc.exists()) {
-                        userProfile = { ...userProfile, ...userDoc.data() };
-                        document.getElementById('prof-name').value = userProfile.name || '';
-                        document.getElementById('prof-phone').value = userProfile.phone || '';
-                    } else {
-                        userProfile = { name: '', phone: '', tier: 'bronze', tierExp: 0 };
-                    }
-                    
-                    document.getElementById('prof-email').value = user.email || '';
-                    document.getElementById('nav-profil').style.display = 'flex';
-                    document.getElementById('nav-pesanan').style.display = 'flex';
-                    document.getElementById('nav-bot-pesanan').style.display = 'flex';
-                    
-                    if(document.getElementById('nav-bot-lacak')) document.getElementById('nav-bot-lacak').style.display = 'none';
-                    if(document.getElementById('btn-cek-pesanan')) document.getElementById('btn-cek-pesanan').style.display = 'none';
-                    
-                    window.renderUserOrders(); 
-                    window.renderMembershipUI();
-                    updateProfileStats();
+                    userProfile = { name: '', phone: '' };
                 }
                 
-                document.getElementById('user-chat-fab').style.display = 'flex';
-                listenUserChat();
-                listenData();
+                document.getElementById('prof-email').value = user.email || '';
+                document.getElementById('nav-profil').style.display = 'flex';
+                document.getElementById('nav-pesanan').style.display = 'flex';
+                document.getElementById('nav-bot-pesanan').style.display = 'flex';
+                
+                if(document.getElementById('nav-bot-lacak')) document.getElementById('nav-bot-lacak').style.display = 'none';
+                if(document.getElementById('btn-cek-pesanan')) document.getElementById('btn-cek-pesanan').style.display = 'none';
+                
+                window.renderUserOrders();
+                updateProfileStats();
             } else {
                 document.getElementById('btn-login-user').style.display = 'inline-flex';
                 document.getElementById('nav-profil').style.display = 'none';
@@ -353,41 +234,14 @@ async function initApp() {
                 
                 if(document.getElementById('nav-bot-lacak')) document.getElementById('nav-bot-lacak').style.display = 'flex';
                 if(document.getElementById('btn-cek-pesanan')) document.getElementById('btn-cek-pesanan').style.display = 'inline-flex';
-                
-                signInAnonymously(auth).catch(() => {});
             }
+            document.getElementById('user-chat-fab').style.display = 'flex';
+            listenUserChat();
+            listenData();
         });
     } catch (error) { console.error("Auth Init Error:", error); }
     observeReveals();
 }
-
-// ==========================================
-// PENGIRIMAN AKUN OTOMATIS (AUTO-DELIVERY)
-// ==========================================
-window.attemptClientAutoDelivery = async function(orderData) {
-    if (orderData.items[0].type !== 'app' || orderData.items[0].processType === 'manual') return false;
-    try {
-        const targetBrand = orderData.items[0].brandName;
-        const exactItemName = orderData.items[0].exactItemName;
-        const stockQ = query(collection(db, pathStocks), where("brand", "==", targetBrand), where("itemName", "==", exactItemName), where("status", "==", "Ready"));
-        const stockSnap = await getDocs(stockQ);
-        
-        if (!stockSnap.empty) {
-            const readyStock = stockSnap.docs[0];
-            const stockData = readyStock.data();
-            const parts = stockData.data.split('|');
-            const em = parts[0] || '-';
-            const pw = parts[1] || '-';
-            const notes = parts[2] || '-';
-            
-            const autoReply = `Detail Akun Premium Kamu:\nEmail/NoHP: ${em}\nPassword: ${pw}\nDetail Tambahan: ${notes}\n\nTerima kasih telah berbelanja!`;
-            await updateDoc(doc(db, pathStocks, readyStock.id), { status: 'Used', usedAt: Date.now(), orderId: orderData.id });
-            await updateDoc(doc(db, pathOrders, orderData.dbId), { adminReply: autoReply, status: 'SUCCESS' });
-            return true;
-        }
-        return false;
-    } catch(e) { return false; }
-};
 
 // ==========================================
 // REAL-TIME DATA LISTENER (FIRESTORE)
@@ -400,11 +254,9 @@ function listenData() {
     onSnapshot(doc(db, pathSettings, 'mainConfig'), (docSnap) => {
         if (docSnap.exists()) {
             siteSettings = { ...siteSettings, ...docSnap.data() };
-            if(!siteSettings.membership) siteSettings.membership = { price: 50000, disc: 5 };
         }
         isSettingsLoaded = true;
         window.applySettingsToUI();
-        if(currentUser && !currentUser.isAnonymous) window.renderMembershipUI();
     });
 
     onSnapshot(collection(db, pathProducts), (snapshot) => {
@@ -446,7 +298,6 @@ function listenData() {
             let data = { dbId: docSnap.id, ...docSnap.data() };
             const orderTime = new Date(data.date).getTime();
             
-            // Logika QRIS EXPIRED
             if(data.status === 'UNPAID') {
                 if(now - orderTime > 240000) { 
                     updateDoc(doc(db, pathOrders, data.dbId), { status: 'EXPIRED' });
@@ -459,49 +310,14 @@ function listenData() {
                 }
             }
             newOrders.push(data);
-
             if (currentUser && data.userEmail === currentUser.email) {
                 let oldStatus = previousOrdersData[data.id];
-                // Jika status sebelumnya BUKAN Success, tapi sekarang SUCCESS
                 if (oldStatus && oldStatus !== 'SUCCESS' && data.status === 'SUCCESS') {
-                    // IMPLEMENTASI NOTIFIKASI NATIVE SAAT PESANAN BERHASIL
-                    window.fireNativeNotification(
-                        'Pesanan Selesai!', 
-                        `Hore! Pesanan ${data.id} berhasil diproses.`, 
-                        'success', 
-                        () => window.switchMainTab('pesanan')
-                    );
+                    window.showToast('Pesanan Selesai!', `Hore! Pesanan ${data.id} berhasil diproses.`, 'success', () => window.switchMainTab('pesanan'));
                 }
             }
             
             previousOrdersData[data.id] = data.status;
-
-            if (data.status === 'SUCCESS' && !data.adminReply && data.items[0].type === 'app' && data.items[0].processType === 'auto') {
-                if (currentUser && data.userEmail === currentUser.email) {
-                    if (!window.processingOrders) window.processingOrders = {};
-                    if (!window.processingOrders[data.id]) {
-                        window.processingOrders[data.id] = true;
-                        window.attemptClientAutoDelivery(data);
-                    }
-                }
-            }
-            
-            if (data.status === 'SUCCESS' && data.items[0].type === 'membership' && !data.adminReply) {
-                if (currentUser && data.userEmail === currentUser.email && !window.processingOrders) {
-                    window.processingOrders = {};
-                    if (!window.processingOrders[data.id]) {
-                        window.processingOrders[data.id] = true;
-                        let months = data.items[0].itemDuration || 1;
-                        let newExp = userProfile.tierExp || Date.now();
-                        if(newExp < Date.now()) newExp = Date.now();
-                        newExp += (months * 30 * 24 * 60 * 60 * 1000);
-                        
-                        updateDoc(doc(db, pathUsers, currentUser.uid), { tier: 'vip', tierExp: newExp }).then(()=>{
-                            updateDoc(doc(db, pathOrders, data.dbId), { adminReply: `Paket Member+ VIP ${months} Bulan berhasil diaktifkan. Selamat menikmati diskon otomatis!`});
-                        });
-                    }
-                }
-            }
         });
         
         orders = newOrders.sort((a,b) => new Date(b.date) - new Date(a.date));
@@ -516,7 +332,6 @@ function listenData() {
         
         if(currentUser && !currentUser.isAnonymous) {
             window.renderUserOrders();
-            window.renderMembershipUI();
             updateProfileStats();
         }
         initialOrderLoad = false;
@@ -526,127 +341,12 @@ function listenData() {
 function updateOrderBadges() {
     if (currentUser && !currentUser.isAnonymous) {
         const hasActionNeeded = orders.some(o => o.userEmail === currentUser.email && (o.status === 'UNPAID' || o.status === 'PENDING'));
-        
         const badgeDesk = document.getElementById('user-order-badge-desktop');
         if(badgeDesk) badgeDesk.style.display = hasActionNeeded ? 'block' : 'none';
         
         const badgeMob = document.getElementById('user-order-badge-mobile');
         if(badgeMob) badgeMob.style.display = hasActionNeeded ? 'block' : 'none';
     }
-}
-
-// ==========================================
-// FITUR MEMBERSHIP+
-// ==========================================
-window.renderMembershipUI = async function() {
-    if(!currentUser || currentUser.isAnonymous) return;
-    
-    let tier = userProfile.tier || 'bronze';
-    let exp = userProfile.tierExp || 0;
-
-    if (tier === 'vip' && exp > 0 && Date.now() > exp) {
-        tier = 'bronze'; exp = 0;
-        await updateDoc(doc(db, pathUsers, currentUser.uid), { tier, tierExp: exp });
-        userProfile.tier = tier; userProfile.tierExp = exp;
-    }
-
-    const tInfo = tier === 'vip' ? 
-        { name: 'Member VIP', label: 'MEMBER+ VIP AKTIF', color: '#f59e0b' } : 
-        { name: 'Bronze', label: 'MEMBER BASIC', color: 'rgba(0,0,0,0.3)' };
-
-    const badgeEl = document.getElementById('user-tier-badge');
-    const nameEl = document.getElementById('user-tier-name');
-    const expEl = document.getElementById('user-tier-validity');
-
-    if(badgeEl) { badgeEl.innerText = tInfo.label; badgeEl.style.background = tInfo.color; }
-    if(nameEl) nameEl.innerText = tInfo.name;
-    
-    if(tier === 'bronze') {
-        if(expEl) expEl.innerText = 'Selamanya';
-    } else {
-        if(expEl) expEl.innerText = new Date(exp).toLocaleDateString('id-ID');
-    }
-
-    let totalSaved = 0;
-    orders.forEach(o => {
-        if(o.userEmail === currentUser.email && o.status === 'SUCCESS' && o.memberDiscountApplied) {
-            totalSaved += o.memberDiscountApplied;
-        }
-    });
-    
-    const savedEl = document.getElementById('user-tier-saved');
-    if(savedEl) savedEl.innerText = `Rp${totalSaved.toLocaleString('id-ID')}`;
-}
-
-let selectedMemberDuration = 1;
-window.openUpgradeModal = function() {
-    document.getElementById('membership-checkout-section').style.display = 'block';
-    selectedMemberDuration = 1;
-    
-    const defaultDurCard = document.querySelector('input[name="member_duration"][value="1"]');
-    if(defaultDurCard) window.selectMembershipDuration(1, defaultDurCard.parentElement);
-    window.openModal('modal-upgrade-member');
-}
-
-window.selectMembershipDuration = function(months, el) {
-    selectedMemberDuration = months;
-    document.querySelectorAll('input[name="member_duration"]').forEach(input => {
-        input.parentElement.classList.remove('active');
-    });
-    el.classList.add('active'); el.querySelector('input').checked = true;
-    
-    const payType = document.querySelector('input[name="member_payment"]:checked')?.value || 'qris';
-    const payEl = document.querySelector(`input[name="member_payment"][value="${payType}"]`)?.parentElement;
-    if(payEl) window.selectMembershipPayment(payType, payEl);
-}
-
-window.selectMembershipPayment = function(val, el) {
-    document.querySelectorAll('input[name="member_payment"]').forEach(input => {
-        input.parentElement.classList.remove('active');
-    });
-    el.classList.add('active'); el.querySelector('input').checked = true;
-    
-    const memSettings = siteSettings.membership || { price: 50000, disc: 5 };
-    let baseTotal = memSettings.price * selectedMemberDuration;
-    if(selectedMemberDuration === 6) baseTotal = Math.round(baseTotal * 0.90);
-    if(selectedMemberDuration === 12) baseTotal = Math.round(baseTotal * 0.75);
-    
-    let finalPrice = baseTotal;
-    if(val === 'qris') finalPrice += Math.floor(Math.random() * 300) + 1;
-    
-    document.getElementById('membership-checkout-total').innerText = `Rp${finalPrice.toLocaleString('id-ID')}`;
-    document.getElementById('membership-checkout-total').dataset.final = finalPrice;
-    document.getElementById('membership-checkout-total').dataset.base = baseTotal;
-}
-
-window.processMembershipCheckout = async function() {
-    const paymentMethod = document.querySelector('input[name="member_payment"]:checked').value;
-    const finalTotal = parseInt(document.getElementById('membership-checkout-total').dataset.final);
-    const baseTotal = parseInt(document.getElementById('membership-checkout-total').dataset.base);
-    const uniqueCode = finalTotal - baseTotal;
-    
-    const invId = 'VP-MEM-' + Math.floor(100000 + Math.random() * 900000);
-    const singleItem = { 
-        cartId: Date.now().toString(), productDbId: 'membership', brandName: 'Membership', exactItemName: 'vip',
-        itemDuration: selectedMemberDuration, name: `Upgrade Member+ VIP (${selectedMemberDuration} Bulan)`, 
-        priceNum: baseTotal, type: 'membership', processType: 'manual', playerInfo: `Email: ${currentUser.email}`
-    };
-
-    const newOrder = {
-        id: invId, userEmail: currentUser.email, items: [singleItem], customerWa: userProfile.phone || '-',
-        finalTotal: finalTotal, baseTotal: baseTotal, uniqueCode: uniqueCode, promoCode: '',
-        promoDiscount: 0, memberDiscountApplied: 0, status: paymentMethod === 'cash' ? 'PENDING' : 'UNPAID',
-        paymentMethod: paymentMethod, adminReply: '', date: new Date().toISOString()
-    };
-
-    try {
-        const docRef = await addDoc(collection(db, pathOrders), newOrder);
-        currentCheckoutSession = { dbId: docRef.id, id: invId, finalTotal: finalTotal, method: paymentMethod, date: newOrder.date };
-        
-        window.closeModal('modal-upgrade-member');
-        if(paymentMethod === 'qris') setTimeout(() => window.openQRISModal(), 300);
-        else window.finishCashOrder();
-    } catch(e) { window.customAlert('Error', 'Gagal membuat pesanan', 'error'); }
 }
 
 // ==========================================
@@ -684,20 +384,21 @@ function checkChatUserState() {
     }
 }
 
-window.startAnonChat = function() {
+window.startAnonChat = async function() {
     const input = document.getElementById('chat-anon-name');
     const name = input ? input.value.trim() : '';
     if(!name) { window.customAlert('Nama Diperlukan', 'Silakan masukkan nama panggilan Anda.', 'warning'); return; }
     
     userProfile.name = name;
     localStorage.setItem('vipercell_anon_name', name);
+    
+    if(!currentUser) await signInAnonymously(auth);
     checkChatUserState();
 };
 
 function listenUserChat() {
     if(!currentUser) return;
     const chatRef = doc(db, pathChats, currentUser.uid);
-    
     if(chatUnsubscribe) chatUnsubscribe();
     
     chatUnsubscribe = onSnapshot(chatRef, (docSnap) => {
@@ -712,9 +413,7 @@ function listenUserChat() {
                 const lastMsg = userChatMessages[userChatMessages.length - 1];
                 if(lastMsg.sender === 'admin' && !document.getElementById('user-chat-window').classList.contains('active')) {
                     document.getElementById('user-chat-badge').style.display = 'block';
-                    
-                    // IMPLEMENTASI NOTIFIKASI NATIVE SAAT ADMIN MEMBALAS
-                    window.fireNativeNotification('Pesan Baru', 'Admin membalas pesan Anda.', 'info', () => window.toggleUserChat());
+                    window.showToast('Pesan Baru', 'Admin membalas pesan Anda.', 'info', () => window.toggleUserChat());
                 }
             }
         } else {
@@ -802,7 +501,7 @@ window.switchAuthTab = function(tab) {
         title.innerText = 'Lupa Sandi'; subtitle.innerText = 'Tenang, mari kita pulihkan akunmu.';
     } else {
         title.innerText = tab==='login' ? 'Masuk Akun' : 'Daftar Baru';
-        subtitle.innerText = tab==='login' ? 'Masuk untuk transaksi & menikmati harga member.' : 'Buat akun sekarang, nikmati transaksi otomatis yang cepat.';
+        subtitle.innerText = tab==='login' ? 'Masuk untuk transaksi.' : 'Buat akun sekarang untuk menyimpan riwayat pesanan.';
     }
 };
 
@@ -845,11 +544,10 @@ window.processLogin = async function() {
 
 window.processRegister = async function() {
     const name = document.getElementById('auth-r-name').value.trim();
-    const wa = document.getElementById('auth-r-wa').value.trim();
     const em = document.getElementById('auth-r-email').value.trim();
     const pw = document.getElementById('auth-r-pass').value.trim();
     
-    if(!name || !wa || !em || pw.length < 6) { 
+    if(!name || !em || pw.length < 6) { 
         window.customAlert('Peringatan', 'Harap lengkapi form dan Password minimal 6 karakter.', 'warning'); return; 
     }
     
@@ -857,33 +555,18 @@ window.processRegister = async function() {
     btn.innerText = 'Memproses...'; btn.disabled = true;
     try {
         const cred = await createUserWithEmailAndPassword(auth, em, pw);
-        await setDoc(doc(db, pathUsers, cred.user.uid), { email: em, name: name, phone: wa, tier: 'bronze', tierExp: 0, createdAt: new Date().toISOString() });
+        await setDoc(doc(db, pathUsers, cred.user.uid), { email: em, name: name, phone: '', role: 'user', createdAt: new Date().toISOString() });
         window.switchMainTab('profil');
         window.customAlert('Sukses', 'Akun berhasil didaftarkan.', 'success');
     } catch(e) { window.customAlert('Gagal', 'Email mungkin sudah terdaftar.', 'error'); } 
     finally { btn.innerText = 'Buat Akun Baru'; btn.disabled = false; }
 };
 
-function checkResetCooldown() {
-    const lastResetTime = localStorage.getItem('vipercell_last_reset') || 0;
-    const COOLDOWN = 4 * 60 * 1000;
-    const now = Date.now();
-    if (now - lastResetTime < COOLDOWN) {
-        const remaining = Math.ceil((COOLDOWN - (now - lastResetTime)) / 1000);
-        const min = Math.floor(remaining / 60); const sec = remaining % 60;
-        window.customAlert('Tunggu Sebentar', `Harap tunggu <b>${min}m ${sec}s</b> lagi.`, 'warning');
-        return false;
-    }
-    return true;
-}
-
 window.processReset = async function() {
     const em = document.getElementById('auth-res-email').value.trim();
     if(!em) { window.customAlert('Error', 'Masukkan email terdaftar.', 'error'); return; }
-    if(!checkResetCooldown()) return;
     try {
         await sendPasswordResetEmail(auth, em);
-        localStorage.setItem('vipercell_last_reset', Date.now());
         window.customAlert('Terkirim', 'Tautan reset telah dikirim ke email kamu.', 'success');
         window.switchAuthTab('login');
     } catch(e) { window.customAlert('Error', 'Gagal mengirim tautan reset.', 'error'); }
@@ -891,25 +574,22 @@ window.processReset = async function() {
 
 window.sendProfileResetPassword = async function() {
     if(!currentUser || currentUser.isAnonymous) return;
-    if(!checkResetCooldown()) return;
     try {
         await sendPasswordResetEmail(auth, currentUser.email);
-        localStorage.setItem('vipercell_last_reset', Date.now());
         window.customAlert('Terkirim', 'Cek kotak masuk email kamu untuk membuat sandi baru.', 'success');
     } catch (e) { window.customAlert('Gagal', 'Terjadi kesalahan sistem.', 'error'); }
 };
 
-window.googleLogin = async function() {
+window.processGoogleLogin = async function() {
     const provider = new GoogleAuthProvider();
     try {
         const result = await signInWithPopup(auth, provider);
         const userDoc = await getDoc(doc(db, pathUsers, result.user.uid));
         if (!userDoc.exists()) {
-            await signOut(auth);
-            window.customAlert('Akses Ditolak', 'Kamu belum mendaftar. Silakan Daftar Baru terlebih dahulu.', 'error');
-            return;
+            // Auto register via google
+            await setDoc(doc(db, pathUsers, result.user.uid), { email: result.user.email, name: result.user.displayName, phone: '', role: 'user', createdAt: new Date().toISOString() });
         }
-        window.switchMainTab('pesanan');
+        window.switchMainTab('katalog');
         window.customAlert('Sukses', 'Berhasil masuk via Google.', 'success');
     } catch (error) {}
 };
@@ -1019,7 +699,8 @@ window.renderBanners = function() {
     window.startBannerAuto();
 };
 
-let currentBanner = 0; let bannerInterval;
+let currentBanner = 0;
+let bannerInterval;
 window.goToBanner = function(idx) {
     currentBanner = idx;
     const track = document.getElementById('banner-track');
@@ -1094,7 +775,7 @@ window.renderBrands = function(filter) {
         const imgHtml = b.imgUrlBase64 
             ? `<img src="${b.imgUrlBase64}" alt="${b.brandName}" loading="lazy">` 
             : `<div style="width:100%; height:100%; background:var(--primary-gradient); display:flex; align-items:center; justify-content:center; font-size:3rem; font-weight:bold; color:rgba(255,255,255,0.3);">${b.brandName.charAt(0)}</div>`;
-            
+        
         const badgeHtml = b.isGangguan ? '<span class="card-badge" style="background:var(--warning); color:black;">MAINTENANCE</span>' : `<span class="card-badge">${typeName}</span>`;
         const clickAction = b.isGangguan ? `window.customAlert('Maintenance Server', 'Mohon maaf, produk ini sedang dalam gangguan jaringan.', 'warning')` : `window.openDirectBuyModal('${b.brandName}')`;
         const cssClass = b.isGangguan ? 'brand-card reveal sold-out' : 'brand-card reveal';
@@ -1116,6 +797,92 @@ window.renderBrands = function(filter) {
 };
 
 // ==========================================
+// ROBLOX AVATAR CHECKER (MULTI-PROXY)
+// ==========================================
+let typingTimer;
+const doneTypingInterval = 600;
+
+async function fetchFastest(url, roproxyUrl) {
+    const proxies = [
+        roproxyUrl, 
+        `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`, 
+        `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`
+    ];
+    return await Promise.any(proxies.map(async (proxy) => {
+        const res = await fetch(proxy);
+        if (!res.ok) throw new Error('Proxy gagal');
+        return await res.json();
+    }));
+}
+
+async function getRobloxUserId(username) {
+    const searchPath = `/v1/users/search?keyword=${username}&limit=10`;
+    const targetUrl = `https://users.roblox.com${searchPath}`;
+    const roproxyUrl = `https://users.roproxy.com${searchPath}`;
+    
+    const data = await fetchFastest(targetUrl, roproxyUrl);
+    if (!data || !data.data || data.data.length === 0) throw new Error("Username tidak ditemukan");
+    
+    const user = data.data.find(u => u.name.toLowerCase() === username.toLowerCase() || u.displayName.toLowerCase() === username.toLowerCase());
+    return user ? user.id : data.data[0].id;
+}
+
+async function getRobloxAvatar(userId) {
+    const targetPath = `/v1/users/avatar-headshot?userIds=${userId}&size=150x150&format=Png&isCircular=true`;
+    const targetUrl = `https://thumbnails.roblox.com${targetPath}`;
+    const roproxyUrl = `https://thumbnails.roproxy.com${targetPath}`;
+
+    const data = await fetchFastest(targetUrl, roproxyUrl);
+    if (data && data.data && data.data.length > 0 && data.data[0].imageUrl) {
+        return data.data[0].imageUrl;
+    }
+    throw new Error("Gagal memuat avatar");
+}
+
+function initRobloxChecker() {
+    const usernameInput = document.getElementById('buy-id');
+    const avatarImg = document.getElementById('roblox-avatar-img');
+    const statusIcon = document.getElementById('roblox-status-icon');
+    const loadingIcon = document.getElementById('roblox-loading-icon');
+    
+    if(!usernameInput || !avatarImg) return;
+
+    usernameInput.addEventListener('input', () => {
+        clearTimeout(typingTimer);
+        isRobloxValid = false;
+        statusIcon.style.display = 'none';
+        statusIcon.classList.remove('fa-xmark', 'fa-check');
+        
+        if (usernameInput.value.trim().length > 0) {
+            loadingIcon.style.display = 'inline-block';
+            avatarImg.src = `https://ui-avatars.com/api/?name=?&background=random`;
+            typingTimer = setTimeout(async () => {
+                const username = usernameInput.value.trim();
+                try {
+                    const userId = await getRobloxUserId(username);
+                    const avatarUrl = await getRobloxAvatar(userId);
+                    avatarImg.src = avatarUrl;
+                    statusIcon.classList.add('fa-check');
+                    statusIcon.style.color = 'var(--success)';
+                    statusIcon.style.display = 'inline-block';
+                    isRobloxValid = true;
+                } catch (error) {
+                    statusIcon.classList.add('fa-xmark');
+                    statusIcon.style.color = 'var(--danger)';
+                    statusIcon.style.display = 'inline-block';
+                    avatarImg.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(username)}&background=random`;
+                } finally {
+                    loadingIcon.style.display = 'none';
+                }
+            }, doneTypingInterval);
+        } else {
+            loadingIcon.style.display = 'none';
+            avatarImg.src = "https://ui-avatars.com/api/?name=?&background=random";
+        }
+    });
+}
+
+// ==========================================
 // PROSES PEMBELIAN (CHECKOUT)
 // ==========================================
 window.selectPaymentUI = function(val, el) {
@@ -1130,6 +897,9 @@ window.openDirectBuyModal = function(brandName) {
     if(brandObj.isGangguan) { window.customAlert('Maintenance Server', 'Mohon maaf, produk sedang gangguan.', 'warning'); return; }
     
     currentCheckoutBrand = brandObj; selectedProductForBuy = null; appliedPromo = null;
+    isRobloxValid = false; // Reset validasi Roblox
+    
+    if (typeof grecaptcha !== 'undefined') grecaptcha.reset();
     
     document.getElementById('buy-promo-code').value = '';
     document.getElementById('buy-promo-msg').innerHTML = '';
@@ -1137,17 +907,10 @@ window.openDirectBuyModal = function(brandName) {
     document.getElementById('buy-brand-badge').innerText = brandObj.type === 'game' ? 'TOP UP GAME' : 'APLIKASI PREMIUM';
     
     const imgEl = document.getElementById('buy-brand-img');
-    if(brandObj.imgUrlBase64) { imgEl.src = brandObj.imgUrlBase64; imgEl.style.display = 'block'; } 
+    if(brandObj.imgUrlBase64) { imgEl.src = brandObj.imgUrlBase64; imgEl.style.display = 'block'; }
     else { imgEl.style.display = 'none'; }
     
     const itemGrid = document.getElementById('buy-item-grid');
-    const tier = (currentUser && !currentUser.isAnonymous && userProfile.tier) ? userProfile.tier : 'bronze';
-    let discPercent = 0;
-    
-    if (tier === 'vip' && (userProfile.tierExp > Date.now() || userProfile.tierExp === 0)) {
-        const memSettings = siteSettings.membership || { price: 50000, disc: 5 };
-        discPercent = memSettings.disc;
-    }
     const sortedItems = [...brandObj.items].sort((a, b) => (a.priceNum||0) - (b.priceNum||0));
     
     let html = '';
@@ -1155,20 +918,7 @@ window.openDirectBuyModal = function(brandName) {
         const normalPrice = item.priceNum || 0;
         const isSold = item.soldOut;
         let badgeHtml = item.processType === 'manual' ? `<span class="discount-badge" style="background:var(--warning);">Manual</span>` : '';
-        let priceHtml = '';
-        
-        if (discPercent > 0 && !isSold) {
-            const discountAmt = Math.round(normalPrice * (discPercent / 100));
-            const finalPrice = normalPrice - discountAmt;
-            priceHtml = `
-                <div class="price-wrapper" style="flex-direction: column; gap: 0;">
-                    <span style="font-size: 0.75rem; text-decoration: line-through; color: var(--text-muted);">Rp${normalPrice.toLocaleString('id-ID')}</span>
-                    <span class="price-normal" style="font-size: 1rem; color: var(--success);">Rp${finalPrice.toLocaleString('id-ID')}</span>
-                    <span style="font-size: 0.65rem; color: var(--warning); background: rgba(245, 158, 11, 0.1); padding: 2px 6px; border-radius: 4px; margin-top: 4px; font-weight:bold;">Harga VIP</span>
-                </div>`;
-        } else {
-            priceHtml = `<div class="price-wrapper"><span class="price-normal">Rp${normalPrice.toLocaleString('id-ID')}</span></div>`;
-        }
+        let priceHtml = `<div class="price-wrapper"><span class="price-normal">Rp${normalPrice.toLocaleString('id-ID')}</span></div>`;
         
         html += `
             <div class="item-card ${isSold ? 'sold-out' : ''}" id="buy-card-${item.dbId}" onclick="${isSold ? '' : `window.selectItemToBuy('${item.dbId}')`}">
@@ -1181,52 +931,65 @@ window.openDirectBuyModal = function(brandName) {
     itemGrid.innerHTML = html;
     
     const fields = document.getElementById('buy-detail-fields');
+    fields.innerHTML = ''; // Reset Form
+    
     let inpType = brandObj.items[0]?.inputType || 'id_zone';
     let fmtDesc = brandObj.desc ? brandObj.desc.replace(/\n/g, '<br>') : '';
     let extraDesc = fmtDesc ? `<p style="font-size:0.8rem; color:var(--primary-light); background:rgba(37,99,235,0.1); padding:8px; border-radius:8px; margin-bottom:10px;"><i class="fa-solid fa-circle-info"></i> ${fmtDesc}</p>` : '';
     
+    let isRoblox = brandObj.brandName.toLowerCase().includes('roblox');
+    
     if(brandObj.type === 'game') {
-        if(inpType === 'id_only') {
-            fields.innerHTML = `
-                ${extraDesc}
-                <div class="form-group">
-                    <label for="buy-id">ID Player / Target (Wajib)</label>
-                    <input type="text" id="buy-id" class="form-control" placeholder="Contoh: 123456789" required>
-                    <small style="color:var(--danger); display:block; margin-top:5px; font-weight:bold;">*Kesalahan penulisan ID bukan tanggung jawab sistem.</small>
-                </div>`;
-        } else if(inpType === 'custom') {
-            fields.innerHTML = `
-                ${extraDesc}
-                <div class="form-group">
-                    <label for="buy-id">Informasi Akun / Server / Karakter (Wajib)</label>
-                    <input type="text" id="buy-id" class="form-control" placeholder="Contoh: Server Asia, Nickname Budi" required>
-                    <small style="color:var(--danger); display:block; margin-top:5px; font-weight:bold;">*Kesalahan penulisan data bukan tanggung jawab sistem.</small>
-                </div>`;
+        if (isRoblox) {
+            const tpl = document.getElementById('roblox-checker-template');
+            if (tpl) {
+                fields.appendChild(tpl.content.cloneNode(true));
+                initRobloxChecker();
+            }
         } else {
-            fields.innerHTML = `
-                ${extraDesc}
-                <div class="form-group">
-                    <label for="buy-id">ID Player (Wajib)</label>
-                    <input type="text" id="buy-id" class="form-control" placeholder="Contoh: 12345678" required>
-                    <small style="color:var(--danger); display:block; margin-top:5px; font-weight:bold;">*Kesalahan penulisan ID bukan tanggung jawab sistem.</small>
-                </div>
-                <div class="form-group">
-                    <label for="buy-zone">Zone ID / Server</label>
-                    <input type="text" id="buy-zone" class="form-control" placeholder="Contoh: 1234">
-                </div>`;
+            isRobloxValid = true; // Auto valid untuk game non-roblox
+            if(inpType === 'id_only') {
+                fields.innerHTML = `
+                    ${extraDesc}
+                    <div class="form-group">
+                        <label for="buy-id">ID Player / Target (Wajib)</label>
+                        <input type="text" id="buy-id" class="form-control" placeholder="Contoh: 123456789" required>
+                        <small style="color:var(--danger); display:block; margin-top:5px; font-weight:bold;">*Kesalahan penulisan ID bukan tanggung jawab sistem.</small>
+                    </div>`;
+            } else if(inpType === 'custom') {
+                fields.innerHTML = `
+                    ${extraDesc}
+                    <div class="form-group">
+                        <label for="buy-id">Informasi Akun / Server / Karakter (Wajib)</label>
+                        <input type="text" id="buy-id" class="form-control" placeholder="Contoh: Server Asia, Nickname Budi" required>
+                        <small style="color:var(--danger); display:block; margin-top:5px; font-weight:bold;">*Kesalahan penulisan data bukan tanggung jawab sistem.</small>
+                    </div>`;
+            } else {
+                fields.innerHTML = `
+                    ${extraDesc}
+                    <div class="form-group">
+                        <label for="buy-id">ID Player (Wajib)</label>
+                        <input type="text" id="buy-id" class="form-control" placeholder="Contoh: 12345678" required>
+                        <small style="color:var(--danger); display:block; margin-top:5px; font-weight:bold;">*Kesalahan penulisan ID bukan tanggung jawab sistem.</small>
+                    </div>
+                    <div class="form-group">
+                        <label for="buy-zone">Zone ID / Server</label>
+                        <input type="text" id="buy-zone" class="form-control" placeholder="Contoh: 1234">
+                    </div>`;
+            }
         }
     } else {
+        isRobloxValid = true;
         fields.innerHTML = `
             ${extraDesc}
-            <p style="font-size:0.85rem; color:var(--text-muted); text-align:center; padding: 1.2rem; background:rgba(37,99,235,0.08); border-radius:10px; border:1px dashed var(--primary-light);">Informasi akun premium akan langsung ditampilkan di menu <b>Lacak Pesanan</b> setelah sukses dibayar.</p>`;
+            <p style="font-size:0.85rem; color:var(--text-muted); text-align:center; padding: 1.2rem; background:rgba(37,99,235,0.08); border-radius:10px; border:1px dashed var(--primary-light);">Informasi akun premium akan dikirimkan otomatis setelah sukses dibayar.</p>`;
     }
     
-    const waInputGroup = document.getElementById('buy-wa-group');
-    const waInput = document.getElementById('buy-wa');
-    if(currentUser && !currentUser.isAnonymous && userProfile.phone) {
-        waInput.value = userProfile.phone; waInputGroup.style.display = 'none'; 
+    const emailInput = document.getElementById('buy-email');
+    if(currentUser && !currentUser.isAnonymous && currentUser.email) {
+        emailInput.value = currentUser.email;
     } else {
-        waInput.value = ''; waInputGroup.style.display = 'block';
+        emailInput.value = '';
     }
     
     const defaultPayCard = document.querySelector('input[name="payment_method"][value="qris"]');
@@ -1258,23 +1021,20 @@ window.applyPromoDirect = function() {
         appliedPromo = null; msgEl.innerHTML = `<span style="color:var(--danger)">Kode promo melampaui kuota.</span>`;
     } else if (p.targetBrand !== 'all' && p.targetBrand !== currentCheckoutBrand.brandName) {
         appliedPromo = null; msgEl.innerHTML = `<span style="color:var(--danger)">Khusus produk ${p.targetBrand}.</span>`;
-    } else if (p.targetUser === 'reseller' && (!userProfile.tier || userProfile.tier === 'bronze')) {
-        appliedPromo = null; msgEl.innerHTML = `<span style="color:var(--danger)">Khusus Member+ VIP.</span>`;
     } else if (p.targetUser === 'new') {
-        const hasOrders = orders.some(o => o.userEmail === currentUser.email);
+        const hasOrders = currentUser && orders.some(o => o.userEmail === currentUser.email);
         if (hasOrders) {
             appliedPromo = null; msgEl.innerHTML = `<span style="color:var(--danger)">Khusus Transaksi Pertama.</span>`;
-        } else { setValidPromo(p, msgEl); }
+        } else { 
+            appliedPromo = { dbId: p.dbId, code: p.code, amount: p.amount, type: p.type || 'nominal' };
+            msgEl.innerHTML = `<span style="color:var(--success)"><i class="fa-solid fa-check"></i> Promo berhasil dipakai!</span>`;
+        }
     } else {
-        setValidPromo(p, msgEl);
+        appliedPromo = { dbId: p.dbId, code: p.code, amount: p.amount, type: p.type || 'nominal' };
+        msgEl.innerHTML = `<span style="color:var(--success)"><i class="fa-solid fa-check"></i> Promo berhasil dipakai!</span>`;
     }
     window.calculateDirectBuyTotal();
 };
-
-function setValidPromo(p, msgEl) {
-    appliedPromo = { dbId: p.dbId, code: p.code, amount: p.amount, type: p.type || 'nominal' };
-    msgEl.innerHTML = `<span style="color:var(--success)"><i class="fa-solid fa-check"></i> Promo berhasil dipakai!</span>`;
-}
 
 window.calculateDirectBuyTotal = function() {
     const btnProc = document.getElementById('btn-process-buy');
@@ -1285,31 +1045,15 @@ window.calculateDirectBuyTotal = function() {
     }
     
     let baseTotal = selectedProductForBuy.priceNum;
-    let memberAppliedAmount = 0;
-    const tier = userProfile.tier || 'bronze';
-    
-    if (tier === 'vip' && (userProfile.tierExp > Date.now() || userProfile.tierExp === 0)) {
-        const memSettings = siteSettings.membership || { price: 50000, disc: 5 };
-        const discPercent = memSettings.disc;
-        if(discPercent > 0) {
-            memberAppliedAmount = Math.round(baseTotal * (discPercent / 100));
-            baseTotal -= memberAppliedAmount;
-            if(document.getElementById('buy-promo-code').value === '') {
-                document.getElementById('buy-promo-msg').innerHTML = `<span style="color:var(--primary-light)"><i class="fa-solid fa-crown"></i> Diskon VIP Diterapkan</span>`;
-            }
-        }
-    }
-    
     let disc = 0;
+    
     if(appliedPromo) {
         if(appliedPromo.type === 'percent') disc = Math.round(baseTotal * (appliedPromo.amount / 100));
         else disc = appliedPromo.amount;
         
         if(disc > baseTotal) disc = baseTotal;
         baseTotal -= disc;
-    } else if (document.getElementById('buy-promo-code').value === '' && tier === 'bronze') {
-        document.getElementById('buy-promo-msg').innerHTML = '';
-    }
+    } 
     
     document.getElementById('buy-total-price').innerText = `Rp${baseTotal.toLocaleString('id-ID')}`;
     
@@ -1324,47 +1068,74 @@ window.calculateDirectBuyTotal = function() {
 
 window.processDirectCheckout = async function() {
     if(!selectedProductForBuy) return;
-    let wa = document.getElementById('buy-wa').value;
-    if(currentUser && !currentUser.isAnonymous && userProfile.phone) wa = userProfile.phone;
-    if(!wa || wa.length < 9) { window.customAlert('Peringatan', 'Nomor WhatsApp wajib diisi!', 'warning'); return; }
+    
+    // Anti-Bot Validator (reCAPTCHA v2)
+    if (typeof grecaptcha !== 'undefined') {
+        const recaptchaResponse = grecaptcha.getResponse();
+        if(recaptchaResponse.length === 0) {
+            window.customAlert('Verifikasi Gagal', 'Harap centang kotak reCAPTCHA untuk memvalidasi bahwa Anda manusia.', 'warning');
+            return;
+        }
+    }
+    
+    const emailInput = document.getElementById('buy-email').value.trim();
+    if(!emailInput || !emailInput.includes('@')) { 
+        window.customAlert('Peringatan', 'Alamat Email wajib diisi dengan format yang benar!', 'warning'); 
+        return; 
+    }
     
     let playerInfo = '';
+    let isRobloxType = currentCheckoutBrand.brandName.toLowerCase().includes('roblox');
+    
     if(currentCheckoutBrand.type === 'game') {
         const pid = document.getElementById('buy-id').value.trim();
         const zol = document.getElementById('buy-zone') ? document.getElementById('buy-zone').value.trim() : '';
+        
         if(!pid) { window.customAlert('Peringatan', 'Target tujuan wajib diisi!', 'warning'); return; }
         
+        if(isRobloxType && !isRobloxValid) {
+            window.customAlert('Validasi Roblox', 'Username Roblox belum ditemukan. Pastikan ketikan benar dan tunggu centang hijau.', 'warning');
+            return;
+        }
+        
         let inpType = currentCheckoutBrand.items[0]?.inputType || 'id_zone';
-        if(inpType === 'id_only') playerInfo = `ID: ${pid}`;
+        if(isRobloxType) playerInfo = `Roblox User: ${pid}`;
+        else if(inpType === 'id_only') playerInfo = `ID: ${pid}`;
         else if(inpType === 'custom') playerInfo = `Info: ${pid}`;
         else playerInfo = `ID: ${pid} | Zone: ${zol}`;
     } else {
         playerInfo = `Akun Premium (Delivery Type: ${selectedProductForBuy.processType === 'manual' ? 'Manual' : 'Auto'})`;
     }
     
-    let rawTotal = selectedProductForBuy.priceNum;
-    let memberAppliedAmount = 0;
-    const tier = userProfile.tier || 'bronze';
-    if (tier === 'vip' && (userProfile.tierExp > Date.now() || userProfile.tierExp === 0)) {
-        const memSettings = siteSettings.membership || { price: 50000, disc: 5 };
-        const discPercent = memSettings.disc;
-        if(discPercent > 0) {
-            memberAppliedAmount = Math.round(rawTotal * (discPercent / 100));
-            rawTotal -= memberAppliedAmount;
-        }
+    // Guest Account Generation
+    let targetUserEmail = emailInput;
+    if(!currentUser || currentUser.isAnonymous) {
+        try {
+            const guestId = "GUEST_" + Date.now();
+            await setDoc(doc(db, pathUsers, guestId), { 
+                email: emailInput, 
+                name: emailInput.split('@')[0], 
+                role: 'guest', 
+                emailVerified: false, 
+                isTemporary: true,
+                createdAt: new Date().toISOString() 
+            });
+        } catch (e) { console.error("Gagal buat akun guest:", e); }
     }
     
+    let rawTotal = selectedProductForBuy.priceNum;
     let discountPromo = 0; let promoUsedCode = '';
+    
     if(appliedPromo) {
         if(appliedPromo.type === 'percent') discountPromo = Math.round(rawTotal * (appliedPromo.amount / 100));
         else discountPromo = appliedPromo.amount;
-        
         if(discountPromo > rawTotal) discountPromo = rawTotal;
         promoUsedCode = appliedPromo.code;
     }
     
     let baseTotal = rawTotal - discountPromo;
     if(baseTotal < 0) baseTotal = 0;
+    
     const paymentMethod = document.querySelector('input[name="payment_method"]:checked').value;
     
     let uniqueCode = 0;
@@ -1379,27 +1150,31 @@ window.processDirectCheckout = async function() {
         priceNum: selectedProductForBuy.priceNum, type: currentCheckoutBrand.type, 
         processType: selectedProductForBuy.processType || 'auto', playerInfo: playerInfo 
     };
-
+    
     const newOrder = {
-        id: invId, userEmail: currentUser.isAnonymous ? null : currentUser.email,
-        items: [singleItem], customerWa: wa, finalTotal: finalTotal, baseTotal: baseTotal,
+        id: invId, userEmail: targetUserEmail, customerWa: '-',
+        items: [singleItem], finalTotal: finalTotal, baseTotal: baseTotal,
         uniqueCode: uniqueCode, promoCode: promoUsedCode, promoDiscount: discountPromo,
-        memberDiscountApplied: memberAppliedAmount, status: paymentMethod === 'cash' ? 'PENDING' : 'UNPAID',
+        status: paymentMethod === 'cash' ? 'PENDING' : 'UNPAID',
         paymentMethod: paymentMethod, adminReply: '', date: new Date().toISOString()
     };
-
+    
     try {
         const docRef = await addDoc(collection(db, pathOrders), newOrder);
         currentCheckoutSession = { dbId: docRef.id, id: invId, finalTotal: finalTotal, method: paymentMethod, date: newOrder.date };
         
         if(appliedPromo) {
-            await updateDoc(doc(db, pathPromos, appliedPromo.dbId), { usedCount: increment(1) }).catch(e=>console.log(e));
+            await updateDoc(doc(db, pathPromos, appliedPromo.dbId), { usedCount: increment(1) }).catch(e=>{});
         }
         
         window.closeModal('modal-buy-direct');
+        if (typeof grecaptcha !== 'undefined') grecaptcha.reset();
+        
         if(paymentMethod === 'qris') setTimeout(() => window.openQRISModal(), 300);
         else window.finishCashOrder();
-    } catch (e) { window.customAlert("Error", "Gagal menghubungkan pesanan ke server, coba lagi.", "error"); }
+    } catch (e) { 
+        window.customAlert("Error", "Gagal menghubungkan pesanan ke server, coba lagi.", "error"); 
+    }
 };
 
 window.finishCashOrder = function() {
@@ -1422,8 +1197,46 @@ window.finishCashOrder = function() {
 };
 
 // ==========================================
-// TIMER QRIS & AUTO EXPIRE
+// DYNAMIC QRIS (CRC16 CCITT-FALSE)
 // ==========================================
+function calculateCrc16Ccitt(str) {
+    let crc = 0xFFFF;
+    for (let c = 0; c < str.length; c++) {
+        crc ^= str.charCodeAt(c) << 8;
+        for (let i = 0; i < 8; i++) {
+            if (crc & 0x8000) crc = (crc << 1) ^ 0x1021;
+            else crc = crc << 1;
+        }
+    }
+    return (crc >>> 0).toString(16).toUpperCase().padStart(4, '0');
+}
+
+function buildDynamicQris(rawQris, amount) {
+    rawQris = rawQris.trim();
+    if(!rawQris) return null;
+    
+    let base = rawQris.slice(0, -4);
+    if (!base.endsWith('6304')) {
+        let idx = rawQris.indexOf('6304');
+        if (idx !== -1) {
+            base = rawQris.substring(0, idx + 4);
+        } else {
+            return rawQris; // Format tidak dikenal, kembalikan mentah
+        }
+    }
+    
+    let tag54 = "54" + String(amount).length.toString().padStart(2, '0') + amount;
+    let newBase;
+    
+    if (base.includes("5802ID")) {
+        newBase = base.replace("5802ID", tag54 + "5802ID");
+    } else {
+        newBase = base.replace("6304", tag54 + "6304");
+    }
+    
+    return newBase + calculateCrc16Ccitt(newBase);
+}
+
 window.startQrisTimer = function(orderDate) {
     clearInterval(qrisInterval);
     const timerEl = document.getElementById('qris-timer-display');
@@ -1449,14 +1262,27 @@ window.startQrisTimer = function(orderDate) {
 };
 
 window.openQRISModal = function() {
-    const qrImgDisplay = document.getElementById('qris-image-display');
+    const qrisDisplayBox = document.getElementById('qris-qrcode-display');
     const qrErrorMsg = document.getElementById('qris-error-msg');
+    const qrisRawStr = siteSettings.qrisImageBase64; // Asumsi admin menyimpan String QRIS Mentah di field ini
     
-    if(siteSettings.qrisImageBase64) {
-        qrImgDisplay.src = siteSettings.qrisImageBase64;
-        qrImgDisplay.style.display = 'block'; qrErrorMsg.style.display = 'none';
+    if(qrisRawStr) {
+        qrisDisplayBox.style.display = 'flex'; 
+        qrErrorMsg.style.display = 'none';
+        qrisDisplayBox.innerHTML = ''; // Kosongkan canvas lama
+        
+        const finalDynamicStr = buildDynamicQris(qrisRawStr, currentCheckoutSession.finalTotal);
+        new QRCode(qrisDisplayBox, {
+            text: finalDynamicStr || qrisRawStr,
+            width: 220,
+            height: 220,
+            colorDark : "#000000",
+            colorLight : "#ffffff",
+            correctLevel : QRCode.CorrectLevel.H
+        });
     } else {
-        qrImgDisplay.style.display = 'none'; qrErrorMsg.style.display = 'block';
+        qrisDisplayBox.style.display = 'none'; 
+        qrErrorMsg.style.display = 'block';
     }
     
     document.getElementById('pay-total-display').innerText = `Rp${currentCheckoutSession.finalTotal.toLocaleString('id-ID')}`;
@@ -1481,7 +1307,7 @@ window.copyNominal = function() {
 };
 
 window.resumePayment = function(dbId) {
-    window.closeModal('modal-cek-pesanan');  
+    window.closeModal('modal-cek-pesanan'); 
     setTimeout(() => {
         const order = orders.find(o => o.dbId === dbId);
         if(!order) return;
@@ -1492,12 +1318,13 @@ window.resumePayment = function(dbId) {
 };
 
 window.downloadQRIS = function() {
-    const qrImg = document.getElementById('qris-image-display');
-    if (qrImg && qrImg.src && qrImg.style.display !== 'none') {
+    const qrisDisplayBox = document.getElementById('qris-qrcode-display');
+    const canvas = qrisDisplayBox.querySelector('canvas');
+    if (canvas) {
         const link = document.createElement('a');
-        link.download = `QRIS-Vipercell.png`; link.href = qrImg.src; link.click();
+        link.download = `QRIS-Vipercell.png`; link.href = canvas.toDataURL("image/png"); link.click();
     } else {
-        window.customAlert("Gagal", "Tidak ada gambar QRIS valid.", "error");
+        window.customAlert("Gagal", "Tidak ada gambar QRIS valid yang dirender.", "error");
     }
 };
 
@@ -1649,13 +1476,8 @@ window.trackOrder = function() {
         <div class="receipt-footer">
             <div class="receipt-row">
                 <span style="color:var(--text-muted);">Harga Normal</span>
-                <span>Rp${(order.baseTotal + order.promoDiscount + (order.memberDiscountApplied || 0)).toLocaleString('id-ID')}</span>
+                <span>Rp${(order.baseTotal + order.promoDiscount).toLocaleString('id-ID')}</span>
             </div>
-            ${order.memberDiscountApplied > 0 ? `
-            <div class="receipt-row">
-                <span style="color:var(--primary-light);"><i class="fa-solid fa-tags"></i> Potongan VIP</span>
-                <span style="color:var(--primary-light);">-Rp${order.memberDiscountApplied.toLocaleString('id-ID')}</span>
-            </div>` : ''}
             ${order.promoDiscount > 0 ? `
             <div class="receipt-row">
                 <span style="color:var(--success);">Promo (${order.promoCode})</span>
@@ -1688,7 +1510,7 @@ window.renderUserOrders = function() {
     }
     
     let html = '';
-    const renderLimit = userOrders.slice(0, 50); 
+    const renderLimit = userOrders.slice(0, 50);  
     
     renderLimit.forEach((o, index) => {
         const sBadge = o.status === 'UNPAID' ? 'status-unpaid' : o.status === 'PENDING' ? 'status-pending' : o.status === 'FAILED' ? 'status-failed' : o.status === 'EXPIRED' ? 'status-failed' : 'status-success';
@@ -1732,8 +1554,8 @@ window.renderUserOrders = function() {
         
         let actionHtml = (o.status === 'UNPAID') 
              ? `<button class="btn btn-primary" style="width:100%; margin-top:1rem;" onclick="window.resumePayment('${o.dbId}')">Lanjut Selesaikan Pembayaran</button>`
-             : '';
-             
+            : '';
+            
         const helpHtml = generateHelpButtons(o.id, o.status, o.items[0]);
         const animDelay = (index * 0.1) + 's';
         
@@ -1762,13 +1584,8 @@ window.renderUserOrders = function() {
                 <div class="receipt-footer">
                     <div class="receipt-row">
                         <span style="color:var(--text-muted);">Harga Normal</span>
-                        <span>Rp${(o.baseTotal + o.promoDiscount + (o.memberDiscountApplied || 0)).toLocaleString('id-ID')}</span>
+                        <span>Rp${(o.baseTotal + o.promoDiscount).toLocaleString('id-ID')}</span>
                     </div>
-                    ${o.memberDiscountApplied > 0 ? `
-                    <div class="receipt-row">
-                        <span style="color:var(--primary-light);"><i class="fa-solid fa-tags"></i> Potongan VIP</span>
-                        <span style="color:var(--primary-light);">-Rp${o.memberDiscountApplied.toLocaleString('id-ID')}</span>
-                    </div>` : ''}
                     ${o.promoDiscount > 0 ? `
                     <div class="receipt-row">
                         <span style="color:var(--success);">Promo (${o.promoCode})</span>

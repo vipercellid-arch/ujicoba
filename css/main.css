@@ -1,5 +1,5 @@
 /* ========================================================
-   VIPERCELL V16.2 - ULTIMATE FRONTEND CSS (USER)
+   VIPERCELL V17.0 - ULTIMATE FRONTEND CSS (USER)
    ======================================================== */
 
 /* ========================================================
@@ -67,7 +67,6 @@ body {
 body.no-scroll { overflow: hidden; }
 a { text-decoration: none; color: inherit; }
 ul { list-style: none; }
-
 button {
     cursor: pointer;
     border: none;
@@ -75,7 +74,6 @@ button {
     outline: none;
     background: transparent;
 }
-
 button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible {
     outline: 2px solid var(--primary-light);
     outline-offset: 2px;
@@ -117,21 +115,17 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 }
 
 /* Animasi Loading Spinner */
-.fa-spinner { animation: spin 1s linear infinite; }
+.fa-spinner, .fa-circle-notch { animation: spin 1s linear infinite; }
 @keyframes spin { 100% { transform: rotate(360deg); } }
 
 .btn-primary { background: var(--primary-gradient); color: white; box-shadow: 0 4px 15px rgba(37, 99, 235, 0.2); }
 .btn-primary:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(37, 99, 235, 0.4); }
-
 .btn-success { background: var(--success-gradient); color: white; box-shadow: 0 4px 15px rgba(16, 185, 129, 0.2); }
 .btn-success:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(16, 185, 129, 0.4); }
-
 .btn-warning { background: rgba(245, 158, 11, 0.15); color: var(--warning); border: 1px solid rgba(245, 158, 11, 0.3); }
 .btn-warning:hover:not(:disabled) { background: var(--warning); color: white; }
-
 .btn-danger { background: rgba(239, 68, 68, 0.1); color: var(--danger); border: 1px solid rgba(239, 68, 68, 0.2); }
 .btn-danger:hover:not(:disabled) { background: var(--danger); color: white; }
-
 .btn-outline { background: transparent; border: 1px solid var(--border); color: var(--text); }
 .btn-outline:hover:not(:disabled) { background: var(--surface-hover); }
 
@@ -151,7 +145,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .status-success { background: rgba(16, 185, 129, 0.1); color: var(--success); border: 1px solid rgba(16, 185, 129, 0.2);}
 .status-failed { background: rgba(239, 68, 68, 0.1); color: var(--danger); border: 1px solid rgba(239, 68, 68, 0.2);}
 
-/* TOAST NOTIFIKASI */
+/* TOAST NOTIFIKASI PWA & ALERT */
 .toast-container {
     position: fixed; top: 15px; left: 50%; transform: translateX(-50%);
     z-index: 999999; display: flex; flex-direction: column; gap: 10px;
@@ -178,14 +172,13 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
    ======================================================== */
 header {
     position: sticky; top: 0; z-index: 1000;
-    background: rgba(var(--surface-rgb, 15, 23, 42), 0.85); /* Fallback */
+    background: rgba(var(--surface-rgb, 15, 23, 42), 0.85);
     backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
     border-bottom: 1px solid var(--border); padding: 15px 0;
 }
 :root[data-theme="light"] header { background: rgba(255, 255, 255, 0.85); }
 
 .nav-container { display: flex; justify-content: space-between; align-items: center; }
-
 .logo-area { display: flex; align-items: center; gap: 10px; cursor: pointer; position: relative; }
 .logo-img { border-radius: 8px; object-fit: cover; }
 .logo-text { font-size: 1.4rem; font-weight: 900; letter-spacing: -0.5px; color: var(--text); }
@@ -210,11 +203,7 @@ header {
 
 .main-tab-content { display: none; padding-top: 2rem; padding-bottom: 4rem; animation: fadeIn 0.3s ease; }
 .main-tab-content.active { display: block; }
-
-@keyframes fadeIn {
-    from { opacity: 0; transform: translateY(10px); }
-    to { opacity: 1; transform: translateY(0); }
-}
+@keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 
 /* ========================================================
    5. HALAMAN KATALOG (HERO, MARQUEE, BANNERS, GRID)
@@ -234,10 +223,7 @@ header {
 }
 .marquee-content { display: inline-block; animation: marquee 20s linear infinite; }
 .marquee-text { font-size: 0.9rem; font-weight: 600; color: var(--primary-light); padding-right: 50px; }
-@keyframes marquee {
-    0% { transform: translateX(0); }
-    100% { transform: translateX(-50%); }
-}
+@keyframes marquee { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
 
 .banner-slider-container {
     width: 100%; border-radius: 16px; overflow: hidden; position: relative;
@@ -264,7 +250,6 @@ header {
 
 /* GRID PRODUK (KATALOG) */
 .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 15px; }
-
 .brand-card {
     background: var(--surface); border: 1px solid var(--border); border-radius: 16px;
     padding: 15px; text-align: center; cursor: pointer; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
@@ -276,7 +261,6 @@ header {
 }
 .brand-card:hover { transform: translateY(-5px); border-color: var(--primary-light); box-shadow: 0 10px 30px rgba(37,99,235,0.1); }
 .brand-card:hover::before { opacity: 1; }
-
 .brand-card.sold-out { opacity: 0.7; filter: grayscale(1); pointer-events: auto; }
 .brand-card.sold-out:hover { transform: none; border-color: var(--warning); box-shadow: none; }
 .brand-card.sold-out::before { background: var(--warning); opacity: 1; }
@@ -313,7 +297,6 @@ header {
     opacity: 0; visibility: hidden; pointer-events: none;
     transition: opacity 0.3s ease, visibility 0.3s ease; padding: 1rem;
 }
-
 .modal-overlay.active, .msg-overlay.active { opacity: 1; visibility: visible; pointer-events: all; }
 
 .modal-content, .msg-box {
@@ -333,7 +316,6 @@ header {
     padding-bottom: 1rem; position: sticky; top: -1.5rem; background: var(--surface); z-index: 10;
 }
 .modal-header h2 { font-size: 1.25rem; font-weight: 800; color: var(--text); }
-
 .close-btn {
     background: var(--surface-hover); border: 1px solid var(--border); color: var(--text-muted);
     border-radius: 50%; width: 36px; height: 36px; display: flex; justify-content: center; align-items: center;
@@ -348,16 +330,14 @@ header {
 .msg-icon.error { color: var(--danger); }
 .msg-icon.warning { color: var(--warning); }
 .msg-icon.info { color: var(--primary-light); }
-
 .msg-title { font-size: 1.3rem; font-weight: 800; margin-bottom: 0.5rem; color: var(--text); }
 .msg-desc { color: var(--text-muted); font-size: 0.9rem; margin-bottom: 1.5rem; line-height: 1.5; }
 
 /* ========================================================
-   7. FORM, INPUT & ITEM GRID CHECKOUT
+   7. FORM, INPUT, reCAPTCHA & ITEM GRID
    ======================================================== */
 .form-group { margin-bottom: 1.2rem; text-align: left; }
 .form-group label { display: block; font-size: 0.85rem; color: var(--text-muted); margin-bottom: 0.5rem; font-weight: 600; }
-
 .form-control {
     width: 100%; padding: 0.8rem 1.2rem; border-radius: 10px; border: 1px solid var(--border);
     background: var(--bg); color: var(--text); outline: none; transition: all 0.3s;
@@ -366,17 +346,39 @@ header {
 .form-control:focus { border-color: var(--primary-light); box-shadow: 0 0 0 4px rgba(37,99,235,0.1); }
 .form-control::placeholder { color: #64748b; }
 
+/* Styling QRIS Canvas Generator */
+#qris-qrcode-display canvas {
+    max-width: 100%;
+    height: auto !important;
+    border-radius: 6px;
+}
+
+/* Responsivitas Google reCAPTCHA di Layar HP Kecil */
+#recaptcha-container {
+    display: flex;
+    justify-content: center;
+    margin-top: 1.5rem;
+    overflow: hidden;
+    width: 100%;
+}
+@media (max-width: 360px) {
+    #recaptcha-container {
+        transform: scale(0.85);
+        transform-origin: 0 0;
+        width: 117%; /* Menyesuaikan scaling */
+    }
+}
+
 /* Pilihan Item Grid Modal */
 .item-selection-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; }
-
 .item-card {
     background: var(--bg); border: 2px solid var(--border); border-radius: 12px;
     padding: 12px; text-align: center; cursor: pointer; transition: all 0.2s; position: relative;
 }
 .item-card:hover:not(.sold-out) { border-color: var(--primary-light); background: var(--surface-hover); }
 .item-card.selected { border-color: var(--primary-light); background: rgba(37,99,235,0.08); box-shadow: 0 4px 15px rgba(37,99,235,0.15); }
-
 .item-card h4 { font-size: 0.85rem; color: var(--text); font-weight: 700; margin-bottom: 5px; line-height: 1.2; }
+
 .price-wrapper { display: flex; align-items: center; justify-content: center; gap: 5px; }
 .price-normal { font-size: 0.9rem; color: var(--primary-light); font-weight: 800; }
 
@@ -385,7 +387,6 @@ header {
     content: 'HABIS'; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(-15deg);
     background: var(--danger); color: white; font-size: 0.7rem; font-weight: 900; padding: 2px 8px; border-radius: 4px; border: 1px solid white;
 }
-
 .discount-badge {
     position: absolute; top: -8px; right: -8px; background: var(--success); color: white;
     font-size: 0.65rem; font-weight: bold; padding: 2px 6px; border-radius: 6px; z-index: 2; box-shadow: 0 2px 5px rgba(0,0,0,0.2);
@@ -401,7 +402,6 @@ header {
 .type-card i { font-size: 1.5rem; color: var(--text-muted); margin-bottom: 5px; transition: color 0.2s;}
 .type-card strong { font-size: 0.9rem; color: var(--text); }
 .type-card small { font-size: 0.7rem; color: var(--text-muted); margin-top: 2px; }
-
 .type-card:hover { border-color: var(--primary-light); background: var(--surface-hover); }
 .type-card.active { border-color: var(--primary-light); background: rgba(37,99,235,0.08); }
 .type-card.active i { color: var(--primary-light); }
@@ -415,7 +415,6 @@ header {
     padding-top: 1.5rem; border-top: 1px dashed var(--border);
 }
 .cart-total-box span { font-weight: bold; color: var(--text); font-size: 1.1rem; }
-.unique-code-info { font-size: 0.7rem; color: var(--warning); text-align: right; margin-top: 2px; }
 
 /* ========================================================
    8. KARTU INVOICE / PESANAN
@@ -424,7 +423,6 @@ header {
     background: var(--surface); border: 1px solid var(--border); border-radius: 16px;
     overflow: hidden; display: flex; flex-direction: column; box-shadow: 0 5px 15px rgba(0,0,0,0.1);
 }
-
 .receipt-anim { opacity: 0; transform: translateY(20px); animation: slideUp 0.5s ease forwards; }
 @keyframes slideUp { to { opacity: 1; transform: translateY(0); } }
 
@@ -434,7 +432,6 @@ header {
 }
 .receipt-body { padding: 20px; flex-grow: 1; }
 .receipt-footer { padding: 20px; background: var(--bg); border-top: 1px dashed var(--border); }
-
 .receipt-row { display: flex; justify-content: space-between; margin-bottom: 5px; font-size: 0.9rem; }
 
 .auto-delivery-box { background: rgba(16, 185, 129, 0.08); border: 1px solid var(--success); border-radius: 8px; padding: 15px; margin-top: 15px; }
@@ -454,13 +451,12 @@ header {
 }
 
 /* ========================================================
-   9. AUTHENTICATION & PROFIL
+   9. AUTHENTICATION & PROFIL & BERITA
    ======================================================== */
 .auth-fullscreen-card {
     max-width: 450px; margin: 0 auto; background: var(--surface); padding: 2.5rem 2rem;
     border-radius: 20px; border: 1px solid var(--border); box-shadow: 0 15px 35px rgba(0,0,0,0.2);
 }
-
 .auth-header-text { text-align: center; margin-bottom: 2rem; }
 .auth-header-text h2 { font-size: 1.8rem; font-weight: 900; color: var(--text); }
 .auth-header-text p { color: var(--text-muted); font-size: 0.9rem; margin-top: 5px; }
@@ -486,7 +482,6 @@ header {
 }
 .tut-accordion-header:hover { background: rgba(37,99,235,0.05); }
 .icon-arrow { transition: transform 0.3s; color: var(--primary-light); }
-
 .tut-accordion-body { max-height: 0; overflow: hidden; transition: max-height 0.4s ease-out; background: var(--bg); }
 .tutorial-info { padding: 20px; font-size: 0.9rem; color: var(--text-muted); line-height: 1.6; }
 
@@ -494,7 +489,7 @@ header {
 .tut-accordion-card.open .tut-accordion-body { max-height: 1000px; border-top: 1px solid var(--border); }
 
 /* ========================================================
-   10. LIVE CHAT USER (RESOLUSI OVERLAPPING BUG MOBILE)
+   10. LIVE CHAT USER
    ======================================================== */
 .chat-fab {
     position: fixed; bottom: 30px; right: 30px; width: 60px; height: 60px;
@@ -510,7 +505,6 @@ header {
     background: var(--danger); border-radius: 50%; border: 2px solid var(--bg); display: none;
 }
 
-/* Memastikan Jendela Chat Aman di Layar Kecil */
 .chat-window {
     position: fixed; bottom: 100px; right: 30px; width: 360px; height: 500px; max-height: 75vh;
     background: var(--surface); border-radius: 16px; border: 1px solid var(--border);
@@ -523,7 +517,6 @@ header {
 .chat-header { background: var(--surface-hover); padding: 15px; font-weight: 700; color: var(--text); border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
 .chat-body { flex: 1; padding: 15px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; background: var(--bg); }
 .chat-footer { padding: 15px; background: var(--surface); border-top: 1px solid var(--border); display: flex; gap: 10px; align-items: center; }
-
 .chat-footer input { flex: 1; padding: 10px 15px; border-radius: 20px; border: 1px solid var(--border); background: var(--bg); color: var(--text); outline: none; }
 .chat-footer button { width: 40px; height: 40px; border-radius: 50%; background: var(--primary); color: white; display: flex; justify-content: center; align-items: center; }
 
@@ -544,7 +537,6 @@ header {
 .footer-social-links { display: flex; gap: 10px; }
 .soc-btn { padding: 8px 15px; border-radius: 8px; font-size: 0.85rem; font-weight: 600; color: white; display: inline-flex; align-items: center; gap: 6px; transition: transform 0.2s; }
 .soc-btn:hover { transform: translateY(-3px); }
-
 .soc-ig { background: linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%); }
 .soc-tt { background: #000000; border: 1px solid #333; color: white; }
 
@@ -564,7 +556,6 @@ header {
     padding-bottom: env(safe-area-inset-bottom);
 }
 :root[data-theme="light"] .bottom-nav { background: rgba(255, 255, 255, 0.95); }
-
 .bottom-nav a {
     flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
     padding: 10px 0; color: var(--text-muted); font-size: 0.7rem; font-weight: 600; gap: 4px; transition: color 0.2s; position: relative; cursor: pointer;
@@ -600,8 +591,7 @@ header {
     .chat-fab { bottom: 85px; right: 20px; width: 55px; height: 55px; font-size: 1.5rem; }
     .chat-window { 
         bottom: 80px; right: 10px; width: calc(100% - 20px); 
-        height: 60vh; /* Menggunakan VH agar aman saat keyboard muncul */
-        z-index: 10001; 
+        height: 60vh; z-index: 10001; 
     }
 }
 
