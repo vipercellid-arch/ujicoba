@@ -9,10 +9,10 @@
     <meta name="keywords" content="top up game, aplikasi premium, netflix murah, spotify premium, diamond ml, qris otomatis">
     <meta name="author" content="Vipercell">
     
-    <!-- Optimisasi PWA / Mobile-Web-App -->
+    <!-- Optimisasi PWA -->
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="mobile-web-app-capable" content="yes">
-    <meta name="theme-color" content="#111827" id="meta-theme-color">
+    <meta name="theme-color" content="#101423" id="meta-theme-color">
     <link rel="manifest" href="manifest.json">
     <title>Vipercell - Premium App & Game Top Up</title>
     
@@ -25,7 +25,7 @@
     <link rel="preload" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" as="style" onload="this.onload=null;this.rel='stylesheet'">
     <noscript><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"></noscript>
     
-    <!-- Script Pihak Ketiga (QRIS Dinamis & reCAPTCHA) -->
+    <!-- Script Pihak Ketiga -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <script src="https://www.google.com/recaptcha/api.js" async defer></script>
     
@@ -37,7 +37,7 @@
         :root {
             --brand-green: #4ade80;
             --brand-yellow: #fde047;
-            --brand-pink: #ff66cc; /* Sesuai gambar tab aktif */
+            --brand-pink: #ff66cc; 
             --brand-blue: #38bdf8;
             --brand-orange: #fb923c;
             --border-thick: 2px solid #000;
@@ -52,38 +52,38 @@
             --card-text: #000;
         }
 
-        /* --- THEME DARK MODE Sesuai Gambar --- */
+        /* --- THEME DARK MODE SANGAT MATANG (Kontras Tinggi) --- */
         [data-theme="dark"] {
-            --bg: #101423; /* Deep Dark Blue/Navy as in screenshot */
-            --surface: #1e253c;
-            --surface-hover: #2a3454;
-            --text: #ffffff;
-            --text-muted: #9ca3af;
+            --bg: #0b0f19; /* Latar sangat gelap */
+            --surface: #151b2b; /* Latar card gelap */
+            --surface-hover: #1e263d;
+            --text: #ffffff; /* Teks utama putih bersih */
+            --text-muted: #9ca3af; /* Abu-abu terang */
             --border: #374151;
-            --border-thick: 2px solid #000;
+            --border-thick: 2px solid #1f2937;
             --shadow-brutal: 4px 4px 0px rgba(0,0,0,1);
             --shadow-brutal-hover: 6px 6px 0px rgba(0,0,0,1);
-            --card-text: #000; 
+            --card-text: #ffffff; /* Teks dalam card default putih */
         }
 
         body { background-color: var(--bg); color: var(--text); font-family: 'Inter', 'Nunito', sans-serif; transition: background-color 0.3s; }
 
         /* --- NAVIGASI PILL DESKTOP --- */
         .desktop-nav-pill {
-            background: #111827; border-radius: 30px; padding: 5px; display: inline-flex; align-items: center; gap: 5px; box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            background: #111827; border-radius: 30px; padding: 5px; display: inline-flex; align-items: center; gap: 5px; box-shadow: 0 4px 15px rgba(0,0,0,0.4);
         }
         .desktop-nav-pill a {
             color: #fff; padding: 10px 24px; border-radius: 25px; font-weight: 800; font-size: 0.9rem; cursor: pointer; transition: all 0.2s; text-decoration: none;
         }
         .desktop-nav-pill a:hover { color: var(--brand-pink); }
-        .desktop-nav-pill a.active {
-            background: var(--brand-pink); color: #000;
-        }
+        .desktop-nav-pill a.active { background: var(--brand-pink); color: #000; }
 
         .btn-brutal {
             border: var(--border-thick); border-radius: 8px; font-weight: 800; color: var(--card-text);
             transition: all 0.2s ease; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 8px;
         }
+        /* Override untuk tombol berwarna cerah agar teks selalu hitam */
+        .btn-black-text { color: #000 !important; border: 2px solid #000 !important; }
         .btn-brutal:active { transform: translate(4px, 4px); box-shadow: none !important; }
         
         .neo-card {
@@ -96,7 +96,7 @@
         }
         .neo-card-img-box img { width: 75px; height: 75px; border-radius: 16px; object-fit: cover; border: 2px solid #000; background: #fff; padding: 2px; }
         
-        /* --- EFEK KILAU BERLIAN (SPARKLE) & GOYANG --- */
+        /* --- EFEK KILAU & GOYANG --- */
         @keyframes wiggle { 0%, 100% { transform: rotate(0deg); } 25% { transform: rotate(-4deg); } 75% { transform: rotate(4deg); } }
         .wiggle-on-hover:hover { animation: wiggle 0.4s ease-in-out infinite; }
         
@@ -112,57 +112,55 @@
             animation: diamondSparkle 3.5s infinite ease-in-out; pointer-events: none; z-index: 2;
         }
         
-        /* --- EFEK MASUK (ENTRANCE) --- */
-        @keyframes slideRight { from { opacity: 0; transform: translateX(-40px); } to { opacity: 1; transform: translateX(0); } }
-        @keyframes slideUp { from { opacity: 0; transform: translateY(40px); } to { opacity: 1; transform: translateY(0); } }
-        .slide-right { animation: slideRight 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
-        .slide-up { animation: slideUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards; opacity: 0; }
-        
-        .line-clamp-2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+        /* Efek Glow */
+        .glow-effect { box-shadow: 0 0 15px rgba(0, 0, 0, 0.1); transition: box-shadow 0.3s ease; }
+        .neo-card:hover .glow-effect { box-shadow: 0 0 25px rgba(255, 102, 204, 0.5); }
+        [data-theme="dark"] .glow-effect { box-shadow: 0 0 15px var(--brand-blue); }
+        [data-theme="dark"] .neo-card:hover .glow-effect { box-shadow: 0 0 30px var(--brand-pink); }
 
-        .variant-item-card {
-            border: 2px solid var(--border); border-radius: 8px; padding: 12px; cursor: pointer; transition: all 0.2s; display: flex; justify-content: space-between; align-items: center; background: var(--surface); color: var(--text);
-        }
-        .variant-item-card:hover { border-color: var(--brand-pink); }
-        .variant-item-card.selected { border: var(--border-thick); background: var(--brand-yellow); color: #000; box-shadow: 2px 2px 0px #000; }
-        .variant-item-card.sold-out { opacity: 0.5; cursor: not-allowed; background: var(--surface-hover); }
-
+        /* --- TABS & MARQUEE --- */
         .neo-filter-tab {
-            border: var(--border-thick); border-radius: 20px; padding: 8px 18px; font-weight: 900; font-size: 0.85rem; background: var(--surface); color: var(--text); cursor: pointer; transition: all 0.2s;
+            border: var(--border-thick); border-radius: 20px; padding: 8px 18px; font-weight: 900; font-size: 0.85rem; background: var(--surface); color: var(--text); cursor: pointer; transition: all 0.2s; white-space: nowrap;
         }
-        .neo-filter-tab.active { background: #000; color: #fff; box-shadow: 2px 2px 0px rgba(255,255,255,0.2); }
+        .neo-filter-tab.active { background: var(--brand-pink); color: #000; box-shadow: 2px 2px 0px rgba(0,0,0,0.5); border: 2px solid #000; }
         [data-theme="light"] .neo-filter-tab.active { box-shadow: 2px 2px 0px #000; }
 
-        /* Styling Form di Dark Mode & Light Mode */
-        .form-control { background: var(--surface); color: var(--text); border: 2px solid var(--border); }
-        .form-control:focus { border-color: var(--brand-pink); outline: none; }
+        .marquee-container { overflow: hidden; white-space: nowrap; position: relative; display: flex; align-items: center; padding: 12px; }
+        .marquee-content { display: flex; animation: marqueeScroll 20s linear infinite; }
+        .marquee-text { padding: 0 2rem; font-size: 0.9rem; font-weight: 800; color: var(--text); }
+        @keyframes marqueeScroll { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
+
+        /* Styling Form */
+        .form-control { background: var(--surface); color: var(--text); border: 2px solid var(--border); padding: 12px 15px; border-radius: 8px; font-weight: 700; width: 100%; outline: none; transition: border-color 0.2s;}
+        .form-control:focus { border-color: var(--brand-pink); }
+        [data-theme="dark"] .form-control { border-color: #374151; }
+        [data-theme="dark"] .form-control:focus { border-color: var(--brand-pink); }
 
         /* --- RESPONSIVITAS MOBILE MATANG --- */
         @media (max-width: 768px) {
-            .checkout-grid { grid-template-columns: 1fr !important; gap: 1rem !important; }
+            .hide-mobile { display: none !important; }
+            .hide-mobile-nav { display: none !important; }
+            .bottom-nav { display: flex; }
+            .bottom-nav-spacer { display: block; height: 75px; }
+            
+            .checkout-grid { grid-template-columns: 1fr !important; gap: 1.5rem !important; }
             .payment-grid { grid-template-columns: 1fr !important; gap: 1.5rem !important; }
-            .hero-layout { flex-direction: column !important; }
+            .hero-layout { flex-direction: column !important; gap: 1.5rem !important; }
             .hero-features { grid-template-columns: 1fr !important; gap: 15px !important; }
             .hero-stats { grid-template-columns: 1fr !important; gap: 15px !important; }
             .pesanan-stats { grid-template-columns: 1fr !important; gap: 10px !important; }
-            .pesanan-filters { flex-wrap: nowrap; overflow-x: auto; padding-bottom: 5px; justify-content: flex-start !important; }
-            .pesanan-filters::-webkit-scrollbar { height: 0px; }
-            .hero-title { font-size: 2.2rem !important; text-align: left !important; }
-            .nav-container { padding: 10px !important; }
-            .desktop-nav-pill { display: none !important; }
             .cara-order-grid { grid-template-columns: 1fr !important; gap: 15px !important; }
+            
+            .pesanan-filters { flex-wrap: nowrap; overflow-x: auto; padding-bottom: 5px; justify-content: flex-start !important; }
+            .pesanan-filters::-webkit-scrollbar { height: 0px; display: none; }
+            
+            .hero-title { font-size: 2.4rem !important; text-align: left !important; }
+            .nav-container { padding: 10px 15px !important; }
+            
+            .modal-content { padding: 1.2rem; max-width: 95vw; }
+            .msg-box { padding: 1.5rem !important; }
         }
-
-        @keyframes spin { 100% { transform: rotate(360deg); } }
-        .loader { animation: spin 1s linear infinite; }
     </style>
-    
-    <script>
-        const savedTheme = localStorage.getItem('vipercell_theme') || 'dark';
-        document.documentElement.setAttribute('data-theme', savedTheme);
-        if(savedTheme === 'light') document.getElementById('meta-theme-color').setAttribute('content', '#ffffff');
-        else document.getElementById('meta-theme-color').setAttribute('content', '#101423');
-    </script>
 </head>
 <body>
     <div id="toast-container" class="toast-container"></div>
@@ -185,11 +183,11 @@
         <header style="border-bottom: var(--border-thick); background: var(--bg); position: sticky; top: 0; z-index: 50;">
             <div class="container nav-container" style="padding: 10px 20px; display: flex; justify-content: space-between; align-items: center;">
                 <div class="logo-area wiggle-on-hover" onclick="window.switchMainTab('beranda')" role="button" style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
-                    <img id="site-logo-img" src="" alt="Logo" class="logo-img" width="36" height="36" style="border: 2px solid #000; border-radius: 8px; padding: 2px; background: #fff;">
+                    <img id="site-logo-img" src="" alt="Logo" class="logo-img glow-effect" width="36" height="36" style="border: 2px solid #000; border-radius: 8px; padding: 2px; background: #fff;">
                     <span id="site-logo-text" class="logo-text" style="font-weight: 900; letter-spacing: -0.5px; font-size: 1.3rem; color: var(--text);">VIPER<span style="color: var(--brand-pink);">CELL</span></span>
                 </div>
                 
-                <!-- Navigasi Desktop Pill Sesuai Gambar -->
+                <!-- Navigasi Desktop Pill -->
                 <nav class="desktop-nav-pill hide-mobile-nav">
                     <a onclick="window.switchMainTab('beranda')" id="nav-beranda" class="active">Beranda</a>
                     <a onclick="window.switchMainTab('katalog')" id="nav-katalog">Produk</a>
@@ -201,11 +199,11 @@
                 </nav>
 
                 <div class="header-actions" style="display: flex; gap: 10px; align-items: center;">
-                    <button id="btn-theme-toggle" class="btn-icon-only wiggle-on-hover" aria-label="Ganti Tema" onclick="window.toggleTheme()" style="width:38px; height:38px; border: var(--border-thick); background: #111827; color: #fff; border-radius: 50%; display:flex; justify-content:center; align-items:center;">
+                    <button id="btn-theme-toggle" class="btn-icon-only wiggle-on-hover" aria-label="Ganti Tema" onclick="window.toggleTheme()" style="width:38px; height:38px; border: 2px solid #000; background: #111827; color: #fff; border-radius: 50%; display:flex; justify-content:center; align-items:center;">
                         <i class="fa-solid fa-moon" id="theme-icon"></i>
                     </button>
-                    <!-- Tepat 1 Tombol Login/Profil -->
-                    <button id="btn-auth-user" class="btn-brutal hide-mobile wiggle-on-hover" style="background: var(--brand-green); padding: 8px 18px; box-shadow: 2px 2px 0px #000; border-radius: 20px;" aria-label="Masuk" onclick="window.openAuthModal()">
+                    <!-- Tombol Login -->
+                    <button id="btn-auth-user" class="btn-brutal btn-black-text hide-mobile wiggle-on-hover" style="background: var(--brand-green); padding: 8px 18px; box-shadow: 2px 2px 0px #000; border-radius: 20px;" aria-label="Masuk" onclick="window.openAuthModal()">
                         <i class="fa-regular fa-user"></i> <span class="hide-mobile">Masuk</span>
                     </button>
                 </div>
@@ -213,12 +211,19 @@
         </header>
 
         <!-- ============================================== -->
-        <!-- TAB 1: BERANDA (UI SESUAI GAMBAR 19:51)        -->
+        <!-- TAB 1: BERANDA                                 -->
         <!-- ============================================== -->
         <div id="tab-beranda" class="main-tab-content active container" style="padding-top: 3rem;">
+            <!-- Marquee Running Text Atas -->
+            <div class="marquee-container reveal" style="border: var(--border-thick); border-radius: 12px; background: var(--surface); box-shadow: 2px 2px 0px #000; margin-bottom: 2rem;">
+                <div class="marquee-content" id="marquee-wrapper-home">
+                    <span class="marquee-text" id="marquee-text-1">Selamat Datang di Vipercell</span>
+                    <span class="marquee-text" id="marquee-text-2">Selamat Datang di Vipercell</span>
+                </div>
+            </div>
+
             <div class="hero-layout" style="display: flex; gap: 2rem; align-items: flex-start; justify-content: space-between; margin-bottom: 4rem;">
-                
-                <!-- Kiri: Teks Utama (Slide Right) -->
+                <!-- Kiri: Teks Utama -->
                 <div class="slide-right" style="flex: 1.2; max-width: 600px;">
                     <div style="background: var(--brand-yellow); color: #000; display: inline-block; padding: 4px 12px; border: 2px solid #000; border-radius: 6px; font-weight: 900; font-size: 0.75rem; margin-bottom: 1.5rem;">
                         LAYANAN OTOMATIS 24 JAM
@@ -227,33 +232,31 @@
                         Premium apps siap pakai, order cepat tanpa ribet.
                     </h1>
                     <p style="color: var(--text-muted); font-size: 1.05rem; margin-bottom: 1rem; font-weight: 600; line-height: 1.6;">
-                        Tempat beli akses premium apps favorit dengan harga ramah kantong, garansi toko, dan status pesanan yang bisa dipantau langsung. Cocok buat buyer yang mau praktis tanpa proses panjang.<br><br>
-                        <span id="tw-text" style="color: var(--brand-pink); font-weight: 800;"></span><span class="tw-cursor"></span>
+                        Tempat beli akses premium apps favorit dengan harga ramah kantong, garansi toko, dan status pesanan yang bisa dipantau langsung. Cocok buat buyer yang mau praktis tanpa proses panjang.
                     </p>
                     
                     <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-top: 2rem;">
                         <span style="background: var(--brand-yellow); color:#000; border:2px solid #000; padding:4px 12px; font-weight:800; font-size:0.75rem; border-radius:4px;"><i class="fa-solid fa-bolt"></i> QRIS CEPAT</span>
                         <span style="background: var(--brand-blue); color:#000; border:2px solid #000; padding:4px 12px; font-weight:800; font-size:0.75rem; border-radius:4px;"><i class="fa-solid fa-shield-halved"></i> PRIVASI PEMBELI</span>
                         <span style="background: var(--brand-pink); color:#000; border:2px solid #000; padding:4px 12px; font-weight:800; font-size:0.75rem; border-radius:4px;"><i class="fa-solid fa-key"></i> AKSES SIAP PAKAI</span>
-                        <span style="background: var(--brand-green); color:#000; border:2px solid #000; padding:4px 12px; font-weight:800; font-size:0.75rem; border-radius:4px;"><i class="fa-solid fa-headset"></i> BANTUAN AKTIF</span>
                     </div>
                 </div>
 
-                <!-- Kanan: 3 Kartu Fitur (Slide Up) -->
+                <!-- Kanan: 3 Kartu Fitur -->
                 <div class="hero-features slide-up" style="flex: 1; display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem;">
-                    <!-- Kartu 1 (Kuning) -->
+                    <!-- Kartu 1 -->
                     <div class="wiggle-on-hover" style="background: var(--brand-yellow); border: 2px solid #000; border-radius: 8px; padding: 1.5rem; color: #000; box-shadow: 2px 2px 0px #000;">
                         <i class="fa-solid fa-bolt" style="font-size: 1.5rem; margin-bottom: 10px;"></i>
                         <h3 style="font-weight: 900; font-size: 1.1rem; margin-bottom: 8px;">Harga termurah</h3>
                         <p style="font-size: 0.85rem; font-weight: 600; line-height: 1.5; margin:0;">Pilihan premium apps dibuat tetap ramah kantong tanpa ngorbanin kualitas layanan.</p>
                     </div>
-                    <!-- Kartu 2 (Biru) -->
+                    <!-- Kartu 2 -->
                     <div class="wiggle-on-hover" style="background: var(--brand-blue); border: 2px solid #000; border-radius: 8px; padding: 1.5rem; color: #000; box-shadow: 2px 2px 0px #000;">
                         <i class="fa-solid fa-shield-halved" style="font-size: 1.5rem; margin-bottom: 10px;"></i>
                         <h3 style="font-weight: 900; font-size: 1.1rem; margin-bottom: 8px;">Bergaransi</h3>
                         <p style="font-size: 0.85rem; font-weight: 600; line-height: 1.5; margin:0;">Setiap produk punya ketentuan garansi toko yang jelas kalau ada kendala setelah order.</p>
                     </div>
-                    <!-- Kartu 3 (Hijau, lebar penuh) -->
+                    <!-- Kartu 3 -->
                     <div class="wiggle-on-hover" style="grid-column: 1 / -1; background: var(--brand-green); border: 2px solid #000; border-radius: 8px; padding: 1.5rem; color: #000; box-shadow: 2px 2px 0px #000;">
                         <i class="fa-solid fa-circle-check" style="font-size: 1.5rem; margin-bottom: 10px;"></i>
                         <h3 style="font-weight: 900; font-size: 1.1rem; margin-bottom: 8px;">Status order</h3>
@@ -262,10 +265,10 @@
                 </div>
             </div>
 
-            <!-- Tiga Metrik Angka Bawah (Slide Up dengan delay ditaruh di CSS jika perlu, tapi kita pakai class barengan) -->
+            <!-- Tiga Metrik Angka -->
             <div class="hero-stats slide-up" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin-bottom: 4rem;">
                 <div style="background: var(--brand-orange); border: 2px solid #000; padding: 1.5rem; color: #000; text-align: center; box-shadow: 2px 2px 0px #000;">
-                    <div style="font-size: 2.8rem; font-weight: 900; line-height: 1;" id="home-stat-1">144</div>
+                    <div style="font-size: 2.8rem; font-weight: 900; line-height: 1;" id="home-stat-1">0</div>
                     <div style="font-size: 0.75rem; font-weight: 900; text-transform: uppercase; margin-top: 5px;">PESANAN SELESAI</div>
                 </div>
                 <div style="background: var(--brand-yellow); border: 2px solid #000; padding: 1.5rem; color: #000; text-align: center; box-shadow: 2px 2px 0px #000;">
@@ -283,17 +286,24 @@
         <!-- TAB 2: KATALOG PRODUK                          -->
         <!-- ============================================== -->
         <div id="tab-katalog" class="main-tab-content container" style="display: none; padding-top: 1.5rem;">
-            
-            <!-- Banner Pindah Kesini -->
+            <!-- Marquee Produk -->
+            <div class="marquee-container reveal" style="border: var(--border-thick); border-radius: 12px; background: var(--surface); box-shadow: 2px 2px 0px #000; margin-bottom: 2rem;">
+                <div class="marquee-content" id="marquee-wrapper-prod">
+                    <span class="marquee-text" id="marquee-text-3" style="font-weight: 800; color: var(--text);">Memuat promo terbaru...</span>
+                    <span class="marquee-text" id="marquee-text-4" style="font-weight: 800; color: var(--text);">Memuat promo terbaru...</span>
+                </div>
+            </div>
+
+            <!-- Banner Slider -->
             <div class="banner-slider-container reveal" id="banner-container" style="border: var(--border-thick); border-radius: 16px; overflow: hidden; box-shadow: var(--shadow-brutal); margin-bottom: 2rem;">
                 <div class="banner-track" id="banner-track"></div>
                 <div class="banner-dots" id="banner-dots"></div>
             </div>
 
-            <!-- Fitur Pencarian Produk -->
+            <!-- Pencarian Produk -->
             <div class="reveal" style="margin-bottom: 2rem; position: relative;">
                 <div style="position: absolute; left: 15px; top: 50%; transform: translateY(-50%); color: var(--text-muted);"><i class="fa-solid fa-magnifying-glass"></i></div>
-                <input type="text" id="search-product" placeholder="Cari nama aplikasi / game..." class="form-control" style="width: 100%; padding: 15px 20px 15px 45px; border-radius: 12px; font-weight: 800; font-size: 1rem; border: var(--border-thick); box-shadow: 2px 2px 0px rgba(0,0,0,0.1);" onkeyup="window.searchProduct()">
+                <input type="text" id="search-product" placeholder="Cari nama aplikasi / game..." class="form-control" style="width: 100%; padding: 15px 20px 15px 45px; border-radius: 12px; font-weight: 800; font-size: 1rem; border: var(--border-thick); box-shadow: 2px 2px 0px rgba(0,0,0,0.5);" onkeyup="window.searchProduct()">
             </div>
 
             <div class="tabs reveal" style="justify-content: flex-start; gap: 10px; margin-bottom: 2rem; border-bottom: none;">
@@ -308,7 +318,7 @@
         </div>
 
         <!-- ============================================== -->
-        <!-- TAB 3: PESANAN (UI BARU SESUAI GAMBAR 20:01)   -->
+        <!-- TAB 3: PESANAN                                 -->
         <!-- ============================================== -->
         <div id="tab-pesanan" class="main-tab-content container" style="display: none; padding-top: 2rem;">
             <div style="margin-bottom: 2rem;">
@@ -317,7 +327,7 @@
                 <p style="color: var(--text-muted); font-weight: 600;">Cek transaksi dan riwayat pesanan dalam satu halaman akun.</p>
             </div>
 
-            <!-- Kartu Status Atas (Kuning, Pink, Hijau) -->
+            <!-- Kartu Status -->
             <div class="pesanan-stats" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin-bottom: 2rem;">
                 <div style="background: var(--brand-yellow); border: 2px solid #000; border-radius: 12px; padding: 1.5rem; color: #000; box-shadow: 2px 2px 0px #000; display: flex; flex-direction: column; justify-content: space-between;">
                     <i class="fa-regular fa-clock" style="font-size: 1.2rem; margin-bottom: 10px;"></i>
@@ -329,7 +339,7 @@
                 <div style="background: var(--brand-pink); border: 2px solid #000; border-radius: 12px; padding: 1.5rem; color: #000; box-shadow: 2px 2px 0px #000; display: flex; flex-direction: column; justify-content: space-between;">
                     <i class="fa-solid fa-xmark" style="font-size: 1.2rem; margin-bottom: 10px;"></i>
                     <div>
-                        <div style="font-size: 2rem; font-weight: 900; line-height: 1;" id="stat-order-failed">1</div>
+                        <div style="font-size: 2rem; font-weight: 900; line-height: 1;" id="stat-order-failed">0</div>
                         <div style="font-size: 0.7rem; font-weight: 900; text-transform: uppercase; margin-top: 5px; opacity: 0.8;">BATAL / EXPIRED</div>
                     </div>
                 </div>
@@ -343,7 +353,7 @@
             </div>
 
             <!-- Peringatan Password -->
-            <div id="warn-order-pass" style="background: var(--brand-yellow); border: 2px solid #000; border-radius: 12px; padding: 1.2rem; display: flex; align-items: center; gap: 15px; color: #000; box-shadow: 2px 2px 0px #000; margin-bottom: 2rem;">
+            <div id="warn-order-pass" style="display:none; background: var(--brand-yellow); border: 2px solid #000; border-radius: 12px; padding: 1.2rem; align-items: center; gap: 15px; color: #000; box-shadow: 2px 2px 0px #000; margin-bottom: 2rem;">
                 <i class="fa-solid fa-key" style="font-size: 1.5rem;"></i>
                 <div>
                     <div style="font-weight: 900; font-size: 0.95rem;">Akun ini belum punya password.</div>
@@ -351,28 +361,26 @@
                 </div>
             </div>
 
-            <!-- Form Pencarian Kode Transaksi (Gaya Gelap Brutal) -->
-            <div style="background: #111827; border: 2px solid #000; border-radius: 16px; padding: 1.5rem; margin-bottom: 2rem;">
-                <label style="font-size: 0.75rem; font-weight: 900; color: #9ca3af; text-transform: uppercase; margin-bottom: 10px; display: block;">KODE TRANSAKSI</label>
+            <!-- Cek Transaksi -->
+            <div style="background: var(--surface); border: var(--border-thick); border-radius: 16px; padding: 1.5rem; margin-bottom: 2rem; box-shadow: var(--shadow-brutal);">
+                <label style="font-size: 0.75rem; font-weight: 900; color: var(--text-muted); text-transform: uppercase; margin-bottom: 10px; display: block;">KODE TRANSAKSI</label>
                 <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-                    <input type="text" id="track-id" placeholder="contoh: VP-12345" style="flex: 1; min-width: 200px; border-radius: 8px; border: 2px solid #374151; background: #1f2937; color: #fff; padding: 12px 15px; font-weight: 800; outline: none;">
-                    <button class="btn-brutal" style="background: var(--brand-yellow); padding: 12px 24px;" onclick="window.trackOrder()">
+                    <input type="text" id="track-id" class="form-control" placeholder="contoh: VP-12345" style="flex: 1; min-width: 200px; border-radius: 8px;">
+                    <button class="btn-brutal btn-black-text" style="background: var(--brand-yellow); padding: 12px 24px;" onclick="window.trackOrder()">
                         <i class="fa-solid fa-magnifying-glass"></i> Cek Status
                     </button>
                 </div>
-                <p style="font-size: 0.75rem; color: #9ca3af; font-weight: 600; margin-top: 10px;">Masukkan kode transaksi untuk cek status order spesifik.</p>
+                <p style="font-size: 0.75rem; color: var(--text-muted); font-weight: 600; margin-top: 10px;">Masukkan kode transaksi untuk cek status order spesifik.</p>
             </div>
             
             <div id="track-result" style="margin-bottom: 2rem; display: none;"></div>
 
-            <!-- Filter Status Tab Sesuai Gambar -->
             <div class="pesanan-filters" style="display: flex; gap: 10px; margin-bottom: 1.5rem; border-bottom: 2px solid var(--border); padding-bottom: 10px;">
                 <button class="neo-filter-tab active" onclick="window.filterOrders('unpaid', this)"><i class="fa-regular fa-clock"></i> Menunggu Pembayaran</button>
                 <button class="neo-filter-tab" onclick="window.filterOrders('failed', this)"><i class="fa-solid fa-xmark"></i> Dibatalkan</button>
                 <button class="neo-filter-tab" onclick="window.filterOrders('success', this)"><i class="fa-solid fa-check"></i> Selesai</button>
             </div>
 
-            <!-- List Order -->
             <div class="grid" id="user-order-grid" style="grid-template-columns: 1fr; margin: 0 auto;"></div>
         </div>
 
@@ -385,22 +393,18 @@
                 <h2 style="font-weight: 900; font-size: 2.5rem; letter-spacing: -1px; margin: 10px 0; color: var(--text);">Alur belanja singkat</h2>
             </div>
             
-            <!-- 3 Langkah Grid -->
             <div class="cara-order-grid" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.5rem; margin-bottom: 3rem;">
-                <!-- Langkah 1 -->
-                <div style="background: var(--brand-yellow); border: 2px solid #000; padding: 1.5rem; color: #000; box-shadow: 2px 2px 0px #000; min-height: 180px;">
+                <div style="background: var(--brand-yellow); border: 2px solid #000; padding: 1.5rem; color: #000; box-shadow: 2px 2px 0px #000; min-height: 180px; border-radius:12px;">
                     <div style="border: 2px solid #000; width: 36px; height: 36px; border-radius: 50%; display: flex; justify-content: center; align-items: center; font-weight: 900; background: #fff; margin-bottom: 1rem;">01</div>
                     <h3 style="font-weight: 900; font-size: 1.2rem; margin-bottom: 10px;">Pilih produk</h3>
                     <p style="font-size: 0.9rem; font-weight: 600; line-height: 1.5; margin:0;">Cari produk digital yang kamu butuhkan, lalu pilih varian dan jumlah order.</p>
                 </div>
-                <!-- Langkah 2 -->
-                <div style="background: var(--brand-blue); border: 2px solid #000; padding: 1.5rem; color: #000; box-shadow: 2px 2px 0px #000; min-height: 180px;">
+                <div style="background: var(--brand-blue); border: 2px solid #000; padding: 1.5rem; color: #000; box-shadow: 2px 2px 0px #000; min-height: 180px; border-radius:12px;">
                     <div style="border: 2px solid #000; width: 36px; height: 36px; border-radius: 50%; display: flex; justify-content: center; align-items: center; font-weight: 900; background: #fff; margin-bottom: 1rem;">02</div>
                     <h3 style="font-weight: 900; font-size: 1.2rem; margin-bottom: 10px;">Isi data pembeli</h3>
                     <p style="font-size: 0.9rem; font-weight: 600; line-height: 1.5; margin:0;">Masukkan email aktif untuk identitas pesanan dan akses riwayat setelah pembayaran sukses.</p>
                 </div>
-                <!-- Langkah 3 -->
-                <div style="background: var(--brand-green); border: 2px solid #000; padding: 1.5rem; color: #000; box-shadow: 2px 2px 0px #000; min-height: 180px;">
+                <div style="background: var(--brand-green); border: 2px solid #000; padding: 1.5rem; color: #000; box-shadow: 2px 2px 0px #000; min-height: 180px; border-radius:12px;">
                     <div style="border: 2px solid #000; width: 36px; height: 36px; border-radius: 50%; display: flex; justify-content: center; align-items: center; font-weight: 900; background: #fff; margin-bottom: 1rem;">03</div>
                     <h3 style="font-weight: 900; font-size: 1.2rem; margin-bottom: 10px;">Bayar QRIS</h3>
                     <p style="font-size: 0.9rem; font-weight: 600; line-height: 1.5; margin:0;">Scan QRIS, tunggu validasi, lalu cek status pesanan dari halaman transaksi.</p>
@@ -408,7 +412,7 @@
             </div>
 
             <div class="section-header" style="margin-top: 2rem;">
-                <h2 style="font-weight: 900;">Informasi Terbaru</h2>
+                <h2 style="font-weight: 900; color:var(--text);">Informasi Terbaru</h2>
                 <p style="color: var(--text-muted); font-weight: 600;">Berita dan pengumuman dari Admin.</p>
             </div>
             <div class="tutorial-grid" id="public-news-list">
@@ -427,7 +431,7 @@
                 </div>
 
                 <div class="dashboard-warnings" style="display: flex; flex-direction: column; gap: 1rem; margin-bottom: 2rem;">
-                    <div id="warn-unverified-email" style="background: var(--brand-yellow); border: 2px solid #000; border-radius: 12px; padding: 1.2rem; display: flex; justify-content: space-between; align-items: center; gap: 15px; color: #000; box-shadow: 2px 2px 0px #000;">
+                    <div id="warn-unverified-email" style="display:none; background: var(--brand-yellow); border: 2px solid #000; border-radius: 12px; padding: 1.2rem; justify-content: space-between; align-items: center; gap: 15px; color: #000; box-shadow: 2px 2px 0px #000;">
                         <div>
                             <div style="font-weight: 900; font-size: 0.95rem;"><i class="fa-solid fa-envelope-open-text" style="margin-right: 5px;"></i> Email belum terverifikasi.</div>
                             <div style="font-size: 0.8rem; font-weight: 600;">Selesaikan verifikasi supaya fitur ulasan berfungsi penuh.</div>
@@ -446,30 +450,40 @@
                             </div>
                             <div class="form-group" style="margin-bottom: 1.5rem;">
                                 <label for="prof-email" style="font-size: 0.75rem; font-weight: 900; text-transform: uppercase; color: var(--text-muted);">Email</label>
-                                <input type="email" id="prof-email" class="form-control" disabled style="border-radius: 8px; background: var(--surface-hover); opacity:0.7; font-weight: 600;">
+                                <input type="email" id="prof-email" class="form-control" disabled style="border-radius: 8px; opacity:0.7; font-weight: 600;">
                             </div>
-                            <button class="btn-brutal" style="background: var(--brand-yellow); padding: 12px 24px; box-shadow: 2px 2px 0px #000;" onclick="window.saveUserProfile()">
+                            <button class="btn-brutal btn-black-text wiggle-on-hover" style="background: var(--brand-yellow); padding: 12px 24px; box-shadow: 2px 2px 0px #000;" onclick="window.saveUserProfile()">
                                 <i class="fa-solid fa-floppy-disk"></i> Simpan Profil
                             </button>
                         </div>
                     </div>
 
-                    <!-- Verifikasi / Ubah Password -->
+                    <!-- Keamanan (Direct Set Password) -->
                     <div style="border: var(--border-thick); border-radius: 16px; background: var(--surface); overflow: hidden; box-shadow: var(--shadow-brutal);">
                         <div style="padding: 1.2rem; border-bottom: var(--border-thick); font-weight: 900; font-size: 1.2rem; color: var(--text); background: var(--surface-hover);">Keamanan & Verifikasi</div>
                         <div style="padding: 1.5rem;">
-                            <p style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 1rem; font-weight: 600;">Centang captcha di bawah sebelum melakukan permintaan keamanan (Kirim Verifikasi / Reset Sandi).</p>
+                            <p style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 1rem; font-weight: 600;">Pusat keamanan akun. Centang reCAPTCHA untuk memvalidasi aksi.</p>
                             
-                            <div style="margin-bottom: 1.5rem; transform: scale(0.9); transform-origin: left top;">
-                                <div class="g-recaptcha" data-sitekey="6LdZer4tAAAAAIA4j0L1uXsRhvfoNLfTvhAeDpld" data-size="normal" id="profile-captcha"></div>
+                            <!-- Form Atur Sandi Langsung -->
+                            <div id="direct-password-form" style="display:none; background: var(--surface-hover); border: var(--border-thick); border-radius: 12px; padding: 1rem; margin-bottom: 1.5rem;">
+                                <label style="font-size: 0.8rem; font-weight: 900; text-transform: uppercase; color: var(--text); margin-bottom:5px; display:block;">Buat Password Baru</label>
+                                <div style="display: flex; gap: 10px; flex-wrap:wrap;">
+                                    <input type="password" id="new-direct-password" class="form-control" placeholder="Minimal 6 karakter" style="flex:1; min-width:200px;">
+                                    <button class="btn-brutal btn-black-text" style="background: var(--brand-green); padding: 10px 20px; box-shadow: 2px 2px 0px #000;" onclick="window.setDirectPassword()">Simpan</button>
+                                </div>
+                            </div>
+                            
+                            <!-- ReCAPTCHA -->
+                            <div style="margin-bottom: 1.5rem; transform: scale(0.9); transform-origin: left top;" id="profile-captcha-container">
+                                <div class="g-recaptcha" data-sitekey="6LdZer4tAAAAAIA4j0L1uXsRhvfoNLfTvhAeDpld" data-size="normal"></div>
                             </div>
 
                             <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-                                <button id="btn-verify-email" class="btn-brutal" style="background: var(--brand-blue); padding: 12px 20px; box-shadow: 2px 2px 0px #000;" onclick="window.sendVerificationEmail()">
+                                <button id="btn-verify-email" class="btn-brutal btn-black-text" style="background: var(--brand-blue); padding: 12px 20px; box-shadow: 2px 2px 0px #000;" onclick="window.sendVerificationEmail()">
                                     Kirim Verifikasi Email
                                 </button>
-                                <button class="btn-brutal" style="background: var(--surface); padding: 12px 20px; box-shadow: 2px 2px 0px #000;" onclick="window.sendProfileResetPassword()">
-                                    <i class="fa-solid fa-key"></i> Buat / Ubah Password
+                                <button class="btn-brutal" style="background: var(--surface); color:var(--text); padding: 12px 20px; box-shadow: 2px 2px 0px #000;" onclick="window.sendProfileResetPassword()">
+                                    <i class="fa-solid fa-key"></i> Lupa Sandi (Kirim Email)
                                 </button>
                             </div>
                         </div>
@@ -486,7 +500,7 @@
         <!-- TAB 6: AUTHENTICATION                          -->
         <!-- ============================================== -->
         <div id="tab-auth" class="main-tab-content container" style="display: none; padding-top: 2rem;">
-            <div class="auth-fullscreen-card slide-up" style="border: var(--border-thick); border-radius: 24px; box-shadow: 8px 8px 0px #000; max-width: 450px; margin: 0 auto; padding: 2.5rem; background: var(--surface);">
+            <div class="auth-fullscreen-card slide-up" style="border: var(--border-thick); border-radius: 24px; box-shadow: 8px 8px 0px rgba(0,0,0,1); max-width: 450px; margin: 0 auto; padding: 2.5rem; background: var(--surface);">
                 <div class="auth-header-text" style="text-align: left; margin-bottom: 2rem;">
                     <h2 id="auth-title" style="font-size: 2.2rem; font-weight: 900; color: var(--text); letter-spacing: -1px;">Masuk Akun</h2>
                     <p id="auth-subtitle" style="color: var(--text-muted); font-size: 0.95rem; margin-top: 5px; font-weight: 600;">Daftar atau masuk untuk menyimpan riwayat pesanan & memberikan ulasan.</p>
@@ -497,75 +511,78 @@
                     <button aria-label="Tab Masuk" id="tab-login" class="active" style="flex:1; padding: 12px; font-weight: 900; color: #000; background: var(--brand-green); border: none; cursor: pointer;" onclick="window.switchAuthTab('login')">Masuk</button>
                 </div>
                 
+                <!-- LOGIN FORM -->
                 <div id="form-login" class="auth-form-body">
                     <div class="form-group" style="margin-bottom: 1rem;">
-                        <label for="auth-l-email" style="font-size: 0.75rem; font-weight: 900; text-transform: uppercase;">Email</label>
-                        <input type="email" id="auth-l-email" class="form-control" placeholder="email@domain.com" style="border-radius: 8px; font-weight: 600;">
+                        <label for="auth-l-email" style="font-size: 0.75rem; font-weight: 900; text-transform: uppercase; color:var(--text);">Email</label>
+                        <input type="email" id="auth-l-email" class="form-control" placeholder="email@domain.com">
                     </div>
                     <div class="form-group" style="margin-bottom: 1rem;">
-                        <label for="auth-l-pass" style="font-size: 0.75rem; font-weight: 900; text-transform: uppercase;">Password</label>
+                        <label for="auth-l-pass" style="font-size: 0.75rem; font-weight: 900; text-transform: uppercase; color:var(--text);">Password</label>
                         <div style="position: relative;">
-                            <input type="password" id="auth-l-pass" class="form-control" placeholder="Password akun web" style="border-radius: 8px; font-weight: 600;">
+                            <input type="password" id="auth-l-pass" class="form-control" placeholder="Password akun web">
                             <i class="fa-solid fa-eye-slash" style="position: absolute; right: 15px; top: 50%; transform: translateY(-50%); color: var(--text-muted); cursor: pointer;" onclick="window.togglePassword('auth-l-pass', this)"></i>
                         </div>
                     </div>
                     
-                    <div style="margin-bottom: 1.5rem; display: flex; justify-content: flex-start; transform: scale(0.85); transform-origin: left top;">
+                    <div style="margin-bottom: 1.5rem; display: flex; justify-content: flex-start; transform: scale(0.85); transform-origin: left top;" id="login-captcha-container">
                         <div class="g-recaptcha" data-sitekey="6LdZer4tAAAAAIA4j0L1uXsRhvfoNLfTvhAeDpld" data-size="normal"></div>
                     </div>
                     
-                    <button id="btn-do-login" class="btn-brutal" style="width: 100%; padding: 14px; margin-bottom: 1rem; background: var(--brand-yellow); box-shadow: var(--shadow-brutal);" onclick="window.processLogin()">
+                    <button id="btn-do-login" class="btn-brutal btn-black-text wiggle-on-hover" style="width: 100%; padding: 14px; margin-bottom: 1rem; background: var(--brand-yellow); box-shadow: var(--shadow-brutal);" onclick="window.processLogin()">
                         <i class="fa-solid fa-arrow-right-to-bracket"></i> Masuk Sekarang
                     </button>
                     <div style="text-align: center;"><a href="#" style="font-size: 0.85rem; color: var(--text); font-weight:900; text-decoration: underline;" onclick="window.showResetPassword()">Lupa password?</a></div>
                 </div>
                 
+                <!-- REGISTER FORM -->
                 <div id="form-register" class="auth-form-body" style="display: none;">
                     <div class="form-group" style="margin-bottom: 1rem;">
-                        <label for="auth-r-name" style="font-size: 0.75rem; font-weight: 900; text-transform: uppercase;">Nama</label>
-                        <input type="text" id="auth-r-name" class="form-control" placeholder="Nama panggilanmu" style="border-radius: 8px; font-weight: 600;">
+                        <label for="auth-r-name" style="font-size: 0.75rem; font-weight: 900; text-transform: uppercase; color:var(--text);">Nama</label>
+                        <input type="text" id="auth-r-name" class="form-control" placeholder="Nama panggilanmu">
                     </div>
                     <div class="form-group" style="margin-bottom: 1rem;">
-                        <label for="auth-r-email" style="font-size: 0.75rem; font-weight: 900; text-transform: uppercase;">Email</label>
-                        <input type="email" id="auth-r-email" class="form-control" placeholder="email@domain.com" style="border-radius: 8px; font-weight: 600;">
+                        <label for="auth-r-email" style="font-size: 0.75rem; font-weight: 900; text-transform: uppercase; color:var(--text);">Email</label>
+                        <input type="email" id="auth-r-email" class="form-control" placeholder="email@domain.com">
                     </div>
                     <div class="form-group" style="margin-bottom: 1rem;">
-                        <label for="auth-r-pass" style="font-size: 0.75rem; font-weight: 900; text-transform: uppercase;">Password</label>
-                        <input type="password" id="auth-r-pass" class="form-control" placeholder="Minimal 6 karakter" style="border-radius: 8px; font-weight: 600;">
+                        <label for="auth-r-pass" style="font-size: 0.75rem; font-weight: 900; text-transform: uppercase; color:var(--text);">Password</label>
+                        <input type="password" id="auth-r-pass" class="form-control" placeholder="Minimal 6 karakter">
                     </div>
                     
-                    <div style="margin-bottom: 1.5rem; display: flex; justify-content: flex-start; transform: scale(0.85); transform-origin: left top;">
+                    <div style="margin-bottom: 1.5rem; display: flex; justify-content: flex-start; transform: scale(0.85); transform-origin: left top;" id="register-captcha-container">
                         <div class="g-recaptcha" data-sitekey="6LdZer4tAAAAAIA4j0L1uXsRhvfoNLfTvhAeDpld" data-size="normal"></div>
                     </div>
                     
-                    <button id="btn-do-register" class="btn-brutal" style="width: 100%; padding: 14px; background: var(--brand-blue); box-shadow: var(--shadow-brutal);" onclick="window.processRegister()">
+                    <button id="btn-do-register" class="btn-brutal btn-black-text wiggle-on-hover" style="width: 100%; padding: 14px; background: var(--brand-blue); box-shadow: var(--shadow-brutal);" onclick="window.processRegister()">
                         <i class="fa-solid fa-user-plus"></i> Buat Akun Baru
                     </button>
                 </div>
                 
+                <!-- RESET PASSWORD -->
                 <div id="form-reset" class="auth-form-body" style="display: none;">
                     <p style="font-size:0.9rem; color:var(--text-muted); margin-bottom:1.5rem; font-weight: 600;">Masukkan email terdaftar, kami kirimkan link reset.</p>
                     <div class="form-group" style="margin-bottom: 1.5rem;">
-                        <label for="auth-res-email" style="font-size: 0.75rem; font-weight: 900; text-transform: uppercase;">Email Terdaftar</label>
-                        <input type="email" id="auth-res-email" class="form-control" placeholder="email@domain.com" style="border-radius: 8px; font-weight: 600;">
+                        <label for="auth-res-email" style="font-size: 0.75rem; font-weight: 900; text-transform: uppercase; color:var(--text);">Email Terdaftar</label>
+                        <input type="email" id="auth-res-email" class="form-control" placeholder="email@domain.com">
                     </div>
                     
-                    <div style="margin-bottom: 1.5rem; display: flex; justify-content: flex-start; transform: scale(0.85); transform-origin: left top;">
-                        <div class="g-recaptcha" data-sitekey="6LdZer4tAAAAAIA4j0L1uXsRhvfoNLfTvhAeDpld" data-size="normal" id="reset-captcha"></div>
+                    <div style="margin-bottom: 1.5rem; display: flex; justify-content: flex-start; transform: scale(0.85); transform-origin: left top;" id="reset-captcha-container">
+                        <div class="g-recaptcha" data-sitekey="6LdZer4tAAAAAIA4j0L1uXsRhvfoNLfTvhAeDpld" data-size="normal"></div>
                     </div>
 
-                    <button class="btn-brutal" style="width: 100%; padding: 14px; margin-bottom: 10px; background: var(--surface); box-shadow: var(--shadow-brutal);" onclick="window.processReset()">Kirim Link Reset</button>
+                    <button class="btn-brutal" style="width: 100%; padding: 14px; margin-bottom: 10px; background: var(--surface); color:var(--text); box-shadow: var(--shadow-brutal);" onclick="window.processReset()">Kirim Link Reset</button>
                     <button class="btn-brutal" style="width: 100%; padding: 14px; background: #ef4444; color: #fff; box-shadow: var(--shadow-brutal);" onclick="window.switchAuthTab('login')">Batal</button>
                 </div>
             </div>
         </div>
 
         <!-- ============================================== -->
-        <!-- TAB 7: FULL-PAGE CHECKOUT RESPONSIVE MOBILE    -->
+        <!-- TAB 7: FULL-PAGE CHECKOUT                      -->
         <!-- ============================================== -->
         <div id="tab-checkout" class="main-tab-content container" style="display: none; padding-top: 1.5rem; max-width: 1100px; margin: 0 auto;">
             <div style="margin-bottom: 1.5rem;">
-                <button class="btn-brutal" style="background: var(--surface); padding: 8px 18px; font-size: 0.85rem; box-shadow: 2px 2px 0px #000;" onclick="window.switchMainTab('katalog')">
+                <button class="btn-brutal" style="background: var(--surface); color:var(--text); padding: 8px 18px; font-size: 0.85rem; box-shadow: 2px 2px 0px rgba(0,0,0,0.5);" onclick="window.switchMainTab('katalog')">
                     <i class="fa-solid fa-arrow-left"></i> Kembali
                 </button>
             </div>
@@ -641,7 +658,7 @@
                                     <option value="1">⭐ (1 Bintang)</option>
                                 </select>
                                 <textarea id="rev-input-text" class="form-control" rows="3" placeholder="Ceritakan pengalaman transaksi Anda..." style="border-radius: 8px; font-weight: 600; margin-bottom: 10px; background:var(--surface);"></textarea>
-                                <button class="btn-brutal" style="width: 100%; background: var(--brand-blue); padding: 12px; box-shadow: 2px 2px 0px #000;" onclick="window.submitReview()"><i class="fa-solid fa-paper-plane"></i> Kirim Ulasan</button>
+                                <button class="btn-brutal btn-black-text" style="width: 100%; background: var(--brand-blue); padding: 12px; box-shadow: 2px 2px 0px #000;" onclick="window.submitReview()"><i class="fa-solid fa-paper-plane"></i> Kirim Ulasan</button>
                             </div>
                         </div>
                     </div>
@@ -655,7 +672,7 @@
                         </h3>
                         
                         <div class="form-group" style="margin-bottom: 1.5rem;">
-                            <label style="font-size: 0.8rem; font-weight: 900; text-transform: uppercase;">Jumlah Beli (Maks 5)</label>
+                            <label style="font-size: 0.8rem; font-weight: 900; color:var(--text); text-transform: uppercase;">Jumlah Beli (Maks 5)</label>
                             <div style="display: flex; align-items: center; border: var(--border-thick); border-radius: 12px; width: fit-content; overflow: hidden; background: var(--surface);">
                                 <button style="padding: 10px 18px; font-weight: 900; font-size: 1.2rem; background: var(--surface-hover); border: none; border-right: var(--border-thick); cursor: pointer; color: var(--text);" onclick="window.updateQty(-1)">-</button>
                                 <input type="number" id="chk-qty" value="1" min="1" max="5" readonly style="width: 60px; text-align: center; border: none; font-weight: 900; font-size: 1.2rem; background: transparent; color: var(--text); outline: none;">
@@ -664,26 +681,26 @@
                         </div>
                         
                         <div class="form-group" style="margin-bottom: 1.5rem;">
-                            <label style="font-size: 0.8rem; font-weight: 900; text-transform: uppercase;">Pilih Nominal / Varian</label>
+                            <label style="font-size: 0.8rem; font-weight: 900; color:var(--text); text-transform: uppercase;">Pilih Nominal / Varian</label>
                             <div id="chk-variant-list" style="display: flex; gap: 10px; flex-wrap: wrap;"></div>
-                            <button id="btn-load-more-variants" class="btn-brutal" style="display:none; width: 100%; margin-top: 10px; background: var(--surface-hover); padding: 10px; font-size: 0.85rem;" onclick="window.loadMoreVariants()">Lihat Berikutnya <i class="fa-solid fa-chevron-down"></i></button>
+                            <button id="btn-load-more-variants" class="btn-brutal" style="display:none; width: 100%; margin-top: 10px; background: var(--surface-hover); padding: 10px; font-size: 0.85rem; color:var(--text);" onclick="window.loadMoreVariants()">Lihat Berikutnya <i class="fa-solid fa-chevron-down"></i></button>
                         </div>
                         
                         <div id="chk-target-container" style="display: none; margin-bottom: 1.5rem;"></div>
                         
                         <div class="form-group" style="margin-bottom: 1.5rem;">
-                            <label style="font-size: 0.8rem; font-weight: 900; text-transform: uppercase;">Metode Pembayaran</label>
+                            <label style="font-size: 0.8rem; font-weight: 900; color:var(--text); text-transform: uppercase;">Metode Pembayaran</label>
                             <div style="display: flex; gap: 10px;">
-                                <button id="btn-pay-qris" class="btn-brutal" style="flex:1; background: var(--brand-yellow); box-shadow: 2px 2px 0px #000; padding: 12px; color:#000;"><i class="fa-solid fa-qrcode"></i> QRIS Otomatis</button>
-                                <button id="btn-pay-manual" class="btn-brutal" style="flex:1; background: var(--surface); color: var(--text); padding: 12px; box-shadow: 2px 2px 0px #000;" onclick="window.cashWarningAmbon()"><i class="fa-solid fa-money-bill"></i> Cash (Lokal)</button>
+                                <button id="btn-pay-qris" class="btn-brutal btn-black-text" style="flex:1; background: var(--brand-yellow); box-shadow: 2px 2px 0px #000; padding: 12px;"><i class="fa-solid fa-qrcode"></i> QRIS Otomatis</button>
+                                <button id="btn-pay-manual" class="btn-brutal" style="flex:1; background: var(--surface); color: var(--text); padding: 12px; box-shadow: 2px 2px 0px rgba(0,0,0,0.5);" onclick="window.cashWarningAmbon()"><i class="fa-solid fa-money-bill"></i> Cash (Lokal)</button>
                             </div>
                         </div>
                         
                         <div id="chk-email-container" class="form-group" style="margin-bottom: 1.5rem;">
-                            <label style="font-size: 0.8rem; font-weight: 900; text-transform: uppercase;">Email Bukti Transaksi</label>
+                            <label style="font-size: 0.8rem; font-weight: 900; color:var(--text); text-transform: uppercase;">Email Bukti Transaksi</label>
                             <div style="border: var(--border-thick); border-radius: 12px; padding: 1rem; background: var(--surface-hover);">
-                                <input type="email" id="chk-email" class="form-control" placeholder="kamu@email.com" style="border-radius: 8px; margin-bottom: 10px; font-weight: 600;">
-                                <p style="font-size: 0.75rem; color: var(--text-muted); font-weight: 600; margin: 0;">Email dipakai sebagai identitas. <strong style="color: var(--text); cursor: pointer; text-decoration: underline;" onclick="window.openAuthModal()">Login disini</strong> agar tidak perlu mengisi lagi.</p>
+                                <input type="email" id="chk-email" class="form-control" placeholder="kamu@email.com" style="margin-bottom: 10px;">
+                                <p style="font-size: 0.75rem; color: var(--text-muted); font-weight: 600; margin: 0;">Daftarkan/Login email Anda agar tidak perlu mengisi lagi.</p>
                             </div>
                         </div>
                         
@@ -698,7 +715,7 @@
                             </div>
                         </div>
                         
-                        <button id="btn-process-checkout" class="btn-brutal wiggle-on-hover" style="width: 100%; padding: 16px; font-size: 1.1rem; background: var(--brand-green); box-shadow: var(--shadow-brutal);" onclick="window.processNewCheckout()">
+                        <button id="btn-process-checkout" class="btn-brutal btn-black-text wiggle-on-hover" style="width: 100%; padding: 16px; font-size: 1.1rem; background: var(--brand-green); box-shadow: var(--shadow-brutal);" onclick="window.processNewCheckout()">
                             <i class="fa-solid fa-cart-arrow-down"></i> Bayar Sekarang
                         </button>
                     </div>
@@ -710,32 +727,45 @@
         <div class="msg-overlay" id="modal-cash-warning">
             <div class="msg-box" style="background: var(--surface); border: var(--border-thick); border-radius: 16px; box-shadow: var(--shadow-brutal); width: 100%; max-width: 350px; text-align: center; padding: 2rem;">
                 <div class="msg-icon info" style="font-size: 3rem; color: #f59e0b; margin-bottom: 10px;"><i class="fa-solid fa-location-dot"></i></div>
-                <h3 class="msg-title" style="font-weight: 900; font-size: 1.3rem;">Peringatan Layanan Cash</h3>
+                <h3 class="msg-title" style="font-weight: 900; font-size: 1.3rem; color:var(--text);">Peringatan Layanan Cash</h3>
                 <p class="msg-desc" style="font-weight: 600; color: var(--text-muted); margin-bottom: 1.5rem;">Metode pembayaran Cash secara langsung hanya diperuntukkan bagi pembeli yang berdomisili di sekitar <strong>Teluk Ambon, Maluku</strong>. <br><br>Yakin ingin menggunakan metode ini?</p>
                 <div style="display: flex; gap: 10px;">
-                    <button class="btn-brutal" style="flex:1; background: var(--surface); padding: 10px;" onclick="window.closeModal('modal-cash-warning')">Batal</button>
-                    <button class="btn-brutal" style="flex:1; background: var(--brand-yellow); padding: 10px; color:#000;" onclick="window.confirmCashMethod()">Gunakan Cash</button>
+                    <button class="btn-brutal" style="flex:1; background: var(--surface); color:var(--text); padding: 10px;" onclick="window.closeModal('modal-cash-warning')">Batal</button>
+                    <button class="btn-brutal btn-black-text" style="flex:1; background: var(--brand-yellow); padding: 10px;" onclick="window.confirmCashMethod()">Gunakan Cash</button>
                 </div>
             </div>
         </div>
 
-        <!-- MODAL GUEST PROMPT -->
-        <div class="modal-overlay" id="modal-guest-prompt">
+        <!-- MODAL EMAIL EXISTS (FORM DIRECT PASSWORD) -->
+        <div class="modal-overlay" id="modal-email-exists">
             <div class="modal-content" style="max-width: 400px; padding: 0; border: var(--border-thick); border-radius: 16px; overflow: hidden; background: var(--surface); box-shadow: var(--shadow-brutal);">
                 <div style="background: var(--brand-yellow); padding: 12px 15px; border-bottom: var(--border-thick); display: flex; justify-content: space-between; align-items: center;">
-                    <span style="font-weight: 900; font-size: 0.9rem; color: #000; text-transform: uppercase;">Peringatan Akun</span>
-                    <button style="background: var(--surface); border: 2px solid var(--border); border-radius: 6px; width: 28px; height: 28px; display: flex; justify-content: center; align-items: center; cursor: pointer; color: var(--text); font-weight: 900;" onclick="window.closeModal('modal-guest-prompt')"><i class="fa-solid fa-xmark"></i></button>
+                    <span style="font-weight: 900; font-size: 0.9rem; color: #000; text-transform: uppercase;">AKUN WEB</span>
+                    <button style="background: var(--surface); border: 2px solid var(--border); border-radius: 6px; width: 28px; height: 28px; display: flex; justify-content: center; align-items: center; cursor: pointer; color: var(--text); font-weight: 900;" onclick="window.closeModal('modal-email-exists')"><i class="fa-solid fa-xmark"></i></button>
                 </div>
                 <div style="padding: 2rem;">
-                    <h2 style="font-size: 1.6rem; font-weight: 900; margin-bottom: 10px; color: var(--text); letter-spacing: -0.5px;">Daftar dulu?</h2>
-                    <p style="font-size: 0.9rem; color: var(--text-muted); font-weight: 600; margin-bottom: 1.5rem; line-height: 1.5;">Daftar akun agar kamu bisa melihat riwayat pesanan, memberi ulasan, dan tidak repot mengisi email terus menerus.</p>
+                    <h2 style="font-size: 1.6rem; font-weight: 900; margin-bottom: 10px; color: var(--text); letter-spacing: -0.5px;">Email sudah pernah digunakan</h2>
+                    <p style="font-size: 0.9rem; color: var(--text-muted); font-weight: 600; margin-bottom: 5px;">Email ini sudah pernah checkout. Buat password dulu atau masuk dengan akunmu.</p>
+                    <strong id="exists-email-display" style="display:block; margin-bottom:1.5rem; color:var(--text); font-size:0.95rem;">teves@gmail.com</strong>
                     
-                    <button class="btn-brutal" style="width: 100%; background: var(--brand-blue); padding: 14px; margin-bottom: 10px; box-shadow: 2px 2px 0px #000; color:#000;" onclick="window.closeModal('modal-guest-prompt'); window.openAuthModal();">
-                        <i class="fa-solid fa-user-plus"></i> Daftar / Masuk Sekarang
-                    </button>
-                    <button class="btn-brutal" style="width: 100%; background: var(--surface); padding: 14px; box-shadow: 2px 2px 0px #000;" onclick="window.continueAsGuest()">
-                        Lanjutkan tanpa akun
-                    </button>
+                    <div id="email-exists-actions">
+                        <button class="btn-brutal btn-black-text" style="width: 100%; background: var(--brand-yellow); padding: 14px; margin-bottom: 10px; box-shadow: 2px 2px 0px #000;" onclick="window.closeModal('modal-email-exists'); window.openAuthModal();">
+                            <i class="fa-solid fa-arrow-right-to-bracket"></i> Masuk Akun
+                        </button>
+                        <button class="btn-brutal btn-black-text" style="width: 100%; background: var(--brand-yellow); padding: 14px; margin-bottom: 10px; box-shadow: 2px 2px 0px #000;" onclick="window.showDirectPasswordFormCheckout()">
+                            <i class="fa-solid fa-key"></i> Buat Password Sekarang
+                        </button>
+                        <button class="btn-brutal" style="width: 100%; background: var(--surface); color:var(--text); padding: 14px; box-shadow: 2px 2px 0px rgba(0,0,0,0.4);" onclick="window.closeModal('modal-email-exists'); document.getElementById('chk-email').focus();">
+                            Gunakan Email Lain
+                        </button>
+                        <p style="font-size: 0.7rem; color: var(--text-muted); text-align: center; margin-top: 15px; line-height:1.4;">Demi keamanan, checkout dengan email yang sama harus login dulu atau buat password akun.</p>
+                    </div>
+
+                    <!-- Direct Form untuk Checkout -->
+                    <div id="email-exists-password-form" style="display:none;">
+                        <input type="password" id="direct-checkout-pass" class="form-control" placeholder="Masukkan sandi baru (min 6)" style="margin-bottom:10px;">
+                        <button class="btn-brutal btn-black-text" style="width: 100%; background: var(--brand-green); padding: 14px; box-shadow: 2px 2px 0px #000;" onclick="window.setDirectPasswordFromCheckout()">Simpan & Lanjut Checkout</button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -743,7 +773,7 @@
         <!-- PAYMENT UI FULL-SCREEN MOBILE RESPONSIVE -->
         <div id="tab-payment" class="main-tab-content container" style="display: none; padding-top: 1.5rem; max-width: 900px; margin: 0 auto;">
             <div style="text-align: center; margin-bottom: 1.5rem;">
-                <button class="btn-brutal" style="background: var(--surface); padding: 8px 18px; box-shadow: 2px 2px 0px #000;" onclick="window.switchMainTab('pesanan')">
+                <button class="btn-brutal" style="background: var(--surface); color:var(--text); padding: 8px 18px; box-shadow: 2px 2px 0px rgba(0,0,0,0.5);" onclick="window.switchMainTab('pesanan')">
                     <i class="fa-solid fa-arrow-left"></i> Kembali ke Pesanan
                 </button>
             </div>
@@ -772,10 +802,10 @@
                         </div>
                         
                         <div style="width: 100%; text-align: left;">
-                            <strong style="font-size: 0.9rem; text-transform: uppercase; font-weight: 900; display: block; margin-bottom: 10px;">Cara Bayar</strong>
+                            <strong style="font-size: 0.9rem; text-transform: uppercase; color:var(--text); font-weight: 900; display: block; margin-bottom: 10px;">Cara Bayar</strong>
                             <ol style="padding-left: 20px; font-size: 0.85rem; color: var(--text-muted); font-weight: 600; line-height: 1.6; margin: 0;">
                                 <li>Buka E-Wallet atau M-Banking.</li>
-                                <li>Scan QRIS dan <strong>pastikan nominal TEPAT</strong> 3 digit terakhir.</li>
+                                <li>Scan QRIS dan <strong style="color:var(--text);">pastikan nominal TEPAT</strong> 3 digit terakhir.</li>
                                 <li>Pembayaran diverifikasi otomatis 1-10 detik.</li>
                             </ol>
                         </div>
@@ -832,7 +862,7 @@
                             </div>
                         </div>
                         
-                        <button class="btn-brutal wiggle-on-hover" style="width: 100%; background: var(--text); color: var(--bg); padding: 16px; font-size:1.1rem; box-shadow: 4px 4px 0px var(--brand-yellow);" onclick="window.switchMainTab('pesanan')">Cek Status Pesanan</button>
+                        <button class="btn-brutal btn-black-text wiggle-on-hover" style="width: 100%; background: var(--text); color: var(--bg) !important; padding: 16px; font-size:1.1rem; box-shadow: 4px 4px 0px var(--brand-yellow);" onclick="window.switchMainTab('pesanan')">Cek Status Pesanan</button>
                     </div>
                 </div>
             </div>
@@ -845,16 +875,18 @@
                     <h2 style="font-weight: 900; letter-spacing: -1px; font-size: 1.5rem;">VIPER<span style="color:var(--brand-pink);">CELL</span></h2>
                 </div>
                 <div style="font-weight: 600; color: var(--text-muted);">Platform Top Up Aman, Murah, Terpercaya.</div>
-                <div class="footer-social-links" style="margin-top:15px; display:flex; gap:10px; flex-direction:column; align-items:flex-start;">
+                
+                <!-- Letak Baru Tautan Sosial -->
+                <div class="footer-social-links" style="margin-top:15px; display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
                     <a href="#" id="footer-ig-btn" class="btn-brutal" target="_blank" style="display:none; font-size:0.8rem; padding:8px 16px; background:var(--surface); color:var(--text);" aria-label="Instagram"><i class="fa-brands fa-instagram"></i> Instagram</a>
                     <a href="#" id="footer-tt-btn" class="btn-brutal" target="_blank" style="display:none; font-size:0.8rem; padding:8px 16px; background:var(--surface); color:var(--text);" aria-label="TikTok"><i class="fa-brands fa-tiktok"></i> TikTok</a>
-                    <a href="#" id="footer-wa-channel" class="btn-brutal" target="_blank" style="display:none; font-size:0.8rem; padding:8px 16px; background:var(--brand-green); color:#000;" aria-label="Saluran WA"><i class="fa-brands fa-whatsapp"></i> Komunitas WA</a>
+                    <a href="#" id="footer-wa-channel" class="btn-brutal btn-black-text" target="_blank" style="display:none; font-size:0.8rem; padding:8px 16px; background:var(--brand-green); color:#000;" aria-label="Saluran WA"><i class="fa-solid fa-users"></i> Komunitas WA</a>
                 </div>
             </div>
             
             <div class="footer-right" style="font-weight: 800;">
                 Butuh Bantuan?
-                <a href="#" id="footer-wa-link" target="_blank" class="btn-brutal wiggle-on-hover" style="background: var(--brand-blue); color: #000; padding: 12px 20px; margin-top: 10px; box-shadow: 2px 2px 0px #000;">
+                <a href="#" id="footer-wa-link" target="_blank" class="btn-brutal btn-black-text wiggle-on-hover" style="background: var(--brand-blue); color: #000; padding: 12px 20px; margin-top: 10px; box-shadow: 2px 2px 0px #000;">
                     <i class="fa-brands fa-whatsapp"></i> <span id="footer-wa-display">Hubungi CS</span>
                 </a>
             </div>
@@ -879,31 +911,6 @@
         </nav>
     </div> <!-- END OF #store-view -->
 
-    <!-- USER LIVE CHAT UI -->
-    <div class="chat-fab wiggle-on-hover" id="user-chat-fab" onclick="window.toggleUserChat()" style="display: none; border: var(--border-thick); box-shadow: var(--shadow-brutal);" title="Bantuan Langsung">
-        <i class="fa-solid fa-headset"></i>
-        <div class="notif-badge" id="user-chat-badge"></div>
-    </div>
-    <div class="chat-window" id="user-chat-window" style="border: var(--border-thick); border-radius: 16px 16px 0 0; box-shadow: var(--shadow-brutal);">
-        <div class="chat-header" style="background: var(--text); color: var(--bg); font-weight: 900; border-bottom: var(--border-thick);">
-            Bantuan Admin
-            <button onclick="window.toggleUserChat()" style="color:var(--bg); font-size:1.1rem; border:none; background:none; cursor:pointer;"><i class="fa-solid fa-xmark"></i></button>
-        </div>
-        <div id="chat-pre-form" style="display:flex; flex-direction:column; justify-content:center; padding: 20px; height:350px; background:var(--surface);">
-            <i class="fa-regular fa-face-smile-wink" style="font-size:3rem; color:var(--brand-pink); margin-bottom:15px; text-align:center;"></i>
-            <p style="text-align:center; color:var(--text); margin-bottom:15px; font-weight:800;">Halo! Masukkan nama panggilanmu untuk mengobrol.</p>
-            <input type="text" id="chat-anon-name" class="form-control" placeholder="Nama..." style="border-radius: 8px; font-weight: bold;">
-            <button class="btn-brutal" style="width:100%; margin-top:10px; background: var(--brand-green); padding: 12px; box-shadow: 2px 2px 0px #000; color:#000;" onclick="window.startAnonChat()">
-                Mulai Obrolan
-            </button>
-        </div>
-        <div class="chat-body" id="user-chat-body" style="display:none; background: var(--surface-hover);"></div>
-        <div class="chat-footer" id="user-chat-footer" style="display:none; border-top: var(--border-thick); background: var(--surface);">
-            <input type="text" id="user-chat-input" placeholder="Tanya admin..." onkeypress="if(event.key === 'Enter') window.sendUserChat()" style="border: 2px solid var(--border); border-radius: 8px; font-weight: 600; background:var(--bg); color:var(--text);">
-            <button class="btn-brutal" style="background: var(--brand-yellow); border-radius: 8px; padding: 0 15px; box-shadow: 2px 2px 0px #000; color:#000;" onclick="window.sendUserChat()"><i class="fa-solid fa-paper-plane"></i></button>
-        </div>
-    </div>
-
     <!-- CERDAS ALERT DIALOG -->
     <div class="msg-overlay" id="custom-alert">
         <div class="msg-box" style="background: var(--surface); border: var(--border-thick); border-radius: 16px; padding: 2rem; box-shadow: var(--shadow-brutal); width: 100%; max-width: 350px; text-align: center;">
@@ -911,25 +918,10 @@
             <h3 id="ca-title" class="msg-title" style="font-size: 1.2rem; font-weight: 900; margin-bottom: 0.5rem; color: var(--text);">Info</h3>
             <p id="ca-desc" class="msg-desc" style="color: var(--text-muted); font-size: 0.9rem; font-weight: 600; margin-bottom: 1.5rem;"></p>
             <div id="ca-extra-action"></div>
-            <button class="btn-brutal" style="width: 100%; margin-top: 10px; background: var(--surface); padding: 12px;" onclick="window.closeAlert()">Tutup</button>
+            <button class="btn-brutal" style="width: 100%; margin-top: 10px; background: var(--surface); color:var(--text); padding: 12px;" onclick="window.closeAlert()">Tutup</button>
         </div>
     </div>
     
-    <!-- MODAL KONFIRMASI -->
-    <div class="msg-overlay" id="modal-confirm">
-        <div class="msg-box" style="background: var(--surface); border: var(--border-thick); border-radius: 16px; padding: 2rem; box-shadow: var(--shadow-brutal); width: 100%; max-width: 350px; text-align: center;">
-            <div class="msg-icon" id="mc-icon-container" style="font-size:3rem; margin-bottom:10px; color:var(--brand-pink);">
-                <i id="mc-icon" class="fa-solid fa-circle-question"></i>
-            </div>
-            <h3 id="mc-title" class="msg-title" style="font-size: 1.2rem; font-weight: 900; margin-bottom: 0.5rem; color: var(--text);">Konfirmasi</h3>
-            <p id="mc-desc" class="msg-desc" style="color: var(--text-muted); font-weight: 600; font-size: 0.9rem; margin-bottom: 1.5rem;"></p>
-            <div style="display:flex; gap:10px;" id="mc-btn-group">
-                <button class="btn-brutal" style="flex:1; background: var(--surface); padding: 10px;" onclick="window.resolveConfirm(false)">Tidak</button>
-                <button class="btn-brutal" id="mc-confirm-btn" style="flex:1; background: var(--text); color: var(--bg); padding: 10px; box-shadow: 2px 2px 0px var(--brand-yellow);" onclick="window.resolveConfirm(true)">Ya</button>
-            </div>
-        </div>
-    </div>
-
     <!-- Template Game Target Input -->
     <template id="game-id-template">
         <div style="background: var(--surface); padding: 15px; border-radius: 12px; border: var(--border-thick); box-shadow: 2px 2px 0px #000;">

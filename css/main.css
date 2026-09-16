@@ -23,11 +23,6 @@
     --shadow-brutal-hover: 6px 6px 0px #000000;
     
     --card-text: #000000;
-    --primary: #000000;
-    --primary-light: #ff66cc;
-    --success: #10b981;
-    --warning: #f59e0b;
-    --danger: #ef4444;
 }
 
 :root[data-theme="dark"] {
@@ -37,24 +32,21 @@
     --brand-blue: #38bdf8;
     --brand-orange: #fb923c;
     
-    --bg: #101423; /* Deep Dark Navy */
-    --surface: #1e253c;
-    --surface-hover: #2a3454;
+    /* Warna Latar Sangat Gelap & Kontras Tinggi */
+    --bg: #0b0f19; 
+    --surface: #151b2b; 
+    --surface-hover: #1e263d;
     
-    --text: #ffffff;
-    --text-muted: #9ca3af;
+    /* Teks Terang agar terlihat jelas */
+    --text: #ffffff; 
+    --text-muted: #9ca3af; 
     
     --border: #374151;
-    --border-thick: 2px solid #000000;
+    --border-thick: 2px solid #1f2937;
     --shadow-brutal: 4px 4px 0px rgba(0,0,0,1);
     --shadow-brutal-hover: 6px 6px 0px rgba(0,0,0,1);
     
-    --card-text: #000000;
-    --primary: #ff66cc;
-    --primary-light: #ff66cc;
-    --success: #10b981;
-    --warning: #f59e0b;
-    --danger: #ef4444;
+    --card-text: #ffffff;
 }
 
 /* --- 2. RESET & DASAR --- */
@@ -81,10 +73,10 @@ button, input, select, textarea {
 }
 button { cursor: pointer; }
 
-/* Scrollbar Brutal */
-::-webkit-scrollbar { width: 8px; height: 8px; }
-::-webkit-scrollbar-track { background: var(--bg); border-left: 2px solid #000; }
-::-webkit-scrollbar-thumb { background: var(--brand-pink); border: 2px solid #000; border-radius: 4px; }
+/* Scrollbar Brutal Sederhana */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--bg); border-left: 1px solid var(--border); }
+::-webkit-scrollbar-thumb { background: var(--brand-pink); border-radius: 10px; }
 ::-webkit-scrollbar-thumb:hover { background: var(--brand-blue); }
 
 /* --- 3. LAYOUT GLOBAL --- */
@@ -100,11 +92,13 @@ button { cursor: pointer; }
 .reveal { opacity: 0; transform: translateY(30px); transition: all 0.6s cubic-bezier(0.25, 1, 0.5, 1); }
 .reveal.reveal-visible { opacity: 1; transform: translateY(0); }
 
+/* Slide Animation Beranda */
 @keyframes slideRight { from { opacity: 0; transform: translateX(-40px); } to { opacity: 1; transform: translateX(0); } }
 @keyframes slideUp { from { opacity: 0; transform: translateY(40px); } to { opacity: 1; transform: translateY(0); } }
 .slide-right { animation: slideRight 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
 .slide-up { animation: slideUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards; opacity: 0; }
 
+/* Wiggle Hover Effect */
 @keyframes wiggle {
     0%, 100% { transform: rotate(0deg); }
     25% { transform: rotate(-4deg) scale(1.02); }
@@ -112,20 +106,21 @@ button { cursor: pointer; }
 }
 .wiggle-on-hover:hover { animation: wiggle 0.4s ease-in-out infinite; }
 
-/* Efek Kilau Berlian */
+/* Efek Kilau Berlian (Sparkle) - Muncul berkala */
 @keyframes diamondSparkle {
     0% { transform: translateX(-150%) skewX(-25deg); opacity: 0; }
-    20% { transform: translateX(150%) skewX(-25deg); opacity: 1; }
+    15% { opacity: 1; }
+    25% { transform: translateX(150%) skewX(-25deg); opacity: 0; }
     100% { transform: translateX(150%) skewX(-25deg); opacity: 0; }
 }
 .sparkle-effect { position: relative; overflow: hidden; }
 .sparkle-effect::after {
     content: ''; position: absolute; top: 0; left: 0; width: 40%; height: 100%;
     background: linear-gradient(to right, rgba(255,255,255,0) 0%, rgba(255,255,255,0.8) 50%, rgba(255,255,255,0) 100%);
-    animation: diamondSparkle 3s infinite ease-in-out; pointer-events: none; z-index: 2;
+    animation: diamondSparkle 4s infinite ease-in-out; pointer-events: none; z-index: 2;
 }
 
-/* Efek Glow */
+/* Efek Glow Box Shadow */
 .glow-effect { box-shadow: 0 0 15px rgba(0, 0, 0, 0.1); transition: box-shadow 0.3s ease; }
 .neo-card:hover .glow-effect { box-shadow: 0 0 25px rgba(255, 102, 204, 0.5); }
 [data-theme="dark"] .glow-effect { box-shadow: 0 0 15px var(--brand-blue); }
@@ -135,16 +130,12 @@ button { cursor: pointer; }
 .loader { animation: spin 1s linear infinite; }
 
 /* --- 5. TOMBOL (BUTTONS) --- */
-.btn {
-    padding: 0.8rem 1.2rem; border-radius: 8px; font-weight: 800; font-size: 0.9rem;
-    transition: all 0.2s ease; display: inline-flex; align-items: center; justify-content: center; gap: 8px; text-align: center;
-}
-
 .btn-brutal {
-    border: var(--border-thick); border-radius: 8px; font-weight: 900; color: var(--card-text);
-    transition: all 0.2s ease; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 8px; text-transform: uppercase;
+    border: var(--border-thick); border-radius: 8px; font-weight: 800; color: var(--card-text);
+    transition: all 0.2s ease; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 8px;
 }
 .btn-brutal:active { transform: translate(4px, 4px); box-shadow: none !important; }
+.btn-black-text { color: #000 !important; border: 2px solid #000 !important; }
 
 /* --- 6. HEADER & NAVIGASI --- */
 header {
@@ -152,7 +143,7 @@ header {
 }
 
 .desktop-nav-pill {
-    background: #111827; border-radius: 30px; padding: 5px; display: inline-flex; align-items: center; gap: 5px; box-shadow: 0 4px 15px rgba(0,0,0,0.2); border: 2px solid #000;
+    background: #111827; border-radius: 30px; padding: 5px; display: inline-flex; align-items: center; gap: 5px; box-shadow: 0 4px 15px rgba(0,0,0,0.4);
 }
 .desktop-nav-pill a {
     color: #fff; padding: 10px 24px; border-radius: 25px; font-weight: 800; font-size: 0.9rem; cursor: pointer; transition: all 0.2s; text-decoration: none;
@@ -167,9 +158,8 @@ header {
 }
 
 .bottom-nav a {
-    display: flex; flex-direction: column; align-items: center; gap: 5px; color: var(--text-muted); font-size: 0.7rem; font-weight: 800; position: relative;
+    display: flex; flex-direction: column; align-items: center; gap: 5px; color: var(--text-muted); font-size: 0.7rem; font-weight: 800; position: relative; cursor: pointer;
 }
-
 .bottom-nav a i { font-size: 1.3rem; transition: transform 0.2s, color 0.2s; }
 .bottom-nav a.active { color: var(--brand-pink) !important; }
 .bottom-nav a.active i { transform: translateY(-3px) scale(1.1); color: var(--brand-pink); }
@@ -197,14 +187,17 @@ header {
 .variant-item-card.sold-out { opacity: 0.5; cursor: not-allowed; background: var(--surface-hover); border-color: var(--border); box-shadow: none; }
 
 .review-box { border: var(--border-thick); border-radius: 12px; padding: 1rem; background: var(--surface); margin-bottom: 10px; }
+.star-rating i { color: #f59e0b; }
 
 /* --- 8. FORM & INPUT --- */
-.form-group { margin-bottom: 1.2rem; text-align: left; }
+.form-group { margin-bottom: 1.5rem; text-align: left; }
 .form-control {
-    width: 100%; padding: 12px 15px; border-radius: 8px; border: var(--border-thick);
+    width: 100%; padding: 12px 15px; border-radius: 8px; border: 2px solid var(--border);
     background: var(--surface); color: var(--text); font-size: 0.95rem; font-weight: 700; outline: none; transition: border-color 0.2s;
 }
-.form-control:focus { border-color: var(--brand-pink); box-shadow: 2px 2px 0px rgba(255, 102, 204, 0.3); }
+.form-control:focus { border-color: var(--brand-pink); box-shadow: 2px 2px 0px rgba(255, 102, 204, 0.2); }
+[data-theme="dark"] .form-control { border-color: #374151; }
+[data-theme="dark"] .form-control:focus { border-color: var(--brand-pink); }
 
 /* --- 9. TABS & MARQUEE --- */
 .tabs { display: flex; overflow-x: auto; gap: 10px; padding-bottom: 5px; scrollbar-width: none; }
@@ -213,14 +206,14 @@ header {
 .neo-filter-tab {
     border: var(--border-thick); border-radius: 20px; padding: 8px 18px; font-weight: 900; font-size: 0.85rem; background: var(--surface); color: var(--text); cursor: pointer; transition: all 0.2s; white-space: nowrap;
 }
-.neo-filter-tab.active { background: #000; color: #fff; box-shadow: 2px 2px 0px rgba(255,255,255,0.2); }
+.neo-filter-tab.active { background: var(--brand-pink); color: #000; box-shadow: 2px 2px 0px rgba(0,0,0,0.5); border: 2px solid #000; }
 [data-theme="light"] .neo-filter-tab.active { box-shadow: 2px 2px 0px #000; }
 
 .marquee-container {
     overflow: hidden; white-space: nowrap; position: relative; display: flex; align-items: center; padding: 12px;
 }
 .marquee-content { display: flex; animation: marqueeScroll 20s linear infinite; }
-.marquee-text { padding: 0 2rem; font-size: 0.9rem; }
+.marquee-text { padding: 0 2rem; font-size: 0.9rem; font-weight: 800; color: var(--text); }
 @keyframes marqueeScroll { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
 
 /* Banner Slider */
@@ -239,28 +232,9 @@ header {
 }
 .toast-item.show { transform: translateY(0); opacity: 1; }
 .toast-icon { font-size: 1.5rem; flex-shrink: 0; }
+.notif-dot { position: absolute; width: 10px; height: 10px; background-color: #ef4444; border-radius: 50%; display: none; border: 1px solid #fff; box-shadow: 0 0 5px rgba(239, 68, 68, 0.8); }
 
-.notif-dot { position: absolute; width: 10px; height: 10px; background-color: var(--danger); border-radius: 50%; display: none; border: 1px solid #fff; box-shadow: 0 0 5px rgba(239, 68, 68, 0.8); }
-
-/* --- 11. LIVE CHAT --- */
-.chat-fab {
-    position: fixed; bottom: 90px; right: 20px; width: 55px; height: 55px; border-radius: 50%;
-    background: var(--brand-pink); color: #000; display: flex; justify-content: center; align-items: center;
-    font-size: 1.5rem; cursor: pointer; z-index: 99; transition: transform 0.2s;
-}
-.chat-window {
-    position: fixed; bottom: 0; right: 20px; width: 350px; height: 480px; max-height: 80vh;
-    background: var(--bg); display: flex; flex-direction: column; z-index: 1000;
-    transform: translateY(120%); transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-}
-.chat-window.active { transform: translateY(0); }
-.chat-body { flex: 1; overflow-y: auto; padding: 15px; display: flex; flex-direction: column; gap: 10px; }
-.chat-footer { padding: 10px; display: flex; gap: 10px; }
-.chat-msg { max-width: 85%; padding: 10px 15px; font-size: 0.9rem; line-height: 1.4; word-wrap: break-word; }
-.chat-msg.admin { align-self: flex-start; border-bottom-left-radius: 2px; }
-.chat-msg.user { align-self: flex-end; border-bottom-right-radius: 2px; }
-
-/* --- 12. MODALS --- */
+/* --- 11. MODALS --- */
 .modal-overlay, .msg-overlay {
     position: fixed; top: 0; left: 0; width: 100%; height: 100%;
     background: rgba(0, 0, 0, 0.85); backdrop-filter: blur(5px);
@@ -274,17 +248,16 @@ header {
 }
 .modal-overlay.active .modal-content, .msg-overlay.active .msg-box { transform: translateY(0) scale(1); }
 
-/* --- 13. RESPONSIVE MOBILE MATANG --- */
+.line-clamp-2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+
+/* --- 12. RESPONSIVE MOBILE MATANG --- */
 @media (max-width: 768px) {
     .hide-mobile { display: none !important; }
     .hide-mobile-nav { display: none !important; }
     .bottom-nav { display: flex; }
     .bottom-nav-spacer { display: block; height: 75px; }
     
-    .chat-fab { bottom: 85px; right: 15px; }
-    .chat-window { right: 0; width: 100%; height: 85vh; border-radius: 16px 16px 0 0; }
-    
-    /* Layout Adjustments */
+    /* Layout Adjustments Sempurna untuk HP */
     .checkout-grid { grid-template-columns: 1fr !important; gap: 1.5rem !important; }
     .payment-grid { grid-template-columns: 1fr !important; gap: 1.5rem !important; }
     .hero-layout { flex-direction: column !important; gap: 1.5rem !important; }
@@ -293,11 +266,13 @@ header {
     .pesanan-stats { grid-template-columns: 1fr !important; gap: 10px !important; }
     .cara-order-grid { grid-template-columns: 1fr !important; gap: 15px !important; }
     
+    /* Navigasi Filter Pesanan agar bisa di-scroll menyamping di HP */
     .pesanan-filters { flex-wrap: nowrap; overflow-x: auto; padding-bottom: 5px; justify-content: flex-start !important; }
     .pesanan-filters::-webkit-scrollbar { height: 0px; display: none; }
     
     .hero-title { font-size: 2.2rem !important; text-align: left !important; }
     .nav-container { padding: 10px 15px !important; }
+    .desktop-nav-pill { display: none !important; }
     
     .modal-content { padding: 1.2rem; max-width: 95vw; }
     .msg-box { padding: 1.5rem !important; }
