@@ -76,6 +76,10 @@
                         <a onclick="window.switchMainTab('katalog')" id="nav-katalog" class="active" title="Katalog" role="button" tabindex="0">
                             <i class="fa-solid fa-shop"></i> <span class="hide-mobile">Katalog</span>
                         </a>
+                        <!-- Lacak Pesanan dipindah jadi Tab Utama (Layar Penuh) -->
+                        <a onclick="window.switchMainTab('lacak')" id="nav-lacak" title="Lacak Pesanan" role="button" tabindex="0">
+                            <i class="fa-solid fa-magnifying-glass"></i> <span class="hide-mobile">Lacak</span>
+                        </a>
                         <a onclick="window.switchMainTab('pesanan')" id="nav-pesanan" style="display:none;" title="Pesanan" role="button" tabindex="0">
                             <i class="fa-solid fa-receipt"></i> <span class="hide-mobile">Pesanan</span>
                             <span id="user-order-badge-desktop" class="notif-dot" style="top:5px; right:5px;"></span>
@@ -92,7 +96,8 @@
                     <button id="btn-theme-toggle" class="btn btn-icon-only" aria-label="Ganti Tema" onclick="window.toggleTheme()" title="Ganti Tema">
                         <i class="fa-solid fa-moon" id="theme-icon"></i>
                     </button>
-                    <button id="btn-cek-pesanan" class="btn btn-outline hide-mobile" aria-label="Lacak Pesanan" onclick="window.openModal('modal-cek-pesanan')" title="Lacak Pesanan">
+                    <!-- Tombol Lacak Mobile -->
+                    <button id="btn-cek-pesanan" class="btn btn-outline hide-mobile" aria-label="Lacak Pesanan" onclick="window.switchMainTab('lacak')" title="Lacak Pesanan">
                         <i class="fa-solid fa-magnifying-glass"></i> <span>Lacak</span>
                     </button>
                     <button id="btn-login-user" class="btn btn-primary hide-mobile" aria-label="Login Akun" onclick="window.openAuthModal()" style="display:none;" title="Login">
@@ -166,7 +171,31 @@
             </div>
         </div>
 
-        <!-- TAB: PESANAN -->
+        <!-- TAB: LACAK PESANAN (BARU: FULL SCREEN) -->
+        <div id="tab-lacak" class="main-tab-content container">
+            <div class="section-header" style="text-align: center; margin-bottom: 2rem;">
+                <h2>Lacak Pesanan</h2>
+                <p>Pantau status pesananmu dengan memasukkan ID Invoice.</p>
+            </div>
+            
+            <div style="max-width: 600px; margin: 0 auto; background: var(--surface); padding: 2.5rem 2rem; border-radius: 20px; border: 1px solid var(--border); box-shadow: 0 10px 30px rgba(0,0,0,0.1);">
+                <div class="form-group">
+                    <label for="track-id" style="font-size:0.9rem; margin-bottom:8px;"><i class="fa-solid fa-magnifying-glass"></i> Masukkan Invoice ID</label>
+                    <div style="display: flex; gap: 8px;">
+                        <input type="text" id="track-id" class="form-control" placeholder="Contoh: VP-123456" style="text-transform: uppercase; padding: 12px; font-size: 1rem;">
+                        <button id="btn-track-order" aria-label="Cari Pesanan" class="btn btn-primary" onclick="window.trackOrder()" style="padding: 0 20px;">
+                            <i class="fa-solid fa-magnifying-glass"></i> <span class="hide-mobile">Cari</span>
+                        </button>
+                    </div>
+                    <p style="font-size: 0.8rem; color: var(--text-muted); margin-top: 10px;">*Invoice ID dapat ditemukan di bukti pembayaran atau email kamu.</p>
+                </div>
+                
+                <!-- Hasil Lacak -->
+                <div id="track-result" style="margin-top: 2rem; display: none;"></div>
+            </div>
+        </div>
+
+        <!-- TAB: PESANAN (RIWAYAT LOGIN) -->
         <div id="tab-pesanan" class="main-tab-content container">
             <div class="section-header" style="display: flex; flex-direction: column; align-items: center; position: relative;">
                 <h2>Riwayat Pesanan</h2>
@@ -254,11 +283,14 @@
                     <h2 id="auth-title">Masuk Akun</h2>
                     <p id="auth-subtitle">Silakan masuk untuk melanjutkan transaksi.</p>
                 </div>
-                <div class="auth-tabs-toggle">
+                
+                <!-- ID Ditambahkan agar bisa disembunyikan saat mode Reset Sandi -->
+                <div class="auth-tabs-toggle" id="auth-tabs-container">
                     <button aria-label="Tab Masuk" id="tab-login" class="active" onclick="window.switchAuthTab('login')">Masuk</button>
                     <button aria-label="Tab Daftar" id="tab-register" onclick="window.switchAuthTab('register')">Daftar Baru</button>
                 </div>
                 
+                <!-- Form Login -->
                 <div id="form-login" class="auth-form-body">
                     <div class="form-group"><label for="auth-l-email">Alamat Email</label><input type="email" id="auth-l-email" class="form-control" placeholder="Contoh: user@email.com"></div>
                     <div class="form-group"><label for="auth-l-pass">Kata Sandi</label><input type="password" id="auth-l-pass" class="form-control" placeholder="Masukkan kata sandi"></div>
@@ -269,6 +301,7 @@
                     </button>
                 </div>
                 
+                <!-- Form Register -->
                 <div id="form-register" class="auth-form-body" style="display: none;">
                     <div class="form-group"><label for="auth-r-name">Nama Panggilan</label><input type="text" id="auth-r-name" class="form-control" placeholder="Siapa namamu?"></div>
                     <div class="form-group"><label for="auth-r-email">Alamat Email</label><input type="email" id="auth-r-email" class="form-control" placeholder="Email aktif kamu"></div>
@@ -279,19 +312,24 @@
                     </button>
                 </div>
                 
+                <!-- Form Reset Sandi (Diperbarui) -->
                 <div id="form-reset" class="auth-form-body" style="display: none;">
-                    <p style="font-size:0.85rem; color:var(--text-muted); margin-bottom:1.5rem; text-align:center;">Masukkan email yang terdaftar, kami akan mengirimkan link untuk mereset kata sandimu.</p>
-                    <div class="form-group"><label for="auth-res-email">Email Terdaftar</label><input type="email" id="auth-res-email" class="form-control" placeholder="Email kamu"></div>
-                    <button aria-label="Proses Reset" class="btn btn-primary btn-auth-action" onclick="window.processReset()"><i class="fa-solid fa-paper-plane"></i> Kirim Link Reset</button>
-                    <button aria-label="Batal" class="btn btn-outline btn-auth-action" style="margin-top: 10px;" onclick="window.switchAuthTab('login')">Batal</button>
+                    <p style="font-size:0.9rem; color:var(--text-muted); margin-bottom:1.5rem; text-align:center;">Masukkan email terdaftar kamu. Kami akan mengirimkan tautan untuk mengatur ulang kata sandi.</p>
+                    <div class="form-group"><label for="auth-res-email">Email Terdaftar</label><input type="email" id="auth-res-email" class="form-control" placeholder="email@kamu.com"></div>
+                    
+                    <button aria-label="Proses Reset" id="btn-do-reset" class="btn btn-primary btn-auth-action" onclick="window.processReset()">
+                        <i class="fa-solid fa-paper-plane"></i> <span>Kirim Link Reset</span>
+                    </button>
+                    <button aria-label="Batal" class="btn btn-outline btn-auth-action" style="margin-top: 10px;" onclick="window.switchAuthTab('login')">Kembali ke Login</button>
                 </div>
                 
+                <!-- Divider & Google Login (Akan disembunyikan otomatis oleh JS saat mode Reset) -->
                 <div id="auth-divider" class="auth-divider">
                     <hr> <span>ATAU</span> <hr>
                 </div>
                 
                 <button aria-label="Lanjut Google" id="auth-google-btn" class="btn btn-outline btn-auth-action" style="border-color: rgba(234,67,53,0.5); color: #ea4335; display: flex; align-items: center; justify-content: center; gap: 8px;" onclick="window.processGoogleLogin()">
-                    <i class="fa-brands fa-google" style="font-size:1.2rem;"></i> <span>Masuk dengan Google</span>
+                    <i class="fa-brands fa-google" style="font-size:1.2rem;"></i> <span id="text-google-btn">Masuk dengan Google</span>
                 </button>
             </div>
         </div>
@@ -325,7 +363,7 @@
             <a onclick="window.switchMainTab('katalog')" id="nav-bot-katalog" class="active" role="button">
                 <i class="fa-solid fa-shop"></i><span>Katalog</span>
             </a>
-            <a onclick="window.openModal('modal-cek-pesanan')" id="nav-bot-lacak" role="button">
+            <a onclick="window.switchMainTab('lacak')" id="nav-bot-lacak" role="button">
                 <i class="fa-solid fa-magnifying-glass"></i><span>Lacak</span>
             </a>
             <a onclick="window.switchMainTab('pesanan')" id="nav-bot-pesanan" style="display:none;" role="button">
@@ -481,7 +519,7 @@
 
                         <!-- Peringatan Wilayah (Muncul saat Cash dipilih) -->
                         <div id="cash-warning-msg" style="display:none; margin-top:10px; background:rgba(245,158,11,0.1); border:1px solid var(--warning); padding:10px; border-radius:8px;">
-                            <p style="margin:0; font-size:0.8rem; color:var(--warning); font-weight:bold;"><i class="fa-solid fa-location-dot"></i> Metode Cash khusus untuk pembeli di sekitar Teluk Ambon.</p>
+                            <p style="margin:0; font-size:0.8rem; color:var(--warning); font-weight:bold;"><i class="fa-solid fa-location-dot"></i> Metode Tunai ini khusus untuk pembeli di sekitar wilayah Teluk Ambon.</p>
                         </div>
                     </div>
                     
@@ -493,7 +531,7 @@
                         </div>
                     </div>
 
-                    <!-- PERINGATAN PRODUK MANUAL (Muncul jika produk processType manual dipilih) -->
+                    <!-- PERINGATAN PRODUK MANUAL (Muncul elegan) -->
                     <div id="manual-warning-msg" style="display:none; margin-top:15px; background:rgba(239,68,68,0.1); border:1px dashed var(--danger); padding:10px; border-radius:8px; text-align:center;">
                         <p style="margin:0; font-size:0.8rem; color:var(--danger); font-weight:bold;"><i class="fa-solid fa-user-clock"></i> Harap diperhatikan: Produk ini dilayani secara manual oleh Admin.</p>
                     </div>
@@ -520,7 +558,7 @@
                         <i class="fa-solid fa-star" onclick="window.setReviewStar(5)"></i>
                     </div>
                     <textarea id="review-text" class="form-control" placeholder="Tulis pengalaman belanjamu disini..." rows="3" style="margin-bottom:10px;"></textarea>
-                    <button class="btn btn-success" style="width:100%;" onclick="window.submitReview()"><i class="fa-solid fa-paper-plane"></i> Kirim Ulasan</button>
+                    <button id="btn-submit-review" class="btn btn-success" style="width:100%;" onclick="window.submitReview()"><i class="fa-solid fa-paper-plane"></i> Kirim Ulasan</button>
                 </div>
                 
                 <!-- Daftar Ulasan -->
@@ -564,26 +602,6 @@
                 </div>
                 <button aria-label="Sudah Bayar" id="btn-final-pay" class="btn btn-success" style="width:100%; padding:1rem; font-size:1.1rem; border-radius: 12px; font-weight: 700; margin-top: 15px; box-shadow: 0 8px 20px rgba(16, 185, 129, 0.3);" onclick="window.goToPesananFromPay()">Saya Sudah Bayar</button>
             </div>
-        </div>
-    </div>
-
-    <!-- TRACK ORDER MODAL -->
-    <div class="modal-overlay" id="modal-cek-pesanan">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2>Lacak Pesanan</h2>
-                <button class="close-btn" aria-label="Tutup" onclick="window.closeModal('modal-cek-pesanan')"><i class="fa-solid fa-xmark"></i></button>
-            </div>
-            <div class="form-group">
-                <label for="track-id">Masukkan Invoice ID</label>
-                <div style="display: flex; gap: 8px;">
-                    <input type="text" id="track-id" class="form-control" placeholder="VP-..." style="text-transform: uppercase;">
-                    <button id="btn-track-order" aria-label="Cari Pesanan" class="btn btn-primary" onclick="window.trackOrder()">
-                        <i class="fa-solid fa-magnifying-glass"></i> <span>Cari</span>
-                    </button>
-                </div>
-            </div>
-            <div id="track-result" style="margin-top: 1.2rem; display: none;"></div>
         </div>
     </div>
 

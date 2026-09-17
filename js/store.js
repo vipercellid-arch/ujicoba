@@ -34,7 +34,7 @@ let siteSettings = {
     newsList: [], banners: [], isStoreOpen: true, waChannelLink: ''
 };
 
-let userProfile = { name: '', email: '', isGuest: false };
+let userProfile = { name: '', email: '', isGuest: true };
 let currentUser = null;
 let currentCheckoutBrand = null;
 let selectedProductForBuy = null;
@@ -185,12 +185,14 @@ async function initApp() {
         const icon = document.getElementById('theme-icon');
         if(icon) icon.className = savedTheme === 'dark' ? 'fa-solid fa-moon' : 'fa-solid fa-sun';
         
+        // Memastikan sesi bertahan lama di Local Storage
         await setPersistence(auth, browserLocalPersistence);
         
         onAuthStateChanged(auth, async (user) => {
             currentUser = user;
             if (user) {
                 if (user.isAnonymous) {
+                    // Sesi anonim dipertahankan agar limit login tidak terkuras
                     const savedAnonName = localStorage.getItem('vipercell_anon_name') || '';
                     userProfile = { name: savedAnonName, email: '', isGuest: true };
                     
@@ -208,13 +210,8 @@ async function initApp() {
                         document.getElementById('prof-name').value = userProfile.name || '';
                         
                         const statusEl = document.getElementById('prof-email-status');
-                        if (userProfile.isGuest) {
-                            statusEl.innerText = '(Akun Belum Lengkap)';
-                            statusEl.style.color = 'var(--warning)';
-                        } else {
-                            statusEl.innerText = '(Verified)';
-                            statusEl.style.color = 'var(--success)';
-                        }
+                        statusEl.innerText = '(Verified)';
+                        statusEl.style.color = 'var(--success)';
                     }
                     
                     document.getElementById('prof-email').value = userProfile.email || user.email || '';
@@ -222,9 +219,11 @@ async function initApp() {
                     document.getElementById('nav-pesanan').style.display = 'flex';
                     document.getElementById('nav-bot-pesanan').style.display = 'flex';
                     
-                    window.renderUserOrders(); 
                     updateProfileStats();
                 }
+                
+                // Entah anonim atau terdaftar, mereka bisa memantau pesanan mereka
+                window.renderUserOrders(); 
                 
                 document.getElementById('user-chat-fab').style.display = 'flex';
                 listenUserChat();
@@ -258,12 +257,10 @@ function listenData() {
         window.applySettingsToUI();
     });
 
-    // Urutan Loading diatur agar kalkulasi Review dan Sales bisa tereksekusi dengan benar
     onSnapshot(collection(db, pathReviews), (snapshot) => {
         reviewsData = [];
         snapshot.forEach((docSnap) => { reviewsData.push({ dbId: docSnap.id, ...docSnap.data() }); });
         
-        // Refresh katalog jika diperlukan
         let activeTabBtn = document.querySelector('.tab-btn.active');
         let curFilter = activeTabBtn ? (activeTabBtn.innerText.includes('Aplikasi') ? 'app' : activeTabBtn.innerText.includes('Game') ? 'game' : 'all') : 'all';
         window.renderBrands(curFilter);
@@ -281,24 +278,29 @@ function listenData() {
             let data = { dbId: docSnap.id, ...docSnap.data() };
             const orderTime = new Date(data.date).getTime();
             
+            // Logika QRIS EXPIRED 4 Menit
             if(data.status === 'UNPAID') {
                 if(now - orderTime > 240000) { 
-                    updateDoc(doc(db, pathOrders, data.dbId), { status: 'EXPIRED' });
+                    updateDoc(doc(db, pathOrders, data.dbId), { status: 'EXPIRED' }).catch(()=>{});
                     data.status = 'EXPIRED';
                 }
             } else if (data.status === 'EXPIRED') {
                 if(now - orderTime > 86400000) { 
-                    deleteDoc(doc(db, pathOrders, data.dbId));
+                    deleteDoc(doc(db, pathOrders, data.dbId)).catch(()=>{});
                     return; 
                 }
             }
             newOrders.push(data);
 
-            const emailToUse = userProfile.email || (currentUser && currentUser.email);
-            if (emailToUse && data.userEmail === emailToUse) {
+            // Trigger notifikasi sukses untuk pengguna yang sedang aktif (baik Guest atau Member)
+            if (currentUser && data.userId === currentUser.uid) {
                 let oldStatus = previousOrdersData[data.id];
                 if (oldStatus && oldStatus !== 'SUCCESS' && data.status === 'SUCCESS') {
-                    window.showToast('Pesanan Selesai!', `Hore! Pesanan ${data.id} berhasil diproses.`, 'success', () => window.switchMainTab('pesanan'));
+                    window.showToast('Pesanan Selesai!', `Hore! Pesanan ${data.id} berhasil diproses.`, 'success', () => {
+                        window.switchMainTab('lacak');
+                        document.getElementById('track-id').value = data.id;
+                        window.trackOrder();
+                    });
                 }
             }
             previousOrdersData[data.id] = data.status;
@@ -306,7 +308,7 @@ function listenData() {
         
         orders = newOrders.sort((a,b) => new Date(b.date) - new Date(a.date));
         
-        // Memuat katalog lagi karena data Terjual (Sales) bergantung pada Orders
+        // Memuat katalog lagi untuk update label Terjual
         let activeTabBtn = document.querySelector('.tab-btn.active');
         let curFilter = activeTabBtn ? (activeTabBtn.innerText.includes('Aplikasi') ? 'app' : activeTabBtn.innerText.includes('Game') ? 'game' : 'all') : 'all';
         window.renderBrands(curFilter);
@@ -318,7 +320,7 @@ function listenData() {
         }
         
         updateOrderBadges();
-        if(currentUser && !currentUser.isAnonymous) {
+        if(currentUser) {
             window.renderUserOrders();
             updateProfileStats();
         }
@@ -358,9 +360,8 @@ function listenData() {
 }
 
 function updateOrderBadges() {
-    const emailToUse = userProfile.email || (currentUser && currentUser.email);
-    if (emailToUse && currentUser && !currentUser.isAnonymous) {
-        const hasActionNeeded = orders.some(o => o.userEmail === emailToUse && (o.status === 'UNPAID' || o.status === 'PENDING'));
+    if (currentUser) {
+        const hasActionNeeded = orders.some(o => o.userId === currentUser.uid && (o.status === 'UNPAID' || o.status === 'PENDING'));
         const badgeDesk = document.getElementById('user-order-badge-desktop');
         if(badgeDesk) badgeDesk.style.display = hasActionNeeded ? 'block' : 'none';
         const badgeMob = document.getElementById('user-order-badge-mobile');
@@ -389,18 +390,15 @@ function calculateCRC16(payload) {
 function generateDynamicQRIS(staticQRIS, amount) {
     if (!staticQRIS) return "";
     
-    // Buang ekor CRC lama (tag 6304)
     let baseString = staticQRIS.slice(0, -4);
     if (baseString.endsWith('6304')) {
         baseString = baseString.slice(0, -4);
     }
 
-    // Bangun Tag 54 untuk nominal (Format: 54 + Panjang Nominal + Nominal)
     const amountStr = amount.toString();
     const lengthStr = amountStr.length.toString().padStart(2, '0');
     const tag54 = `54${lengthStr}${amountStr}`;
 
-    // Gabungkan kembali
     const newPayload = `${baseString}${tag54}6304`;
     const newCRC = calculateCRC16(newPayload);
 
@@ -543,21 +541,32 @@ window.switchAuthTab = function(tab) {
     document.getElementById('form-register').style.display = tab==='register' ? 'block' : 'none';
     document.getElementById('form-reset').style.display = tab==='reset' ? 'block' : 'none';
     
-    document.getElementById('auth-divider').style.display = tab==='reset' ? 'none' : 'flex';
-    document.getElementById('auth-google-btn').style.display = tab==='reset' ? 'none' : 'flex';
+    // Sembunyikan Opsi Tab Login/Daftar & Google saat masuk ke Reset Sandi
+    const authTabsContainer = document.getElementById('auth-tabs-container');
+    const authDivider = document.getElementById('auth-divider');
+    const googleBtn = document.getElementById('auth-google-btn');
+    const authTitle = document.getElementById('auth-title');
+    const authSub = document.getElementById('auth-subtitle');
     
-    const btnL = document.getElementById('tab-login');
-    const btnR = document.getElementById('tab-register');
-    if(btnL) btnL.className = tab==='login' ? 'active' : '';
-    if(btnR) btnR.className = tab==='register' ? 'active' : '';
-    
-    const title = document.getElementById('auth-title');
-    const subtitle = document.getElementById('auth-subtitle');
-    if(tab==='reset') {
-        title.innerText = 'Lupa Sandi'; subtitle.innerText = 'Tenang, mari kita pulihkan akunmu.';
+    if(tab === 'reset') {
+        if(authTabsContainer) authTabsContainer.style.display = 'none';
+        if(authDivider) authDivider.style.display = 'none';
+        if(googleBtn) googleBtn.style.display = 'none';
+        
+        authTitle.innerText = 'Lupa Sandi'; 
+        authSub.innerText = 'Tenang, mari kita pulihkan akunmu.';
     } else {
-        title.innerText = tab==='login' ? 'Masuk Akun' : 'Daftar Baru';
-        subtitle.innerText = tab==='login' ? 'Masuk untuk transaksi riwayat tersimpan.' : 'Buat akun sekarang, nikmati transaksi otomatis yang cepat.';
+        if(authTabsContainer) authTabsContainer.style.display = 'flex';
+        if(authDivider) authDivider.style.display = 'flex';
+        if(googleBtn) googleBtn.style.display = 'flex';
+        
+        authTitle.innerText = tab === 'login' ? 'Masuk Akun' : 'Daftar Baru';
+        authSub.innerText = tab === 'login' ? 'Masuk untuk memantau transaksi riwayat tersimpan.' : 'Buat akun sekarang untuk kemudahan transaksi.';
+        
+        const btnL = document.getElementById('tab-login');
+        const btnR = document.getElementById('tab-register');
+        if(btnL) btnL.className = tab==='login' ? 'active' : '';
+        if(btnR) btnR.className = tab==='register' ? 'active' : '';
     }
 }
 window.showResetPassword = () => window.switchAuthTab('reset');
@@ -588,13 +597,17 @@ window.processLogin = async function() {
     if(!em || !pw) { window.customAlert('Error', 'Email dan Password wajib diisi!', 'error'); return; }
     
     const btn = document.getElementById('btn-do-login');
-    btn.innerText = 'Memproses...'; btn.disabled = true;
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> <span>Memproses...</span>'; 
+    btn.disabled = true;
     try {
         await signInWithEmailAndPassword(auth, em, pw);
         window.switchMainTab('katalog');
         window.customAlert('Sukses', 'Berhasil masuk.', 'success');
     } catch(e) { window.customAlert('Gagal', 'Email atau password salah.', 'error'); } 
-    finally { btn.innerText = 'Masuk Sekarang'; btn.disabled = false; }
+    finally { 
+        btn.innerHTML = '<i class="fa-solid fa-arrow-right-to-bracket"></i> <span>Masuk Sekarang</span>'; 
+        btn.disabled = false; 
+    }
 }
 
 window.processRegister = async function() {
@@ -607,7 +620,8 @@ window.processRegister = async function() {
     }
     
     const btn = document.getElementById('btn-do-register');
-    btn.innerText = 'Memproses...'; btn.disabled = true;
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> <span>Memproses...</span>'; 
+    btn.disabled = true;
     try {
         const cred = await createUserWithEmailAndPassword(auth, em, pw);
         await setDoc(doc(db, pathUsers, cred.user.uid), { 
@@ -620,7 +634,10 @@ window.processRegister = async function() {
         window.switchMainTab('profil');
         window.customAlert('Sukses', 'Akun berhasil didaftarkan.', 'success');
     } catch(e) { window.customAlert('Gagal', 'Email mungkin sudah terdaftar.', 'error'); } 
-    finally { btn.innerText = 'Buat Akun Baru'; btn.disabled = false; }
+    finally { 
+        btn.innerHTML = '<i class="fa-solid fa-user-plus"></i> <span>Buat Akun Baru</span>'; 
+        btn.disabled = false; 
+    }
 }
 
 function checkResetCooldown() {
@@ -640,12 +657,20 @@ window.processReset = async function() {
     const em = document.getElementById('auth-res-email').value.trim();
     if(!em) { window.customAlert('Error', 'Masukkan email terdaftar.', 'error'); return; }
     if(!checkResetCooldown()) return;
+    
+    const btn = document.getElementById('btn-do-reset');
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> <span>Memproses...</span>';
+    btn.disabled = true;
     try {
         await sendPasswordResetEmail(auth, em);
         localStorage.setItem('vipercell_last_reset', Date.now());
         window.customAlert('Terkirim', 'Tautan reset telah dikirim ke email kamu.', 'success');
         window.switchAuthTab('login');
     } catch(e) { window.customAlert('Error', 'Gagal mengirim tautan reset.', 'error'); }
+    finally {
+        btn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> <span>Kirim Link Reset</span>';
+        btn.disabled = false;
+    }
 }
 
 window.sendProfileResetPassword = async function() {
@@ -658,13 +683,16 @@ window.sendProfileResetPassword = async function() {
     } catch (e) { window.customAlert('Gagal', 'Terjadi kesalahan sistem.', 'error'); }
 }
 
-window.googleLogin = async function() {
+window.processGoogleLogin = async function() {
     const provider = new GoogleAuthProvider();
+    const btnText = document.getElementById('text-google-btn');
+    const ogText = btnText ? btnText.innerText : 'Masuk dengan Google';
+    if(btnText) btnText.innerText = 'Memverifikasi...';
+    
     try {
         const result = await signInWithPopup(auth, provider);
         const userDoc = await getDoc(doc(db, pathUsers, result.user.uid));
         
-        // Auto-register jika via Google
         if (!userDoc.exists()) {
             await setDoc(doc(db, pathUsers, result.user.uid), { 
                 email: result.user.email, 
@@ -676,7 +704,11 @@ window.googleLogin = async function() {
         }
         window.switchMainTab('pesanan');
         window.customAlert('Sukses', 'Berhasil masuk via Google.', 'success');
-    } catch (error) {}
+    } catch (error) {
+        console.error(error);
+    } finally {
+        if(btnText) btnText.innerText = ogText;
+    }
 }
 
 window.logoutUser = async function() {
@@ -696,9 +728,8 @@ window.saveUserProfile = async function() {
 }
 
 function updateProfileStats() {
-    if(!currentUser || currentUser.isAnonymous) return;
-    const emailToUse = userProfile.email || currentUser.email;
-    const successCount = orders.filter(o => o.userEmail === emailToUse && o.status === 'SUCCESS').length;
+    if(!currentUser) return;
+    const successCount = orders.filter(o => o.userId === currentUser.uid && o.status === 'SUCCESS').length;
     const statEl = document.getElementById('prof-stat-success');
     if(statEl) statEl.innerText = successCount;
 }
@@ -841,7 +872,7 @@ window.filterBrands = function(type, btnEl) {
     window.renderBrands(type);
 }
 
-// UPDATE: Rendering Katalog dengan Info Terjual & Bintang Rating
+// Rendering Katalog Depan (Bintang Dihapus, Sisa Terjual)
 window.renderBrands = function(filter) {
     const grid = document.getElementById('brand-grid');
     if(!grid) return;
@@ -855,17 +886,9 @@ window.renderBrands = function(filter) {
     
     let html = '';
     filteredBrands.forEach(b => {
-        // Kalkulasi Statistik Terjual
+        // Kalkulasi Terjual
         const soldCount = orders.filter(o => o.status === 'SUCCESS' && o.items && o.items[0]?.brandName === b.brandName)
                                 .reduce((sum, o) => sum + (o.items[0].qty || 1), 0);
-        
-        // Kalkulasi Rating
-        const brandReviews = reviewsData.filter(r => r.brandName === b.brandName);
-        let avgRating = 0;
-        if (brandReviews.length > 0) {
-            const sumRating = brandReviews.reduce((sum, r) => sum + r.rating, 0);
-            avgRating = (sumRating / brandReviews.length).toFixed(1);
-        }
 
         const typeName = b.type === 'game' ? 'Game' : 'Aplikasi';
         const imgHtml = b.imgUrlBase64 
@@ -876,12 +899,10 @@ window.renderBrands = function(filter) {
         const clickAction = b.isGangguan ? `window.customAlert('Maintenance Server', 'Mohon maaf, produk ini sedang dalam gangguan jaringan.', 'warning')` : `window.openDirectBuyModal('${b.brandName}')`;
         const cssClass = b.isGangguan ? 'brand-card reveal sold-out' : 'brand-card reveal';
         
-        // Elemen Statistik (Tampil di HTML)
+        // Hanya menampilkan Total Terjual di katalog luar
         const statsHtml = `
-            <div style="display:flex; justify-content:center; align-items:center; gap:8px; font-size:0.75rem; color:var(--text-muted); margin-top:4px;">
-                <span style="color:var(--warning); font-weight:bold;"><i class="fa-solid fa-star"></i> ${avgRating > 0 ? avgRating : '-'}</span>
-                <span>•</span>
-                <span>${soldCount} Terjual</span>
+            <div style="display:flex; justify-content:center; align-items:center; font-size:0.75rem; color:var(--text-muted); margin-top:4px;">
+                <span style="color:var(--success); font-weight:bold;"><i class="fa-solid fa-cart-arrow-down"></i> ${soldCount} Terjual</span>
             </div>
         `;
         
@@ -963,7 +984,7 @@ window.openDirectBuyModal = function(brandName) {
         document.getElementById('roblox-checker-container').style.display = 'none';
     }
     
-    // Render Grid Item
+    // Render Grid Item (Label Manual Dihapus)
     const itemGrid = document.getElementById('buy-item-grid');
     const sortedItems = [...brandObj.items].sort((a, b) => (a.priceNum||0) - (b.priceNum||0));
     
@@ -1033,9 +1054,9 @@ window.openDirectBuyModal = function(brandName) {
             <p style="font-size:0.85rem; color:var(--text-muted); text-align:center; padding: 1.2rem; background:rgba(37,99,235,0.08); border-radius:10px; border:1px dashed var(--primary-light);">Informasi akun premium akan langsung ditampilkan di menu <b>Lacak Pesanan</b> setelah sukses dibayar.</p>`;
     }
     
-    // Prefill Email
+    // Prefill Email (Meskipun Guest, jika mereka pernah input sebelumnya, ambil cache jika ada)
     const emailInput = document.getElementById('buy-email');
-    if(userProfile.email) {
+    if(!userProfile.isGuest && userProfile.email) {
         emailInput.value = userProfile.email; 
     } else {
         emailInput.value = ''; 
@@ -1079,8 +1100,8 @@ window.applyPromoDirect = function() {
     } else if (p.targetBrand !== 'all' && p.targetBrand !== currentCheckoutBrand.brandName) {
         appliedPromo = null; msgEl.innerHTML = `<span style="color:var(--danger)">Khusus produk ${p.targetBrand}.</span>`;
     } else if (p.targetUser === 'new') {
-        const emailToUse = document.getElementById('buy-email').value.trim() || userProfile.email;
-        const hasOrders = orders.some(o => o.userEmail === emailToUse);
+        // Cek Riwayat berdasarkan UID agar akurat (meski email ganti-ganti untuk Guest)
+        const hasOrders = currentUser ? orders.some(o => o.userId === currentUser.uid) : false;
         if (hasOrders) {
             appliedPromo = null; msgEl.innerHTML = `<span style="color:var(--danger)">Khusus Transaksi Pertama.</span>`;
         } else { setValidPromo(p, msgEl); }
@@ -1130,7 +1151,7 @@ window.calculateDirectBuyTotal = function() {
     
     // Tombol aktif jika item dipilih
     btnProc.style.background = 'var(--primary-gradient)';
-    btnProc.innerHTML = '<i class="fa-solid fa-cart-shopping"></i> <span id="btn-process-text">Selesaikan Pembayaran</span>'; 
+    btnProc.innerHTML = '<i class="fa-solid fa-cart-shopping"></i> <span>Selesaikan Pembayaran</span>'; 
     btnProc.disabled = false;
 }
 
@@ -1195,7 +1216,9 @@ window.processDirectCheckout = async function() {
     };
 
     const newOrder = {
-        id: invId, userEmail: emailInput,
+        id: invId, 
+        userEmail: emailInput,
+        userId: currentUser ? currentUser.uid : null, // Sangat penting untuk menghubungkan Ulasan Guest
         items: [singleItem], finalTotal: finalTotal, baseTotal: baseTotal,
         uniqueCode: uniqueCode, promoCode: promoUsedCode, promoDiscount: discountPromo,
         status: paymentMethod === 'cash' ? 'PENDING' : 'UNPAID',
@@ -1218,7 +1241,8 @@ window.processDirectCheckout = async function() {
         
         window.closeModal('modal-buy-direct');
         if(paymentMethod === 'qris') {
-            setTimeout(() => window.openQRISModal(), 300);
+            // Beri sedikit jeda agar DOM modal tertutup halus sebelum modal QRIS render
+            setTimeout(() => window.openQRISModal(), 400);
         } else {
             window.finishCashOrder();
         }
@@ -1245,8 +1269,16 @@ window.finishCashOrder = function() {
         </a>`;
         
     window.customAlert('Menunggu Pembayaran', successMsg, 'info');
+    
+    // Trik agar Lacak Pesanan layar penuh mendeteksi otomatis
+    const invToTrack = currentCheckoutSession.id;
     currentCheckoutSession = null;
-    if(currentUser && !currentUser.isAnonymous) window.switchMainTab('pesanan');
+    
+    setTimeout(() => {
+        window.switchMainTab('lacak');
+        document.getElementById('track-id').value = invToTrack;
+        window.trackOrder();
+    }, 500);
 }
 
 // ==========================================
@@ -1284,7 +1316,7 @@ window.openQRISModal = function() {
     // Mengambil Base String dari Database yang diatur di panel Admin
     const qrisBaseString = siteSettings.qrisStringData || "00020101021126670016COM.NOBUBANK.WWW011893600503000000000051440014ID.CO.QRIS.WWW0215ID10200210007070303UMI5204581253033605802ID5919VIPERCELL INDONESIA6005AMBON61059711662070703A016304"; 
     
-    if(qrisBaseString && currentCheckoutSession.finalTotal > 0) {
+    if(qrisBaseString && currentCheckoutSession && currentCheckoutSession.finalTotal > 0) {
         const dynamicQRIS = generateDynamicQRIS(qrisBaseString, currentCheckoutSession.finalTotal);
         new QRCode(qrContainer, {
             text: dynamicQRIS,
@@ -1338,10 +1370,10 @@ window.goToPesananFromPay = function() {
     const orderIdToTrack = currentCheckoutSession ? currentCheckoutSession.id : '';
     currentCheckoutSession = null;
     
-    if(currentUser && !currentUser.isAnonymous) window.switchMainTab('pesanan');
-    else if (orderIdToTrack) {
+    if (orderIdToTrack) {
+        window.switchMainTab('lacak');
         document.getElementById('track-id').value = orderIdToTrack;
-        window.trackOrder(); window.openModal('modal-cek-pesanan');
+        window.trackOrder(); 
     }
 }
 
@@ -1378,9 +1410,9 @@ function generateHelpButtons(invId, orderStatus, item) {
 }
 
 window.refreshOrderData = function() {
-    if(currentUser && !currentUser.isAnonymous) window.renderUserOrders();
-    const trackModal = document.getElementById('modal-cek-pesanan');
-    if(trackModal && trackModal.classList.contains('active')) window.trackOrder();
+    if(currentUser) window.renderUserOrders();
+    const trackResult = document.getElementById('track-result');
+    if(trackResult && trackResult.style.display === 'block') window.trackOrder();
     
     const btnRefresh = document.querySelector('.section-header .btn-outline');
     if(btnRefresh) {
@@ -1505,13 +1537,13 @@ window.renderUserOrders = function() {
     const grid = document.getElementById('user-order-grid');
     if(!grid) return;
     
-    if(!currentUser || currentUser.isAnonymous) { grid.innerHTML = ''; return; }
+    if(!currentUser) { grid.innerHTML = ''; return; }
     
-    const emailToUse = userProfile.email || currentUser.email;
-    const userOrders = orders.filter(o => o.userEmail === emailToUse);
+    // Tarik berdasarkan userId, sehingga Guest Anonymous tetap bisa melihat transaksinya
+    const userOrders = orders.filter(o => o.userId === currentUser.uid);
     
     if(userOrders.length === 0) {
-        grid.innerHTML = '<div style="text-align:center; padding: 2rem; color:var(--text-muted);">Belum ada riwayat pesanan.</div>'; return;
+        grid.innerHTML = '<div style="text-align:center; padding: 2rem; color:var(--text-muted);">Belum ada riwayat pesanan di perangkat ini.</div>'; return;
     }
     
     let html = '';
@@ -1625,12 +1657,10 @@ window.renderReviewsUI = function() {
     const reviewListContainer = document.getElementById('review-list-container');
     const writeContainer = document.getElementById('review-write-container');
     
-    // Verifikasi apakah user boleh menulis ulasan (Sudah pernah beli produk ini & status SUCCESS)
+    // Verifikasi Guest / Member untuk Ulasan (Pakai User ID agar Akurat)
     let canReview = false;
-    const emailToUse = userProfile.email || (currentUser && currentUser.email);
-    
-    if (emailToUse) {
-        const hasBought = orders.some(o => o.userEmail === emailToUse && o.status === 'SUCCESS' && o.items[0]?.brandName === brandName);
+    if (currentUser) {
+        const hasBought = orders.some(o => o.userId === currentUser.uid && o.status === 'SUCCESS' && o.items[0]?.brandName === brandName);
         if (hasBought) canReview = true;
     }
     
@@ -1672,12 +1702,18 @@ window.submitReview = async function() {
     
     if(!textInput) { window.customAlert('Peringatan', 'Ulasan tidak boleh kosong.', 'warning'); return; }
     
-    const emailToUse = userProfile.email || (currentUser && currentUser.email);
+    const emailToUse = userProfile.email || (currentUser && currentUser.email) || 'guest@vipercell.com';
     const userName = userProfile.name || (currentUser && currentUser.isAnonymous ? 'Guest' : emailToUse.split('@')[0]);
     
+    const btnSubmit = document.getElementById('btn-submit-review');
+    const ogHtml = btnSubmit.innerHTML;
+    btnSubmit.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> <span>Mengirim...</span>';
+    btnSubmit.disabled = true;
+
     const newReview = {
         brandName: currentCheckoutBrand.brandName,
         userEmail: emailToUse,
+        userId: currentUser ? currentUser.uid : null,
         userName: userName,
         rating: rating,
         text: textInput,
@@ -1689,7 +1725,10 @@ window.submitReview = async function() {
         document.getElementById('review-text').value = '';
         window.customAlert('Terima Kasih', 'Ulasanmu berhasil dipublikasikan!', 'success');
     } catch(e) {
-        window.customAlert('Gagal', 'Gagal mengirim ulasan.', 'error');
+        window.customAlert('Gagal', 'Gagal mengirim ulasan. Pastikan jaringan stabil.', 'error');
+    } finally {
+        btnSubmit.innerHTML = ogHtml;
+        btnSubmit.disabled = false;
     }
 }
 
