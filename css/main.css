@@ -1,7 +1,7 @@
 /* ========================================================
-   VIPERCELL V17.0 - ULTIMATE FRONTEND CSS (USER)
-   * Updated: PWA, Qty Checkout, Review System, Roblox UI
-   * Cleaned: VIP System & Legacy Notifications
+   VIPERCELL V17.2 - ULTIMATE FRONTEND CSS (USER)
+   * Updated: Welcome Bar, Qty Selector, Review Stars, Roblox UI
+   * Fixed: Payment Panel Overflow & Loading States
    ======================================================== */
 
 /* ========================================================
@@ -83,7 +83,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
     outline-offset: 2px;
 }
 
-/* Sembunyikan Panah Bawaan Browser untuk Input Qty */
+/* KHUSUS: Sembunyikan Panah (Spinner) Bawaan Browser pada Input Number (Untuk Fitur Qty) */
 input[type="number"]::-webkit-inner-spin-button,
 input[type="number"]::-webkit-outer-spin-button {
     -webkit-appearance: none;

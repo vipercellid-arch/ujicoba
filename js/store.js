@@ -209,7 +209,7 @@ async function initApp() {
                         
                         const statusEl = document.getElementById('prof-email-status');
                         if (userProfile.isGuest) {
-                            statusEl.innerText = '(Guest Account)';
+                            statusEl.innerText = '(Akun Belum Lengkap)';
                             statusEl.style.color = 'var(--warning)';
                         } else {
                             statusEl.innerText = '(Verified)';
@@ -258,6 +258,73 @@ function listenData() {
         window.applySettingsToUI();
     });
 
+    // Urutan Loading diatur agar kalkulasi Review dan Sales bisa tereksekusi dengan benar
+    onSnapshot(collection(db, pathReviews), (snapshot) => {
+        reviewsData = [];
+        snapshot.forEach((docSnap) => { reviewsData.push({ dbId: docSnap.id, ...docSnap.data() }); });
+        
+        // Refresh katalog jika diperlukan
+        let activeTabBtn = document.querySelector('.tab-btn.active');
+        let curFilter = activeTabBtn ? (activeTabBtn.innerText.includes('Aplikasi') ? 'app' : activeTabBtn.innerText.includes('Game') ? 'game' : 'all') : 'all';
+        window.renderBrands(curFilter);
+        
+        if(currentCheckoutBrand && document.getElementById('buy-content-reviews').style.display === 'block') {
+            window.renderReviewsUI();
+        }
+    });
+
+    onSnapshot(collection(db, pathOrders), (snapshot) => {
+        let newOrders = [];
+        const now = Date.now();
+        
+        snapshot.forEach((docSnap) => {
+            let data = { dbId: docSnap.id, ...docSnap.data() };
+            const orderTime = new Date(data.date).getTime();
+            
+            if(data.status === 'UNPAID') {
+                if(now - orderTime > 240000) { 
+                    updateDoc(doc(db, pathOrders, data.dbId), { status: 'EXPIRED' });
+                    data.status = 'EXPIRED';
+                }
+            } else if (data.status === 'EXPIRED') {
+                if(now - orderTime > 86400000) { 
+                    deleteDoc(doc(db, pathOrders, data.dbId));
+                    return; 
+                }
+            }
+            newOrders.push(data);
+
+            const emailToUse = userProfile.email || (currentUser && currentUser.email);
+            if (emailToUse && data.userEmail === emailToUse) {
+                let oldStatus = previousOrdersData[data.id];
+                if (oldStatus && oldStatus !== 'SUCCESS' && data.status === 'SUCCESS') {
+                    window.showToast('Pesanan Selesai!', `Hore! Pesanan ${data.id} berhasil diproses.`, 'success', () => window.switchMainTab('pesanan'));
+                }
+            }
+            previousOrdersData[data.id] = data.status;
+        });
+        
+        orders = newOrders.sort((a,b) => new Date(b.date) - new Date(a.date));
+        
+        // Memuat katalog lagi karena data Terjual (Sales) bergantung pada Orders
+        let activeTabBtn = document.querySelector('.tab-btn.active');
+        let curFilter = activeTabBtn ? (activeTabBtn.innerText.includes('Aplikasi') ? 'app' : activeTabBtn.innerText.includes('Game') ? 'game' : 'all') : 'all';
+        window.renderBrands(curFilter);
+        
+        const trackModal = document.getElementById('modal-cek-pesanan');
+        if(trackModal && trackModal.classList.contains('active')) {
+            const currentTrackId = document.getElementById('track-id').value.trim().toUpperCase();
+            if(currentTrackId) window.trackOrder(); 
+        }
+        
+        updateOrderBadges();
+        if(currentUser && !currentUser.isAnonymous) {
+            window.renderUserOrders();
+            updateProfileStats();
+        }
+        initialOrderLoad = false;
+    });
+
     onSnapshot(collection(db, pathProducts), (snapshot) => {
         products = [];
         snapshot.forEach((docSnap) => { products.push({ dbId: docSnap.id, ...docSnap.data() }); });
@@ -287,62 +354,6 @@ function listenData() {
         promos = [];
         snapshot.forEach((docSnap) => { promos.push({ dbId: docSnap.id, ...docSnap.data() }); });
         if(selectedProductForBuy) window.calculateDirectBuyTotal();
-    });
-    
-    onSnapshot(collection(db, pathReviews), (snapshot) => {
-        reviewsData = [];
-        snapshot.forEach((docSnap) => { reviewsData.push({ dbId: docSnap.id, ...docSnap.data() }); });
-        if(currentCheckoutBrand && document.getElementById('buy-content-reviews').style.display === 'block') {
-            window.renderReviewsUI();
-        }
-    });
-
-    onSnapshot(collection(db, pathOrders), (snapshot) => {
-        let newOrders = [];
-        const now = Date.now();
-        
-        snapshot.forEach((docSnap) => {
-            let data = { dbId: docSnap.id, ...docSnap.data() };
-            const orderTime = new Date(data.date).getTime();
-            
-            // Logika QRIS EXPIRED
-            if(data.status === 'UNPAID') {
-                if(now - orderTime > 240000) { 
-                    updateDoc(doc(db, pathOrders, data.dbId), { status: 'EXPIRED' });
-                    data.status = 'EXPIRED';
-                }
-            } else if (data.status === 'EXPIRED') {
-                if(now - orderTime > 86400000) { 
-                    deleteDoc(doc(db, pathOrders, data.dbId));
-                    return; 
-                }
-            }
-            newOrders.push(data);
-
-            const emailToUse = userProfile.email || (currentUser && currentUser.email);
-            if (emailToUse && data.userEmail === emailToUse) {
-                let oldStatus = previousOrdersData[data.id];
-                if (oldStatus && oldStatus !== 'SUCCESS' && data.status === 'SUCCESS') {
-                    window.showToast('Pesanan Selesai!', `Hore! Pesanan ${data.id} berhasil diproses.`, 'success', () => window.switchMainTab('pesanan'));
-                }
-            }
-            previousOrdersData[data.id] = data.status;
-        });
-        
-        orders = newOrders.sort((a,b) => new Date(b.date) - new Date(a.date));
-        
-        const trackModal = document.getElementById('modal-cek-pesanan');
-        if(trackModal && trackModal.classList.contains('active')) {
-            const currentTrackId = document.getElementById('track-id').value.trim().toUpperCase();
-            if(currentTrackId) window.trackOrder(); 
-        }
-        
-        updateOrderBadges();
-        if(currentUser && !currentUser.isAnonymous) {
-            window.renderUserOrders();
-            updateProfileStats();
-        }
-        initialOrderLoad = false;
     });
 }
 
@@ -378,7 +389,7 @@ function calculateCRC16(payload) {
 function generateDynamicQRIS(staticQRIS, amount) {
     if (!staticQRIS) return "";
     
-    // Buang ekor CRC lama
+    // Buang ekor CRC lama (tag 6304)
     let baseString = staticQRIS.slice(0, -4);
     if (baseString.endsWith('6304')) {
         baseString = baseString.slice(0, -4);
@@ -830,6 +841,7 @@ window.filterBrands = function(type, btnEl) {
     window.renderBrands(type);
 }
 
+// UPDATE: Rendering Katalog dengan Info Terjual & Bintang Rating
 window.renderBrands = function(filter) {
     const grid = document.getElementById('brand-grid');
     if(!grid) return;
@@ -843,6 +855,18 @@ window.renderBrands = function(filter) {
     
     let html = '';
     filteredBrands.forEach(b => {
+        // Kalkulasi Statistik Terjual
+        const soldCount = orders.filter(o => o.status === 'SUCCESS' && o.items && o.items[0]?.brandName === b.brandName)
+                                .reduce((sum, o) => sum + (o.items[0].qty || 1), 0);
+        
+        // Kalkulasi Rating
+        const brandReviews = reviewsData.filter(r => r.brandName === b.brandName);
+        let avgRating = 0;
+        if (brandReviews.length > 0) {
+            const sumRating = brandReviews.reduce((sum, r) => sum + r.rating, 0);
+            avgRating = (sumRating / brandReviews.length).toFixed(1);
+        }
+
         const typeName = b.type === 'game' ? 'Game' : 'Aplikasi';
         const imgHtml = b.imgUrlBase64 
              ? `<img src="${b.imgUrlBase64}" alt="${b.brandName}" loading="lazy">` 
@@ -852,6 +876,15 @@ window.renderBrands = function(filter) {
         const clickAction = b.isGangguan ? `window.customAlert('Maintenance Server', 'Mohon maaf, produk ini sedang dalam gangguan jaringan.', 'warning')` : `window.openDirectBuyModal('${b.brandName}')`;
         const cssClass = b.isGangguan ? 'brand-card reveal sold-out' : 'brand-card reveal';
         
+        // Elemen Statistik (Tampil di HTML)
+        const statsHtml = `
+            <div style="display:flex; justify-content:center; align-items:center; gap:8px; font-size:0.75rem; color:var(--text-muted); margin-top:4px;">
+                <span style="color:var(--warning); font-weight:bold;"><i class="fa-solid fa-star"></i> ${avgRating > 0 ? avgRating : '-'}</span>
+                <span>•</span>
+                <span>${soldCount} Terjual</span>
+            </div>
+        `;
+        
         html += `
             <div class="${cssClass}" onclick="${clickAction}">
                 <div class="brand-img-wrapper">
@@ -860,7 +893,7 @@ window.renderBrands = function(filter) {
                 </div>
                 <div class="brand-content">
                     <h3>${b.brandName}</h3>
-                    <p style="font-size:0.75rem; color:var(--text-muted); margin-top:5px;">Pilih Nominal/Item</p>
+                    ${statsHtml}
                 </div>
             </div>`;
     });
@@ -910,7 +943,7 @@ window.openDirectBuyModal = function(brandName) {
     document.getElementById('buy-brand-name').innerText = brandObj.brandName;
     document.getElementById('buy-brand-badge').innerText = brandObj.type === 'game' ? 'TOP UP GAME' : 'APLIKASI PREMIUM';
     
-    // Kalkulasi Penjualan
+    // Kalkulasi Penjualan Detail Modal
     const totalSold = orders.filter(o => o.status === 'SUCCESS' && o.items && o.items[0]?.brandName === brandObj.brandName)
                             .reduce((sum, o) => sum + (o.items[0].qty || 1), 0);
     document.getElementById('buy-brand-sold').innerText = `${totalSold} Terjual`;
@@ -942,7 +975,6 @@ window.openDirectBuyModal = function(brandName) {
         const normalPrice = item.priceNum || 0;
         const isSold = item.soldOut;
         
-        // DIBERSIHKAN: Label Manual dihapus dari list item (Badaki)
         let priceHtml = `<div class="price-wrapper"><span class="price-normal">Rp${normalPrice.toLocaleString('id-ID')}</span></div>`;
         
         html += `
@@ -1068,6 +1100,9 @@ window.calculateDirectBuyTotal = function() {
     
     if(!selectedProductForBuy) {
         document.getElementById('buy-total-price').innerText = 'Rp0';
+        btnProc.innerHTML = '<i class="fa-solid fa-cart-shopping"></i> <span>Pilih Item Dahulu</span>';
+        btnProc.style.background = 'var(--surface-hover)';
+        btnProc.disabled = true;
         return; 
     }
     
@@ -1093,9 +1128,9 @@ window.calculateDirectBuyTotal = function() {
         btnProc.style.background = 'var(--danger)'; btnProc.style.boxShadow = 'none'; return;
     }
     
-    // Tanpa Captcha - Tombol langsung aktif jika item dipilih
+    // Tombol aktif jika item dipilih
     btnProc.style.background = 'var(--primary-gradient)';
-    btnProc.innerHTML = '<i class="fa-solid fa-cart-shopping"></i> <span>Selesaikan Pembayaran</span>'; 
+    btnProc.innerHTML = '<i class="fa-solid fa-cart-shopping"></i> <span id="btn-process-text">Selesaikan Pembayaran</span>'; 
     btnProc.disabled = false;
 }
 
@@ -1110,8 +1145,6 @@ window.processDirectCheckout = async function() {
     }
     
     const qty = parseInt(document.getElementById('buy-qty').value) || 1;
-    
-    // Dihapus Logika Auto-Guest Database sesuai permintaan
     
     let playerInfo = '';
     if(currentCheckoutBrand.type === 'game') {
@@ -1169,6 +1202,12 @@ window.processDirectCheckout = async function() {
         paymentMethod: paymentMethod, adminReply: '', date: new Date().toISOString()
     };
 
+    // VISUAL FEEDBACK (LOADING SPINNER)
+    const btnProc = document.getElementById('btn-process-buy');
+    const ogHtml = btnProc.innerHTML;
+    btnProc.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> <span>Meneruskan ke Server...</span>';
+    btnProc.disabled = true;
+
     try {
         const docRef = await addDoc(collection(db, pathOrders), newOrder);
         currentCheckoutSession = { dbId: docRef.id, id: invId, finalTotal: finalTotal, method: paymentMethod, date: newOrder.date };
@@ -1178,24 +1217,31 @@ window.processDirectCheckout = async function() {
         }
         
         window.closeModal('modal-buy-direct');
-        if(paymentMethod === 'qris') setTimeout(() => window.openQRISModal(), 300);
-        else window.finishCashOrder();
+        if(paymentMethod === 'qris') {
+            setTimeout(() => window.openQRISModal(), 300);
+        } else {
+            window.finishCashOrder();
+        }
         
-    } catch (e) { window.customAlert("Error", "Gagal menghubungkan pesanan ke server, coba lagi.", "error"); }
+    } catch (e) { 
+        window.customAlert("Error", "Gagal menghubungkan pesanan ke server, coba lagi.", "error"); 
+    } finally {
+        btnProc.innerHTML = ogHtml; 
+    }
 }
 
 window.finishCashOrder = function() {
     let adminWaNum = siteSettings.adminWa || '085656321860';
     if (adminWaNum.startsWith('0')) adminWaNum = '62' + adminWaNum.substring(1);
     
-    const waText = `Halo Admin Vipercell, saya melakukan pesanan dengan metode CASH/Manual.\n\n*Invoice ID:* ${currentCheckoutSession.id}\n*Total Bayar:* Rp${currentCheckoutSession.finalTotal.toLocaleString('id-ID')}\n\nMohon dicek ya Min.`;
+    const waText = `Halo Admin Vipercell, saya melakukan pesanan dengan metode CASH/Tunai.\n\n*Invoice ID:* ${currentCheckoutSession.id}\n*Total Bayar:* Rp${currentCheckoutSession.finalTotal.toLocaleString('id-ID')}\n\nMohon dicek ya Min.`;
     const waUrl = `https://wa.me/${adminWaNum}?text=${encodeURIComponent(waText)}`;
     
-    const successMsg = `ID Pesanan Anda: <strong style="color:var(--primary-light)">${currentCheckoutSession.id}</strong><br><br><span style="color:var(--warning); font-weight:bold;">PENTING:</span> Segera hubungi admin untuk melakukan konfirmasi transfer. Pesanan akan masuk setelah divalidasi.`;
+    const successMsg = `ID Pesanan Anda: <strong style="color:var(--primary-light)">${currentCheckoutSession.id}</strong><br><br><span style="color:var(--warning); font-weight:bold;">PENTING:</span> Metode Tunai mengharuskan Anda melakukan pembayaran secara langsung (COD/Datang ke Toko). Klik tombol di bawah untuk melapor ke Admin.`;
     
     document.getElementById('ca-extra-action').innerHTML = `
         <a href="${waUrl}" target="_blank" class="btn btn-primary" style="display:flex; justify-content:center; width:100%; margin-top:15px; font-weight:bold; padding: 12px; font-size:1rem; box-shadow: 0 5px 15px rgba(37,99,235,0.4);">
-            <i class="fa-brands fa-whatsapp" style="font-size:1.2rem; margin-right:8px;"></i> Hubungi Admin Sekarang
+            <i class="fa-brands fa-whatsapp" style="font-size:1.2rem; margin-right:8px;"></i> Lapor Admin Sekarang
         </a>`;
         
     window.customAlert('Menunggu Pembayaran', successMsg, 'info');
@@ -1235,7 +1281,7 @@ window.openQRISModal = function() {
     const qrErrorMsg = document.getElementById('qris-error-msg');
     qrContainer.innerHTML = '';
     
-    // Ganti ini dengan base string QRIS Statis Anda dari database atau hardcode
+    // Mengambil Base String dari Database yang diatur di panel Admin
     const qrisBaseString = siteSettings.qrisStringData || "00020101021126670016COM.NOBUBANK.WWW011893600503000000000051440014ID.CO.QRIS.WWW0215ID10200210007070303UMI5204581253033605802ID5919VIPERCELL INDONESIA6005AMBON61059711662070703A016304"; 
     
     if(qrisBaseString && currentCheckoutSession.finalTotal > 0) {

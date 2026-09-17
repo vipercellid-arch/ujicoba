@@ -41,8 +41,8 @@
 </head>
 <body>
     <!-- TOP BAR WELCOME TEXT -->
-    <div style="background: var(--primary-gradient); color: white; text-align: center; padding: 8px 15px; font-size: 0.85rem; font-weight: 700; letter-spacing: 0.5px; position: relative; z-index: 1001;">
-        <i class="fa-solid fa-hand-sparkles"></i> Selamat Datang di Vipercell!
+    <div style="background: var(--primary-gradient); color: white; text-align: center; padding: 6px 15px; font-size: 0.8rem; font-weight: 700; letter-spacing: 0.5px; position: relative; z-index: 1001; box-shadow: 0 2px 10px rgba(0,0,0,0.2);">
+        <i class="fa-solid fa-hand-sparkles" style="margin-right: 5px;"></i> Selamat Datang di Vipercell!
     </div>
 
     <!-- CUSTOM PWA INSTALL PROMPT -->
@@ -435,7 +435,7 @@
                         <span style="font-weight:600; color:var(--text-muted); font-size:0.85rem;">Jumlah Beli</span>
                         <div style="display:flex; align-items:center; gap:10px;">
                             <button class="btn-icon-only" style="width:30px; height:30px; font-size:0.9rem;" onclick="window.changeBuyQty(-1)"><i class="fa-solid fa-minus"></i></button>
-                            <input type="number" id="buy-qty" value="1" min="1" readonly style="width:40px; text-align:center; background:transparent; border:none; color:var(--text); font-weight:bold; font-size:1rem; outline:none; -webkit-appearance: none; margin: 0;">
+                            <input type="number" id="buy-qty" value="1" min="1" readonly style="width:40px; text-align:center; background:transparent; border:none; color:var(--text); font-weight:bold; font-size:1rem; outline:none; margin: 0;">
                             <button class="btn-icon-only" style="width:30px; height:30px; font-size:0.9rem;" onclick="window.changeBuyQty(1)"><i class="fa-solid fa-plus"></i></button>
                         </div>
                     </div>
@@ -446,8 +446,9 @@
                     </div>
                     <div id="buy-promo-msg" class="promo-msg"></div>
                     
+                    <!-- Form Input Email yang Disesuaikan -->
                     <div id="buy-email-group" class="form-group" style="margin-top: 1rem;">
-                        <label for="buy-email" style="color:var(--text);">Alamat Email (Untuk Bukti & Akses) <small style="color:var(--danger)">*</small></label>
+                        <label for="buy-email" style="color:var(--text);">Alamat Email (Penerima Bukti Tagihan) <small style="color:var(--danger)">*</small></label>
                         <input type="email" id="buy-email" class="form-control" placeholder="email@kamu.com" required>
                     </div>
                     
@@ -480,7 +481,7 @@
 
                         <!-- Peringatan Wilayah (Muncul saat Cash dipilih) -->
                         <div id="cash-warning-msg" style="display:none; margin-top:10px; background:rgba(245,158,11,0.1); border:1px solid var(--warning); padding:10px; border-radius:8px;">
-                            <p style="margin:0; font-size:0.8rem; color:var(--warning); font-weight:bold;"><i class="fa-solid fa-location-dot"></i> Metode Cash khusus untuk pembeli di wilayah Teluk Ambon.</p>
+                            <p style="margin:0; font-size:0.8rem; color:var(--warning); font-weight:bold;"><i class="fa-solid fa-location-dot"></i> Metode Cash khusus untuk pembeli di sekitar Teluk Ambon.</p>
                         </div>
                     </div>
                     
@@ -497,9 +498,9 @@
                         <p style="margin:0; font-size:0.8rem; color:var(--danger); font-weight:bold;"><i class="fa-solid fa-user-clock"></i> Harap diperhatikan: Produk ini dilayani secara manual oleh Admin.</p>
                     </div>
                     
-                    <!-- Tombol Tanpa Captcha -->
+                    <!-- Tombol Checkout -->
                     <button aria-label="Proses Pembelian" id="btn-process-buy" class="btn btn-primary" style="width:100%; padding:1rem; margin-top:1.2rem; font-size:1.05rem;" onclick="window.processDirectCheckout()" disabled>
-                        <i class="fa-solid fa-cart-shopping"></i> <span>Pilih Item Dahulu</span>
+                        <i class="fa-solid fa-cart-shopping"></i> <span id="btn-process-text">Pilih Item Dahulu</span>
                     </button>
                 </div>
             </div>
@@ -532,7 +533,7 @@
         </div>
     </div>
 
-    <!-- PAYMENT QRIS MODAL (DIPERBAIKI INSTRUKSI-NYA) -->
+    <!-- PAYMENT QRIS MODAL (DIPERBAIKI INSTRUKSI & CONTAINER-NYA) -->
     <div class="modal-overlay" id="modal-payment">
         <div class="modal-content" style="max-width: 400px; text-align: center; background: var(--surface); padding: 2rem 1.5rem;">
             <div class="modal-header" style="border-bottom: none; justify-content: center; margin-bottom: 0;">
@@ -550,7 +551,8 @@
                     </div>
                     
                     <!-- CONTAINER QR CODE DINAMIS -->
-                    <div id="qrcode-container" style="background: white; padding: 10px; border-radius: 8px; display: inline-block; margin-bottom:10px;"></div>
+                    <div id="qrcode-container" style="background: white; padding: 15px; border-radius: 12px; display: inline-block; margin-bottom:10px; box-shadow: 0 4px 10px rgba(0,0,0,0.1);"></div>
+                    <div id="qris-error-msg" style="display:none; color:var(--danger); font-size:0.85rem; background:rgba(239,68,68,0.1); padding:10px; border-radius:8px;">Terjadi kesalahan saat memuat QRIS. Hubungi Admin.</div>
                     
                     <div style="margin-top: 1rem; border-top: 2px dashed var(--border); padding-top: 1rem;">
                         <p style="color: var(--text-muted); font-size: 0.8rem; margin-bottom: 0.3rem;">Total Tagihan (Otomatis Sesuai)</p>
@@ -560,7 +562,7 @@
                         </div>
                     </div>
                 </div>
-                <button aria-label="Sudah Bayar" id="btn-final-pay" class="btn btn-success" style="width:100%; padding:1rem; font-size:1.1rem; border-radius: 12px; font-weight: 700; box-shadow: 0 8px 20px rgba(16, 185, 129, 0.3);" onclick="window.goToPesananFromPay()">Saya Sudah Bayar</button>
+                <button aria-label="Sudah Bayar" id="btn-final-pay" class="btn btn-success" style="width:100%; padding:1rem; font-size:1.1rem; border-radius: 12px; font-weight: 700; margin-top: 15px; box-shadow: 0 8px 20px rgba(16, 185, 129, 0.3);" onclick="window.goToPesananFromPay()">Saya Sudah Bayar</button>
             </div>
         </div>
     </div>
