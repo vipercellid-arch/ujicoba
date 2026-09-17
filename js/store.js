@@ -18,7 +18,7 @@ const pathSettings = isWorkspace ? `artifacts/${appId}/public/data/settings` : '
 const pathUsers = isWorkspace ? `artifacts/${appId}/public/data/users` : 'users';
 const pathPromos = isWorkspace ? `artifacts/${appId}/public/data/promos` : 'promos';
 const pathChats = isWorkspace ? `artifacts/${appId}/public/data/chats` : 'chats';
-// pathStocks dihapus dari sisi client demi keamanan (diproses di VPS)
+const pathReviews = isWorkspace ? `artifacts/${appId}/public/data/reviews` : 'reviews';
 
 // ==========================================
 // STATE & VARIABEL GLOBAL
@@ -27,6 +27,7 @@ let products = [];
 let groupedBrands = []; 
 let orders = [];
 let promos = [];
+let reviewsData = [];
 let siteSettings = { 
     logoText: 'VIPER', logoAccent: 'CELL', logoImgBase64: '', marquee: 'Selamat Datang di Vipercell',
     qrisStringData: '', adminWa: '085656321860', igLink: '', ttLink: '',
@@ -288,6 +289,14 @@ function listenData() {
         if(selectedProductForBuy) window.calculateDirectBuyTotal();
     });
     
+    onSnapshot(collection(db, pathReviews), (snapshot) => {
+        reviewsData = [];
+        snapshot.forEach((docSnap) => { reviewsData.push({ dbId: docSnap.id, ...docSnap.data() }); });
+        if(currentCheckoutBrand && document.getElementById('buy-content-reviews').style.display === 'block') {
+            window.renderReviewsUI();
+        }
+    });
+
     onSnapshot(collection(db, pathOrders), (snapshot) => {
         let newOrders = [];
         const now = Date.now();
@@ -310,7 +319,8 @@ function listenData() {
             }
             newOrders.push(data);
 
-            if (currentUser && data.userEmail === currentUser.email) {
+            const emailToUse = userProfile.email || (currentUser && currentUser.email);
+            if (emailToUse && data.userEmail === emailToUse) {
                 let oldStatus = previousOrdersData[data.id];
                 if (oldStatus && oldStatus !== 'SUCCESS' && data.status === 'SUCCESS') {
                     window.showToast('Pesanan Selesai!', `Hore! Pesanan ${data.id} berhasil diproses.`, 'success', () => window.switchMainTab('pesanan'));
@@ -337,8 +347,9 @@ function listenData() {
 }
 
 function updateOrderBadges() {
-    if (currentUser && !currentUser.isAnonymous) {
-        const hasActionNeeded = orders.some(o => o.userEmail === currentUser.email && (o.status === 'UNPAID' || o.status === 'PENDING'));
+    const emailToUse = userProfile.email || (currentUser && currentUser.email);
+    if (emailToUse && currentUser && !currentUser.isAnonymous) {
+        const hasActionNeeded = orders.some(o => o.userEmail === emailToUse && (o.status === 'UNPAID' || o.status === 'PENDING'));
         const badgeDesk = document.getElementById('user-order-badge-desktop');
         if(badgeDesk) badgeDesk.style.display = hasActionNeeded ? 'block' : 'none';
         const badgeMob = document.getElementById('user-order-badge-mobile');
@@ -873,10 +884,25 @@ window.openDirectBuyModal = function(brandName) {
     
     currentCheckoutBrand = brandObj; selectedProductForBuy = null; appliedPromo = null;
     
+    // Reset Form Input
     document.getElementById('buy-promo-code').value = '';
     document.getElementById('buy-promo-msg').innerHTML = '';
+    document.getElementById('buy-qty').value = 1;
+    window.switchBuyModalTab('form');
+    
+    // Reset Expandable CSS
+    document.getElementById('buy-detail-fields').style.maxHeight = '80px';
+    document.getElementById('buy-desc-fade').style.display = 'block';
+    document.getElementById('btn-desc-more').style.display = 'block';
+    document.getElementById('buy-item-grid').style.maxHeight = '250px';
+
+    // Set Info Produk
     document.getElementById('buy-brand-name').innerText = brandObj.brandName;
     document.getElementById('buy-brand-badge').innerText = brandObj.type === 'game' ? 'TOP UP GAME' : 'APLIKASI PREMIUM';
+    
+    // Kalkulasi Penjualan
+    const totalSold = orders.filter(o => o.status === 'SUCCESS' && o.items && o.items[0]?.brandName === brandObj.brandName).length;
+    document.getElementById('buy-brand-sold').innerText = `${totalSold} Terjual`;
     
     const imgEl = document.getElementById('buy-brand-img');
     if(brandObj.imgUrlBase64) { imgEl.src = brandObj.imgUrlBase64; imgEl.style.display = 'block'; } 
@@ -885,14 +911,20 @@ window.openDirectBuyModal = function(brandName) {
     // Logika Pemisahan UI Roblox
     if (brandObj.brandName.toLowerCase().includes('roblox')) {
         document.getElementById('buy-detail-fields').style.display = 'none';
+        document.getElementById('buy-desc-fade').style.display = 'none';
+        document.getElementById('btn-desc-more').style.display = 'none';
         document.getElementById('roblox-checker-container').style.display = 'block';
     } else {
         document.getElementById('buy-detail-fields').style.display = 'block';
         document.getElementById('roblox-checker-container').style.display = 'none';
     }
     
+    // Render Grid Item
     const itemGrid = document.getElementById('buy-item-grid');
     const sortedItems = [...brandObj.items].sort((a, b) => (a.priceNum||0) - (b.priceNum||0));
+    
+    if (sortedItems.length <= 4) document.getElementById('btn-items-more').style.display = 'none';
+    else document.getElementById('btn-items-more').style.display = 'block';
     
     let html = '';
     sortedItems.forEach(item => {
@@ -911,11 +943,17 @@ window.openDirectBuyModal = function(brandName) {
     });
     itemGrid.innerHTML = html;
     
+    // Render Field Tujuan
     const fields = document.getElementById('buy-detail-fields');
     let inpType = brandObj.items[0]?.inputType || 'id_zone';
     let fmtDesc = brandObj.desc ? brandObj.desc.replace(/\n/g, '<br>') : '';
     let extraDesc = fmtDesc ? `<p style="font-size:0.8rem; color:var(--primary-light); background:rgba(37,99,235,0.1); padding:8px; border-radius:8px; margin-bottom:10px;"><i class="fa-solid fa-circle-info"></i> ${fmtDesc}</p>` : '';
     
+    if (!fmtDesc) {
+        document.getElementById('buy-desc-fade').style.display = 'none';
+        document.getElementById('btn-desc-more').style.display = 'none';
+    }
+
     if(brandObj.type === 'game') {
         if(inpType === 'id_only') {
             fields.innerHTML = `
@@ -954,7 +992,7 @@ window.openDirectBuyModal = function(brandName) {
     
     // Prefill Email
     const emailInput = document.getElementById('buy-email');
-    if(currentUser && !currentUser.isAnonymous && userProfile.email) {
+    if(userProfile.email) {
         emailInput.value = userProfile.email; 
     } else {
         emailInput.value = ''; 
@@ -990,7 +1028,7 @@ window.applyPromoDirect = function() {
     } else if (p.targetBrand !== 'all' && p.targetBrand !== currentCheckoutBrand.brandName) {
         appliedPromo = null; msgEl.innerHTML = `<span style="color:var(--danger)">Khusus produk ${p.targetBrand}.</span>`;
     } else if (p.targetUser === 'new') {
-        const emailToUse = document.getElementById('buy-email').value.trim() || (currentUser && currentUser.email);
+        const emailToUse = document.getElementById('buy-email').value.trim() || userProfile.email;
         const hasOrders = orders.some(o => o.userEmail === emailToUse);
         if (hasOrders) {
             appliedPromo = null; msgEl.innerHTML = `<span style="color:var(--danger)">Khusus Transaksi Pertama.</span>`;
@@ -1011,10 +1049,12 @@ window.calculateDirectBuyTotal = function() {
     
     if(!selectedProductForBuy) {
         document.getElementById('buy-total-price').innerText = 'Rp0';
-        return; // Tombol disable biarkan tetap tertahan oleh sistem validasi Captcha
+        return; 
     }
     
-    let baseTotal = selectedProductForBuy.priceNum;
+    // Ambil Quantity
+    const qty = parseInt(document.getElementById('buy-qty').value) || 1;
+    let baseTotal = selectedProductForBuy.priceNum * qty;
     
     let disc = 0;
     if(appliedPromo) {
@@ -1034,21 +1074,15 @@ window.calculateDirectBuyTotal = function() {
         btnProc.style.background = 'var(--danger)'; btnProc.style.boxShadow = 'none'; return;
     }
     
-    // Pastikan validasi Turnstile
-    if (window.isCaptchaValid) {
-        btnProc.style.background = 'var(--primary-gradient)';
-        btnProc.innerHTML = '<i class="fa-solid fa-cart-shopping"></i> <span>Selesaikan Pembayaran</span>'; 
-        btnProc.disabled = false;
-    }
+    // Tanpa Captcha - Tombol langsung aktif jika item dipilih
+    btnProc.style.background = 'var(--primary-gradient)';
+    btnProc.innerHTML = '<i class="fa-solid fa-cart-shopping"></i> <span>Selesaikan Pembayaran</span>'; 
+    btnProc.disabled = false;
 }
 
 window.processDirectCheckout = async function() {
     // 1. Validasi State & Form
     if(!selectedProductForBuy) return;
-    if(!window.isCaptchaValid || !window.turnstileToken) { 
-        window.customAlert('Verifikasi Gagal', 'Selesaikan CAPTCHA terlebih dahulu.', 'warning'); 
-        return; 
-    }
     
     let emailInput = document.getElementById('buy-email').value.trim();
     if(!emailInput || !emailInput.includes('@')) { 
@@ -1056,10 +1090,12 @@ window.processDirectCheckout = async function() {
         return; 
     }
     
+    const qty = parseInt(document.getElementById('buy-qty').value) || 1;
+    
     // 2. Logic Auto-Guest Account (Firebase Data)
-    if (currentUser && currentUser.isAnonymous) {
+    if (!currentUser || currentUser.isAnonymous) {
         try {
-            const guestDocRef = doc(db, pathUsers, currentUser.uid);
+            const guestDocRef = doc(db, pathUsers, emailInput);
             const docSnap = await getDoc(guestDocRef);
             if(!docSnap.exists()) {
                 await setDoc(guestDocRef, {
@@ -1081,7 +1117,7 @@ window.processDirectCheckout = async function() {
             if(!rblx) { window.customAlert('Peringatan', 'Username Roblox wajib diisi!', 'warning'); return; }
             playerInfo = `Username Roblox: ${rblx}`;
         } else {
-            const pid = document.getElementById('buy-id').value.trim();
+            const pid = document.getElementById('buy-id') ? document.getElementById('buy-id').value.trim() : '';
             const zol = document.getElementById('buy-zone') ? document.getElementById('buy-zone').value.trim() : '';
             if(!pid) { window.customAlert('Peringatan', 'Target tujuan wajib diisi!', 'warning'); return; }
             
@@ -1094,7 +1130,7 @@ window.processDirectCheckout = async function() {
         playerInfo = `Akun Premium (Delivery Type: ${selectedProductForBuy.processType === 'manual' ? 'Manual' : 'Auto'})`;
     }
     
-    let rawTotal = selectedProductForBuy.priceNum;
+    let rawTotal = selectedProductForBuy.priceNum * qty;
     
     let discountPromo = 0; let promoUsedCode = '';
     if(appliedPromo) {
@@ -1117,8 +1153,8 @@ window.processDirectCheckout = async function() {
     const singleItem = { 
         cartId: Date.now().toString(), productDbId: selectedProductForBuy.dbId,
         brandName: currentCheckoutBrand.brandName, exactItemName: selectedProductForBuy.name,
-        name: `${currentCheckoutBrand.brandName} - ${selectedProductForBuy.name}`, 
-        priceNum: selectedProductForBuy.priceNum, type: currentCheckoutBrand.type, 
+        name: `${currentCheckoutBrand.brandName} - ${selectedProductForBuy.name} (x${qty})`, 
+        priceNum: selectedProductForBuy.priceNum, qty: qty, type: currentCheckoutBrand.type, 
         processType: selectedProductForBuy.processType || 'auto', playerInfo: playerInfo 
     };
 
@@ -1142,8 +1178,6 @@ window.processDirectCheckout = async function() {
         if(paymentMethod === 'qris') setTimeout(() => window.openQRISModal(), 300);
         else window.finishCashOrder();
         
-        // Reset state Turnstile jika API v0 mendukungnya agar tidak error pada transaksi kedua
-        try { turnstile.reset(); window.isCaptchaValid = false; window.turnstileToken = ""; document.getElementById('btn-process-buy').disabled = true; } catch(e){}
     } catch (e) { window.customAlert("Error", "Gagal menghubungkan pesanan ke server, coba lagi.", "error"); }
 }
 
@@ -1202,10 +1236,7 @@ window.openQRISModal = function() {
     const qrisBaseString = siteSettings.qrisStringData || "00020101021126670016COM.NOBUBANK.WWW011893600503000000000051440014ID.CO.QRIS.WWW0215ID10200210007070303UMI5204581253033605802ID5919VIPERCELL INDONESIA6005AMBON61059711662070703A016304"; 
     
     if(qrisBaseString && currentCheckoutSession.finalTotal > 0) {
-        // Kalkulasi String QRIS Dinamis
         const dynamicQRIS = generateDynamicQRIS(qrisBaseString, currentCheckoutSession.finalTotal);
-        
-        // Render QR Code di Layar
         new QRCode(qrContainer, {
             text: dynamicQRIS,
             width: 250,
@@ -1533,6 +1564,84 @@ window.renderUserOrders = function() {
     if(userOrders.length > 50) html += `<div style="text-align:center; padding: 1rem; color:var(--text-muted);">Menampilkan 50 riwayat pesanan terbaru.</div>`;
     grid.innerHTML = html;
     setTimeout(observeReveals, 100);
+}
+
+// ==========================================
+// FITUR ULASAN & BINTANG 
+// ==========================================
+window.renderReviewsUI = function() {
+    if (!currentCheckoutBrand) return;
+
+    const brandName = currentCheckoutBrand.brandName;
+    const reviewListContainer = document.getElementById('review-list-container');
+    const writeContainer = document.getElementById('review-write-container');
+    
+    // Verifikasi apakah user boleh menulis ulasan (Sudah pernah beli produk ini & status SUCCESS)
+    let canReview = false;
+    const emailToUse = userProfile.email || (currentUser && currentUser.email);
+    
+    if (emailToUse) {
+        const hasBought = orders.some(o => o.userEmail === emailToUse && o.status === 'SUCCESS' && o.items[0]?.brandName === brandName);
+        if (hasBought) canReview = true;
+    }
+    
+    writeContainer.style.display = canReview ? 'block' : 'none';
+
+    // Render daftar ulasan
+    const brandReviews = reviewsData.filter(r => r.brandName === brandName).sort((a,b) => b.timestamp - a.timestamp);
+    
+    if (brandReviews.length === 0) {
+        reviewListContainer.innerHTML = `<div style="text-align:center; color:var(--text-muted); padding:2rem;"><i class="fa-regular fa-comment-dots" style="font-size:2rem; margin-bottom:10px; opacity:0.5;"></i><br>Belum ada ulasan untuk produk ini.</div>`;
+        return;
+    }
+    
+    let html = '';
+    brandReviews.forEach(r => {
+        let starsHtml = '';
+        for(let i=0; i<5; i++) {
+            if(i < r.rating) starsHtml += `<i class="fa-solid fa-star" style="color:var(--warning); font-size:0.8rem;"></i>`;
+            else starsHtml += `<i class="fa-regular fa-star" style="color:var(--text-muted); font-size:0.8rem;"></i>`;
+        }
+        
+        html += `
+        <div style="background:var(--surface); border:1px solid var(--border); padding:15px; border-radius:12px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                <strong style="color:var(--text); font-size:0.9rem;">${r.userName || 'Pelanggan'}</strong>
+                <span style="font-size:0.7rem; color:var(--text-muted);">${new Date(r.timestamp).toLocaleDateString('id-ID')}</span>
+            </div>
+            <div style="margin-bottom:8px;">${starsHtml}</div>
+            <p style="font-size:0.85rem; color:var(--text-muted); margin:0;">${r.text}</p>
+        </div>`;
+    });
+    
+    reviewListContainer.innerHTML = html;
+}
+
+window.submitReview = async function() {
+    const textInput = document.getElementById('review-text').value.trim();
+    const rating = window.selectedReviewStar || 5;
+    
+    if(!textInput) { window.customAlert('Peringatan', 'Ulasan tidak boleh kosong.', 'warning'); return; }
+    
+    const emailToUse = userProfile.email || (currentUser && currentUser.email);
+    const userName = userProfile.name || (currentUser && currentUser.isAnonymous ? 'Guest' : emailToUse.split('@')[0]);
+    
+    const newReview = {
+        brandName: currentCheckoutBrand.brandName,
+        userEmail: emailToUse,
+        userName: userName,
+        rating: rating,
+        text: textInput,
+        timestamp: Date.now()
+    };
+    
+    try {
+        await addDoc(collection(db, pathReviews), newReview);
+        document.getElementById('review-text').value = '';
+        window.customAlert('Terima Kasih', 'Ulasanmu berhasil dipublikasikan!', 'success');
+    } catch(e) {
+        window.customAlert('Gagal', 'Gagal mengirim ulasan.', 'error');
+    }
 }
 
 // Inisialisasi Aplikasi

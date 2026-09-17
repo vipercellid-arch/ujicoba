@@ -1,6 +1,6 @@
 /* ========================================================
    VIPERCELL V17.0 - ULTIMATE FRONTEND CSS (USER)
-   * Updated: PWA, CAPTCHA, Roblox UI, Cleaned VIP
+   * Updated: PWA, Qty Checkout, Review System, Roblox UI
    ======================================================== */
 
 /* ========================================================
@@ -82,6 +82,16 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
     outline-offset: 2px;
 }
 
+/* Sembunyikan Panah Bawaan Browser untuk Input Qty */
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+input[type="number"] {
+    -moz-appearance: textfield;
+}
+
 /* Custom Scrollbar Minimalis */
 ::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
@@ -117,7 +127,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
     box-shadow: none !important;
 }
 
-/* Animasi Loading Spinner & PWA */
+/* Animasi Bawaan */
 .fa-spinner { animation: spin 1s linear infinite; }
 @keyframes spin { 100% { transform: rotate(360deg); } }
 @keyframes slideUp { from { transform: translate(-50%, 100%); opacity: 0; } to { transform: translate(-50%, 0); opacity: 1; } }
@@ -140,6 +150,10 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .btn-icon-only {
     padding: 0; width: 40px; height: 40px; border-radius: 50%; font-size: 1.1rem;
     background: var(--surface-hover); color: var(--text); border: 1px solid var(--border);
+    transition: all 0.2s ease;
+}
+.btn-icon-only:hover {
+    background: var(--primary-light); color: white;
 }
 
 .notif-dot {
@@ -147,7 +161,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
     border-radius: 50%; display: none; box-shadow: 0 0 5px rgba(239, 68, 68, 0.8);
 }
 
-.status-badge { padding: 0.3rem 0.6rem; border-radius: 6px; font-size: 0.7rem; font-weight: 700; display: inline-block; white-space: nowrap;}
+.status-badge { padding: 0.3rem 0.6rem; border-radius: 6px; font-size: 0.7rem; font-weight: 700; display: inline-flex; align-items: center; gap: 4px; white-space: nowrap;}
 .status-unpaid { background: rgba(148, 163, 184, 0.1); color: var(--text-muted); border: 1px solid rgba(148, 163, 184, 0.3);}
 .status-pending { background: rgba(245, 158, 11, 0.1); color: var(--warning); border: 1px solid rgba(245, 158, 11, 0.2);}
 .status-success { background: rgba(16, 185, 129, 0.1); color: var(--success); border: 1px solid rgba(16, 185, 129, 0.2);}
@@ -180,7 +194,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
    ======================================================== */
 header {
     position: sticky; top: 0; z-index: 1000;
-    background: rgba(var(--surface-rgb, 15, 23, 42), 0.85); /* Fallback */
+    background: rgba(var(--surface-rgb, 15, 23, 42), 0.85);
     backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
     border-bottom: 1px solid var(--border); padding: 15px 0;
 }
@@ -405,6 +419,14 @@ header {
 .cart-total-box span { font-weight: bold; color: var(--text); font-size: 1.1rem; }
 .unique-code-info { font-size: 0.7rem; color: var(--warning); text-align: right; margin-top: 2px; }
 
+/* Bintang Ulasan */
+.star-rating i {
+    transition: transform 0.2s ease;
+}
+.star-rating i:hover {
+    transform: scale(1.2);
+}
+
 /* ========================================================
    8. KARTU INVOICE / PESANAN
    ======================================================== */
@@ -473,7 +495,7 @@ header {
 .tut-accordion-card.open .tut-accordion-body { max-height: 1000px; border-top: 1px solid var(--border); }
 
 /* ========================================================
-   10. LIVE CHAT USER (RESOLUSI OVERLAPPING BUG MOBILE)
+   10. LIVE CHAT USER
    ======================================================== */
 .chat-fab {
     position: fixed; bottom: 30px; right: 30px; width: 60px; height: 60px;
@@ -488,7 +510,6 @@ header {
     background: var(--danger); border-radius: 50%; border: 2px solid var(--bg); display: none;
 }
 
-/* Memastikan Jendela Chat Aman di Layar Kecil */
 .chat-window {
     position: fixed; bottom: 100px; right: 30px; width: 360px; height: 500px; max-height: 75vh;
     background: var(--surface); border-radius: 16px; border: 1px solid var(--border);

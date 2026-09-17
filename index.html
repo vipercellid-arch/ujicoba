@@ -30,8 +30,7 @@
     <!-- CSS Modular -->
     <link rel="stylesheet" href="css/main.css">
     
-    <!-- Turnstile CAPTCHA & QR Code Generator -->
-    <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
+    <!-- QR Code Generator -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 
     <script>
@@ -195,7 +194,7 @@
             </div>
         </div>
 
-        <!-- TAB: PROFIL (Cleaned Up - No VIP, No Notif) -->
+        <!-- TAB: PROFIL -->
         <div id="tab-profil" class="main-tab-content container">
             <div class="section-header">
                 <h2>Profil Akun</h2>
@@ -272,8 +271,6 @@
                     <div class="form-group"><label for="auth-r-name">Nama Panggilan</label><input type="text" id="auth-r-name" class="form-control" placeholder="Siapa namamu?"></div>
                     <div class="form-group"><label for="auth-r-email">Alamat Email</label><input type="email" id="auth-r-email" class="form-control" placeholder="Email aktif kamu"></div>
                     <div class="form-group"><label for="auth-r-pass">Kata Sandi (Min 6 Karakter)</label><input type="password" id="auth-r-pass" class="form-control" placeholder="Buat kata sandi yang aman"></div>
-                    
-                    <!-- Hapus Input WA dari Pendaftaran -->
                     
                     <button aria-label="Proses Daftar" id="btn-do-register" class="btn btn-primary btn-auth-action" style="margin-top:1rem;" onclick="window.processRegister()">
                         <i class="fa-solid fa-user-plus"></i> <span>Buat Akun Baru</span>
@@ -367,99 +364,149 @@
         </div>
     </div>
 
-    <!-- DIRECT BUY MODAL (DIPERBARUI) -->
+    <!-- DIRECT BUY MODAL (DENGAN TABS ULASAN, QUANTITY, & READ MORE) -->
     <div class="modal-overlay" id="modal-buy-direct">
         <div class="modal-content wide">
-            <div class="modal-header">
-                <h2>Pembelian Checkout</h2>
+            <div class="modal-header" style="margin-bottom:1rem;">
+                <h2>Detail Produk</h2>
                 <button class="close-btn" aria-label="Tutup" onclick="window.closeModal('modal-buy-direct')"><i class="fa-solid fa-xmark"></i></button>
             </div>
             
-            <div style="display:flex; align-items:center; gap:15px; margin-bottom:1.5rem; padding-bottom:1rem; border-bottom:1px solid var(--border);">
+            <!-- Info Brand & Terjual -->
+            <div style="display:flex; align-items:center; gap:15px; margin-bottom:1.2rem; padding-bottom:1rem; border-bottom:1px solid var(--border);">
                 <img id="buy-brand-img" src="" alt="Brand Produk" width="60" height="60" style="border-radius:10px; object-fit:cover; border:1px solid var(--border);">
                 <div>
-                    <h3 id="buy-brand-name" style="color:var(--primary-light); font-size:1.2rem; margin-bottom:2px;"></h3>
-                    <span id="buy-brand-badge" class="status-badge" style="background:rgba(255,255,255,0.05); color:var(--text-muted);"></span>
+                    <h3 id="buy-brand-name" style="color:var(--primary-light); font-size:1.2rem; margin-bottom:4px;"></h3>
+                    <div style="display:flex; gap:8px; align-items:center;">
+                        <span id="buy-brand-badge" class="status-badge" style="background:rgba(255,255,255,0.05); color:var(--text-muted);"></span>
+                        <span class="status-badge" style="background:rgba(16,185,129,0.1); color:var(--success); font-size:0.65rem;">
+                            <i class="fa-solid fa-cart-arrow-down"></i> <span id="buy-brand-sold">0 Terjual</span>
+                        </span>
+                    </div>
                 </div>
+            </div>
+
+            <!-- TABS MODAL (Beli vs Ulasan) -->
+            <div class="auth-tabs-toggle" style="margin-bottom: 1.5rem; padding:4px;">
+                <button id="tab-buy-form" class="active" onclick="window.switchBuyModalTab('form')">Pembelian</button>
+                <button id="tab-buy-reviews" onclick="window.switchBuyModalTab('reviews')">Ulasan Pembeli</button>
             </div>
             
-            <div style="margin-bottom: 1.5rem;">
-                <h4 style="font-size:0.9rem; margin-bottom:10px; color:var(--text);">1. Informasi Tujuan</h4>
-                
-                <!-- CONTAINER STANDAR -->
-                <div id="buy-detail-fields"></div>
+            <!-- KONTEN: FORM PEMBELIAN -->
+            <div id="buy-content-form">
+                <div style="margin-bottom: 1.5rem;">
+                    <h4 style="font-size:0.9rem; margin-bottom:10px; color:var(--text);">1. Informasi / Tujuan</h4>
+                    
+                    <!-- Container Deskripsi dgn Expandable -->
+                    <div id="buy-desc-wrapper" style="position:relative; margin-bottom: 1rem;">
+                        <div id="buy-detail-fields" style="max-height: 80px; overflow: hidden; transition: max-height 0.4s ease;"></div>
+                        <div id="buy-desc-fade" style="position:absolute; bottom:0; left:0; width:100%; height:30px; background: linear-gradient(to top, var(--surface) 0%, transparent 100%);"></div>
+                        <button id="btn-desc-more" class="btn btn-outline" style="width:100%; margin-top:5px; font-size:0.75rem; padding: 6px; border-style:dashed;" onclick="window.toggleDescMore()">Baca Selengkapnya <i class="fa-solid fa-chevron-down"></i></button>
+                    </div>
 
-                <!-- CONTAINER KHUSUS ROBLOX (Pengecekan Avatar) -->
-                <div id="roblox-checker-container" style="display:none; margin-top: 10px;">
-                    <div style="display:flex; align-items:center; gap:15px;">
-                        <div style="position:relative; width:60px; height:60px; flex-shrink:0; border-radius:50%; border:2px solid var(--primary-light); padding:2px; background:var(--surface);">
-                            <img id="roblox-avatar" src="https://ui-avatars.com/api/?name=?&background=0f172a&color=fff" style="width:100%; height:100%; border-radius:50%; object-fit:cover;">
+                    <!-- Container Roblox -->
+                    <div id="roblox-checker-container" style="display:none; margin-top: 10px; background:var(--surface-hover); padding:10px; border-radius:12px; border:1px solid var(--border);">
+                        <div style="display:flex; align-items:center; gap:15px;">
+                            <div style="position:relative; width:55px; height:55px; flex-shrink:0; border-radius:50%; border:2px solid var(--primary-light); padding:2px; background:var(--surface);">
+                                <img id="roblox-avatar" src="https://ui-avatars.com/api/?name=?&background=0f172a&color=fff" style="width:100%; height:100%; border-radius:50%; object-fit:cover;">
+                            </div>
+                            <div style="flex-grow:1; position:relative;">
+                                <input type="text" id="buy-roblox-username" class="form-control" placeholder="Username Roblox" autocomplete="off">
+                                <i id="roblox-status-icon" class="fa-solid fa-check" style="position:absolute; right:15px; top:15px; color:var(--success); display:none;"></i>
+                                <i id="roblox-loading-icon" class="fa-solid fa-spinner fa-spin" style="position:absolute; right:15px; top:15px; color:var(--primary-light); display:none;"></i>
+                            </div>
                         </div>
-                        <div style="flex-grow:1; position:relative;">
-                            <input type="text" id="buy-roblox-username" class="form-control" placeholder="Masukkan Username Roblox" autocomplete="off">
-                            <i id="roblox-status-icon" class="fa-solid fa-check" style="position:absolute; right:15px; top:15px; color:var(--success); display:none;"></i>
-                            <i id="roblox-loading-icon" class="fa-solid fa-spinner fa-spin" style="position:absolute; right:15px; top:15px; color:var(--primary-light); display:none;"></i>
+                    </div>
+                </div>
+
+                <div style="margin-bottom: 1.5rem;">
+                    <h4 style="font-size:0.9rem; margin-bottom:10px; color:var(--text);">2. Pilih Nominal</h4>
+                    <div id="buy-item-grid" class="item-selection-grid" style="max-height: 250px; overflow: hidden; transition: max-height 0.4s ease;"></div>
+                    <button id="btn-items-more" class="btn btn-outline" style="width:100%; margin-top:10px; font-size:0.8rem; display:none;" onclick="window.showAllItems()">Tampilkan Lebih Banyak <i class="fa-solid fa-chevron-down"></i></button>
+                </div>
+                
+                <div style="margin-top: 1.5rem; background: var(--surface-hover); padding: 1.2rem; border-radius: 12px; border: 1px solid var(--border);">
+                    <h4 style="font-size:0.9rem; margin-bottom:10px; color:var(--text);">3. Detail Checkout</h4>
+                    
+                    <!-- Fitur Jumlah Pembelian -->
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem; padding:10px; background:var(--bg); border-radius:10px; border:1px solid var(--border);">
+                        <span style="font-weight:600; color:var(--text-muted); font-size:0.85rem;">Jumlah Beli</span>
+                        <div style="display:flex; align-items:center; gap:10px;">
+                            <button class="btn-icon-only" style="width:30px; height:30px; font-size:0.9rem;" onclick="window.changeBuyQty(-1)"><i class="fa-solid fa-minus"></i></button>
+                            <input type="number" id="buy-qty" value="1" min="1" readonly style="width:40px; text-align:center; background:transparent; border:none; color:var(--text); font-weight:bold; font-size:1rem; outline:none; -webkit-appearance: none; margin: 0;">
+                            <button class="btn-icon-only" style="width:30px; height:30px; font-size:0.9rem;" onclick="window.changeBuyQty(1)"><i class="fa-solid fa-plus"></i></button>
                         </div>
                     </div>
+
+                    <div class="promo-box">
+                        <input type="text" id="buy-promo-code" aria-label="Kode Promo" class="form-control" placeholder="Punya kode promo?" style="text-transform: uppercase;">
+                        <button class="btn btn-outline" aria-label="Cek Promo" onclick="window.applyPromoDirect()"><i class="fa-solid fa-tag"></i> Cek</button>
+                    </div>
+                    <div id="buy-promo-msg" class="promo-msg"></div>
+                    
+                    <div id="buy-email-group" class="form-group" style="margin-top: 1rem;">
+                        <label for="buy-email" style="color:var(--text);">Alamat Email (Untuk Bukti & Akses) <small style="color:var(--danger)">*</small></label>
+                        <input type="email" id="buy-email" class="form-control" placeholder="email@kamu.com" required>
+                    </div>
+                    
+                    <div id="buy-payment-method" class="form-group" style="margin-top: 1rem;">
+                        <label style="color:var(--text);">Pilih Metode Pembayaran</label>
+                        <div class="type-grid" style="grid-template-columns: 1fr 1fr; margin-top:5px;">
+                            <label class="type-card active" onclick="window.selectPaymentUI('qris', this)" tabindex="0">
+                                <input type="radio" name="payment_method" value="qris" checked style="display:none;" aria-label="Metode QRIS">
+                                <i class="fa-solid fa-qrcode"></i><strong>QRIS (Otomatis)</strong><small style="color:var(--success);">Proses Instan</small>
+                            </label>
+                            <label class="type-card" onclick="window.selectPaymentUI('cash', this)" tabindex="0">
+                                <input type="radio" name="payment_method" value="cash" style="display:none;" aria-label="Metode Manual">
+                                <i class="fa-solid fa-money-bill-wave"></i><strong>Cash / Transfer</strong><small style="color:var(--warning);">Lapor Manual</small>
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <div class="cart-total-box">
+                        <span>Total Bayar</span>
+                        <div style="text-align:right;">
+                            <span id="buy-total-price" style="color:var(--primary-light); font-size: 1.4rem;">Rp0</span>
+                            <div class="unique-code-info" id="buy-unique-info"></div>
+                        </div>
+                    </div>
+                    
+                    <!-- Tombol Tanpa Captcha -->
+                    <button aria-label="Proses Pembelian" id="btn-process-buy" class="btn btn-primary" style="width:100%; padding:1rem; margin-top:1.2rem; font-size:1.05rem;" onclick="window.processDirectCheckout()" disabled>
+                        <i class="fa-solid fa-cart-shopping"></i> <span>Pilih Item Dahulu</span>
+                    </button>
                 </div>
             </div>
 
-            <div style="margin-bottom: 1.5rem;">
-                <h4 style="font-size:0.9rem; margin-bottom:10px; color:var(--text);">2. Pilih Nominal</h4>
-                <div id="buy-item-grid" class="item-selection-grid"></div>
-            </div>
-            
-            <div style="margin-top: 1.5rem; background: var(--surface-hover); padding: 1.2rem; border-radius: 12px; border: 1px solid var(--border);">
-                <h4 style="font-size:0.9rem; margin-bottom:10px; color:var(--text);">3. Detail Checkout</h4>
-                <div class="promo-box">
-                    <input type="text" id="buy-promo-code" aria-label="Kode Promo" class="form-control" placeholder="Punya kode promo?" style="text-transform: uppercase;">
-                    <button class="btn btn-outline" aria-label="Cek Promo" onclick="window.applyPromoDirect()"><i class="fa-solid fa-tag"></i> Cek</button>
-                </div>
-                <div id="buy-promo-msg" class="promo-msg"></div>
-                
-                <!-- GANTI NOMOR WA MENJADI EMAIL UNTUK GUEST AKUN -->
-                <div id="buy-email-group" class="form-group" style="margin-top: 1rem;">
-                    <label for="buy-email" style="color:var(--text);">Alamat Email (Untuk Bukti & Akses) <small style="color:var(--danger)">*</small></label>
-                    <input type="email" id="buy-email" class="form-control" placeholder="email@kamu.com" required>
-                </div>
-                
-                <div id="buy-payment-method" class="form-group" style="margin-top: 1rem;">
-                    <label style="color:var(--text);">Pilih Metode Pembayaran</label>
-                    <div class="type-grid" style="grid-template-columns: 1fr 1fr; margin-top:5px;">
-                        <label class="type-card active" onclick="window.selectPaymentUI('qris', this)" tabindex="0">
-                            <input type="radio" name="payment_method" value="qris" checked style="display:none;" aria-label="Metode QRIS">
-                            <i class="fa-solid fa-qrcode"></i><strong>QRIS (Otomatis)</strong><small style="color:var(--success);">Proses Instan</small>
-                        </label>
-                        <label class="type-card" onclick="window.selectPaymentUI('cash', this)" tabindex="0">
-                            <input type="radio" name="payment_method" value="cash" style="display:none;" aria-label="Metode Manual">
-                            <i class="fa-solid fa-money-bill-wave"></i><strong>Cash / Transfer</strong><small style="color:var(--warning);">Lapor Manual</small>
-                        </label>
+            <!-- KONTEN: ULASAN PEMBELI -->
+            <div id="buy-content-reviews" style="display:none;">
+                <!-- Form Ulasan (Akan dimunculkan via JS jika user eligible) -->
+                <div id="review-write-container" style="display:none; background:var(--surface-hover); padding:15px; border-radius:12px; border:1px solid var(--border); margin-bottom:1.5rem;">
+                    <h4 style="font-size:0.9rem; margin-bottom:10px; color:var(--primary-light);">Berikan Ulasanmu</h4>
+                    <p style="font-size:0.75rem; color:var(--text-muted); margin-bottom:10px;">Terima kasih telah berbelanja! Bagaimana produk ini?</p>
+                    
+                    <div class="star-rating" id="review-stars" style="color:var(--text-muted); font-size:1.5rem; margin-bottom:10px; cursor:pointer; display:flex; gap:5px;">
+                        <i class="fa-solid fa-star" onclick="window.setReviewStar(1)"></i>
+                        <i class="fa-solid fa-star" onclick="window.setReviewStar(2)"></i>
+                        <i class="fa-solid fa-star" onclick="window.setReviewStar(3)"></i>
+                        <i class="fa-solid fa-star" onclick="window.setReviewStar(4)"></i>
+                        <i class="fa-solid fa-star" onclick="window.setReviewStar(5)"></i>
                     </div>
+                    <textarea id="review-text" class="form-control" placeholder="Tulis pengalaman belanjamu disini..." rows="3" style="margin-bottom:10px;"></textarea>
+                    <button class="btn btn-success" style="width:100%;" onclick="window.submitReview()"><i class="fa-solid fa-paper-plane"></i> Kirim Ulasan</button>
                 </div>
+                
+                <!-- Daftar Ulasan -->
+                <h4 style="font-size:0.9rem; margin-bottom:10px; color:var(--text); border-bottom:1px solid var(--border); padding-bottom:10px;">Ulasan Terbaru</h4>
+                <div id="review-list-container" style="display:flex; flex-direction:column; gap:12px;">
+                    <div style="text-align:center; color:var(--text-muted); padding:2rem;"><i class="fa-regular fa-comment-dots" style="font-size:2rem; margin-bottom:10px; opacity:0.5;"></i><br>Belum ada ulasan untuk produk ini.</div>
+                </div>
+            </div>
 
-                <!-- TURNSTILE CAPTCHA CONTAINER -->
-                <div class="form-group" style="display:flex; justify-content:center; margin-top: 15px;">
-                    <!-- Ganti SiteKey dengan Key Turnstile Anda -->
-                    <div class="cf-turnstile" data-sitekey="YOUR_TURNSTILE_SITE_KEY" data-theme="dark" data-callback="onTurnstileSuccess"></div>
-                </div>
-                
-                <div class="cart-total-box">
-                    <span>Total Bayar</span>
-                    <div style="text-align:right;">
-                        <span id="buy-total-price" style="color:var(--primary-light); font-size: 1.4rem;">Rp0</span>
-                        <div class="unique-code-info" id="buy-unique-info"></div>
-                    </div>
-                </div>
-                
-                <!-- TOMBOL CHECKOUT DENGAN VALIDASI CAPTCHA -->
-                <button aria-label="Proses Pembelian" id="btn-process-buy" class="btn btn-primary" style="width:100%; padding:1rem; margin-top:1.2rem; font-size:1.05rem;" onclick="window.processDirectCheckout()" disabled>
-                    <i class="fa-solid fa-shield-halved"></i> <span>Verifikasi Captcha Dahulu</span>
-                </button>
-            </div>
         </div>
     </div>
 
-    <!-- PAYMENT QRIS MODAL (DIPERBARUI UNTUK RENDER DINAMIS) -->
+    <!-- PAYMENT QRIS MODAL DENGAN TIMER EXPIRY (UI 4 Menit) -->
     <div class="modal-overlay" id="modal-payment">
         <div class="modal-content" style="max-width: 400px; text-align: center; background: var(--surface); padding: 2rem 1.5rem;">
             <div class="modal-header" style="border-bottom: none; justify-content: center; margin-bottom: 0;">
@@ -523,7 +570,7 @@
         </div>
     </div>
     
-    <!-- MODAL KONFIRMASI MATANG (IKON DINAMIS) -->
+    <!-- MODAL KONFIRMASI MATANG -->
     <div class="msg-overlay" id="modal-confirm">
         <div class="msg-box">
             <div class="msg-icon" id="mc-icon-container" style="font-size:2.5rem; margin-bottom:0.5rem; color:var(--primary-light);">
@@ -540,7 +587,7 @@
 
     <script type="module" src="js/store.js" defer></script>
 
-    <!-- SCRIPT FRONTEND: PWA, CAPTCHA, & ROBLOX -->
+    <!-- SCRIPT FRONTEND: PWA, UI CHECKOUT, & ROBLOX -->
     <script>
         // ==========================================
         // 1. PWA & CUSTOM INSTALL PROMPT
@@ -559,8 +606,6 @@
         window.addEventListener('beforeinstallprompt', (e) => {
             e.preventDefault(); 
             deferredPrompt = e; 
-            
-            // Tampilkan popup jika user belum pernah menutupnya
             if(!localStorage.getItem('pwa_prompt_dismissed')) {
                 pwaPrompt.style.display = 'flex';
             }
@@ -571,7 +616,6 @@
             if (deferredPrompt) {
                 deferredPrompt.prompt();
                 const { outcome } = await deferredPrompt.userChoice;
-                console.log(`User ${outcome} instalasi`);
                 deferredPrompt = null;
             }
         });
@@ -582,18 +626,70 @@
         });
 
         // ==========================================
-        // 2. LOGIKA CAPTCHA (TURNSTILE)
+        // 2. UI LOGIC: MODAL TABS, QTY, READ MORE
         // ==========================================
-        window.isCaptchaValid = false;
-        window.turnstileToken = "";
         
-        function onTurnstileSuccess(token) {
-            window.isCaptchaValid = true;
-            window.turnstileToken = token;
-            const btnProcess = document.getElementById('btn-process-buy');
-            btnProcess.disabled = false;
-            btnProcess.innerHTML = '<i class="fa-solid fa-cart-shopping"></i> <span>Selesaikan Pembayaran</span>';
-        }
+        // Tab Ulasan vs Pembelian
+        window.switchBuyModalTab = function(tabName) {
+            document.getElementById('tab-buy-form').classList.remove('active');
+            document.getElementById('tab-buy-reviews').classList.remove('active');
+            
+            document.getElementById('buy-content-form').style.display = 'none';
+            document.getElementById('buy-content-reviews').style.display = 'none';
+            
+            document.getElementById('tab-buy-' + tabName).classList.add('active');
+            document.getElementById('buy-content-' + tabName).style.display = 'block';
+        };
+
+        // Pemilih Jumlah (Quantity)
+        window.changeBuyQty = function(change) {
+            const input = document.getElementById('buy-qty');
+            let current = parseInt(input.value) || 1;
+            let newVal = current + change;
+            if (newVal < 1) newVal = 1;
+            input.value = newVal;
+            
+            // Panggil ulang fungsi kalkulasi total di store.js
+            if(window.calculateDirectBuyTotal) window.calculateDirectBuyTotal();
+        };
+
+        // Deskripsi: Baca Selengkapnya
+        window.toggleDescMore = function() {
+            const box = document.getElementById('buy-detail-fields');
+            const fade = document.getElementById('buy-desc-fade');
+            const btn = document.getElementById('btn-desc-more');
+            
+            box.style.maxHeight = '1500px'; // Buka penuh
+            fade.style.display = 'none'; // Hilangkan gradien putih
+            btn.style.display = 'none'; // Sembunyikan tombol
+        };
+
+        // Grid Item: Tampilkan Lebih Banyak
+        window.showAllItems = function() {
+            const grid = document.getElementById('buy-item-grid');
+            const btn = document.getElementById('btn-items-more');
+            
+            grid.style.maxHeight = '1500px'; 
+            btn.style.display = 'none';
+        };
+        
+        // Bintang Ulasan
+        window.selectedReviewStar = 5;
+        window.setReviewStar = function(val) {
+            window.selectedReviewStar = val;
+            const stars = document.getElementById('review-stars').children;
+            for(let i=0; i<stars.length; i++) {
+                if(i < val) {
+                    stars[i].style.color = 'var(--warning)';
+                    stars[i].classList.remove('fa-regular');
+                    stars[i].classList.add('fa-solid');
+                } else {
+                    stars[i].style.color = 'var(--text-muted)';
+                    stars[i].classList.remove('fa-solid');
+                    stars[i].classList.add('fa-regular');
+                }
+            }
+        };
 
         // ==========================================
         // 3. LOGIKA ROBLOX AVATAR CHECKER
@@ -609,7 +705,6 @@
             robloxStat.style.display = 'none';
             if (robloxUser.value.trim().length > 0) {
                 robloxLoad.style.display = 'block';
-                // Trigger cek API Roblox setelah user selesai mengetik (600ms)
                 rblxTimer = setTimeout(checkRobloxUsername, 600);
             } else {
                 robloxLoad.style.display = 'none';
@@ -629,14 +724,12 @@
         async function checkRobloxUsername() {
             const username = robloxUser.value.trim();
             try {
-                // Cari User ID
                 const searchPath = `/v1/users/search?keyword=${username}&limit=10`;
                 const data = await fetchFastest(`https://users.roblox.com${searchPath}`, `https://users.roproxy.com${searchPath}`);
                 
                 if (!data || !data.data || data.data.length === 0) throw new Error("Not found");
                 const user = data.data.find(u => u.name.toLowerCase() === username.toLowerCase() || u.displayName.toLowerCase() === username.toLowerCase()) || data.data[0];
                 
-                // Tarik Avatar
                 const thumbPath = `/v1/users/avatar-headshot?userIds=${user.id}&size=150x150&format=Png&isCircular=true`;
                 const thumbData = await fetchFastest(`https://thumbnails.roblox.com${thumbPath}`, `https://thumbnails.roproxy.com${thumbPath}`);
                 
