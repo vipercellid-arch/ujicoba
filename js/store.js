@@ -874,6 +874,14 @@ window.renderBrands = function(filter) {
 window.selectPaymentUI = function(val, el) {
     document.querySelectorAll('input[name="payment_method"]').forEach(input => { input.parentElement.classList.remove('active'); });
     el.classList.add('active'); el.querySelector('input').checked = true;
+    
+    // Tampilkan pesan khusus untuk metode CASH
+    if(val === 'cash') {
+        document.getElementById('cash-warning-msg').style.display = 'block';
+    } else {
+        document.getElementById('cash-warning-msg').style.display = 'none';
+    }
+    
     window.calculateDirectBuyTotal();
 }
 
@@ -888,6 +896,8 @@ window.openDirectBuyModal = function(brandName) {
     document.getElementById('buy-promo-code').value = '';
     document.getElementById('buy-promo-msg').innerHTML = '';
     document.getElementById('buy-qty').value = 1;
+    document.getElementById('manual-warning-msg').style.display = 'none';
+    document.getElementById('cash-warning-msg').style.display = 'none';
     window.switchBuyModalTab('form');
     
     // Reset Expandable CSS
@@ -901,7 +911,8 @@ window.openDirectBuyModal = function(brandName) {
     document.getElementById('buy-brand-badge').innerText = brandObj.type === 'game' ? 'TOP UP GAME' : 'APLIKASI PREMIUM';
     
     // Kalkulasi Penjualan
-    const totalSold = orders.filter(o => o.status === 'SUCCESS' && o.items && o.items[0]?.brandName === brandObj.brandName).length;
+    const totalSold = orders.filter(o => o.status === 'SUCCESS' && o.items && o.items[0]?.brandName === brandObj.brandName)
+                            .reduce((sum, o) => sum + (o.items[0].qty || 1), 0);
     document.getElementById('buy-brand-sold').innerText = `${totalSold} Terjual`;
     
     const imgEl = document.getElementById('buy-brand-img');
@@ -930,12 +941,12 @@ window.openDirectBuyModal = function(brandName) {
     sortedItems.forEach(item => {
         const normalPrice = item.priceNum || 0;
         const isSold = item.soldOut;
-        let badgeHtml = item.processType === 'manual' ? `<span class="discount-badge" style="background:var(--warning);">Manual</span>` : '';
+        
+        // DIBERSIHKAN: Label Manual dihapus dari list item (Badaki)
         let priceHtml = `<div class="price-wrapper"><span class="price-normal">Rp${normalPrice.toLocaleString('id-ID')}</span></div>`;
         
         html += `
             <div class="item-card ${isSold ? 'sold-out' : ''}" id="buy-card-${item.dbId}" onclick="${isSold ? '' : `window.selectItemToBuy('${item.dbId}')`}">
-                ${badgeHtml}
                 <h4>${item.name}</h4>
                 ${priceHtml}
             </div>
@@ -1009,6 +1020,14 @@ window.selectItemToBuy = function(dbId) {
     selectedProductForBuy = currentCheckoutBrand.items.find(i => i.dbId === dbId);
     document.querySelectorAll('.item-card').forEach(el => el.classList.remove('selected'));
     document.getElementById(`buy-card-${dbId}`).classList.add('selected');
+    
+    // Tampilkan Peringatan Manual yang Elegan jika item prosesnya manual
+    if (selectedProductForBuy.processType === 'manual') {
+        document.getElementById('manual-warning-msg').style.display = 'block';
+    } else {
+        document.getElementById('manual-warning-msg').style.display = 'none';
+    }
+    
     window.calculateDirectBuyTotal();
 }
 
@@ -1092,23 +1111,7 @@ window.processDirectCheckout = async function() {
     
     const qty = parseInt(document.getElementById('buy-qty').value) || 1;
     
-    // 2. Logic Auto-Guest Account (Firebase Data)
-    if (!currentUser || currentUser.isAnonymous) {
-        try {
-            const guestDocRef = doc(db, pathUsers, emailInput);
-            const docSnap = await getDoc(guestDocRef);
-            if(!docSnap.exists()) {
-                await setDoc(guestDocRef, {
-                    email: emailInput,
-                    name: 'Guest',
-                    isGuest: true,
-                    verified: false,
-                    createdAt: Date.now(),
-                    expiresAt: Date.now() + (30 * 24 * 60 * 60 * 1000) // Retensi 30 Hari
-                });
-            }
-        } catch(e) { console.log('Error creating guest record', e); }
-    }
+    // Dihapus Logika Auto-Guest Database sesuai permintaan
     
     let playerInfo = '';
     if(currentCheckoutBrand.type === 'game') {

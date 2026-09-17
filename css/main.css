@@ -1,6 +1,7 @@
 /* ========================================================
    VIPERCELL V17.0 - ULTIMATE FRONTEND CSS (USER)
    * Updated: PWA, Qty Checkout, Review System, Roblox UI
+   * Cleaned: VIP System & Legacy Notifications
    ======================================================== */
 
 /* ========================================================
@@ -127,10 +128,12 @@ input[type="number"] {
     box-shadow: none !important;
 }
 
-/* Animasi Bawaan */
+/* Animasi Bawaan & Spinner */
 .fa-spinner { animation: spin 1s linear infinite; }
 @keyframes spin { 100% { transform: rotate(360deg); } }
 @keyframes slideUp { from { transform: translate(-50%, 100%); opacity: 0; } to { transform: translate(-50%, 0); opacity: 1; } }
+@keyframes slideUpFade { to { opacity: 1; transform: translateY(0); } }
+@keyframes bounceIn { 0% { transform: scale(0.5); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
 
 .btn-primary { background: var(--primary-gradient); color: white; box-shadow: 0 4px 15px rgba(37, 99, 235, 0.2); }
 .btn-primary:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(37, 99, 235, 0.4); }
@@ -194,7 +197,7 @@ input[type="number"] {
    ======================================================== */
 header {
     position: sticky; top: 0; z-index: 1000;
-    background: rgba(var(--surface-rgb, 15, 23, 42), 0.85);
+    background: rgba(var(--surface-rgb, 15, 23, 42), 0.85); /* Fallback */
     backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
     border-bottom: 1px solid var(--border); padding: 15px 0;
 }
@@ -389,10 +392,6 @@ header {
     content: 'HABIS'; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(-15deg);
     background: var(--danger); color: white; font-size: 0.7rem; font-weight: 900; padding: 2px 8px; border-radius: 4px; border: 1px solid white;
 }
-.discount-badge {
-    position: absolute; top: -8px; right: -8px; background: var(--success); color: white;
-    font-size: 0.65rem; font-weight: bold; padding: 2px 6px; border-radius: 6px; z-index: 2; box-shadow: 0 2px 5px rgba(0,0,0,0.2);
-}
 
 /* Metode Pembayaran / Tipe Pilihan */
 .type-grid { display: grid; gap: 10px; }
@@ -435,7 +434,6 @@ header {
     overflow: hidden; display: flex; flex-direction: column; box-shadow: 0 5px 15px rgba(0,0,0,0.1);
 }
 .receipt-anim { opacity: 0; transform: translateY(20px); animation: slideUpFade 0.5s ease forwards; }
-@keyframes slideUpFade { to { opacity: 1; transform: translateY(0); } }
 
 .receipt-header {
     background: var(--surface-hover); padding: 15px 20px; border-bottom: 1px solid var(--border);
@@ -456,7 +454,6 @@ header {
     color: var(--success); display: flex; justify-content: center; align-items: center;
     font-size: 2rem; margin: 0 auto 10px; border: 2px solid var(--success);
 }
-@keyframes bounceIn { 0% { transform: scale(0.5); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
 
 /* ========================================================
    9. AUTHENTICATION & PROFIL
