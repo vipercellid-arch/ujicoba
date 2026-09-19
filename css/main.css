@@ -1,7 +1,7 @@
 /* ========================================================
    VIPERCELL V18.6 - ULTIMATE FRONTEND CSS (USER)
-   * Updated: Marquee Animation Fix, Full Screen Success Anim,
-   * Cleaned: Native Tabs, Smart Checkout, Chat Embed
+   * Updated: Smooth Success Animation, Proper Marquee Fix
+   * Cleaned: Native Tabs, Smart Checkout, WA-Style Chat
    ======================================================== */
 
 /* ========================================================
@@ -83,7 +83,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
     outline-offset: 2px;
 }
 
-/* KHUSUS: Sembunyikan Panah (Spinner) Bawaan Browser pada Input Number */
+/* Sembunyikan Panah Bawaan pada Input Number */
 input[type="number"]::-webkit-inner-spin-button,
 input[type="number"]::-webkit-outer-spin-button {
     -webkit-appearance: none;
@@ -128,13 +128,13 @@ input[type="number"] {
     box-shadow: none !important;
 }
 
-/* Animasi Bawaan & Spinner */
+/* Animasi Inti */
 .fa-spinner { animation: spin 1s linear infinite; }
 @keyframes spin { 100% { transform: rotate(360deg); } }
 @keyframes slideUp { from { transform: translate(-50%, 100%); opacity: 0; } to { transform: translate(-50%, 0); opacity: 1; } }
 @keyframes slideUpFade { to { opacity: 1; transform: translateY(0); } }
 @keyframes bounceIn { 0% { transform: scale(0.5); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
-@keyframes scaleIn { 0% { transform: scale(0); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+@keyframes scaleIn { 0% { transform: scale(0); opacity: 0; } 80% { transform: scale(1.1); opacity: 1; } 100% { transform: scale(1); opacity: 1; } }
 
 .btn-primary { background: var(--primary-gradient); color: white; box-shadow: 0 4px 15px rgba(37, 99, 235, 0.2); }
 .btn-primary:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(37, 99, 235, 0.4); }
@@ -243,23 +243,24 @@ header {
 .tw-cursor { display: inline-block; width: 3px; height: 1.2em; background: var(--primary-light); margin-left: 2px; animation: blink 1s step-end infinite; }
 @keyframes blink { 50% { opacity: 0; } }
 
-/* Teks Berjalan Fix dari Ujung */
+/* PERBAIKAN ANIMASI TEKS BERJALAN (MARQUEE) */
 .marquee-container {
     background: rgba(37, 99, 235, 0.1); border: 1px solid rgba(37, 99, 235, 0.2);
-    border-radius: 12px; padding: 12px; margin: 1rem 0 2.5rem; overflow: hidden; white-space: nowrap; position: relative; width: 100%;
+    border-radius: 12px; padding: 12px; margin: 1rem 0 2.5rem; width: 100%;
 }
 .marquee-wrapper {
-    display: inline-block;
-    width: 100%;
-    overflow: hidden;
+    width: 100%; overflow: hidden; white-space: nowrap; display: flex; align-items: center;
 }
-.marquee-content { 
-    display: inline-block; 
-    padding-left: 100%; 
-    animation: marquee 25s linear infinite; 
+.marquee-content {
+    display: inline-block;
+    padding-left: 100%; /* Memaksa teks mulai tepat di luar batas kanan layar */
+    animation: marquee 25s linear infinite;
 }
 .marquee-text { font-size: 0.9rem; font-weight: 600; color: var(--primary-light); padding-right: 50px; }
-@keyframes marquee { 0% { transform: translateX(0); } 100% { transform: translateX(-100%); } }
+@keyframes marquee { 
+    0% { transform: translateX(0); } 
+    100% { transform: translateX(-100%); } 
+}
 
 .banner-slider-container {
     width: 100%; border-radius: 16px; overflow: hidden; position: relative;
@@ -453,14 +454,6 @@ header {
 
 .receipt-row { display: flex; justify-content: space-between; margin-bottom: 5px; font-size: 0.9rem; }
 
-/* Animasi Sukses Cek Pesanan Layar Penuh */
-.checkmark-circle-large {
-    width: 80px; height: 80px; border-radius: 50%; background: rgba(16, 185, 129, 0.1);
-    color: var(--success); display: flex; justify-content: center; align-items: center;
-    font-size: 3rem; border: 3px solid var(--success);
-    animation: scaleIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-}
-
 /* ========================================================
    9. AUTHENTICATION & PROFIL
    ======================================================== */
@@ -498,7 +491,7 @@ header {
 .tut-accordion-card.open .tut-accordion-body { max-height: 1000px; border-top: 1px solid var(--border); }
 
 /* ========================================================
-   10. CHAT BANTUAN (FULL TAB & WA STYLE)
+   10. CHAT BANTUAN (FULL TAB WA STYLE)
    ======================================================== */
 .chat-body { flex: 1; padding: 1.5rem; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; background: var(--bg); }
 .chat-footer { padding: 15px; background: var(--surface); border-top: 1px solid var(--border); display: flex; gap: 10px; align-items: center; }
