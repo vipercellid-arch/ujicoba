@@ -164,23 +164,24 @@
         <!-- TAB: PESANAN & LACAK (DIGABUNG) -->
         <div id="tab-pesanan" class="main-tab-content container">
             <div class="section-header text-center" style="margin-bottom: 2rem;">
-                <h2>Lacak & Riwayat Pesanan</h2>
-                <p>Cari status pesanan via ID atau pantau riwayat transaksimu.</p>
+                <h2 id="pesanan-title">Pesanan & Lacak</h2>
+                <p id="pesanan-subtitle">Pantau riwayat atau lacak status pesanan kamu di sini.</p>
             </div>
             
-            <!-- Form Lacak Pesanan (Fokus Utama Guest / User Belum Login) -->
-            <div style="max-width: 600px; margin: 0 auto 2.5rem; background: var(--surface); padding: 1.5rem; border-radius: 16px; border: 1px solid var(--border);">
+            <!-- Area Khusus Lacak Pesanan Manual (Akan Sembunyi Jika User Login) -->
+            <div id="guest-tracking-section" style="max-width: 600px; margin: 0 auto 2.5rem; background: var(--surface); padding: 1.5rem; border-radius: 16px; border: 1px solid var(--border);">
                 <div style="display: flex; gap: 8px;">
                     <input type="text" id="track-id" class="form-control" placeholder="Masukkan Invoice ID (VP-...)" style="text-transform: uppercase;">
                     <button id="btn-track-order" aria-label="Cari Pesanan" class="btn btn-primary" onclick="window.trackOrder()" style="padding: 0 20px;">
                         <i class="fa-solid fa-magnifying-glass"></i> <span class="hide-mobile">Cari</span>
                     </button>
                 </div>
-                <!-- Hasil Lacak Muncul Di Sini -->
-                <div id="track-result" style="margin-top: 1.2rem; display: none;"></div>
             </div>
+            
+            <!-- Hasil Lacak Muncul Di Sini (TETAP BERADA DI LUAR AGAR BISA TERPANGGIL OTOMATIS) -->
+            <div id="track-result" style="max-width: 600px; margin: 0 auto 2.5rem; display: none;"></div>
 
-            <hr id="divider-pesanan" style="border:none; border-top:1px solid var(--border); max-width:800px; margin: 0 auto 2rem;">
+            <hr id="divider-pesanan" style="border:none; border-top:1px solid var(--border); max-width:800px; margin: 0 auto 2rem; display:none;">
 
             <!-- Grid Riwayat Pesanan User (Hanya Aktif Jika Login) -->
             <div id="user-history-section" style="display:none;">
@@ -349,6 +350,7 @@
                         </div>
                         <div id="buy-promo-msg" class="promo-msg" style="margin-top:-1rem; margin-bottom:1rem;"></div>
                         
+                        <!-- Area Input Email (Akan disembunyikan JS jika user sudah Login) -->
                         <div id="buy-email-group" class="form-group" style="margin-top: 1rem;">
                             <label for="buy-email" style="color:var(--text);">Alamat Email (Penerima Bukti Tagihan) <small style="color:var(--danger)">*</small></label>
                             <input type="email" id="buy-email" class="form-control" placeholder="email@kamu.com" required>
@@ -551,7 +553,6 @@
                         </div>
                     </div>
                 </div>
-                <!-- Tombol "Sudah Bayar" Arahkan ke Tab Pesanan / Lacak sesuai JS nanti -->
                 <button aria-label="Sudah Bayar" id="btn-final-pay" class="btn btn-success" style="width:100%; padding:1rem; font-size:1.1rem; border-radius: 12px; font-weight: 700; margin-top: 15px; box-shadow: 0 8px 20px rgba(16, 185, 129, 0.3);" onclick="window.goToPesananFromPay()">Saya Sudah Bayar</button>
             </div>
         </div>
@@ -585,7 +586,7 @@
 
     <script type="module" src="js/store.js" defer></script>
 
-    <!-- SCRIPT FRONTEND KOSMETIK: PWA & UI TABS (No Roblox) -->
+    <!-- SCRIPT FRONTEND KOSMETIK: PWA & UI TABS (Bebas Roblox) -->
     <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {

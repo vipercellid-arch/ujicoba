@@ -185,11 +185,17 @@ async function initApp() {
         const icon = document.getElementById('theme-icon');
         if(icon) icon.className = savedTheme === 'dark' ? 'fa-solid fa-moon' : 'fa-solid fa-sun';
         
-        // Memastikan sesi bertahan lama di Local Storage agar UID Guest tidak berubah-ubah
+        // Memastikan sesi Anonim (Guest) bertahan selamanya agar hemat limit API Firebase
         await setPersistence(auth, browserLocalPersistence);
         
         onAuthStateChanged(auth, async (user) => {
             currentUser = user;
+            
+            const historySec = document.getElementById('user-history-section');
+            const divPesanan = document.getElementById('divider-pesanan');
+            const guestTrackSec = document.getElementById('guest-tracking-section');
+            const emailGroupBuy = document.getElementById('buy-email-group');
+            
             if (user) {
                 if (user.isAnonymous) {
                     const savedAnonName = localStorage.getItem('vipercell_anon_name') || '';
@@ -198,11 +204,11 @@ async function initApp() {
                     document.getElementById('btn-login-user').style.display = 'inline-flex';
                     document.getElementById('nav-profil').style.display = 'none';
                     
-                    // Sembunyikan Riwayat, Fokus pada fitur Lacak Manual
-                    const historySec = document.getElementById('user-history-section');
-                    const divPesanan = document.getElementById('divider-pesanan');
+                    // User Guest: Tampilkan input Lacak Manual, sembunyikan Riwayat
                     if(historySec) historySec.style.display = 'none';
                     if(divPesanan) divPesanan.style.display = 'none';
+                    if(guestTrackSec) guestTrackSec.style.display = 'block';
+                    if(emailGroupBuy) emailGroupBuy.style.display = 'block';
                     
                 } else {
                     document.getElementById('btn-login-user').style.display = 'none';
@@ -211,7 +217,6 @@ async function initApp() {
                     if(userDoc.exists()) {
                         userProfile = { ...userProfile, ...userDoc.data(), isGuest: false };
                         document.getElementById('prof-name').value = userProfile.name || '';
-                        
                         const statusEl = document.getElementById('prof-email-status');
                         if (statusEl) {
                             statusEl.innerText = '(Verified)';
@@ -222,17 +227,16 @@ async function initApp() {
                     document.getElementById('prof-email').value = userProfile.email || user.email || '';
                     document.getElementById('nav-profil').style.display = 'flex';
                     
-                    // Tampilkan Riwayat Transaksi jika sudah login
-                    const historySec = document.getElementById('user-history-section');
-                    const divPesanan = document.getElementById('divider-pesanan');
+                    // User Login: Sembunyikan input Lacak Manual, tampilkan Riwayat, sembunyikan input Email saat beli
+                    if(guestTrackSec) guestTrackSec.style.display = 'none';
                     if(historySec) historySec.style.display = 'block';
                     if(divPesanan) divPesanan.style.display = 'block';
+                    if(emailGroupBuy) emailGroupBuy.style.display = 'none';
                     
                     updateProfileStats();
                 }
                 
                 window.renderUserOrders(); 
-                
                 checkChatUserState();
                 listenUserChat();
                 listenData();
@@ -240,10 +244,10 @@ async function initApp() {
                 document.getElementById('btn-login-user').style.display = 'inline-flex';
                 document.getElementById('nav-profil').style.display = 'none';
                 
-                const historySec = document.getElementById('user-history-section');
-                const divPesanan = document.getElementById('divider-pesanan');
                 if(historySec) historySec.style.display = 'none';
                 if(divPesanan) divPesanan.style.display = 'none';
+                if(guestTrackSec) guestTrackSec.style.display = 'block';
+                if(emailGroupBuy) emailGroupBuy.style.display = 'block';
                 
                 signInAnonymously(auth).catch(() => {});
             }
@@ -303,11 +307,11 @@ function listenData() {
             }
             newOrders.push(data);
 
-            // Notifikasi Popup Jika Pesanan Berhasil Dikirim / Diverifikasi
+            // Notifikasi Popup Cerdas untuk Fulfillment Apps Script
             if (currentUser && data.userId === currentUser.uid) {
                 let oldStatus = previousOrdersData[data.id];
                 if (oldStatus && oldStatus !== 'SUCCESS' && data.status === 'SUCCESS') {
-                    window.showToast('Pesanan Selesai!', `Transaksi ${data.id} sukses dan otomatis terkirim.`, 'success', () => {
+                    window.showToast('Pesanan Selesai!', `Transaksi ${data.id} sukses dan produk telah dikirim.`, 'success', () => {
                         window.switchMainTab('pesanan');
                         document.getElementById('track-id').value = data.id;
                         window.trackOrder();
@@ -370,7 +374,7 @@ function listenData() {
 }
 
 function updateOrderBadges() {
-    if (currentUser) {
+    if (currentUser && !userProfile.isGuest) {
         const hasActionNeeded = orders.some(o => o.userId === currentUser.uid && (o.status === 'UNPAID' || o.status === 'PENDING'));
         const badgeDesk = document.getElementById('user-order-badge-desktop');
         if(badgeDesk) badgeDesk.style.display = hasActionNeeded ? 'block' : 'none';
@@ -757,7 +761,7 @@ window.applySettingsToUI = function() {
         if(fImgEl) fImgEl.style.display = 'none'; 
     }
     
-    const mText = siteSettings.marquee || 'Loading...';
+    const mText = siteSettings.marquee || 'Selamat Datang di Vipercell';
     const mt1 = document.getElementById('marquee-text-1');
     const mt2 = document.getElementById('marquee-text-2');
     if(mt1) mt1.innerText = mText; if(mt2) mt2.innerText = mText;
@@ -963,11 +967,6 @@ window.openDirectBuyModal = function(brandName) {
     if(brandObj.imgUrlBase64) { imgEl.src = brandObj.imgUrlBase64; imgEl.style.display = 'block'; } 
     else { imgEl.style.display = 'none'; }
     
-    // Hilangkan div khusus Roblox yang lama
-    const robloxContainer = document.getElementById('roblox-checker-container');
-    if(robloxContainer) robloxContainer.style.display = 'none';
-    document.getElementById('buy-detail-fields').style.display = 'block';
-    
     const itemGrid = document.getElementById('buy-item-grid');
     const sortedItems = [...brandObj.items].sort((a, b) => (a.priceNum||0) - (b.priceNum||0));
     
@@ -1009,7 +1008,7 @@ window.openDirectBuyModal = function(brandName) {
                     <input type="text" id="buy-id" class="form-control" placeholder="Contoh: 123456789" required>
                     <small style="color:var(--danger); display:block; margin-top:5px; font-weight:bold;">*Kesalahan penulisan ID bukan tanggung jawab sistem.</small>
                 </div>`;
-        } else if(inpType === 'custom' || inpType === 'roblox') {
+        } else if(inpType === 'custom') {
             fields.innerHTML = `
                 ${extraDesc}
                 <div class="form-group">
@@ -1033,11 +1032,19 @@ window.openDirectBuyModal = function(brandName) {
     } else {
         fields.innerHTML = `
             ${extraDesc}
-            <p style="font-size:0.85rem; color:var(--text-muted); text-align:center; padding: 1.2rem; background:rgba(37,99,235,0.08); border-radius:10px; border:1px dashed var(--primary-light);">Informasi akun premium akan langsung ditampilkan di menu <b>Lacak Pesanan</b> setelah sukses dibayar.</p>`;
+            <p style="font-size:0.85rem; color:var(--text-muted); text-align:center; padding: 1.2rem; background:rgba(37,99,235,0.08); border-radius:10px; border:1px dashed var(--primary-light);">Informasi akun premium akan langsung ditampilkan di menu <b>Pesanan</b> setelah sukses dibayar.</p>`;
     }
     
+    // Logika Pintar untuk Email Checkout (Sembunyi Jika Login)
+    const emailGroup = document.getElementById('buy-email-group');
     const emailInput = document.getElementById('buy-email');
-    emailInput.value = userProfile.email || ''; 
+    if (!userProfile.isGuest && userProfile.email) {
+        emailInput.value = userProfile.email;
+        if(emailGroup) emailGroup.style.display = 'none';
+    } else {
+        emailInput.value = '';
+        if(emailGroup) emailGroup.style.display = 'block';
+    }
     
     const defaultPayCard = document.querySelector('input[name="payment_method"][value="qris"]');
     if(defaultPayCard) window.selectPaymentUI('qris', defaultPayCard.parentElement);
@@ -1137,8 +1144,6 @@ window.processDirectCheckout = async function() {
         return; 
     }
     
-    userProfile.email = emailInput;
-    
     const qty = parseInt(document.getElementById('buy-qty').value) || 1;
     
     let playerInfo = '';
@@ -1149,7 +1154,7 @@ window.processDirectCheckout = async function() {
         
         let inpType = currentCheckoutBrand.items[0]?.inputType || 'id_zone';
         if(inpType === 'id_only') playerInfo = `ID: ${pid}`;
-        else if(inpType === 'custom' || inpType === 'roblox') playerInfo = `Info / User: ${pid}`;
+        else if(inpType === 'custom') playerInfo = `Info / User: ${pid}`;
         else playerInfo = `ID: ${pid} | Zone: ${zol}`;
     } else {
         playerInfo = `Akun Premium (Delivery Type: ${selectedProductForBuy.processType === 'manual' ? 'Manual' : 'Auto'})`;
@@ -1498,7 +1503,6 @@ window.renderUserOrders = function() {
     const grid = document.getElementById('user-order-grid');
     if(!grid) return;
     
-    // Jangan render riwayat ke UI jika dia Guest
     if(!currentUser || userProfile.isGuest) { grid.innerHTML = ''; return; }
     
     const userOrders = orders.filter(o => o.userId === currentUser.uid);
@@ -1587,7 +1591,7 @@ window.renderUserOrders = function() {
                     ${o.promoDiscount > 0 ? `
                     <div class="receipt-row">
                         <span style="color:var(--success);">Promo (${o.promoCode})</span>
-                        <span style="color:var(--success);">-Rp${o.promoDiscount.toLocaleString('id-ID')}</span>
+                        <span style="color:var(--success);">-Rp${order.promoDiscount.toLocaleString('id-ID')}</span>
                     </div>` : ''}
                     <div class="receipt-row">
                         <span style="color:var(--warning);">Kode Unik</span>
