@@ -1,7 +1,7 @@
 /* ========================================================
-   VIPERCELL V17.3 - ULTIMATE FRONTEND CSS (USER)
-   * Updated: Full Screen Checkout, Bantuan Tab, Combined Lacak
-   * Cleaned: Welcome Bar, Digiflazz Logic, Old Modals
+   VIPERCELL V18.4 - ULTIMATE FRONTEND CSS (USER)
+   * Updated: Full Auto-Delivery Support, Fast Rendering
+   * Cleaned: Roblox Elements & Digiflazz Logic removed.
    ======================================================== */
 
 /* ========================================================
@@ -83,7 +83,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
     outline-offset: 2px;
 }
 
-/* KHUSUS: Sembunyikan Panah (Spinner) Bawaan Browser pada Input Number (Fitur Qty) */
+/* KHUSUS: Sembunyikan Panah (Spinner) Bawaan Browser pada Input Number (Untuk Fitur Qty) */
 input[type="number"]::-webkit-inner-spin-button,
 input[type="number"]::-webkit-outer-spin-button {
     -webkit-appearance: none;
@@ -197,7 +197,7 @@ input[type="number"] {
    ======================================================== */
 header {
     position: sticky; top: 0; z-index: 1000;
-    background: rgba(var(--surface-rgb, 15, 23, 42), 0.85); /* Fallback */
+    background: rgba(var(--surface-rgb, 15, 23, 42), 0.85); 
     backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
     border-bottom: 1px solid var(--border); padding: 15px 0;
 }
@@ -227,7 +227,7 @@ header {
 
 .header-actions { display: flex; gap: 10px; align-items: center; }
 
-.main-tab-content { display: none; padding-top: 2rem; padding-bottom: 4rem; animation: fadeIn 0.3s ease; min-height: calc(100vh - 200px); }
+.main-tab-content { display: none; padding-top: 2rem; padding-bottom: 4rem; animation: fadeIn 0.3s ease; }
 .main-tab-content.active { display: block; }
 @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 
@@ -264,6 +264,7 @@ header {
 .section-header { margin-bottom: 2rem; text-align: left; }
 .section-header h2 { font-size: 1.6rem; font-weight: 800; color: var(--text); margin-bottom: 5px; }
 .section-header p { color: var(--text-muted); font-size: 0.9rem; }
+.section-header.text-center { text-align: center; }
 
 .tabs { display: flex; gap: 10px; margin-bottom: 2rem; overflow-x: auto; padding-bottom: 5px; }
 .tab-btn {
@@ -319,7 +320,7 @@ header {
    ======================================================== */
 .modal-overlay, .msg-overlay {
     position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-    background: rgba(0, 0, 0, 0.85); backdrop-filter: blur(5px); -webkit-backdrop-filter: blur(5px);
+    background: rgba(0, 0, 0, 0.7); backdrop-filter: blur(5px); -webkit-backdrop-filter: blur(5px);
     z-index: 99999; display: flex; justify-content: center; align-items: center;
     opacity: 0; visibility: hidden; pointer-events: none;
     transition: opacity 0.3s ease, visibility 0.3s ease; padding: 1rem;
@@ -333,6 +334,9 @@ header {
     box-shadow: 0 25px 50px rgba(0,0,0,0.5); position: relative;
 }
 .modal-overlay.active .modal-content, .msg-overlay.active .msg-box { transform: translateY(0) scale(1); }
+
+.modal-content.large { max-width: 800px; }
+.modal-content.wide { max-width: 650px; }
 
 .modal-header {
     display: flex; justify-content: space-between; align-items: center;
@@ -371,7 +375,7 @@ header {
 .form-control:focus { border-color: var(--primary-light); box-shadow: 0 0 0 4px rgba(37,99,235,0.1); }
 .form-control::placeholder { color: #64748b; }
 
-/* Pilihan Item Grid Checkout Full Screen */
+/* Pilihan Item Grid Modal */
 .item-selection-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; }
 .item-card {
     background: var(--bg); border: 2px solid var(--border); border-radius: 12px;
@@ -442,8 +446,6 @@ header {
 
 .receipt-row { display: flex; justify-content: space-between; margin-bottom: 5px; font-size: 0.9rem; }
 .auto-delivery-box { background: rgba(16, 185, 129, 0.08); border: 1px solid var(--success); border-radius: 8px; padding: 15px; margin-top: 15px; }
-.auto-delivery-title { font-weight: 800; color: var(--success); font-size: 0.9rem; margin-bottom: 8px; display: flex; align-items: center; gap: 8px; }
-.auto-delivery-data { font-family: monospace; font-size: 0.9rem; color: var(--text); background: var(--bg); padding: 10px; border-radius: 6px; border: 1px solid var(--border); white-space: pre-wrap; word-break: break-all; }
 
 /* Animasi Sukses Cek Pesanan */
 .payment-success-anim { text-align: center; margin-bottom: 2rem; animation: bounceIn 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
@@ -490,24 +492,7 @@ header {
 .tut-accordion-card.open .tut-accordion-body { max-height: 1000px; border-top: 1px solid var(--border); }
 
 /* ========================================================
-   10. LIVE CHAT (Pusat Bantuan Layar Penuh)
-   ======================================================== */
-.chat-window {
-    width: 100%; max-width: 800px; margin: 0 auto; background: var(--surface); 
-    border-radius: 16px; border: 1px solid var(--border);
-    display: flex; flex-direction: column; overflow: hidden; height: 65vh; min-height: 500px;
-    box-shadow: 0 10px 30px rgba(0,0,0,0.1);
-}
-.chat-body { flex: 1; padding: 1.5rem; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; background: var(--bg); }
-.chat-footer { padding: 15px; background: var(--surface); border-top: 1px solid var(--border); display: flex; gap: 10px; align-items: center; }
-
-.chat-msg { max-width: 85%; padding: 10px 15px; border-radius: 16px; font-size: 0.9rem; line-height: 1.4; position: relative; word-wrap: break-word;}
-.chat-msg.admin { background: var(--surface-hover); color: var(--text); align-self: flex-start; border-bottom-left-radius: 4px; border: 1px solid var(--border); }
-.chat-msg.user { background: var(--primary); color: white; align-self: flex-end; border-bottom-right-radius: 4px; }
-.chat-time { font-size: 0.65rem; color: var(--text-muted); display: block; margin-top: 5px; text-align: right; opacity: 0.8; }
-
-/* ========================================================
-   11. FOOTER & BOTTOM NAVIGATION (MOBILE)
+   10. FOOTER & BOTTOM NAVIGATION (MOBILE)
    ======================================================== */
 .footer-new { background: var(--surface); border-top: 1px solid var(--border); padding: 4rem 20px; display: flex; flex-wrap: wrap; gap: 2rem; justify-content: space-between; margin-top: auto; }
 .footer-left { max-width: 400px; }
@@ -551,7 +536,7 @@ header {
 .reveal-visible { opacity: 1; transform: translateY(0); }
 
 /* ========================================================
-   12. RESPONSIVE DESIGN (SMARTPHONE & TABLET)
+   11. RESPONSIVE DESIGN (SMARTPHONE & TABLET)
    ======================================================== */
 @media (max-width: 768px) {
     .hide-mobile { display: none !important; }
