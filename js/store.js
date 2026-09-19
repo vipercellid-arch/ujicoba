@@ -352,8 +352,8 @@ function listenData() {
                                 window.switchMainTab('pesanan');
                                 document.getElementById('track-id').value = data.id;
                                 window.trackOrder(); 
-                            }, 600); 
-                        }, 2500); 
+                            }, 600); // Menunggu transisi fade-out selesai
+                        }, 2500); // Overlay Tampil 2.5 Detik
                     }
                 }
             }
@@ -466,7 +466,7 @@ function checkChatUserState() {
     
     let hasName = userProfile.name && userProfile.name.trim() !== '';
     
-    // Perbaikan Penting: Selalu ingat nama GUEST dari localstorage (Seperti Logika Lama)
+    // Perbaikan Penting: Selalu ingat nama GUEST dari localstorage
     if(!hasName && userProfile.isGuest) {
         const savedName = localStorage.getItem('vipercell_anon_name');
         if(savedName) {
@@ -502,8 +502,9 @@ window.startAnonChat = function() {
     userProfile.name = name;
     localStorage.setItem('vipercell_anon_name', name);
     checkChatUserState();
-    listenUserChat(); 
+    listenUserChat(); // Restart listener
 
+    // Jika masuk dari tombol bantuan struk/invoice, kirim pesan secara otomatis
     if(window.pendingMsgToAdmin) {
         document.getElementById('user-chat-input').value = window.pendingMsgToAdmin;
         window.sendUserChat();
@@ -534,7 +535,6 @@ function listenUserChat() {
         } else {
             userChatMessages = [];
             window.renderUserChatMessages();
-            // Data nama di LocalStorage TETAP AMAN, TIDAK DIHAPUS.
         }
     });
 }
@@ -1115,7 +1115,6 @@ window.openDirectBuyModal = function(brandName) {
             <p style="font-size:0.85rem; color:var(--text-muted); text-align:center; padding: 1.2rem; background:rgba(37,99,235,0.08); border-radius:10px; border:1px dashed var(--primary-light);">Informasi akun premium akan langsung ditampilkan di menu <b>Pesanan</b> setelah sukses dibayar.</p>`;
     }
     
-    // Logika Cerdas untuk Sembunyikan Input Email jika Login
     const emailGroup = document.getElementById('buy-email-group');
     const emailInput = document.getElementById('buy-email');
     if (!userProfile.isGuest && userProfile.email) {
@@ -1369,7 +1368,12 @@ window.startQrisTimer = function(orderDate) {
 window.openQRISModal = function() {
     const qrContainer = document.getElementById('qrcode-container');
     const qrErrorMsg = document.getElementById('qris-error-msg');
+    const invIdEl = document.getElementById('pay-modal-invoice-id');
     qrContainer.innerHTML = '';
+    
+    if(invIdEl && currentCheckoutSession) {
+        invIdEl.innerText = currentCheckoutSession.id;
+    }
     
     const qrisBaseString = siteSettings.qrisStringData || "00020101021126670016COM.NOBUBANK.WWW011893600503000000000051440014ID.CO.QRIS.WWW0215ID10200210007070303UMI5204581253033605802ID5919VIPERCELL INDONESIA6005AMBON61059711662070703A016304"; 
     
@@ -1388,6 +1392,12 @@ window.openQRISModal = function() {
     } else {
         qrContainer.style.display = 'none';
         qrErrorMsg.style.display = 'block';
+    }
+    
+    // Tampilkan peringatan PENTING khusus untuk user Guest
+    const guestWarning = document.getElementById('pay-modal-guest-warning');
+    if (guestWarning) {
+        guestWarning.style.display = userProfile.isGuest ? 'block' : 'none';
     }
     
     document.getElementById('pay-total-display').innerText = `Rp${currentCheckoutSession.finalTotal.toLocaleString('id-ID')}`;
@@ -1517,7 +1527,7 @@ window.trackOrder = function() {
             hasReviewed = reviewsData.some(r => r.brandName === brandName && r.userEmail === trackEmail);
         }
         if (!hasReviewed) {
-             actionHtml = `<button class="btn btn-warning" style="width:100%; margin-top:1rem; font-weight:bold; color:white; background:#f59e0b; border:none; padding:12px;" onclick="window.goToReview('${brandName}')"><i class="fa-solid fa-star"></i> Berikan Ulasan (Review)</button>`;
+             actionHtml = `<button class="btn btn-warning" style="width:100%; margin-top:1rem; font-weight:bold; color:white; background:#f59e0b; border:none;" onclick="window.goToReview('${brandName}')"><i class="fa-solid fa-star"></i> Berikan Ulasan</button>`;
         }
     }
     
@@ -1671,7 +1681,7 @@ window.renderUserOrders = function() {
                 hasReviewed = reviewsData.some(r => r.brandName === brandName && r.userEmail === userProfile.email);
             }
             if (!hasReviewed) {
-                 actionHtml = `<button class="btn btn-warning" style="width:100%; margin-top:1rem; font-weight:bold; color:white; background:#f59e0b; border:none; padding:12px;" onclick="window.goToReview('${brandName}')"><i class="fa-solid fa-star"></i> Berikan Ulasan (Review)</button>`;
+                 actionHtml = `<button class="btn btn-warning" style="width:100%; margin-top:1rem; font-weight:bold; color:white; background:#f59e0b; border:none;" onclick="window.goToReview('${brandName}')"><i class="fa-solid fa-star"></i> Berikan Ulasan</button>`;
             }
         }
              
@@ -1811,11 +1821,6 @@ window.submitReview = async function() {
         await addDoc(collection(db, pathReviews), newReview);
         document.getElementById('review-text').value = '';
         window.customAlert('Terima Kasih', 'Ulasanmu berhasil dipublikasikan!', 'success');
-        
-        // Segarkan data pesanan agar tombol beri ulasan di struk menghilang
-        window.renderUserOrders();
-        const trackResult = document.getElementById('track-result');
-        if(trackResult && trackResult.style.display === 'block') window.trackOrder();
     } catch(e) {
         window.customAlert('Gagal', 'Gagal mengirim ulasan. Pastikan jaringan stabil.', 'error');
         btnSubmit.innerHTML = ogHtml;
