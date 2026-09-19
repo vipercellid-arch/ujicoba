@@ -334,26 +334,35 @@ function listenData() {
             }
             newOrders.push(data);
 
-            // ANIMASI PEMBAYARAN SUKSES & AUTO-CLOSE MODAL Cerdas
+            // ANIMASI PEMBAYARAN SUKSES & AUTO-CLOSE MODAL SANGAT SMOOTH
             let checkEmailMatched = localStorage.getItem('vipercell_track_email') === data.userEmail;
             if (currentUser && (data.userId === currentUser.uid || checkEmailMatched)) {
                 let oldStatus = previousOrdersData[data.id];
                 if (oldStatus && oldStatus !== 'SUCCESS' && data.status === 'SUCCESS') {
                     
-                    // Tutup modal bayar secara otomatis (Jika sedang dibuka)
                     window.closeModal('modal-payment');
                     
-                    // Panggil animasi Centang Sukses Hamparan Penuh
                     const successOverlay = document.getElementById('payment-success-overlay');
                     if (successOverlay) {
+                        // 1. Fade In Animasi Centang
+                        successOverlay.style.opacity = '0';
                         successOverlay.style.display = 'flex';
+                        successOverlay.style.transition = 'opacity 0.4s ease';
+                        setTimeout(() => { successOverlay.style.opacity = '1'; }, 50);
                         
+                        // 2. Di balik layar (saat layar tertutup), pindahkan tab ke Lacak/Pesanan
                         setTimeout(() => {
-                            successOverlay.style.display = 'none';
-                            // Redirect tab ke Pesanan
                             window.switchMainTab('pesanan');
                             document.getElementById('track-id').value = data.id;
-                            window.trackOrder(); // Langsung render struck secara instan
+                            window.trackOrder(); 
+                        }, 1000);
+
+                        // 3. Fade Out untuk menampilkan struk yang sudah siap
+                        setTimeout(() => {
+                            successOverlay.style.opacity = '0';
+                            setTimeout(() => {
+                                successOverlay.style.display = 'none';
+                            }, 400); 
                         }, 3000);
                     }
                 }
@@ -493,7 +502,17 @@ window.startAnonChat = function() {
     userProfile.name = name;
     localStorage.setItem('vipercell_anon_name', name);
     checkChatUserState();
-    listenUserChat(); // Restart listener
+    listenUserChat(); 
+
+    // Eksekusi otomatis jika sebelumnya user klik tombol bantuan tapi belum ada nama
+    if (window.pendingMsgToAdmin) {
+        const inputChat = document.getElementById('user-chat-input');
+        if (inputChat) {
+            inputChat.value = window.pendingMsgToAdmin;
+            window.sendUserChat();
+        }
+        window.pendingMsgToAdmin = null;
+    }
 }
 
 function listenUserChat() {
@@ -568,7 +587,7 @@ window.sendUserChat = async function() {
     if(!text) return;
     
     input.value = '';
-    btn.disabled = true; // Lock button to prevent double send
+    btn.disabled = true; // Lock button (Anti-Double Click)
     btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
     
     const chatRef = doc(db, pathChats, currentUser.uid);
@@ -1098,14 +1117,13 @@ window.openDirectBuyModal = function(brandName) {
             <p style="font-size:0.85rem; color:var(--text-muted); text-align:center; padding: 1.2rem; background:rgba(37,99,235,0.08); border-radius:10px; border:1px dashed var(--primary-light);">Informasi akun premium akan langsung ditampilkan di menu <b>Pesanan</b> setelah sukses dibayar.</p>`;
     }
     
-    // Logika Cerdas untuk Sembunyikan Input Email jika Login
+    // Sembunyikan Input Email jika Login, auto-fill jika Guest pernah lacak
     const emailGroup = document.getElementById('buy-email-group');
     const emailInput = document.getElementById('buy-email');
     if (!userProfile.isGuest && userProfile.email) {
         emailInput.value = userProfile.email;
         if(emailGroup) emailGroup.style.display = 'none';
     } else {
-        // Otomatis tarik email dari yang pernah diketik saat lacak pesanan sebelumnya (biar gampang)
         emailInput.value = localStorage.getItem('vipercell_track_email') || '';
         if(emailGroup) emailGroup.style.display = 'block';
     }
@@ -1208,7 +1226,7 @@ window.processDirectCheckout = async function() {
         return; 
     }
     
-    // Simpan email agar tak repot saat mau Lacak Pesanan nanti
+    // Simpan email agar tak repot saat mau Lacak Pesanan nanti (hanya guest)
     if(userProfile.isGuest) {
         localStorage.setItem('vipercell_track_email', emailInput);
     }
@@ -1293,9 +1311,8 @@ window.processDirectCheckout = async function() {
 }
 
 window.finishCashOrder = function() {
-    // Tombol Cerdas: Arahkan ke Tab Bantuan (Tanpa harus keluar dari Web / WhatsApp eksternal)
+    // Tombol Cerdas: Arahkan ke Tab Bantuan 
     const successMsg = `ID Pesanan Anda: <strong style="color:var(--primary-light)">${currentCheckoutSession.id}</strong><br><br><span style="color:var(--warning); font-weight:bold;">PENTING:</span> Metode Tunai mengharuskan Anda melakukan pembayaran secara langsung (COD/Datang ke Toko). Klik tombol di bawah untuk melapor ke Pusat Bantuan (Live Chat).`;
-    
     const invToTrack = currentCheckoutSession.id;
     
     document.getElementById('ca-extra-action').innerHTML = `
@@ -1313,18 +1330,16 @@ window.finishCashOrder = function() {
     }, 500);
 }
 
-// Fungsi mengirim pesan cerdas ke Tab Bantuan secara otomatis
 window.sendPredefinedChat = function(message) {
     window.closeAlert();
     window.switchMainTab('bantuan');
     if (userProfile.name) {
         document.getElementById('user-chat-input').value = message;
-        window.sendUserChat(); // Otomatis tembak pesan
+        window.sendUserChat();
     } else {
-        // Jika belum ada nama (Guest baru), isi input tapi biarkan user tekan Start Chat dulu
-        document.getElementById('chat-anon-name').focus();
-        // Simpan pesan di background agar saat klik Start Chat otomatis terkirim
         window.pendingMsgToAdmin = message;
+        const nameInput = document.getElementById('chat-anon-name');
+        if(nameInput) setTimeout(() => nameInput.focus(), 500);
     }
 }
 
@@ -1342,7 +1357,7 @@ window.startQrisTimer = function(orderDate) {
     
     qrisInterval = setInterval(() => {
         const diff = Date.now() - startTime;
-        const remain = 240000 - diff; // 4 Menit Expiry
+        const remain = 240000 - diff; 
         
         if(remain <= 0) {
             clearInterval(qrisInterval);
@@ -1409,24 +1424,24 @@ window.resumePayment = function(dbId) {
 }
 
 window.goToPesananFromPay = function() {
-    // Fitur Cerdas: Otomatis mencari dan melacak Invoice
     window.closeModal('modal-payment');
     const orderIdToTrack = currentCheckoutSession ? currentCheckoutSession.id : '';
     currentCheckoutSession = null;
     
-    window.switchMainTab('pesanan');
-    
-    if (orderIdToTrack) {
-        document.getElementById('track-id').value = orderIdToTrack;
-        window.trackOrder(); // Panggil fungsi lacak agar struk tagihan tampil di bawah
-    }
+    // Smooth transition
+    setTimeout(() => {
+        window.switchMainTab('pesanan');
+        if (orderIdToTrack) {
+            document.getElementById('track-id').value = orderIdToTrack;
+            window.trackOrder(); 
+        }
+    }, 300);
 }
 
 // ==========================================
 // FITUR BANTUAN & LACAK PESANAN (INSTANT AUTO-DELIVERY)
 // ==========================================
 function generateHelpButtons(invId, orderStatus, item) {
-    // Tombol Bantuan tidak dialihkan ke WA, melainkan ke Tab Live Chat di dalam Web.
     let actionBtn = '';
     if (orderStatus === 'PENDING') {
         const msg = `Halo Admin, saya sudah transfer/bayar untuk pesanan *${invId}*. Tolong dicek ya Min.`;
@@ -1478,7 +1493,6 @@ window.trackOrder = function() {
             window.customAlert('Akses Ditolak', 'Silakan masukkan email yang digunakan saat pembelian untuk membuka akses lacak pesanan.', 'warning');
             return;
         }
-        // Save to cache so they dont type again later
         localStorage.setItem('vipercell_track_email', trackEmail);
     } else {
         trackEmail = userProfile.email;
@@ -1493,7 +1507,6 @@ window.trackOrder = function() {
         return; 
     }
 
-    // MATCH EMAIL DARI DATABASE
     if (order.userEmail.toLowerCase() !== trackEmail.toLowerCase() && userProfile.isGuest) {
         window.customAlert('Akses Ditolak', 'Alamat Email tidak cocok dengan data pesanan Invoice ini.', 'error');
         return;
@@ -1505,7 +1518,6 @@ window.trackOrder = function() {
     let actionHtml = '';
     if (order.status === 'UNPAID') actionHtml = `<button class="btn btn-primary" style="width:100%; margin-top:1rem;" onclick="window.resumePayment('${order.dbId}')">Lanjut Selesaikan Pembayaran</button>`;
     
-    // Auto-Delivery Apps Script Logic
     let replyHtml = '';
     if (order.status === 'SUCCESS') {
         if (order.adminReply) {
@@ -1714,7 +1726,6 @@ window.renderReviewsUI = function() {
     const reviewListContainer = document.getElementById('review-list-container');
     const writeContainer = document.getElementById('review-write-container');
     
-    // PEMBARUAN: Logika Pintar untuk mengizinkan hanya SATU ulasan per user per produk (Tidak dapat diedit)
     const userEmailToMatch = userProfile.email || localStorage.getItem('vipercell_track_email');
     let hasReviewed = false;
     
@@ -1724,7 +1735,6 @@ window.renderReviewsUI = function() {
     
     let canReview = false;
     if (!hasReviewed) {
-        // Cek jika ada pesanan sukses
         const hasBought = orders.some(o => o.status === 'SUCCESS' && o.items[0]?.brandName === brandName && (o.userId === currentUser?.uid || o.userEmail === userEmailToMatch));
         if (hasBought) canReview = true;
     }
@@ -1766,7 +1776,6 @@ window.submitReview = async function() {
     
     if(!textInput) { window.customAlert('Peringatan', 'Ulasan tidak boleh kosong.', 'warning'); return; }
     
-    // Tarik nama. Jika Guest belum pernah ke Live Chat, pake nama Anonim
     const anonName = localStorage.getItem('vipercell_anon_name');
     const userName = userProfile.name ? userProfile.name : (anonName ? anonName : 'Pelanggan');
     
@@ -1789,7 +1798,6 @@ window.submitReview = async function() {
         await addDoc(collection(db, pathReviews), newReview);
         document.getElementById('review-text').value = '';
         window.customAlert('Terima Kasih', 'Ulasanmu berhasil dipublikasikan!', 'success');
-        // Fitur akan otomatis tertutup pada detak data (onSnapshot) selanjutnya karena hasReviewed akan True
     } catch(e) {
         window.customAlert('Gagal', 'Gagal mengirim ulasan. Pastikan jaringan stabil.', 'error');
         btnSubmit.innerHTML = ogHtml;
