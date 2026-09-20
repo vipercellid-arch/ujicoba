@@ -1,5 +1,5 @@
 // =========================================================================
-// VIPERCELL - CLEAN MUTATION VALIDATOR (TANPA BOT TELEGRAM)
+// VIPERCELL - CLEAN MUTATION VALIDATOR (DENGAN AUTH BOT)
 // =========================================================================
 
 const PROJECT_ID = 'vipercell-fc50e';
@@ -28,7 +28,7 @@ function doPost(e) {
         var pesanan = cariPesananAktif(nominalBersih);
         
         if (pesanan) {
-          // 2. UPDATE STATUS KE SUCCESS
+          // 2. UPDATE STATUS KE SUCCESS (pakai akun bot, bukan API key polos)
           var updateBerhasil = updateStatus(pesanan.path, "SUCCESS");
           
           if (updateBerhasil) {
@@ -59,9 +59,43 @@ function doPost(e) {
 }
 
 // =========================================================================
+// AUTH BOT
+// Kredensial diambil dari Script Properties (Project Settings > Script
+// Properties), BUKAN hardcode. Set key: BOT_EMAIL dan BOT_PASSWORD
+// dengan nilai akun bot yang sudah dibuat di Firebase Authentication.
+// =========================================================================
+function getBotIdToken() {
+  const props = PropertiesService.getScriptProperties();
+  const email = props.getProperty('BOT_EMAIL');
+  const password = props.getProperty('BOT_PASSWORD');
+  
+  if (!email || !password) {
+    throw new Error('BOT_EMAIL / BOT_PASSWORD belum diset di Script Properties.');
+  }
+  
+  const url = `https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${API_KEY}`;
+  const payload = { email: email, password: password, returnSecureToken: true };
+  const options = {
+    method: 'post',
+    contentType: 'application/json',
+    payload: JSON.stringify(payload),
+    muteHttpExceptions: true
+  };
+  
+  const res = UrlFetchApp.fetch(url, options);
+  const data = JSON.parse(res.getContentText());
+  if (!data.idToken) {
+    throw new Error('Gagal login bot: ' + res.getContentText());
+  }
+  return data.idToken;
+}
+
+// =========================================================================
 // FUNGSI FIREBASE
 // =========================================================================
 function cariPesananAktif(nominalMasuk) {
+  // Query masih pakai API key saja karena rule "read" untuk orders
+  // tetap "allow read, create: if true" (tidak dikunci di rules baru).
   const url = `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents:runQuery?key=${API_KEY}`;
   const payload = {
     "structuredQuery": {
@@ -107,11 +141,20 @@ function cariPesananAktif(nominalMasuk) {
 }
 
 function updateStatus(pathDokumen, statusBaru) {
-  const url = `https://firestore.googleapis.com/v1/${pathDokumen}?updateMask.fieldPaths=status&key=${API_KEY}`;
+  // Sekarang login sebagai bot dulu supaya request.auth != null di rules.
+  var idToken;
+  try {
+    idToken = getBotIdToken();
+  } catch (e) {
+    return false;
+  }
+  
+  const url = `https://firestore.googleapis.com/v1/${pathDokumen}?updateMask.fieldPaths=status`;
   const payload = { "fields": { "status": { "stringValue": statusBaru } } };
   const options = {
     method: "patch",
     contentType: "application/json",
+    headers: { "Authorization": "Bearer " + idToken },
     payload: JSON.stringify(payload),
     muteHttpExceptions: true
   };
