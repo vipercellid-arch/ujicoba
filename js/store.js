@@ -1,13 +1,14 @@
 import { 
     db, auth,
     signInAnonymously, createUserWithEmailAndPassword, signInWithEmailAndPassword,
-    sendPasswordResetEmail, GoogleAuthProvider, signInWithPopup, onAuthStateChanged,
+    sendPasswordResetEmail, GoogleAuthProvider, EmailAuthProvider, linkWithCredential, deleteUser,
+    signInWithPopup, onAuthStateChanged,
     signOut, setPersistence, browserLocalPersistence,
     doc, setDoc, getDoc, updateDoc, deleteDoc, onSnapshot, collection, addDoc, increment, arrayUnion, query, where, getDocs 
 } from './firebase.js';
 
 // ==========================================
-// KONFIGURASI DATABASE (KOMPATIBEL DATA LAMA & BARU)
+// KONFIGURASI PATH DATABASE FIRESTORE
 // ==========================================
 const appId = typeof __app_id !== 'undefined' ? __app_id : 'vipercell-prod';
 const isWorkspace = typeof __app_id !== 'undefined';
@@ -19,11 +20,13 @@ const pathUsers = isWorkspace ? `artifacts/${appId}/public/data/users` : 'users'
 const pathPromos = isWorkspace ? `artifacts/${appId}/public/data/promos` : 'promos';
 const pathChats = isWorkspace ? `artifacts/${appId}/public/data/chats` : 'chats';
 const pathReviews = isWorkspace ? `artifacts/${appId}/public/data/reviews` : 'reviews';
+const pathDeviceLocks = isWorkspace ? `artifacts/${appId}/public/data/device_locks` : 'device_locks';
+const pathDeletedAccounts = isWorkspace ? `artifacts/${appId}/public/data/deleted_accounts` : 'deleted_accounts';
 
 const fallbackSettingsPath = isWorkspace ? 'settings' : `artifacts/${appId}/public/data/settings`;
 
 // ==========================================
-// STATE & VARIABEL GLOBAL (V23)
+// STATE & VARIABEL GLOBAL (V24.5)
 // ==========================================
 let products = [];
 let groupedBrands = []; 
@@ -46,7 +49,9 @@ let siteSettings = {
     waChannelLink: ''
 };
 
-let userProfile = { name: '', email: '', phone: '', isGuest: true };
+let currentDeviceId = '';
+let boundLegacyGuestUid = null;
+let userProfile = { name: '', email: '', phone: '', whatsapp: '', role: 'anonymous', isAnonymous: true, isGuest: true };
 let currentUser = null;
 let currentCheckoutBrand = null;
 let selectedProductForBuy = null;
@@ -54,8 +59,10 @@ let appliedPromo = null;
 let currentCheckoutSession = null; 
 let userChatMessages = [];
 let chatUnsubscribe = null;
+let deletedAccountUnsubscribe = null;
 let initialOrderLoad = true;
 let isSettingsLoaded = false; 
+let isPreloaderFinished = false;
 let previousOrdersData = {}; 
 let qrisInterval = null;
 let currentOpenedArticle = null;
@@ -71,6 +78,7 @@ let isUserNotifEnabled = localStorage.getItem('vipercell_user_notif') !== 'off';
 // Gembok Anti-Dobel Transaksi & Ulasan
 let isProcessingCheckout = false;
 let isSubmittingReview = false;
+let isUpgradingAccount = false;
 let targetReviewOrderId = null;
 
 // ==========================================
@@ -92,7 +100,493 @@ function escapeJsStr(str) {
 }
 
 // ==========================================
-// JAMINAN SESI AUTH FIREBASE (PERBAIKAN BUG GUEST CHAT)
+// CONTROLLER PRE-LOADER BULAT BERPUTAR ("Sedang memuat data...")
+// ==========================================
+function setPreloaderText(statusText = 'Sedang memuat data...') {
+    const txtEl = document.getElementById('preloader-status-text');
+    if (txtEl) txtEl.innerText = statusText;
+}
+
+function showLoader(statusText = 'Sedang memuat data...') {
+    setPreloaderText(statusText);
+    const loader = document.getElementById('app-preloader-overlay');
+    if (loader) {
+        loader.style.display = 'flex';
+        loader.classList.remove('hidden');
+    }
+}
+
+function hideLoader() {
+    isPreloaderFinished = true;
+    const loader = document.getElementById('app-preloader-overlay');
+    if (loader) {
+        loader.classList.add('hidden');
+        setTimeout(() => {
+            loader.style.display = 'none';
+        }, 280);
+    }
+    document.body.classList.remove('no-scroll');
+}
+
+// Mengatur apakah user terkunci di halaman Login Awal (tanpa navigasi tab lain) atau sudah masuk toko
+function setAuthGateLock(isLocked) {
+    if (isLocked) {
+        document.body.classList.add('auth-locked');
+        document.querySelectorAll('.main-tab-content').forEach(el => el.classList.remove('active'));
+        const authTab = document.getElementById('tab-auth');
+        if (authTab) authTab.classList.add('active');
+        window.switchAuthTab('login');
+        window.scrollTo({ top: 0, behavior: 'instant' });
+    } else {
+        document.body.classList.remove('auth-locked');
+    }
+}
+
+// ==========================================
+// DEVICE FINGERPRINTING & MULTI-LAYER STORAGE (1 HP 1 AKUN ANONIM)
+// ==========================================
+function computeDeviceFingerprint() {
+    try {
+        const nav = window.navigator || {};
+        const scr = window.screen || {};
+        const rawTraits = [
+            nav.userAgent || '',
+            nav.language || '',
+            nav.hardwareConcurrency || '',
+            nav.deviceMemory || '',
+            nav.maxTouchPoints || '',
+            `${scr.width || 0}x${scr.height || 0}x${scr.colorDepth || 0}`,
+            Intl.DateTimeFormat().resolvedOptions().timeZone || ''
+        ];
+
+        try {
+            const canvas = document.createElement('canvas');
+            canvas.width = 200;
+            canvas.height = 40;
+            const ctx = canvas.getContext('2d');
+            if (ctx) {
+                ctx.textBaseline = 'top';
+                ctx.font = '14px Arial';
+                ctx.fillStyle = '#2563eb';
+                ctx.fillRect(10, 5, 80, 25);
+                ctx.fillStyle = '#0f172a';
+                ctx.fillText('VipercellGuardV24', 14, 12);
+                rawTraits.push(canvas.toDataURL().slice(-64));
+            }
+        } catch (e) {}
+
+        const combined = rawTraits.join('||');
+        let h1 = 0xdeadbeef ^ combined.length;
+        let h2 = 0x41c6ce57 ^ combined.length;
+        for (let i = 0, ch; i < combined.length; i++) {
+            ch = combined.charCodeAt(i);
+            h1 = Math.imul(h1 ^ ch, 2654435761);
+            h2 = Math.imul(h2 ^ ch, 1597334677);
+        }
+        h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507) ^ Math.imul(h2 ^ (h2 >>> 13), 3266489909);
+        h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507) ^ Math.imul(h1 ^ (h1 >>> 13), 3266489909);
+        const hexHash = (4294967296 * (2097151 & h2) + (h1 >>> 0)).toString(16).padStart(12, '0');
+        return `fp_${hexHash}`;
+    } catch (err) {
+        return 'fp_default_device';
+    }
+}
+
+async function saveMultiLayerToken(key, value) {
+    if (!value) return;
+    try { localStorage.setItem(key, value); } catch (e) {}
+
+    try {
+        const req = indexedDB.open('VipercellGuardDB', 1);
+        req.onupgradeneeded = (e) => {
+            const idb = e.target.result;
+            if (!idb.objectStoreNames.contains('tokens')) {
+                idb.createObjectStore('tokens');
+            }
+        };
+        req.onsuccess = (e) => {
+            const idb = e.target.result;
+            const tx = idb.transaction('tokens', 'readwrite');
+            tx.objectStore('tokens').put(value, key);
+        };
+    } catch (e) {}
+
+    try {
+        if ('caches' in window) {
+            const cache = await caches.open('vipercell-guard-token-v24');
+            await cache.put(`/__guard/${key}`, new Response(value));
+        }
+    } catch (e) {}
+}
+
+async function readMultiLayerToken(key) {
+    try {
+        const lsVal = localStorage.getItem(key);
+        if (lsVal) return lsVal;
+    } catch (e) {}
+
+    try {
+        if ('caches' in window) {
+            const cache = await caches.open('vipercell-guard-token-v24');
+            const res = await cache.match(`/__guard/${key}`);
+            if (res) {
+                const text = await res.text();
+                if (text) {
+                    localStorage.setItem(key, text);
+                    return text;
+                }
+            }
+        }
+    } catch (e) {}
+
+    try {
+        const idbVal = await new Promise((resolve) => {
+            const req = indexedDB.open('VipercellGuardDB', 1);
+            req.onupgradeneeded = (e) => {
+                const idb = e.target.result;
+                if (!idb.objectStoreNames.contains('tokens')) {
+                    idb.createObjectStore('tokens');
+                }
+            };
+            req.onsuccess = (e) => {
+                const idb = e.target.result;
+                if (!idb.objectStoreNames.contains('tokens')) return resolve(null);
+                const tx = idb.transaction('tokens', 'readonly');
+                const getReq = tx.objectStore('tokens').get(key);
+                getReq.onsuccess = () => resolve(getReq.result || null);
+                getReq.onerror = () => resolve(null);
+            };
+            req.onerror = () => resolve(null);
+        });
+        if (idbVal) {
+            localStorage.setItem(key, idbVal);
+            return idbVal;
+        }
+    } catch (e) {}
+
+    return null;
+}
+
+async function initDeviceIdentity() {
+    currentDeviceId = computeDeviceFingerprint();
+    await saveMultiLayerToken('vipercell_device_id', currentDeviceId);
+
+    const savedLegacyUid = await readMultiLayerToken('vipercell_anon_uid');
+    if (savedLegacyUid) {
+        boundLegacyGuestUid = savedLegacyUid;
+    }
+    return currentDeviceId;
+}
+
+// ==========================================
+// PROSES MASUK SEBAGAI ANONIM (1 HP 1 AKUN ANONIM)
+// ==========================================
+window.processAnonymousLogin = async function() {
+    const btnGuest = document.getElementById('auth-guest-btn');
+    const ogHtml = btnGuest ? btnGuest.innerHTML : '';
+    if (btnGuest) {
+        btnGuest.disabled = true;
+        btnGuest.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> <span>Memverifikasi Sesi Anonim...</span>`;
+    }
+
+    try {
+        if (!currentDeviceId) await initDeviceIdentity();
+
+        // 1. Periksa registri perangkat di Firestore (device_locks/{deviceId})
+        const lockRef = doc(db, pathDeviceLocks, currentDeviceId);
+        const lockSnap = await getDoc(lockRef);
+
+        if (lockSnap.exists()) {
+            const lockData = lockSnap.data();
+
+            if (lockData.isBlocked === true) {
+                window.customAlert(
+                    'Akses Dibatasi',
+                    'Maaf, akses sesi anonim pada perangkat ini telah dinonaktifkan oleh Administrator.',
+                    'error'
+                );
+                return;
+            }
+
+            // Jika perangkat ini sudah memiliki UID anonim sebelumnya, gunakan kembali UID tersebut agar tidak menduplikasi akun
+            if (lockData.uid && lockData.role === 'anonymous') {
+                boundLegacyGuestUid = lockData.uid;
+                await saveMultiLayerToken('vipercell_anon_uid', lockData.uid);
+            }
+        }
+
+        // 2. Pastikan sesi Firebase Auth tersedia
+        let activeUser = auth.currentUser;
+        if (!activeUser) {
+            const cred = await signInAnonymously(auth);
+            activeUser = cred.user;
+        }
+        currentUser = activeUser;
+
+        const effectiveUid = boundLegacyGuestUid || activeUser.uid;
+        await saveMultiLayerToken('vipercell_anon_uid', effectiveUid);
+
+        const shortId = effectiveUid.slice(-4).toUpperCase();
+        const savedAnonName = localStorage.getItem('vipercell_anon_name') || `Tamu #${shortId}`;
+
+        // 3. Simpan atau pulihkan profil Tamu di koleksi users/{effectiveUid}
+        const userDocRef = doc(db, pathUsers, effectiveUid);
+        const existingUserSnap = await getDoc(userDocRef);
+
+        if (!existingUserSnap.exists()) {
+            const newGuestProfile = {
+                uid: effectiveUid,
+                authUid: activeUser.uid,
+                name: savedAnonName,
+                email: localStorage.getItem('vipercell_track_email') || '',
+                phone: '',
+                whatsapp: '',
+                role: 'anonymous',
+                isAnonymous: true,
+                isGuest: true,
+                deviceId: currentDeviceId,
+                createdAt: Date.now()
+            };
+            await setDoc(userDocRef, newGuestProfile, { merge: true });
+            userProfile = newGuestProfile;
+        } else {
+            const oldData = existingUserSnap.data();
+            userProfile = {
+                ...oldData,
+                uid: effectiveUid,
+                isAnonymous: true,
+                isGuest: true,
+                deviceId: currentDeviceId
+            };
+            if (oldData.name) localStorage.setItem('vipercell_anon_name', oldData.name);
+            await updateDoc(userDocRef, {
+                authUid: activeUser.uid,
+                lastActiveAt: Date.now()
+            }).catch(() => {});
+        }
+
+        await setDoc(lockRef, {
+            uid: effectiveUid,
+            authUid: activeUser.uid,
+            role: 'anonymous',
+            status: 'active',
+            deviceId: currentDeviceId,
+            isBlocked: false,
+            createdAt: lockSnap.exists() ? (lockSnap.data().createdAt || Date.now()) : Date.now(),
+            updatedAt: Date.now()
+        }, { merge: true });
+
+        // Tandai bahwa sesi aktif di perangkat ini adalah guest sehingga saat di-refresh langsung masuk ke toko
+        localStorage.setItem('vipercell_active_session_mode', 'guest');
+
+        setAuthGateLock(false);
+        applyUserSessionToUI();
+        window.switchMainTab('katalog');
+        window.showToast(
+            'Berhasil Masuk',
+            `Selamat datang, ${userProfile.name}!`,
+            'success'
+        );
+    } catch (err) {
+        console.error("Anonymous Login Error:", err);
+        window.customAlert('Gagal Masuk', 'Terjadi kendala saat memulai sesi anonim. Silakan coba lagi.', 'error');
+    } finally {
+        if (btnGuest && ogHtml) {
+            btnGuest.disabled = false;
+            btnGuest.innerHTML = ogHtml;
+        }
+    }
+};
+
+// ==========================================
+// KONVERSI AKUN ANONIM MENJADI MEMBER RESMI (`linkWithCredential`)
+// ==========================================
+window.openUpgradeMemberModal = function() {
+    const nameInp = document.getElementById('upg-name');
+    const phoneInp = document.getElementById('upg-phone');
+    const emailInp = document.getElementById('upg-email');
+    const passInp = document.getElementById('upg-pass');
+    const passConfInp = document.getElementById('upg-pass-confirm');
+
+    const savedName = userProfile.name && !userProfile.name.startsWith('Tamu #') ? userProfile.name : '';
+    if (nameInp) nameInp.value = savedName;
+    if (phoneInp) phoneInp.value = userProfile.phone || userProfile.whatsapp || '';
+    if (emailInp) emailInp.value = userProfile.email || localStorage.getItem('vipercell_track_email') || '';
+    if (passInp) passInp.value = '';
+    if (passConfInp) passConfInp.value = '';
+
+    window.openModal('modal-upgrade-member');
+};
+
+window.upgradeAnonymousToMember = async function() {
+    if (isUpgradingAccount) return;
+
+    const name = document.getElementById('upg-name')?.value.trim() || '';
+    const whatsapp = document.getElementById('upg-phone')?.value.trim() || '';
+    const email = document.getElementById('upg-email')?.value.trim() || '';
+    const password = document.getElementById('upg-pass')?.value || '';
+    const passwordConfirm = document.getElementById('upg-pass-confirm')?.value || '';
+
+    if (!name || !whatsapp || !email || !email.includes('@')) {
+        window.customAlert('Data Belum Lengkap', 'Harap isi Nama Lengkap, Nomor WhatsApp, dan Alamat Email yang valid.', 'warning');
+        return;
+    }
+    if (password.length < 6) {
+        window.customAlert('Password Terlalu Pendek', 'Password baru minimal harus terdiri dari 6 karakter.', 'warning');
+        return;
+    }
+    if (password !== passwordConfirm) {
+        window.customAlert('Password Tidak Cocok', 'Konfirmasi password tidak sama dengan password baru.', 'warning');
+        return;
+    }
+
+    const btn = document.getElementById('btn-submit-upgrade');
+    const ogHtml = btn ? btn.innerHTML : '';
+    isUpgradingAccount = true;
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> <span>Mengaitkan Akun & Menyimpan Data...</span>';
+    }
+
+    try {
+        await ensureAuthSession();
+        const activeUser = auth.currentUser;
+        let finalUid = activeUser ? activeUser.uid : null;
+
+        if (activeUser && activeUser.isAnonymous) {
+            const credential = EmailAuthProvider.credential(email, password);
+            const usercred = await linkWithCredential(activeUser, credential);
+            finalUid = usercred.user.uid;
+            currentUser = usercred.user;
+        } else {
+            const cred = await createUserWithEmailAndPassword(auth, email, password);
+            finalUid = cred.user.uid;
+            currentUser = cred.user;
+        }
+
+        // Migrasikan pesanan & chat jika sebelumnya memakai boundLegacyGuestUid
+        if (boundLegacyGuestUid && boundLegacyGuestUid !== finalUid) {
+            const oldOrders = orders.filter(o => o.userId === boundLegacyGuestUid);
+            for (const ord of oldOrders) {
+                await updateDoc(doc(db, pathOrders, ord.dbId), { userId: finalUid, userEmail: email, userPhone: whatsapp }).catch(() => {});
+            }
+            const oldChatSnap = await getDoc(doc(db, pathChats, boundLegacyGuestUid));
+            if (oldChatSnap.exists()) {
+                await setDoc(doc(db, pathChats, finalUid), {
+                    ...oldChatSnap.data(),
+                    uid: finalUid,
+                    userInfo: name,
+                    userEmail: email
+                }, { merge: true }).catch(() => {});
+                await deleteDoc(doc(db, pathChats, boundLegacyGuestUid)).catch(() => {});
+            }
+            await deleteDoc(doc(db, pathUsers, boundLegacyGuestUid)).catch(() => {});
+        }
+
+        // Hubungkan semua transaksi dengan email yang sama ke UID member baru
+        const matchingOrders = orders.filter(o => o.userId === finalUid || (!o.userId && o.userEmail?.toLowerCase() === email.toLowerCase()));
+        for (const ord of matchingOrders) {
+            await updateDoc(doc(db, pathOrders, ord.dbId), { userId: finalUid, userEmail: email, userPhone: whatsapp }).catch(() => {});
+        }
+
+        const memberData = {
+            uid: finalUid,
+            name: name,
+            phone: whatsapp,
+            whatsapp: whatsapp,
+            email: email,
+            role: 'member',
+            isAnonymous: false,
+            isGuest: false,
+            verified: true,
+            deviceId: currentDeviceId,
+            upgradedAt: Date.now(),
+            createdAt: userProfile.createdAt || Date.now()
+        };
+
+        await setDoc(doc(db, pathUsers, finalUid), memberData, { merge: true });
+
+        if (currentDeviceId) {
+            await setDoc(doc(db, pathDeviceLocks, currentDeviceId), {
+                status: 'upgraded_to_member',
+                role: 'member',
+                uid: finalUid,
+                updatedAt: Date.now()
+            }, { merge: true });
+        }
+
+        boundLegacyGuestUid = null;
+        localStorage.removeItem('vipercell_anon_uid');
+        localStorage.setItem('vipercell_anon_name', name);
+        localStorage.setItem('vipercell_track_email', email);
+        localStorage.setItem('vipercell_active_session_mode', 'member');
+
+        userProfile = memberData;
+        window.closeModal('modal-upgrade-member');
+        setAuthGateLock(false);
+        applyUserSessionToUI();
+        window.renderUserOrders();
+        updateProfileStats();
+
+        window.customAlert(
+            'Upgrade Member Berhasil! 🎉',
+            `Selamat <b>${escapeHtml(name)}</b>! Akun kamu kini telah resmi menjadi <b>Member Terverifikasi</b>. Seluruh riwayat pesanan dan garansi kamu tersimpan secara permanen.`,
+            'success'
+        );
+    } catch (error) {
+        console.error("Upgrade Account Error:", error);
+        if (error.code === 'auth/credential-already-in-use' || error.code === 'auth/email-already-in-use') {
+            window.customAlert(
+                'Email Sudah Terdaftar',
+                'Email ini sudah terdaftar sebagai Member sebelumnya. Silakan gunakan email lain atau langsung Login ke akun Member Anda.',
+                'warning'
+            );
+        } else {
+            window.customAlert('Gagal Upgrade Akun', 'Terjadi kesalahan saat mengaitkan akun. Pastikan format email benar dan jaringan stabil.', 'error');
+        }
+    } finally {
+        isUpgradingAccount = false;
+        if (btn && ogHtml) {
+            btn.disabled = false;
+            btn.innerHTML = ogHtml;
+        }
+    }
+};
+
+// ==========================================
+// LISTENER SINKRONISASI PENGHAPUSAN AKUN OLEH ADMIN
+// ==========================================
+function listenDeletedAccountStatus(uid) {
+    if (!uid) return;
+    if (deletedAccountUnsubscribe) deletedAccountUnsubscribe();
+
+    deletedAccountUnsubscribe = onSnapshot(doc(db, pathDeletedAccounts, uid), async (docSnap) => {
+        if (docSnap.exists()) {
+            try {
+                localStorage.removeItem('vipercell_anon_uid');
+                localStorage.removeItem('vipercell_anon_name');
+                localStorage.setItem('vipercell_active_session_mode', 'logged_out');
+                if (auth.currentUser) {
+                    await deleteUser(auth.currentUser).catch(async () => {
+                        await signOut(auth);
+                    });
+                }
+            } catch (e) {}
+
+            userProfile = { name: '', email: '', phone: '', isGuest: true, isAnonymous: true };
+            currentUser = null;
+            setAuthGateLock(true);
+            window.customAlert(
+                'Akun Dinonaktifkan',
+                'Akun Anda telah dinonaktifkan atau dihapus oleh Administrator.',
+                'error'
+            );
+        }
+    });
+}
+
+// ==========================================
+// JAMINAN SESI AUTH FIREBASE
 // ==========================================
 async function ensureAuthSession() {
     if (auth.currentUser) {
@@ -110,7 +604,108 @@ async function ensureAuthSession() {
 }
 
 // ==========================================
-// SISTEM TEMA (DEFAULT AWAL: LIGHT / PUTIH)
+// SINKRONISASI TAMPILAN PROFIL & HEADER (MEMBER VS ANONIM)
+// ==========================================
+function applyUserSessionToUI() {
+    const isMember = Boolean(currentUser && !currentUser.isAnonymous && !userProfile.isGuest);
+    const isGuestSession = Boolean(currentUser && (currentUser.isAnonymous || userProfile.isGuest));
+
+    const btnUpgradeHeader = document.getElementById('btn-upgrade-guest-header');
+    const textPesananDesk = document.getElementById('nav-text-pesanan-desk');
+    const textProfilDesk = document.getElementById('nav-text-profil-desk');
+    const textProfilMob = document.getElementById('nav-text-profil-mob');
+
+    const bannerUpgradeOrders = document.getElementById('guest-upgrade-banner-orders');
+    const bannerUpgradeProfile = document.getElementById('guest-upgrade-banner-profile');
+    const btnProfUpgrade = document.getElementById('btn-prof-upgrade-guest');
+    const btnProfLogout = document.getElementById('btn-prof-logout-member');
+    const textBtnLogout = document.getElementById('text-btn-logout');
+    const secMemberBox = document.getElementById('prof-security-member-box');
+    const secGuestBox = document.getElementById('prof-security-guest-box');
+
+    const guestTrackSec = document.getElementById('guest-tracking-section');
+    const emailGroupBuy = document.getElementById('buy-email-group');
+
+    const statusBadge = document.getElementById('prof-email-status');
+    const dispNameEl = document.getElementById('prof-display-name');
+    const dispEmailEl = document.getElementById('prof-display-email');
+    const avatarEl = document.getElementById('prof-avatar-initial');
+    const profNameInp = document.getElementById('prof-name');
+    const profEmailInp = document.getElementById('prof-email');
+    const profPhoneInp = document.getElementById('prof-phone');
+
+    if (isMember) {
+        const finalEmail = userProfile.email || currentUser.email || '';
+        const finalName = userProfile.name || finalEmail.split('@')[0] || 'Member Vipercell';
+        const finalPhone = userProfile.phone || userProfile.whatsapp || '';
+
+        if (btnUpgradeHeader) btnUpgradeHeader.style.display = 'none';
+        if (textPesananDesk) textPesananDesk.innerText = 'Pesanan Saya';
+        if (textProfilDesk) textProfilDesk.innerText = 'Profil Saya';
+        if (textProfilMob) textProfilMob.innerText = 'Profil';
+
+        if (bannerUpgradeOrders) bannerUpgradeOrders.style.display = 'none';
+        if (bannerUpgradeProfile) bannerUpgradeProfile.style.display = 'none';
+        if (btnProfUpgrade) btnProfUpgrade.style.display = 'none';
+        if (btnProfLogout) btnProfLogout.style.display = 'inline-flex';
+        if (textBtnLogout) textBtnLogout.innerText = 'Keluar Akun';
+        if (secMemberBox) secMemberBox.style.display = 'block';
+        if (secGuestBox) secGuestBox.style.display = 'none';
+
+        if (guestTrackSec) guestTrackSec.style.display = 'none';
+        if (emailGroupBuy) emailGroupBuy.style.display = 'none';
+
+        if (statusBadge) {
+            statusBadge.className = 'brutal-tag tag-success';
+            statusBadge.innerHTML = '<i class="fa-solid fa-circle-check"></i> MEMBER RESMI';
+        }
+        if (dispNameEl) dispNameEl.innerText = finalName;
+        if (dispEmailEl) dispEmailEl.innerText = finalEmail + (finalPhone ? ` • ${finalPhone}` : '');
+        if (avatarEl) avatarEl.innerText = finalName.charAt(0).toUpperCase();
+
+        if (profNameInp) profNameInp.value = finalName;
+        if (profEmailInp) profEmailInp.value = finalEmail;
+        if (profPhoneInp) profPhoneInp.value = finalPhone;
+
+    } else if (isGuestSession) {
+        const effectiveUid = boundLegacyGuestUid || currentUser.uid;
+        const shortId = effectiveUid.slice(-4).toUpperCase();
+        const guestName = userProfile.name || localStorage.getItem('vipercell_anon_name') || `Tamu #${shortId}`;
+        const guestEmail = userProfile.email || localStorage.getItem('vipercell_track_email') || 'Belum dikaitkan (Sesi Anonim)';
+        const guestPhone = userProfile.phone || userProfile.whatsapp || '';
+
+        if (btnUpgradeHeader) btnUpgradeHeader.style.display = 'inline-flex';
+        if (textPesananDesk) textPesananDesk.innerText = 'Lacak Pesanan';
+        if (textProfilDesk) textProfilDesk.innerText = 'Akun Anonim';
+        if (textProfilMob) textProfilMob.innerText = 'Akun';
+
+        if (bannerUpgradeOrders) bannerUpgradeOrders.style.display = 'flex';
+        if (bannerUpgradeProfile) bannerUpgradeProfile.style.display = 'flex';
+        if (btnProfUpgrade) btnProfUpgrade.style.display = 'inline-flex';
+        if (btnProfLogout) btnProfLogout.style.display = 'inline-flex';
+        if (textBtnLogout) textBtnLogout.innerText = 'Keluar Sesi';
+        if (secMemberBox) secMemberBox.style.display = 'none';
+        if (secGuestBox) secGuestBox.style.display = 'block';
+
+        if (guestTrackSec) guestTrackSec.style.display = 'block';
+        if (emailGroupBuy) emailGroupBuy.style.display = 'block';
+
+        if (statusBadge) {
+            statusBadge.className = 'brutal-tag status-pending';
+            statusBadge.innerHTML = `<i class="fa-solid fa-user-secret"></i> SESI ANONIM (#${escapeHtml(shortId)})`;
+        }
+        if (dispNameEl) dispNameEl.innerText = guestName;
+        if (dispEmailEl) dispEmailEl.innerText = guestEmail;
+        if (avatarEl) avatarEl.innerText = 'A';
+
+        if (profNameInp) profNameInp.value = guestName;
+        if (profEmailInp) profEmailInp.value = guestEmail;
+        if (profPhoneInp) profPhoneInp.value = guestPhone;
+    }
+}
+
+// ==========================================
+// SISTEM TEMA & NOTIFIKASI BROWSER
 // ==========================================
 window.toggleTheme = function() {
     const html = document.documentElement;
@@ -126,9 +721,6 @@ window.toggleTheme = function() {
     if(icon) icon.className = newTheme === 'dark' ? 'fa-solid fa-moon' : 'fa-solid fa-sun';
 };
 
-// ==========================================
-// SAKELAR TOGGLE LONCENG NOTIFIKASI DI PROFIL (ON / OFF)
-// ==========================================
 function updateProfileNotifToggleUI() {
     const statusText = document.getElementById('prof-notif-status-text');
     const toggleBtn = document.getElementById('btn-prof-toggle-notif');
@@ -400,7 +992,6 @@ window.showToast = function(title, msg, type = 'info', actionCallback = null) {
         setTimeout(() => toast.remove(), 220);
     };
 
-    // Gesture Sentuh (Mobile) & Drag Mouse (Desktop)
     const onDragStart = (clientX) => {
         startX = clientX;
         currentX = 0;
@@ -421,7 +1012,6 @@ window.showToast = function(title, msg, type = 'info', actionCallback = null) {
         if (Math.abs(currentX) > 65) {
             dismissToast(currentX > 0 ? 1 : -1);
         } else {
-            // Jika tidak digeser jauh (hanya diketuk / tap)
             toast.style.transition = 'transform 0.2s ease, opacity 0.2s ease';
             toast.style.transform = 'translateY(0) translateX(0)';
             toast.style.opacity = '1';
@@ -440,12 +1030,7 @@ window.showToast = function(title, msg, type = 'info', actionCallback = null) {
     window.addEventListener('mousemove', (e) => { if (isDragging) onDragMove(e.clientX); });
     window.addEventListener('mouseup', () => { if (isDragging) onDragEnd(); });
 
-    if (actionCallback) {
-        toast.style.cursor = 'pointer';
-    } else {
-        toast.style.cursor = 'grab';
-    }
-    
+    toast.style.cursor = actionCallback ? 'pointer' : 'grab';
     container.appendChild(toast);
     setTimeout(() => toast.classList.add('show'), 15);
     autoRemoveTimer = setTimeout(() => {
@@ -470,7 +1055,11 @@ window.closeModal = (id) => {
         if(id === 'modal-payment') clearInterval(qrisInterval);
     }
 };
-window.handleLogoClick = () => window.switchMainTab('katalog');
+window.handleLogoClick = () => {
+    if (!document.body.classList.contains('auth-locked')) {
+        window.switchMainTab('katalog');
+    }
+};
 
 window.customAlert = (title, message, type = 'info', extraActionHtml = '') => {
     const titleEl = document.getElementById('ca-title');
@@ -535,118 +1124,218 @@ const revealObserver = new IntersectionObserver((entries) => {
 }, { threshold: 0.1 });
 function observeReveals() { document.querySelectorAll('.reveal').forEach(el => revealObserver.observe(el)); }
 
-function updateUIVisibility() {
-    const isLogged = currentUser && !userProfile.isGuest;
-    const textPesananDesk = document.getElementById('nav-text-pesanan-desk');
-    const textPesananMob = document.getElementById('nav-text-pesanan-mob');
-    
-    if (isLogged) {
-        if(textPesananDesk) textPesananDesk.innerText = "Pesanan Saya";
-        if(textPesananMob) textPesananMob.innerText = "Pesanan";
-    } else {
-        if(textPesananDesk) textPesananDesk.innerText = "Lacak Pesanan";
-        if(textPesananMob) textPesananMob.innerText = "Pesanan";
+// ==========================================
+// INISIALISASI APLIKASI ANTI-KEDIP LOGIN SAAT REFRESH
+// ==========================================
+function checkAuthStateFirstLoad() {
+    return new Promise((resolve) => {
+        const unsub = onAuthStateChanged(auth, (user) => {
+            unsub();
+            resolve(user);
+        });
+    });
+}
+
+async function fetchInitialStoreData() {
+    try {
+        const [settingsSnap, productsSnap] = await Promise.all([
+            getDoc(doc(db, pathSettings, 'mainConfig')),
+            getDocs(collection(db, pathProducts))
+        ]);
+
+        if (settingsSnap.exists()) {
+            siteSettings = { ...siteSettings, ...settingsSnap.data() };
+        } else {
+            try {
+                const fallbackSnap = await getDoc(doc(db, fallbackSettingsPath, 'mainConfig'));
+                if (fallbackSnap.exists()) {
+                    siteSettings = { ...siteSettings, ...fallbackSnap.data() };
+                }
+            } catch (e) {}
+        }
+        isSettingsLoaded = true;
+        window.applySettingsToUI();
+        applyCustomPwaIcon();
+
+        products = [];
+        productsSnap.forEach((docSnap) => { products.push({ dbId: docSnap.id, ...docSnap.data() }); });
+        rebuildGroupedBrands();
+    } catch (e) {
+        console.error("Initial Fetch Error:", e);
     }
 }
 
-// ==========================================
-// INIT APP & FIREBASE AUTHENTICATION
-// ==========================================
-async function initApp() {
+function rebuildGroupedBrands() {
+    groupedBrands = [];
+    products.forEach(p => {
+        const brandName = p.brand || p.name;
+        const existing = groupedBrands.find(b => b.brandName === brandName);
+        if(existing) {
+            existing.items.push(p);
+            if(p.imgUrlBase64 && !existing.imgUrlBase64) existing.imgUrlBase64 = p.imgUrlBase64;
+            if(p.desc && !existing.desc) existing.desc = p.desc;
+        } else {
+            groupedBrands.push({
+                brandName: brandName,
+                type: p.type || 'app',
+                imgUrlBase64: p.imgUrlBase64 || '',
+                desc: p.desc || '',
+                isGangguan: p.isGangguan || false,
+                items: [p]
+            });
+        }
+    });
+
+    const heroCatalogCount = document.getElementById('hero-live-catalog-count');
+    if (heroCatalogCount && groupedBrands.length > 0) {
+        heroCatalogCount.innerText = `${groupedBrands.length} Brand & ${products.length} Layanan Aktif`;
+    }
+    window.renderBrands(currentBrandFilter);
+}
+
+async function initializeAppWithLoader() {
     initTypewriter();
     updateProfileNotifToggleUI();
+    showLoader('Sedang memuat data...');
+
+    const savedTheme = localStorage.getItem('vipercell_theme') || 'light';
+    document.documentElement.setAttribute('data-theme', savedTheme);
+    const icon = document.getElementById('theme-icon');
+    if(icon) icon.className = savedTheme === 'dark' ? 'fa-solid fa-moon' : 'fa-solid fa-sun';
+    
+    const trackEmailInp = document.getElementById('track-email');
+    if(trackEmailInp && localStorage.getItem('vipercell_track_email')) {
+        trackEmailInp.value = localStorage.getItem('vipercell_track_email');
+    }
+
     try {
-        const savedTheme = localStorage.getItem('vipercell_theme') || 'light';
-        document.documentElement.setAttribute('data-theme', savedTheme);
-        const icon = document.getElementById('theme-icon');
-        if(icon) icon.className = savedTheme === 'dark' ? 'fa-solid fa-moon' : 'fa-solid fa-sun';
-        
-        const trackEmailInp = document.getElementById('track-email');
-        if(trackEmailInp && localStorage.getItem('vipercell_track_email')) {
-            trackEmailInp.value = localStorage.getItem('vipercell_track_email');
-        }
-        
         await setPersistence(auth, browserLocalPersistence);
-        
-        onAuthStateChanged(auth, async (user) => {
-            currentUser = user;
-            
-            const guestTrackSec = document.getElementById('guest-tracking-section');
-            const emailGroupBuy = document.getElementById('buy-email-group');
-            
-            if (user) {
-                if (user.isAnonymous) {
-                    const savedAnonName = localStorage.getItem('vipercell_anon_name') || '';
-                    userProfile = { name: savedAnonName, email: '', phone: '', isGuest: true };
-                    
-                    document.getElementById('btn-login-user').style.display = 'inline-flex';
-                    document.getElementById('nav-profil').style.display = 'none';
-                    
-                    if(guestTrackSec) guestTrackSec.style.display = 'block';
-                    if(emailGroupBuy) emailGroupBuy.style.display = 'block';
-                    
-                } else {
-                    document.getElementById('btn-login-user').style.display = 'none';
-                    const userDoc = await getDoc(doc(db, pathUsers, user.uid));
-                    
-                    if(userDoc.exists()) {
-                        userProfile = { ...userProfile, ...userDoc.data(), isGuest: false };
-                    } else {
-                        userProfile = {
-                            name: user.displayName || user.email?.split('@')[0] || 'Member',
-                            email: user.email || '',
-                            phone: '',
-                            isGuest: false
-                        };
-                    }
-                    
-                    const finalEmail = userProfile.email || user.email || '';
-                    const finalName = userProfile.name || finalEmail.split('@')[0] || 'Member Vipercell';
-                    const finalPhone = userProfile.phone || '';
-                    userProfile.email = finalEmail;
-                    userProfile.name = finalName;
-                    userProfile.phone = finalPhone;
+        await initDeviceIdentity();
 
-                    document.getElementById('prof-name').value = finalName;
-                    document.getElementById('prof-email').value = finalEmail;
-                    const profPhoneEl = document.getElementById('prof-phone');
-                    if (profPhoneEl) profPhoneEl.value = finalPhone;
-                    
-                    const dispNameEl = document.getElementById('prof-display-name');
-                    const dispEmailEl = document.getElementById('prof-display-email');
-                    const avatarEl = document.getElementById('prof-avatar-initial');
-                    if (dispNameEl) dispNameEl.innerText = finalName;
-                    if (dispEmailEl) dispEmailEl.innerText = finalEmail + (finalPhone ? ` • ${finalPhone}` : '');
-                    if (avatarEl) avatarEl.innerText = finalName.charAt(0).toUpperCase();
+        const [initialUser] = await Promise.all([
+            checkAuthStateFirstLoad(),
+            fetchInitialStoreData()
+        ]);
 
-                    document.getElementById('nav-profil').style.display = 'flex';
-                    
-                    if(guestTrackSec) guestTrackSec.style.display = 'none';
-                    if(emailGroupBuy) emailGroupBuy.style.display = 'none';
-                    
-                    updateProfileStats();
-                }
-                
-                updateUIVisibility();
-                window.renderUserOrders(); 
-                checkChatUserState();
-                listenUserChat();
-                listenData();
-            } else {
-                document.getElementById('btn-login-user').style.display = 'inline-flex';
-                document.getElementById('nav-profil').style.display = 'none';
-                
-                if(guestTrackSec) guestTrackSec.style.display = 'block';
-                if(emailGroupBuy) emailGroupBuy.style.display = 'block';
-                
-                updateUIVisibility();
-                // Langsung inisialisasi sesi anonim agar Guest selalu siap chat & transaksi
-                signInAnonymously(auth).catch((err) => console.error("Anon Auth Error:", err));
-                listenData();
-            }
-        });
-    } catch (error) { console.error("Auth Init Error:", error); }
+        listenData();
+        setupAuthStateListener();
+
+        const sessionMode = localStorage.getItem('vipercell_active_session_mode');
+
+        // Jika user memiliki sesi Firebase aktif DAN tidak sedang dalam status sengaja keluar ('logged_out')
+        if (initialUser && (!initialUser.isAnonymous || sessionMode === 'guest')) {
+            await syncUserProfileFromAuth(initialUser);
+            localStorage.setItem('vipercell_active_session_mode', initialUser.isAnonymous ? 'guest' : 'member');
+            // Buka kunci navigasi dan tampilkan katalog SEBELUM menutup preloader agar tidak pernah berkedip ke halaman Login!
+            setAuthGateLock(false);
+            window.switchMainTab('katalog');
+            hideLoader();
+        } else {
+            // Jika belum login atau baru saja keluar, tampilkan halaman Masuk/Daftar awal tanpa navigasi tab lain
+            setAuthGateLock(true);
+            hideLoader();
+        }
+    } catch (error) {
+        console.error("Loader Init Error:", error);
+        setAuthGateLock(true);
+        hideLoader();
+    }
     observeReveals();
+}
+
+async function syncUserProfileFromAuth(user) {
+    currentUser = user;
+    if (!user) return;
+
+    const effectiveUid = (user.isAnonymous && boundLegacyGuestUid) ? boundLegacyGuestUid : user.uid;
+    listenDeletedAccountStatus(effectiveUid);
+
+    if (user.isAnonymous) {
+        await saveMultiLayerToken('vipercell_anon_uid', effectiveUid);
+        const shortId = effectiveUid.slice(-4).toUpperCase();
+        const userDocRef = doc(db, pathUsers, effectiveUid);
+        const userSnap = await getDoc(userDocRef);
+
+        if (userSnap.exists()) {
+            const data = userSnap.data();
+            userProfile = {
+                ...data,
+                uid: effectiveUid,
+                isAnonymous: true,
+                isGuest: true,
+                deviceId: currentDeviceId
+            };
+            if (data.name) localStorage.setItem('vipercell_anon_name', data.name);
+        } else {
+            const savedName = localStorage.getItem('vipercell_anon_name') || `Tamu #${shortId}`;
+            userProfile = {
+                uid: effectiveUid,
+                authUid: user.uid,
+                name: savedName,
+                email: localStorage.getItem('vipercell_track_email') || '',
+                phone: '',
+                whatsapp: '',
+                role: 'anonymous',
+                isAnonymous: true,
+                isGuest: true,
+                deviceId: currentDeviceId,
+                createdAt: Date.now()
+            };
+            await setDoc(userDocRef, userProfile, { merge: true }).catch(() => {});
+        }
+    } else {
+        const userDocRef = doc(db, pathUsers, user.uid);
+        const userSnap = await getDoc(userDocRef);
+        if (userSnap.exists()) {
+            const data = userSnap.data();
+            userProfile = {
+                ...data,
+                uid: user.uid,
+                email: data.email || user.email || '',
+                phone: data.phone || data.whatsapp || '',
+                whatsapp: data.whatsapp || data.phone || '',
+                role: 'member',
+                isAnonymous: false,
+                isGuest: false
+            };
+        } else {
+            userProfile = {
+                uid: user.uid,
+                name: user.displayName || user.email?.split('@')[0] || 'Member Vipercell',
+                email: user.email || '',
+                phone: '',
+                whatsapp: '',
+                role: 'member',
+                isAnonymous: false,
+                isGuest: false,
+                deviceId: currentDeviceId,
+                createdAt: Date.now()
+            };
+            await setDoc(userDocRef, userProfile, { merge: true }).catch(() => {});
+        }
+    }
+
+    applyUserSessionToUI();
+    window.renderUserOrders();
+    updateProfileStats();
+    checkChatUserState();
+    listenUserChat();
+}
+
+function setupAuthStateListener() {
+    onAuthStateChanged(auth, async (user) => {
+        if (!isPreloaderFinished) return;
+        currentUser = user;
+        const sessionMode = localStorage.getItem('vipercell_active_session_mode');
+
+        if (user && (!user.isAnonymous || sessionMode === 'guest')) {
+            await syncUserProfileFromAuth(user);
+            setAuthGateLock(false);
+        } else if (!user) {
+            userProfile = { name: '', email: '', phone: '', isGuest: true, isAnonymous: true };
+            setAuthGateLock(true);
+        }
+    });
 }
 
 // ==========================================
@@ -660,13 +1349,6 @@ function listenData() {
     onSnapshot(doc(db, pathSettings, 'mainConfig'), async (docSnap) => {
         if (docSnap.exists()) {
             siteSettings = { ...siteSettings, ...docSnap.data() };
-        } else {
-            try {
-                const fallbackSnap = await getDoc(doc(db, fallbackSettingsPath, 'mainConfig'));
-                if (fallbackSnap.exists()) {
-                    siteSettings = { ...siteSettings, ...fallbackSnap.data() };
-                }
-            } catch (e) {}
         }
         isSettingsLoaded = true;
         window.applySettingsToUI();
@@ -685,6 +1367,7 @@ function listenData() {
     onSnapshot(collection(db, pathOrders), (snapshot) => {
         let newOrders = [];
         const now = Date.now();
+        const effectiveUid = boundLegacyGuestUid || currentUser?.uid || '';
         
         snapshot.forEach((docSnap) => {
             let data = { dbId: docSnap.id, ...docSnap.data() };
@@ -703,10 +1386,9 @@ function listenData() {
             }
             newOrders.push(data);
 
-            // ANIMASI PEMBAYARAN SUKSES + NOTIFIKASI SISTEM (QRIS MAUPUN SCAN BARCODE TUNAI)
             let savedEmail = (localStorage.getItem('vipercell_track_email') || '').toLowerCase();
             let orderEmail = (data.userEmail || '').toLowerCase();
-            let isMyOrder = (currentUser && data.userId === currentUser.uid) || (savedEmail && savedEmail === orderEmail);
+            let isMyOrder = (effectiveUid && data.userId === effectiveUid) || (currentUser && data.userId === currentUser.uid) || (savedEmail && savedEmail === orderEmail);
 
             if (!initialOrderLoad && isMyOrder) {
                 let oldStatus = previousOrdersData[data.id];
@@ -728,7 +1410,7 @@ function listenData() {
         
         updateOrderBadges();
         window.renderUserOrders();
-        if(currentUser && !userProfile.isGuest) updateProfileStats();
+        updateProfileStats();
         if(currentCheckoutBrand) window.renderReviewsUI();
         initialOrderLoad = false;
     });
@@ -736,33 +1418,7 @@ function listenData() {
     onSnapshot(collection(db, pathProducts), (snapshot) => {
         products = [];
         snapshot.forEach((docSnap) => { products.push({ dbId: docSnap.id, ...docSnap.data() }); });
-        
-        groupedBrands = [];
-        products.forEach(p => {
-            const brandName = p.brand || p.name;
-            const existing = groupedBrands.find(b => b.brandName === brandName);
-            if(existing) {
-                existing.items.push(p);
-                if(p.imgUrlBase64 && !existing.imgUrlBase64) existing.imgUrlBase64 = p.imgUrlBase64;
-                if(p.desc && !existing.desc) existing.desc = p.desc;
-            } else {
-                groupedBrands.push({
-                    brandName: brandName,
-                    type: p.type || 'app',
-                    imgUrlBase64: p.imgUrlBase64 || '',
-                    desc: p.desc || '',
-                    isGangguan: p.isGangguan || false,
-                    items: [p]
-                });
-            }
-        });
-
-        const heroCatalogCount = document.getElementById('hero-live-catalog-count');
-        if (heroCatalogCount && groupedBrands.length > 0) {
-            heroCatalogCount.innerText = `${groupedBrands.length} Brand & ${products.length} Layanan Aktif`;
-        }
-        
-        window.renderBrands(currentBrandFilter);
+        rebuildGroupedBrands();
     });
 
     onSnapshot(collection(db, pathPromos), (snapshot) => {
@@ -774,8 +1430,10 @@ function listenData() {
 
 function updateOrderBadges() {
     const savedEmail = (localStorage.getItem('vipercell_track_email') || '').toLowerCase();
+    const effectiveUid = boundLegacyGuestUid || currentUser?.uid || '';
     const hasActionNeeded = orders.some(o => {
-        const isMine = (currentUser && !userProfile.isGuest && o.userId === currentUser.uid) ||
+        const isMine = (effectiveUid && o.userId === effectiveUid) ||
+                       (currentUser && o.userId === currentUser.uid) ||
                        (savedEmail && o.userEmail?.toLowerCase() === savedEmail);
         return isMine && (o.status === 'UNPAID' || o.status === 'PENDING');
     });
@@ -870,22 +1528,21 @@ function generateDynamicQRIS(staticQRIS, amount) {
 }
 
 // ==========================================
-// FITUR LIVE CHAT (PERBAIKAN TOTAL UNTUK GUEST & MEMBER + ANTI-RESET)
+// FITUR LIVE CHAT (GUEST & MEMBER)
 // ==========================================
 async function getResolvedChatDocId() {
-    // Pastikan sesi Firebase Auth (baik Member maupun Anonymous Guest) sudah siap
     const user = await ensureAuthSession();
-    if (user && user.uid) {
-        localStorage.setItem('vipercell_chat_uid_backup', user.uid);
+    if (user && !user.isAnonymous) {
         return user.uid;
     }
-    // Cadangan jika koneksi auth lambat
-    let backupId = localStorage.getItem('vipercell_chat_uid_backup');
-    if (!backupId) {
-        backupId = 'guest_' + Date.now() + '_' + Math.random().toString(36).substring(2, 8);
-        localStorage.setItem('vipercell_chat_uid_backup', backupId);
+    if (boundLegacyGuestUid) {
+        return boundLegacyGuestUid;
     }
-    return backupId;
+    if (user && user.uid) {
+        await saveMultiLayerToken('vipercell_anon_uid', user.uid);
+        return user.uid;
+    }
+    return currentDeviceId || 'guest_session';
 }
 
 function checkChatUserState() {
@@ -941,12 +1598,18 @@ window.startAnonChat = async function() {
     userProfile.name = name;
     localStorage.setItem('vipercell_anon_name', name);
 
+    const effectiveUid = boundLegacyGuestUid || currentUser?.uid;
+    if (effectiveUid) {
+        await setDoc(doc(db, pathUsers, effectiveUid), { name: name }, { merge: true }).catch(() => {});
+    }
+
     if (btn) {
         btn.disabled = false;
         btn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> <span>Buka Ruang Obrolan</span>';
     }
 
     checkChatUserState();
+    applyUserSessionToUI();
     await listenUserChat();
 
     if(window.pendingMsgToAdmin) {
@@ -960,13 +1623,18 @@ window.startAnonChat = async function() {
     }
 };
 
-window.changeChatNamePrompt = function() {
+window.changeChatNamePrompt = async function() {
     const currentName = userProfile.name || localStorage.getItem('vipercell_anon_name') || '';
     const newName = prompt('Ubah nama panggilan kamu di ruang obrolan:', currentName);
     if (newName && newName.trim() !== '') {
         userProfile.name = newName.trim();
         localStorage.setItem('vipercell_anon_name', userProfile.name);
+        const effectiveUid = boundLegacyGuestUid || currentUser?.uid;
+        if (effectiveUid) {
+            await setDoc(doc(db, pathUsers, effectiveUid), { name: userProfile.name }, { merge: true }).catch(() => {});
+        }
         checkChatUserState();
+        applyUserSessionToUI();
         window.showToast('Nama Diperbarui', `Nama obrolan diubah menjadi ${userProfile.name}`, 'success');
     }
 };
@@ -1011,7 +1679,6 @@ async function listenUserChat() {
             const activeTab = document.querySelector('.main-tab-content.active');
             const isBantuanOpen = activeTab && activeTab.id === 'tab-bantuan';
 
-            // Tampilkan titik merah di navigasi Bantuan jika pesan terakhir dari Admin & tab Bantuan tertutup
             const chatBadgeDesk = document.getElementById('user-chat-badge-desktop');
             const chatBadgeMob = document.getElementById('user-chat-badge-mobile');
             const showUnreadDot = lastMsg && lastMsg.sender === 'admin' && !isBantuanOpen;
@@ -1083,7 +1750,6 @@ window.sendUserChat = async function() {
     btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
     
     try {
-        // Pastikan user sudah mendapatkan UID (Member maupun Guest Anonim) sebelum menulis ke Firestore
         const chatId = await getResolvedChatDocId();
         if (!chatId) throw new Error("Sesi belum siap");
 
@@ -1095,11 +1761,11 @@ window.sendUserChat = async function() {
             ? userProfile.name
             : (localStorage.getItem('vipercell_anon_name') || (userProfile.isGuest ? 'Pelanggan Tamu' : (currentUser?.email || 'Pelanggan')));
 
-        // Gunakan setDoc dengan { merge: true } + arrayUnion agar tidak pernah gagal baik untuk dokumen baru maupun lama!
         await setDoc(chatRef, {
             uid: chatId,
             userInfo: displayName,
             userEmail: userProfile.email || localStorage.getItem('vipercell_track_email') || '',
+            deviceId: currentDeviceId,
             updatedAt: msgTimestamp,
             messages: arrayUnion(newMsg)
         }, { merge: true });
@@ -1107,7 +1773,7 @@ window.sendUserChat = async function() {
         scrollToBottomUserChat();
     } catch(e) {
         console.error("Send Chat Error:", e);
-        input.value = text; // Kembalikan teks agar tidak hilang
+        input.value = text;
         window.customAlert('Gagal Mengirim Pesan', 'Koneksi ke server chat terganggu. Silakan klik tombol kirim sekali lagi.', 'error');
     } finally {
         btn.disabled = false;
@@ -1119,8 +1785,7 @@ window.sendUserChat = async function() {
 // UI & TAB NAVIGATION
 // ==========================================
 window.openAuthModal = function() {
-    window.switchAuthTab('login');
-    window.switchMainTab('auth');
+    setAuthGateLock(true);
 };
 
 window.switchAuthTab = function(tab) {
@@ -1131,6 +1796,7 @@ window.switchAuthTab = function(tab) {
     const authTabsContainer = document.getElementById('auth-tabs-container');
     const authDivider = document.getElementById('auth-divider');
     const googleBtn = document.getElementById('auth-google-btn');
+    const guestBtn = document.getElementById('auth-guest-btn');
     const authTitle = document.getElementById('auth-title');
     const authSub = document.getElementById('auth-subtitle');
     
@@ -1138,14 +1804,16 @@ window.switchAuthTab = function(tab) {
         if(authTabsContainer) authTabsContainer.style.display = 'none';
         if(authDivider) authDivider.style.display = 'none';
         if(googleBtn) googleBtn.style.display = 'none';
+        if(guestBtn) guestBtn.style.display = 'none';
         authTitle.innerText = 'Pulihkan Kata Sandi'; 
         authSub.innerText = 'Masukkan email terdaftar untuk menerima tautan reset.';
     } else {
         if(authTabsContainer) authTabsContainer.style.display = 'flex';
         if(authDivider) authDivider.style.display = 'flex';
         if(googleBtn) googleBtn.style.display = 'inline-flex';
-        authTitle.innerText = tab === 'login' ? 'Selamat Datang Kembali' : 'Daftar Member Vipercell';
-        authSub.innerText = tab === 'login' ? 'Silakan masuk ke akun Vipercell kamu.' : 'Daftar gratis untuk menyimpan riwayat E-Receipt otomatis.';
+        if(guestBtn) guestBtn.style.display = 'inline-flex';
+        authTitle.innerText = tab === 'login' ? 'Masuk ke Vipercell' : 'Daftar Member Vipercell';
+        authSub.innerText = tab === 'login' ? 'Silakan masuk ke akun kamu atau pilih akses cepat di bawah.' : 'Daftar gratis untuk menyimpan riwayat E-Receipt otomatis.';
         
         const btnL = document.getElementById('tab-login');
         const btnR = document.getElementById('tab-register');
@@ -1156,6 +1824,11 @@ window.switchAuthTab = function(tab) {
 window.showResetPassword = () => window.switchAuthTab('reset');
 
 window.switchMainTab = function(tab) {
+    // Jika masih terkunci di halaman login, jangan izinkan pindah ke tab lain
+    if (document.body.classList.contains('auth-locked') && tab !== 'auth') {
+        return;
+    }
+
     document.querySelectorAll('.main-tab-content').forEach(el => el.classList.remove('active'));
     document.querySelectorAll('nav a').forEach(el => el.classList.remove('active'));
     
@@ -1179,6 +1852,7 @@ window.switchMainTab = function(tab) {
         if (chatBadgeMob) chatBadgeMob.style.display = 'none';
     }
     if (tab === 'profil') {
+        applyUserSessionToUI();
         updateProfileStats();
         updateProfileNotifToggleUI();
     }
@@ -1196,7 +1870,7 @@ window.goToReview = function(brandName, orderId = null) {
 };
 
 // ==========================================
-// AUTHENTICATION & PROFIL LENGKAP (DENGAN NOMOR HP/WA)
+// AUTHENTICATION & LOGOUT YANG BENAR-BENAR KELUAR KE HALAMAN LOGIN AWAL
 // ==========================================
 window.processLogin = async function() {
     const em = document.getElementById('auth-l-email').value.trim();
@@ -1207,8 +1881,12 @@ window.processLogin = async function() {
     btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> <span>Memproses...</span>'; 
     btn.disabled = true;
     try {
-        await signInWithEmailAndPassword(auth, em, pw);
-        window.switchMainTab('pesanan');
+        const cred = await signInWithEmailAndPassword(auth, em, pw);
+        currentUser = cred.user;
+        localStorage.setItem('vipercell_active_session_mode', 'member');
+        await syncUserProfileFromAuth(cred.user);
+        setAuthGateLock(false);
+        window.switchMainTab('katalog');
         window.showToast('Berhasil Masuk', 'Selamat datang kembali di Vipercell!', 'success');
     } catch(e) { window.customAlert('Gagal Masuk', 'Email atau kata sandi tidak cocok.', 'error'); } 
     finally { 
@@ -1218,6 +1896,29 @@ window.processLogin = async function() {
 };
 
 window.processRegister = async function() {
+    // Jika saat ini di balik layar ada sesi Anonim aktif di perangkat, kaitkan langsung dengan linkWithCredential agar tidak membuat UID baru
+    if (auth.currentUser && auth.currentUser.isAnonymous) {
+        const name = document.getElementById('auth-r-name').value.trim();
+        const phone = document.getElementById('auth-r-phone') ? document.getElementById('auth-r-phone').value.trim() : '';
+        const em = document.getElementById('auth-r-email').value.trim();
+        const pw = document.getElementById('auth-r-pass').value.trim();
+
+        if (!name || !em || pw.length < 6) {
+            window.customAlert('Peringatan', 'Harap lengkapi Nama, Email, dan Kata Sandi minimal 6 karakter.', 'warning');
+            return;
+        }
+
+        document.getElementById('upg-name').value = name;
+        document.getElementById('upg-phone').value = phone;
+        document.getElementById('upg-email').value = em;
+        document.getElementById('upg-pass').value = pw;
+        document.getElementById('upg-pass-confirm').value = pw;
+        await window.upgradeAnonymousToMember();
+        setAuthGateLock(false);
+        window.switchMainTab('katalog');
+        return;
+    }
+
     const name = document.getElementById('auth-r-name').value.trim();
     const phone = document.getElementById('auth-r-phone') ? document.getElementById('auth-r-phone').value.trim() : '';
     const em = document.getElementById('auth-r-email').value.trim();
@@ -1233,17 +1934,35 @@ window.processRegister = async function() {
     btn.disabled = true;
     try {
         const cred = await createUserWithEmailAndPassword(auth, em, pw);
-        await setDoc(doc(db, pathUsers, cred.user.uid), { 
+        const newMemberObj = { 
+            uid: cred.user.uid,
             email: em, 
             name: name, 
             phone: phone,
+            whatsapp: phone,
+            role: 'member',
+            isAnonymous: false,
             isGuest: false, 
             verified: true, 
-            createdAt: new Date().toISOString() 
-        });
-        userProfile = { name, email: em, phone, isGuest: false };
+            deviceId: currentDeviceId,
+            createdAt: Date.now() 
+        };
+        await setDoc(doc(db, pathUsers, cred.user.uid), newMemberObj, { merge: true });
+        if (currentDeviceId) {
+            await setDoc(doc(db, pathDeviceLocks, currentDeviceId), {
+                uid: cred.user.uid,
+                role: 'member',
+                status: 'upgraded_to_member',
+                updatedAt: Date.now()
+            }, { merge: true }).catch(() => {});
+        }
+        userProfile = newMemberObj;
         localStorage.setItem('vipercell_anon_name', name);
-        window.switchMainTab('profil');
+        localStorage.setItem('vipercell_track_email', em);
+        localStorage.setItem('vipercell_active_session_mode', 'member');
+        setAuthGateLock(false);
+        applyUserSessionToUI();
+        window.switchMainTab('katalog');
         window.customAlert('Pendaftaran Berhasil', 'Akun member kamu telah aktif dan siap digunakan!', 'success');
     } catch(e) { window.customAlert('Gagal Daftar', 'Email mungkin sudah terdaftar atau format salah.', 'error'); } 
     finally { 
@@ -1298,7 +2017,7 @@ window.sendProfileResetPassword = async function() {
 window.processGoogleLogin = async function() {
     const provider = new GoogleAuthProvider();
     const btnText = document.getElementById('text-google-btn');
-    const ogText = btnText ? btnText.innerText : 'Akun Google';
+    const ogText = btnText ? btnText.innerText : 'Lanjutkan dengan Google';
     if(btnText) btnText.innerText = 'Memverifikasi...';
     
     try {
@@ -1307,15 +2026,23 @@ window.processGoogleLogin = async function() {
         
         if (!userDoc.exists()) {
             await setDoc(doc(db, pathUsers, result.user.uid), { 
+                uid: result.user.uid,
                 email: result.user.email, 
                 name: result.user.displayName || 'Member Google', 
                 phone: '',
+                whatsapp: '',
+                role: 'member',
+                isAnonymous: false,
                 isGuest: false, 
                 verified: true, 
-                createdAt: new Date().toISOString() 
-            });
+                deviceId: currentDeviceId,
+                createdAt: Date.now() 
+            }, { merge: true });
         }
-        window.switchMainTab('pesanan');
+        localStorage.setItem('vipercell_active_session_mode', 'member');
+        await syncUserProfileFromAuth(result.user);
+        setAuthGateLock(false);
+        window.switchMainTab('katalog');
         window.showToast('Berhasil Masuk', 'Login menggunakan Google berhasil!', 'success');
     } catch (error) {
         console.error(error);
@@ -1324,35 +2051,54 @@ window.processGoogleLogin = async function() {
     }
 };
 
+// PERBAIKAN BUG: Tombol Keluar kini benar-benar keluar kembali ke layar Masuk/Daftar awal!
 window.logoutUser = async function() {
-    await signOut(auth);
-    window.switchMainTab('katalog');
-    window.showToast('Keluar Akun', 'Anda telah keluar dari akun.', 'info');
+    localStorage.setItem('vipercell_active_session_mode', 'logged_out');
+
+    // Jika yang keluar adalah Member resmi, panggil signOut(auth).
+    // Jika yang keluar adalah Anonim, kita cukup mengunci kembali tampilan ke layar Login (tanpa memutus token anonim di HP agar saat dia klik "Masuk sebagai Anonim" lagi, UID-nya tetap 1 HP 1 Akun!)
+    if (currentUser && !currentUser.isAnonymous) {
+        await signOut(auth).catch(() => {});
+        currentUser = null;
+    }
+
+    setAuthGateLock(true);
+    window.showToast('Berhasil Keluar', 'Anda telah keluar ke halaman Login utama.', 'info');
 };
 
 window.saveUserProfile = async function() {
-    if(!currentUser || userProfile.isGuest) return;
+    if(!currentUser) return;
     const name = document.getElementById('prof-name').value.trim();
     const phone = document.getElementById('prof-phone') ? document.getElementById('prof-phone').value.trim() : '';
     if(!name) { window.customAlert('Peringatan', 'Nama panggilan tidak boleh kosong.', 'warning'); return; }
+    
+    const effectiveUid = (currentUser.isAnonymous && boundLegacyGuestUid) ? boundLegacyGuestUid : currentUser.uid;
     try {
-        await setDoc(doc(db, pathUsers, currentUser.uid), { name: name, phone: phone }, { merge: true });
+        await setDoc(doc(db, pathUsers, effectiveUid), {
+            name: name,
+            phone: phone,
+            whatsapp: phone,
+            updatedAt: Date.now()
+        }, { merge: true });
         userProfile.name = name;
         userProfile.phone = phone;
+        userProfile.whatsapp = phone;
         localStorage.setItem('vipercell_anon_name', name);
-        const dispNameEl = document.getElementById('prof-display-name');
-        const dispEmailEl = document.getElementById('prof-display-email');
-        const avatarEl = document.getElementById('prof-avatar-initial');
-        if (dispNameEl) dispNameEl.innerText = name;
-        if (dispEmailEl) dispEmailEl.innerText = (userProfile.email || '') + (phone ? ` • ${phone}` : '');
-        if (avatarEl) avatarEl.innerText = name.charAt(0).toUpperCase();
+        applyUserSessionToUI();
         window.showToast('Profil Disimpan', 'Data identitas & nomor WhatsApp berhasil diperbarui.', 'success');
     } catch(e) { window.customAlert('Error', 'Gagal menyimpan perubahan profil.', 'error'); }
 };
 
 function updateProfileStats() {
-    if(!currentUser || userProfile.isGuest) return;
-    const myOrders = orders.filter(o => o.userId === currentUser.uid || (userProfile.email && o.userEmail?.toLowerCase() === userProfile.email.toLowerCase()));
+    const effectiveUid = boundLegacyGuestUid || currentUser?.uid || '';
+    const savedTrackEmail = (localStorage.getItem('vipercell_track_email') || '').toLowerCase();
+    const activeEmail = (!userProfile.isGuest && userProfile.email) ? userProfile.email.toLowerCase() : savedTrackEmail;
+
+    const myOrders = orders.filter(o =>
+        (effectiveUid && o.userId === effectiveUid) ||
+        (currentUser && o.userId === currentUser.uid) ||
+        (activeEmail && o.userEmail?.toLowerCase() === activeEmail)
+    );
     const successOrders = myOrders.filter(o => o.status === 'SUCCESS');
     const totalSpent = successOrders.reduce((sum, o) => sum + (o.finalTotal || 0), 0);
 
@@ -1366,7 +2112,7 @@ function updateProfileStats() {
 }
 
 // ==========================================
-// RENDER UI, BERITA FULL LAYAR & KATALOG
+// RENDER UI, BERITA FULL LAYAR + TOMBOL PRODUK TERKAIT & KATALOG
 // ==========================================
 window.applySettingsToUI = function() {
     const logoDasar = siteSettings.logoText || 'VIPER';
@@ -1464,7 +2210,7 @@ window.startBannerAuto = function() {
     }, 5000);
 };
 
-// TAMPILAN BARU BERITA -> KLIK LANGSUNG BUKA HALAMAN FULL LAYAR (#tab-baca-berita)
+// FITUR BERITA DENGAN TOMBOL PINTAS KE PRODUK TERKAIT
 window.renderNews = function() {
     const grid = document.getElementById('public-news-list');
     if(!grid) return;
@@ -1483,19 +2229,37 @@ window.renderNews = function() {
             ? `<img src="${news.imageUrl}" class="news-cover-img" alt="${escapeHtml(news.title)}" loading="lazy">`
             : `<div class="news-cover-placeholder"><i class="fa-solid fa-newspaper"></i></div>`;
 
+        const hasLinkedProd = Boolean(news.enableProductBtn && news.linkedBrand);
+        const safeJsLinked = hasLinkedProd ? escapeJsStr(news.linkedBrand) : '';
+        const prodBadgeHtml = hasLinkedProd
+            ? `<span class="brutal-tag tag-success" style="margin-left:6px;"><i class="fa-solid fa-tag"></i> ${escapeHtml(news.linkedBrand)}</span>`
+            : '';
+
+        const directBuyBtnHtml = hasLinkedProd
+            ? `<button class="btn btn-primary btn-sm" style="flex:1;" onclick="event.stopPropagation(); window.openDirectBuyModal('${safeJsLinked}')">
+                   <i class="fa-solid fa-cart-shopping"></i> Beli ${escapeHtml(news.linkedBrand)}
+               </button>`
+            : '';
+
         html += `
             <article class="news-article-card" onclick="window.openReadNewsFullPage(${idx})">
                 <div>
                     ${coverHtml}
                     <div class="news-card-body">
                         <div>
-                            <span class="brutal-tag tag-primary"><i class="fa-solid fa-bullhorn"></i> ARTIKEL VIPERCELL</span>
+                            <div style="display:flex; flex-wrap:wrap; gap:4px; align-items:center;">
+                                <span class="brutal-tag tag-primary"><i class="fa-solid fa-bullhorn"></i> INFO VIPERCELL</span>
+                                ${prodBadgeHtml}
+                            </div>
                             <h3 class="news-card-title">${escapeHtml(news.title)}</h3>
                             <p class="news-card-excerpt">${escapeHtml(news.desc)}</p>
                         </div>
-                        <button class="btn btn-outline btn-sm" style="width:100%;">
-                            <i class="fa-solid fa-expand"></i> Baca Layar Penuh
-                        </button>
+                        <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:4px;">
+                            <button class="btn btn-outline btn-sm" style="flex:1;">
+                                <i class="fa-solid fa-expand"></i> Baca Berita
+                            </button>
+                            ${directBuyBtnHtml}
+                        </div>
                     </div>
                 </div>
             </article>`;
@@ -1519,6 +2283,33 @@ window.openReadNewsFullPage = function(idx) {
     } else if (imgWrap) {
         imgWrap.style.display = 'none';
     }
+
+    // Atur tombol produk langsung di bawah artikel berita jika dicentang oleh Admin
+    const ctaBox = document.getElementById('full-news-product-cta');
+    const ctaTitle = document.getElementById('full-news-cta-title');
+    const ctaSub = document.getElementById('full-news-cta-sub');
+    const ctaBtn = document.getElementById('btn-full-news-action');
+
+    if (news.enableProductBtn && news.linkedBrand) {
+        if (ctaBox) ctaBox.classList.add('linked-highlight');
+        if (ctaTitle) ctaTitle.innerText = `Ingin langsung membeli produk ${news.linkedBrand}?`;
+        if (ctaSub) ctaSub.innerText = `Klik tombol di samping untuk memilih varian ${news.linkedBrand} dan melakukan pembayaran instan!`;
+        if (ctaBtn) {
+            ctaBtn.className = 'btn btn-primary';
+            ctaBtn.innerHTML = `<i class="fa-solid fa-bolt"></i> <span>Beli ${escapeHtml(news.linkedBrand)} Sekarang</span>`;
+            ctaBtn.onclick = () => window.openDirectBuyModal(news.linkedBrand);
+        }
+    } else {
+        if (ctaBox) ctaBox.classList.remove('linked-highlight');
+        if (ctaTitle) ctaTitle.innerText = 'Tertarik dengan promo atau layanan di atas?';
+        if (ctaSub) ctaSub.innerText = 'Langsung cek ketersediaan stoknya di katalog utama kami sekarang!';
+        if (ctaBtn) {
+            ctaBtn.className = 'btn btn-outline';
+            ctaBtn.innerHTML = `<i class="fa-solid fa-store"></i> <span>Lihat Katalog Produk</span>`;
+            ctaBtn.onclick = () => window.switchMainTab('katalog');
+        }
+    }
+
     window.switchMainTab('baca-berita');
 };
 
@@ -1667,7 +2458,6 @@ window.changeBuyQty = function(change) {
     let newVal = current + change;
     if (newVal < 1) newVal = 1;
 
-    // Jika varian memiliki batas kuota stok (misal pada kategori Tools), batasi maksimum qty
     if (selectedProductForBuy && typeof selectedProductForBuy.stockCount === 'number' && selectedProductForBuy.stockCount > 0) {
         if (newVal > selectedProductForBuy.stockCount) {
             newVal = selectedProductForBuy.stockCount;
@@ -1805,12 +2595,16 @@ window.openDirectBuyModal = function(brandName) {
     
     const emailGroup = document.getElementById('buy-email-group');
     const emailInput = document.getElementById('buy-email');
+    const phoneInput = document.getElementById('buy-phone');
     if (!userProfile.isGuest && userProfile.email) {
         emailInput.value = userProfile.email;
         if(emailGroup) emailGroup.style.display = 'none';
     } else {
         emailInput.value = localStorage.getItem('vipercell_track_email') || '';
         if(emailGroup) emailGroup.style.display = 'block';
+    }
+    if (phoneInput) {
+        phoneInput.value = userProfile.phone || userProfile.whatsapp || localStorage.getItem('vipercell_track_phone') || '';
     }
     
     const defaultPayCard = document.querySelector('input[name="payment_method"][value="qris"]');
@@ -1854,6 +2648,7 @@ window.applyPromoDirect = function() {
         appliedPromo = null; window.calculateDirectBuyTotal(); return;
     }
     
+    const effectiveUid = boundLegacyGuestUid || currentUser?.uid || '';
     const p = promos.find(x => x.code === codeInput);
     if(!p || !p.active) {
         appliedPromo = null; msgEl.innerHTML = `<span style="color:var(--danger)"><i class="fa-solid fa-circle-xmark"></i> Kode promo tidak ditemukan atau tidak aktif.</span>`;
@@ -1862,7 +2657,7 @@ window.applyPromoDirect = function() {
     } else if (p.targetBrand !== 'all' && p.targetBrand !== currentCheckoutBrand.brandName) {
         appliedPromo = null; msgEl.innerHTML = `<span style="color:var(--danger)"><i class="fa-solid fa-circle-xmark"></i> Khusus produk ${escapeHtml(p.targetBrand)}.</span>`;
     } else if (p.targetUser === 'new') {
-        const hasOrders = currentUser ? orders.some(o => o.userId === currentUser.uid) : false;
+        const hasOrders = effectiveUid ? orders.some(o => o.userId === effectiveUid || o.userId === currentUser?.uid) : false;
         if (hasOrders) {
             appliedPromo = null; msgEl.innerHTML = `<span style="color:var(--danger)"><i class="fa-solid fa-circle-xmark"></i> Khusus pengguna transaksi pertama.</span>`;
         } else { setValidPromo(p, msgEl); }
@@ -1920,6 +2715,7 @@ window.processDirectCheckout = async function() {
     if (isProcessingCheckout || !selectedProductForBuy) return;
     
     let emailInput = document.getElementById('buy-email').value.trim();
+    let phoneInput = document.getElementById('buy-phone') ? document.getElementById('buy-phone').value.trim() : '';
     if(!emailInput || !emailInput.includes('@')) { 
         window.customAlert('Email Diperlukan', 'Harap masukkan alamat Email aktif untuk bukti tagihan & pelacakan!', 'warning'); 
         return; 
@@ -1927,7 +2723,6 @@ window.processDirectCheckout = async function() {
     
     const qty = parseInt(document.getElementById('buy-qty').value) || 1;
 
-    // Validasi Kuota Stok jika ditentukan
     if (typeof selectedProductForBuy.stockCount === 'number' && selectedProductForBuy.stockCount < qty) {
         window.customAlert('Stok Tidak Cukup', `Sisa stok untuk varian ini hanya ${selectedProductForBuy.stockCount}.`, 'warning');
         return;
@@ -1950,10 +2745,11 @@ window.processDirectCheckout = async function() {
     }
 
     await ensureAuthSession();
+    const effectiveUid = (currentUser?.isAnonymous && boundLegacyGuestUid) ? boundLegacyGuestUid : (currentUser?.uid || null);
 
     const now = Date.now();
     const existingActiveOrder = orders.find(o => {
-        const isSameUser = (currentUser && o.userId === currentUser.uid) ||
+        const isSameUser = (effectiveUid && o.userId === effectiveUid) ||
                            (o.userEmail && o.userEmail.toLowerCase() === emailInput.toLowerCase());
         const isStillActive = (o.status === 'UNPAID' || o.status === 'PENDING') && (now - new Date(o.date).getTime() < 240000);
         const isSameItem = o.items && o.items[0] && o.items[0].productDbId === selectedProductForBuy.dbId && o.items[0].qty === qty;
@@ -1973,6 +2769,7 @@ window.processDirectCheckout = async function() {
     btnProc.disabled = true;
 
     localStorage.setItem('vipercell_track_email', emailInput);
+    if (phoneInput) localStorage.setItem('vipercell_track_phone', phoneInput);
     const trackEmailEl = document.getElementById('track-email');
     if (trackEmailEl) trackEmailEl.value = emailInput;
     
@@ -2014,7 +2811,9 @@ window.processDirectCheckout = async function() {
     const newOrder = {
         id: invId, 
         userEmail: emailInput,
-        userId: currentUser ? currentUser.uid : null, 
+        userPhone: phoneInput || userProfile.phone || userProfile.whatsapp || '',
+        userId: effectiveUid, 
+        deviceId: currentDeviceId,
         items: [singleItem],
         finalTotal: finalTotal,
         baseTotal: baseTotal,
@@ -2045,7 +2844,6 @@ window.processDirectCheckout = async function() {
         if(paymentMethod === 'qris') {
             setTimeout(() => window.openQRISModal(), 150);
         } else {
-            // Tampilkan Tiket Barcode Kasir 1D (Ala Indomaret / Alfamidi) untuk di-scan Admin!
             setTimeout(() => window.openCashBarcodeModal(), 150);
         }
         
@@ -2061,7 +2859,7 @@ window.processDirectCheckout = async function() {
 };
 
 // ==========================================
-// MODAL TIKET BARCODE TUNAI / CASH (ALA INDOMARET)
+// MODAL TIKET BARCODE PEMBAYARAN TUNAI
 // ==========================================
 window.openCashBarcodeModal = function(orderObj = null) {
     window.closeModal('modal-order-detail');
@@ -2240,7 +3038,7 @@ window.goToPesananFromPay = function() {
 };
 
 // ==========================================
-// E-RECEIPT RINCIAN PESANAN BARU (DENGAN STATUS STEPPER & TOMBOL BARCODE)
+// E-RECEIPT RINCIAN PESANAN + PROMPT UPGRADE MEMBER
 // ==========================================
 function generateHelpButtons(invId, orderStatus, item) {
     let actionBtn = '';
@@ -2287,7 +3085,6 @@ function buildFullReceiptHTML(order) {
     const brandName = order.items[0]?.brandName || '';
     const safeJsBrand = escapeJsStr(brandName);
 
-    // Status Stepper 3 Tahap
     const isFailed = order.status === 'FAILED' || order.status === 'EXPIRED';
     const step2Class = order.status === 'SUCCESS' ? 'done' : (isFailed ? 'failed' : 'active');
     const step3Class = order.status === 'SUCCESS' ? 'done' : '';
@@ -2304,6 +3101,20 @@ function buildFullReceiptHTML(order) {
         } else if (alreadyReviewed) {
             actionHtml = `<div style="margin-top:1rem; text-align:center; font-size:0.78rem; font-weight:800; color:var(--success); padding:8px; border:1.5px dashed var(--success); border-radius:8px;"><i class="fa-solid fa-circle-check"></i> Transaksi ini sudah diulas</div>`;
         }
+    }
+
+    let guestUpgradeOfferHtml = '';
+    if (userProfile.isGuest) {
+        guestUpgradeOfferHtml = `
+        <div class="brutal-alert-box alert-warning" style="margin-top: 12px; flex-direction: column; align-items: stretch; gap: 8px;">
+            <div style="display:flex; align-items:center; gap:8px;">
+                <i class="fa-solid fa-user-shield"></i>
+                <span>Ingin menyimpan bukti transaksi & garansi ini secara permanen? Ubah akun Anda menjadi Member.</span>
+            </div>
+            <button class="btn btn-warning btn-sm" style="width:100%;" onclick="window.closeModal('modal-order-detail'); window.openUpgradeMemberModal();">
+                <i class="fa-solid fa-link"></i> Kaitkan Jadi Member Sekarang
+            </button>
+        </div>`;
     }
     
     let replyHtml = '';
@@ -2351,7 +3162,6 @@ function buildFullReceiptHTML(order) {
             <span class="status-badge ${sBadge}">${sName}</span>
         </div>
 
-        <!-- Progres Status Pesanan -->
         <div class="ereceipt-stepper">
             <div class="estep-item done">
                 <div class="estep-dot"><i class="fa-solid fa-check"></i></div>
@@ -2377,6 +3187,7 @@ function buildFullReceiptHTML(order) {
                 <div style="font-size: 0.78rem; font-weight: 700; color: var(--text-muted); margin-top:4px;">${escapeHtml(order.items[0]?.playerInfo || '')}</div>
             </div>
             ${replyHtml}
+            ${guestUpgradeOfferHtml}
         </div>
 
         <div class="ereceipt-footer">
@@ -2497,11 +3308,12 @@ window.renderUserOrders = function() {
     const grid = document.getElementById('user-order-grid');
     if(!grid) return;
     
+    const effectiveUid = boundLegacyGuestUid || currentUser?.uid || '';
     const savedTrackEmail = (localStorage.getItem('vipercell_track_email') || '').toLowerCase();
     const activeEmail = (!userProfile.isGuest && userProfile.email) ? userProfile.email.toLowerCase() : savedTrackEmail;
 
     let userOrders = orders.filter(o => {
-        const matchUid = currentUser && o.userId === currentUser.uid;
+        const matchUid = (effectiveUid && o.userId === effectiveUid) || (currentUser && o.userId === currentUser.uid);
         const matchEmail = activeEmail && o.userEmail && o.userEmail.toLowerCase() === activeEmail;
         return matchUid || matchEmail;
     });
@@ -2526,12 +3338,13 @@ window.renderUserOrders = function() {
 // FITUR ULASAN: 1X ULASAN PER TRANSAKSI (ORDER ID) + BALASAN ADMIN
 // ==========================================
 function getUnreviewedSuccessOrdersForBrand(brandName) {
+    const effectiveUid = boundLegacyGuestUid || currentUser?.uid || '';
     const userEmailToMatch = (userProfile.email || localStorage.getItem('vipercell_track_email') || '').toLowerCase();
     
     const mySuccessOrders = orders.filter(o => {
         if (o.status !== 'SUCCESS') return false;
         if (!o.items || o.items[0]?.brandName !== brandName) return false;
-        const matchUid = currentUser && o.userId === currentUser.uid;
+        const matchUid = (effectiveUid && o.userId === effectiveUid) || (currentUser && o.userId === currentUser.uid);
         const matchEmail = userEmailToMatch && o.userEmail && o.userEmail.toLowerCase() === userEmailToMatch;
         return matchUid || matchEmail;
     });
@@ -2544,7 +3357,7 @@ function getUnreviewedSuccessOrdersForBrand(brandName) {
     const legacyReviewsCount = reviewsData.filter(r =>
         !r.orderId &&
         r.brandName === brandName &&
-        ((currentUser && r.userId === currentUser.uid) || (userEmailToMatch && r.userEmail?.toLowerCase() === userEmailToMatch))
+        ((effectiveUid && r.userId === effectiveUid) || (currentUser && r.userId === currentUser.uid) || (userEmailToMatch && r.userEmail?.toLowerCase() === userEmailToMatch))
     ).length;
 
     if (legacyReviewsCount >= unreviewedOrders.length) {
@@ -2657,11 +3470,12 @@ window.submitReview = async function() {
     btnSubmit.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> <span>Mempublikasikan...</span>';
     btnSubmit.disabled = true;
 
+    const effectiveUid = boundLegacyGuestUid || currentUser?.uid || null;
     const newReview = {
         orderId: orderToReview.id,
         brandName: currentCheckoutBrand.brandName,
         userEmail: userProfile.email || localStorage.getItem('vipercell_track_email') || orderToReview.userEmail || 'anonim',
-        userId: currentUser ? currentUser.uid : null,
+        userId: effectiveUid,
         userName: userName,
         rating: rating,
         text: textInput,
@@ -2684,6 +3498,6 @@ window.submitReview = async function() {
     }
 };
 
-// Inisialisasi Aplikasi
-if (document.readyState === 'loading') { document.addEventListener('DOMContentLoaded', initApp); } 
-else { initApp(); }
+// Jalankan Pre-Loader & Inisialisasi Aplikasi
+if (document.readyState === 'loading') { document.addEventListener('DOMContentLoaded', initializeAppWithLoader); } 
+else { initializeAppWithLoader(); }

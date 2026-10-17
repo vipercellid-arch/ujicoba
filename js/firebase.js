@@ -5,13 +5,18 @@ import {
     createUserWithEmailAndPassword,
     signInWithEmailAndPassword,
     sendPasswordResetEmail,
+    updateProfile,
     GoogleAuthProvider,
+    EmailAuthProvider,
+    linkWithCredential,
+    deleteUser,
     signInWithPopup,
     onAuthStateChanged,
     signOut,
     setPersistence,
     browserLocalPersistence
 } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+
 import {
     getFirestore,
     doc,
@@ -26,10 +31,11 @@ import {
     where,
     getDocs,
     increment,
-    arrayUnion
+    arrayUnion,
+    writeBatch
 } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-// Konfigurasi Firebase Proyek Vipercell
+// Konfigurasi Resmi Firebase Proyek Vipercell
 const firebaseConfig = {
     apiKey: "AIzaSyBQGZjl7uj5CRiLWCvPQKjiK4HvIYnXSJg",
     authDomain: "vipercell-fc50e.firebaseapp.com",
@@ -39,18 +45,27 @@ const firebaseConfig = {
     appId: "1:710483059781:web:b4c27b14ab34c45c892f2c"
 };
 
-// Inisialisasi Firebase App, Database Firestore, dan Auth
+// Inisialisasi Firebase App, Firestore Database, dan Authentication
 export const app = initializeApp(firebaseConfig);
 export const db = getFirestore(app);
 export const auth = getAuth(app);
 
-// Export seluruh fungsi Firestore & Auth agar bisa dipanggil sekali jalan oleh js/store.js
+// Kunci sesi di penyimpanan lokal browser sejak awal agar tidak ter-reset saat halaman di-refresh
+setPersistence(auth, browserLocalPersistence).catch((err) => {
+    console.warn("Firebase Persistence Warning:", err);
+});
+
+// Export seluruh fungsi Auth (termasuk Anonim & Link Credential) dan Firestore untuk store.js & admin.js
 export {
     signInAnonymously,
     createUserWithEmailAndPassword,
     signInWithEmailAndPassword,
     sendPasswordResetEmail,
+    updateProfile,
     GoogleAuthProvider,
+    EmailAuthProvider,
+    linkWithCredential,
+    deleteUser,
     signInWithPopup,
     onAuthStateChanged,
     signOut,
@@ -68,5 +83,6 @@ export {
     where,
     getDocs,
     increment,
-    arrayUnion
+    arrayUnion,
+    writeBatch
 };
