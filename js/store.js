@@ -46,7 +46,10 @@ let siteSettings = {
     newsList: [],
     banners: [],
     isStoreOpen: true,
-    waChannelLink: ''
+    waChannelLink: '',
+    deletedUids: [],
+    blockedUids: [],
+    blockedDevices: []
 };
 
 let currentDeviceId = '';
@@ -119,7 +122,7 @@ function showLoader(statusText = 'Sedang memuat data...') {
 function hideLoader() {
     isPreloaderFinished = true;
     const loader = document.getElementById('app-preloader-overlay');
-    if (loader) {
+    if (loader && !loader.classList.contains('hidden')) {
         loader.classList.add('hidden');
         setTimeout(() => {
             loader.style.display = 'none';
@@ -127,6 +130,9 @@ function hideLoader() {
     }
     document.body.classList.remove('no-scroll');
 }
+
+// Safety Timer: Jaminan mutlak layar loading tidak akan pernah macet lebih dari 2.2 detik
+setTimeout(hideLoader, 2200);
 
 // Mengatur apakah user terkunci di halaman Login Awal (tanpa navigasi tab lain) atau sudah masuk toko
 function setAuthGateLock(isLocked) {
@@ -279,7 +285,71 @@ async function initDeviceIdentity() {
 }
 
 // ==========================================
-// PROSES MASUK SEBAGAI ANONIM (1 HP 1 AKUN ANONIM)
+// CEK BLOKIR & HAPUS AKUN REAL-TIME DARI SETTINGS & USERS
+// ==========================================
+async function checkRealtimeAccountRestriction() {
+    if (!currentDeviceId) await initDeviceIdentity();
+    const effectiveUid = boundLegacyGuestUid || currentUser?.uid || '';
+
+    const deletedList = Array.isArray(siteSettings.deletedUids) ? siteSettings.deletedUids : [];
+    const blockedUidList = Array.isArray(siteSettings.blockedUids) ? siteSettings.blockedUids : [];
+    const blockedDevList = Array.isArray(siteSettings.blockedDevices) ? siteSettings.blockedDevices : [];
+
+    const isDeleted = effectiveUid && deletedList.includes(effectiveUid);
+    const isBlocked = (effectiveUid && blockedUidList.includes(effectiveUid)) ||
+                      (currentDeviceId && blockedDevList.includes(currentDeviceId));
+
+    if ((isDeleted || isBlocked) && !document.body.classList.contains('auth-locked')) {
+        localStorage.removeItem('vipercell_anon_uid');
+        localStorage.removeItem('vipercell_anon_name');
+        localStorage.setItem('vipercell_active_session_mode', 'logged_out');
+
+        try {
+            if (auth.currentUser) {
+                if (isDeleted) {
+                    await deleteUser(auth.currentUser).catch(async () => await signOut(auth));
+                } else {
+                    await signOut(auth);
+                }
+            }
+        } catch (e) {}
+
+        currentUser = null;
+        userProfile = { name: '', email: '', phone: '', isGuest: true, isAnonymous: true };
+        setAuthGateLock(true);
+
+        window.customAlert(
+            isBlocked ? 'Akses Akun Diblokir' : 'Akun Dihapus',
+            isBlocked
+                ? 'Maaf, akun atau perangkat Anda telah diblokir oleh Administrator Vipercell.'
+                : 'Akun Anda telah dihapus oleh Administrator Vipercell.',
+            'error'
+        );
+        return true;
+    }
+    return false;
+}
+
+function listenDeletedAccountStatus(uid) {
+    if (!uid) return;
+    if (deletedAccountUnsubscribe) deletedAccountUnsubscribe();
+
+    deletedAccountUnsubscribe = onSnapshot(doc(db, pathUsers, uid), async (docSnap) => {
+        if (docSnap.exists()) {
+            const uData = docSnap.data();
+            if (uData.isBlocked === true || uData.isDeleted === true) {
+                if (!siteSettings.blockedUids) siteSettings.blockedUids = [];
+                if (uData.isBlocked && !siteSettings.blockedUids.includes(uid)) siteSettings.blockedUids.push(uid);
+                if (!siteSettings.deletedUids) siteSettings.deletedUids = [];
+                if (uData.isDeleted && !siteSettings.deletedUids.includes(uid)) siteSettings.deletedUids.push(uid);
+                await checkRealtimeAccountRestriction();
+            }
+        }
+    }, () => {});
+}
+
+// ==========================================
+// LOGIN ANONIM ANTI-GAGAL (1 HP 1 AKUN ANONIM)
 // ==========================================
 window.processAnonymousLogin = async function() {
     const btnGuest = document.getElementById('auth-guest-btn');
@@ -290,98 +360,164 @@ window.processAnonymousLogin = async function() {
     }
 
     try {
+        // 1. Pastikan ID Perangkat (Device Fingerprint) sudah terbentuk
         if (!currentDeviceId) await initDeviceIdentity();
 
-        // 1. Periksa registri perangkat di Firestore (device_locks/{deviceId})
-        const lockRef = doc(db, pathDeviceLocks, currentDeviceId);
-        const lockSnap = await getDoc(lockRef);
+        // 2. Cek apakah perangkat ini diblokir oleh Admin di siteSettings
+        const blockedDevList = Array.isArray(siteSettings.blockedDevices) ? siteSettings.blockedDevices : [];
+        const blockedUidList = Array.isArray(siteSettings.blockedUids) ? siteSettings.blockedUids : [];
+        const deletedUidList = Array.isArray(siteSettings.deletedUids) ? siteSettings.deletedUids : [];
 
-        if (lockSnap.exists()) {
-            const lockData = lockSnap.data();
-
-            if (lockData.isBlocked === true) {
-                window.customAlert(
-                    'Akses Dibatasi',
-                    'Maaf, akses sesi anonim pada perangkat ini telah dinonaktifkan oleh Administrator.',
-                    'error'
-                );
-                return;
-            }
-
-            // Jika perangkat ini sudah memiliki UID anonim sebelumnya, gunakan kembali UID tersebut agar tidak menduplikasi akun
-            if (lockData.uid && lockData.role === 'anonymous') {
-                boundLegacyGuestUid = lockData.uid;
-                await saveMultiLayerToken('vipercell_anon_uid', lockData.uid);
-            }
+        if (blockedDevList.includes(currentDeviceId)) {
+            window.customAlert(
+                'Perangkat Diblokir',
+                'Maaf, akses sesi anonim pada perangkat ini telah diblokir oleh Administrator.',
+                'error'
+            );
+            return;
         }
 
-        // 2. Pastikan sesi Firebase Auth tersedia
+        // 3. Lakukan autentikasi Firebase terlebih dahulu (dengan fallback aman ke ID Perangkat jika provider anonim belum aktif)
         let activeUser = auth.currentUser;
         if (!activeUser) {
-            const cred = await signInAnonymously(auth);
-            activeUser = cred.user;
+            try {
+                const cred = await signInAnonymously(auth);
+                activeUser = cred.user;
+            } catch (authErr) {
+                console.warn("Firebase Anon Auth Fallback:", authErr.code);
+                const fallbackUid = (boundLegacyGuestUid && !deletedUidList.includes(boundLegacyGuestUid))
+                    ? boundLegacyGuestUid
+                    : `anon_${currentDeviceId}`;
+                activeUser = {
+                    uid: fallbackUid,
+                    isAnonymous: true,
+                    email: ''
+                };
+            }
         }
         currentUser = activeUser;
 
-        const effectiveUid = boundLegacyGuestUid || activeUser.uid;
+        // 4. Tentukan UID efektif untuk 1 HP 1 Akun Anonim
+        let effectiveUid = activeUser.uid;
+        if (boundLegacyGuestUid && !deletedUidList.includes(boundLegacyGuestUid)) {
+            effectiveUid = boundLegacyGuestUid;
+        }
+
+        // Jika UID dari auth saat ini ternyata pernah dihapus oleh Admin, buat sesi baru yang bersih
+        if (deletedUidList.includes(effectiveUid)) {
+            try {
+                await signOut(auth);
+                const newCred = await signInAnonymously(auth);
+                activeUser = newCred.user;
+                currentUser = activeUser;
+                effectiveUid = activeUser.uid;
+            } catch (reAuthErr) {
+                effectiveUid = `anon_${currentDeviceId}_${Date.now().toString(36).slice(-4)}`;
+            }
+        }
+
+        if (blockedUidList.includes(effectiveUid)) {
+            window.customAlert(
+                'Akun Diblokir',
+                'Maaf, sesi akun anonim Anda telah diblokir oleh Administrator.',
+                'error'
+            );
+            return;
+        }
+
+        boundLegacyGuestUid = effectiveUid;
         await saveMultiLayerToken('vipercell_anon_uid', effectiveUid);
 
         const shortId = effectiveUid.slice(-4).toUpperCase();
         const savedAnonName = localStorage.getItem('vipercell_anon_name') || `Tamu #${shortId}`;
 
-        // 3. Simpan atau pulihkan profil Tamu di koleksi users/{effectiveUid}
-        const userDocRef = doc(db, pathUsers, effectiveUid);
-        const existingUserSnap = await getDoc(userDocRef);
+        // 5. Tarik atau simpan profil Tamu ke koleksi users dengan aman
+        let loadedProfile = null;
+        try {
+            const userDocRef = doc(db, pathUsers, effectiveUid);
+            const existingSnap = await getDoc(userDocRef);
+            if (existingSnap.exists()) {
+                const existingData = existingSnap.data();
+                if (existingData.isBlocked === true) {
+                    window.customAlert('Akun Diblokir', 'Maaf, akun anonim ini telah diblokir oleh Administrator.', 'error');
+                    return;
+                }
+                if (!existingData.isDeleted && !deletedUidList.includes(effectiveUid)) {
+                    loadedProfile = existingData;
+                }
+            }
+        } catch (readErr) {
+            console.warn("Info pembacaan profil tamu:", readErr.message);
+        }
 
-        if (!existingUserSnap.exists()) {
-            const newGuestProfile = {
-                uid: effectiveUid,
-                authUid: activeUser.uid,
-                name: savedAnonName,
-                email: localStorage.getItem('vipercell_track_email') || '',
-                phone: '',
-                whatsapp: '',
-                role: 'anonymous',
-                isAnonymous: true,
-                isGuest: true,
-                deviceId: currentDeviceId,
-                createdAt: Date.now()
-            };
-            await setDoc(userDocRef, newGuestProfile, { merge: true });
-            userProfile = newGuestProfile;
-        } else {
-            const oldData = existingUserSnap.data();
+        if (loadedProfile) {
             userProfile = {
-                ...oldData,
+                ...loadedProfile,
                 uid: effectiveUid,
+                name: loadedProfile.name || savedAnonName,
+                role: 'anonymous',
                 isAnonymous: true,
                 isGuest: true,
                 deviceId: currentDeviceId
             };
-            if (oldData.name) localStorage.setItem('vipercell_anon_name', oldData.name);
-            await updateDoc(userDocRef, {
+            if (loadedProfile.name) localStorage.setItem('vipercell_anon_name', loadedProfile.name);
+        } else {
+            userProfile = {
+                uid: effectiveUid,
                 authUid: activeUser.uid,
-                lastActiveAt: Date.now()
-            }).catch(() => {});
+                name: savedAnonName,
+                email: localStorage.getItem('vipercell_track_email') || '',
+                phone: localStorage.getItem('vipercell_track_phone') || '',
+                whatsapp: localStorage.getItem('vipercell_track_phone') || '',
+                role: 'anonymous',
+                isAnonymous: true,
+                isGuest: true,
+                isBlocked: false,
+                isDeleted: false,
+                deviceId: currentDeviceId,
+                createdAt: Date.now()
+            };
         }
 
-        await setDoc(lockRef, {
+        // Simpan ke koleksi users
+        try {
+            await setDoc(doc(db, pathUsers, effectiveUid), {
+                ...userProfile,
+                lastActiveAt: Date.now()
+            }, { merge: true });
+        } catch (writeErr) {
+            if (activeUser.uid && activeUser.uid !== effectiveUid) {
+                effectiveUid = activeUser.uid;
+                userProfile.uid = effectiveUid;
+                boundLegacyGuestUid = effectiveUid;
+                await saveMultiLayerToken('vipercell_anon_uid', effectiveUid);
+                await setDoc(doc(db, pathUsers, effectiveUid), {
+                    ...userProfile,
+                    lastActiveAt: Date.now()
+                }, { merge: true }).catch(() => {});
+            }
+        }
+
+        // Simpan ke device_locks secara opsional (Non-blocking)
+        setDoc(doc(db, pathDeviceLocks, currentDeviceId), {
             uid: effectiveUid,
-            authUid: activeUser.uid,
             role: 'anonymous',
             status: 'active',
             deviceId: currentDeviceId,
             isBlocked: false,
-            createdAt: lockSnap.exists() ? (lockSnap.data().createdAt || Date.now()) : Date.now(),
             updatedAt: Date.now()
-        }, { merge: true });
+        }, { merge: true }).catch(() => {});
 
-        // Tandai bahwa sesi aktif di perangkat ini adalah guest sehingga saat di-refresh langsung masuk ke toko
+        // 6. Buka kunci halaman dan masuk ke Katalog Toko!
         localStorage.setItem('vipercell_active_session_mode', 'guest');
-
+        listenDeletedAccountStatus(effectiveUid);
         setAuthGateLock(false);
         applyUserSessionToUI();
+        window.renderUserOrders();
+        checkChatUserState();
+        listenUserChat();
         window.switchMainTab('katalog');
+
         window.showToast(
             'Berhasil Masuk',
             `Selamat datang, ${userProfile.name}!`,
@@ -389,7 +525,7 @@ window.processAnonymousLogin = async function() {
         );
     } catch (err) {
         console.error("Anonymous Login Error:", err);
-        window.customAlert('Gagal Masuk', 'Terjadi kendala saat memulai sesi anonim. Silakan coba lagi.', 'error');
+        window.customAlert('Gagal Masuk', 'Terjadi kendala jaringan. Silakan periksa koneksi internet Anda.', 'error');
     } finally {
         if (btnGuest && ogHtml) {
             btnGuest.disabled = false;
@@ -453,7 +589,7 @@ window.upgradeAnonymousToMember = async function() {
         const activeUser = auth.currentUser;
         let finalUid = activeUser ? activeUser.uid : null;
 
-        if (activeUser && activeUser.isAnonymous) {
+        if (activeUser && activeUser.isAnonymous && typeof activeUser.getIdToken === 'function') {
             const credential = EmailAuthProvider.credential(email, password);
             const usercred = await linkWithCredential(activeUser, credential);
             finalUid = usercred.user.uid;
@@ -470,8 +606,8 @@ window.upgradeAnonymousToMember = async function() {
             for (const ord of oldOrders) {
                 await updateDoc(doc(db, pathOrders, ord.dbId), { userId: finalUid, userEmail: email, userPhone: whatsapp }).catch(() => {});
             }
-            const oldChatSnap = await getDoc(doc(db, pathChats, boundLegacyGuestUid));
-            if (oldChatSnap.exists()) {
+            const oldChatSnap = await getDoc(doc(db, pathChats, boundLegacyGuestUid)).catch(() => null);
+            if (oldChatSnap && oldChatSnap.exists()) {
                 await setDoc(doc(db, pathChats, finalUid), {
                     ...oldChatSnap.data(),
                     uid: finalUid,
@@ -483,7 +619,6 @@ window.upgradeAnonymousToMember = async function() {
             await deleteDoc(doc(db, pathUsers, boundLegacyGuestUid)).catch(() => {});
         }
 
-        // Hubungkan semua transaksi dengan email yang sama ke UID member baru
         const matchingOrders = orders.filter(o => o.userId === finalUid || (!o.userId && o.userEmail?.toLowerCase() === email.toLowerCase()));
         for (const ord of matchingOrders) {
             await updateDoc(doc(db, pathOrders, ord.dbId), { userId: finalUid, userEmail: email, userPhone: whatsapp }).catch(() => {});
@@ -498,6 +633,8 @@ window.upgradeAnonymousToMember = async function() {
             role: 'member',
             isAnonymous: false,
             isGuest: false,
+            isBlocked: false,
+            isDeleted: false,
             verified: true,
             deviceId: currentDeviceId,
             upgradedAt: Date.now(),
@@ -507,18 +644,19 @@ window.upgradeAnonymousToMember = async function() {
         await setDoc(doc(db, pathUsers, finalUid), memberData, { merge: true });
 
         if (currentDeviceId) {
-            await setDoc(doc(db, pathDeviceLocks, currentDeviceId), {
+            setDoc(doc(db, pathDeviceLocks, currentDeviceId), {
                 status: 'upgraded_to_member',
                 role: 'member',
                 uid: finalUid,
                 updatedAt: Date.now()
-            }, { merge: true });
+            }, { merge: true }).catch(() => {});
         }
 
         boundLegacyGuestUid = null;
         localStorage.removeItem('vipercell_anon_uid');
         localStorage.setItem('vipercell_anon_name', name);
         localStorage.setItem('vipercell_track_email', email);
+        localStorage.setItem('vipercell_track_phone', whatsapp);
         localStorage.setItem('vipercell_active_session_mode', 'member');
 
         userProfile = memberData;
@@ -554,38 +692,6 @@ window.upgradeAnonymousToMember = async function() {
 };
 
 // ==========================================
-// LISTENER SINKRONISASI PENGHAPUSAN AKUN OLEH ADMIN
-// ==========================================
-function listenDeletedAccountStatus(uid) {
-    if (!uid) return;
-    if (deletedAccountUnsubscribe) deletedAccountUnsubscribe();
-
-    deletedAccountUnsubscribe = onSnapshot(doc(db, pathDeletedAccounts, uid), async (docSnap) => {
-        if (docSnap.exists()) {
-            try {
-                localStorage.removeItem('vipercell_anon_uid');
-                localStorage.removeItem('vipercell_anon_name');
-                localStorage.setItem('vipercell_active_session_mode', 'logged_out');
-                if (auth.currentUser) {
-                    await deleteUser(auth.currentUser).catch(async () => {
-                        await signOut(auth);
-                    });
-                }
-            } catch (e) {}
-
-            userProfile = { name: '', email: '', phone: '', isGuest: true, isAnonymous: true };
-            currentUser = null;
-            setAuthGateLock(true);
-            window.customAlert(
-                'Akun Dinonaktifkan',
-                'Akun Anda telah dinonaktifkan atau dihapus oleh Administrator.',
-                'error'
-            );
-        }
-    });
-}
-
-// ==========================================
 // JAMINAN SESI AUTH FIREBASE
 // ==========================================
 async function ensureAuthSession() {
@@ -598,8 +704,10 @@ async function ensureAuthSession() {
         currentUser = cred.user;
         return currentUser;
     } catch (err) {
-        console.error("Gagal membuat sesi anonim:", err);
-        return null;
+        if (!currentDeviceId) await initDeviceIdentity();
+        const fallbackUid = boundLegacyGuestUid || `anon_${currentDeviceId}`;
+        currentUser = { uid: fallbackUid, isAnonymous: true, email: '' };
+        return currentUser;
     }
 }
 
@@ -1222,16 +1330,23 @@ async function initializeAppWithLoader() {
 
         const sessionMode = localStorage.getItem('vipercell_active_session_mode');
 
-        // Jika user memiliki sesi Firebase aktif DAN tidak sedang dalam status sengaja keluar ('logged_out')
-        if (initialUser && (!initialUser.isAnonymous || sessionMode === 'guest')) {
-            await syncUserProfileFromAuth(initialUser);
-            localStorage.setItem('vipercell_active_session_mode', initialUser.isAnonymous ? 'guest' : 'member');
-            // Buka kunci navigasi dan tampilkan katalog SEBELUM menutup preloader agar tidak pernah berkedip ke halaman Login!
-            setAuthGateLock(false);
-            window.switchMainTab('katalog');
+        // Jika user memiliki sesi Member atau sesi Guest yang aktif saat di-refresh
+        if ((initialUser && !initialUser.isAnonymous) || sessionMode === 'guest') {
+            const userObjToSync = initialUser || {
+                uid: boundLegacyGuestUid || `anon_${currentDeviceId}`,
+                isAnonymous: true,
+                email: ''
+            };
+            await syncUserProfileFromAuth(userObjToSync);
+
+            const restricted = await checkRealtimeAccountRestriction();
+            if (!restricted) {
+                localStorage.setItem('vipercell_active_session_mode', userObjToSync.isAnonymous ? 'guest' : 'member');
+                setAuthGateLock(false);
+                window.switchMainTab('katalog');
+            }
             hideLoader();
         } else {
-            // Jika belum login atau baru saja keluar, tampilkan halaman Masuk/Daftar awal tanpa navigasi tab lain
             setAuthGateLock(true);
             hideLoader();
         }
@@ -1247,16 +1362,20 @@ async function syncUserProfileFromAuth(user) {
     currentUser = user;
     if (!user) return;
 
-    const effectiveUid = (user.isAnonymous && boundLegacyGuestUid) ? boundLegacyGuestUid : user.uid;
+    const deletedList = Array.isArray(siteSettings.deletedUids) ? siteSettings.deletedUids : [];
+    const effectiveUid = (user.isAnonymous && boundLegacyGuestUid && !deletedList.includes(boundLegacyGuestUid))
+        ? boundLegacyGuestUid
+        : user.uid;
+
     listenDeletedAccountStatus(effectiveUid);
 
     if (user.isAnonymous) {
         await saveMultiLayerToken('vipercell_anon_uid', effectiveUid);
         const shortId = effectiveUid.slice(-4).toUpperCase();
         const userDocRef = doc(db, pathUsers, effectiveUid);
-        const userSnap = await getDoc(userDocRef);
+        const userSnap = await getDoc(userDocRef).catch(() => null);
 
-        if (userSnap.exists()) {
+        if (userSnap && userSnap.exists()) {
             const data = userSnap.data();
             userProfile = {
                 ...data,
@@ -1273,11 +1392,13 @@ async function syncUserProfileFromAuth(user) {
                 authUid: user.uid,
                 name: savedName,
                 email: localStorage.getItem('vipercell_track_email') || '',
-                phone: '',
-                whatsapp: '',
+                phone: localStorage.getItem('vipercell_track_phone') || '',
+                whatsapp: localStorage.getItem('vipercell_track_phone') || '',
                 role: 'anonymous',
                 isAnonymous: true,
                 isGuest: true,
+                isBlocked: false,
+                isDeleted: false,
                 deviceId: currentDeviceId,
                 createdAt: Date.now()
             };
@@ -1285,8 +1406,8 @@ async function syncUserProfileFromAuth(user) {
         }
     } else {
         const userDocRef = doc(db, pathUsers, user.uid);
-        const userSnap = await getDoc(userDocRef);
-        if (userSnap.exists()) {
+        const userSnap = await getDoc(userDocRef).catch(() => null);
+        if (userSnap && userSnap.exists()) {
             const data = userSnap.data();
             userProfile = {
                 ...data,
@@ -1308,6 +1429,8 @@ async function syncUserProfileFromAuth(user) {
                 role: 'member',
                 isAnonymous: false,
                 isGuest: false,
+                isBlocked: false,
+                isDeleted: false,
                 deviceId: currentDeviceId,
                 createdAt: Date.now()
             };
@@ -1330,8 +1453,9 @@ function setupAuthStateListener() {
 
         if (user && (!user.isAnonymous || sessionMode === 'guest')) {
             await syncUserProfileFromAuth(user);
-            setAuthGateLock(false);
-        } else if (!user) {
+            const restricted = await checkRealtimeAccountRestriction();
+            if (!restricted) setAuthGateLock(false);
+        } else if (!user && sessionMode !== 'guest') {
             userProfile = { name: '', email: '', phone: '', isGuest: true, isAnonymous: true };
             setAuthGateLock(true);
         }
@@ -1353,6 +1477,7 @@ function listenData() {
         isSettingsLoaded = true;
         window.applySettingsToUI();
         applyCustomPwaIcon();
+        await checkRealtimeAccountRestriction();
     });
 
     onSnapshot(collection(db, pathReviews), (snapshot) => {
@@ -1824,7 +1949,6 @@ window.switchAuthTab = function(tab) {
 window.showResetPassword = () => window.switchAuthTab('reset');
 
 window.switchMainTab = function(tab) {
-    // Jika masih terkunci di halaman login, jangan izinkan pindah ke tab lain
     if (document.body.classList.contains('auth-locked') && tab !== 'auth') {
         return;
     }
@@ -1885,9 +2009,12 @@ window.processLogin = async function() {
         currentUser = cred.user;
         localStorage.setItem('vipercell_active_session_mode', 'member');
         await syncUserProfileFromAuth(cred.user);
-        setAuthGateLock(false);
-        window.switchMainTab('katalog');
-        window.showToast('Berhasil Masuk', 'Selamat datang kembali di Vipercell!', 'success');
+        const restricted = await checkRealtimeAccountRestriction();
+        if (!restricted) {
+            setAuthGateLock(false);
+            window.switchMainTab('katalog');
+            window.showToast('Berhasil Masuk', 'Selamat datang kembali di Vipercell!', 'success');
+        }
     } catch(e) { window.customAlert('Gagal Masuk', 'Email atau kata sandi tidak cocok.', 'error'); } 
     finally { 
         btn.innerHTML = '<i class="fa-solid fa-arrow-right-to-bracket"></i> <span>Masuk Sekarang</span>'; 
@@ -1896,7 +2023,6 @@ window.processLogin = async function() {
 };
 
 window.processRegister = async function() {
-    // Jika saat ini di balik layar ada sesi Anonim aktif di perangkat, kaitkan langsung dengan linkWithCredential agar tidak membuat UID baru
     if (auth.currentUser && auth.currentUser.isAnonymous) {
         const name = document.getElementById('auth-r-name').value.trim();
         const phone = document.getElementById('auth-r-phone') ? document.getElementById('auth-r-phone').value.trim() : '';
@@ -1943,13 +2069,15 @@ window.processRegister = async function() {
             role: 'member',
             isAnonymous: false,
             isGuest: false, 
+            isBlocked: false,
+            isDeleted: false,
             verified: true, 
             deviceId: currentDeviceId,
             createdAt: Date.now() 
         };
         await setDoc(doc(db, pathUsers, cred.user.uid), newMemberObj, { merge: true });
         if (currentDeviceId) {
-            await setDoc(doc(db, pathDeviceLocks, currentDeviceId), {
+            setDoc(doc(db, pathDeviceLocks, currentDeviceId), {
                 uid: cred.user.uid,
                 role: 'member',
                 status: 'upgraded_to_member',
@@ -2022,9 +2150,9 @@ window.processGoogleLogin = async function() {
     
     try {
         const result = await signInWithPopup(auth, provider);
-        const userDoc = await getDoc(doc(db, pathUsers, result.user.uid));
+        const userDoc = await getDoc(doc(db, pathUsers, result.user.uid)).catch(() => null);
         
-        if (!userDoc.exists()) {
+        if (!userDoc || !userDoc.exists()) {
             await setDoc(doc(db, pathUsers, result.user.uid), { 
                 uid: result.user.uid,
                 email: result.user.email, 
@@ -2034,6 +2162,8 @@ window.processGoogleLogin = async function() {
                 role: 'member',
                 isAnonymous: false,
                 isGuest: false, 
+                isBlocked: false,
+                isDeleted: false,
                 verified: true, 
                 deviceId: currentDeviceId,
                 createdAt: Date.now() 
@@ -2041,9 +2171,12 @@ window.processGoogleLogin = async function() {
         }
         localStorage.setItem('vipercell_active_session_mode', 'member');
         await syncUserProfileFromAuth(result.user);
-        setAuthGateLock(false);
-        window.switchMainTab('katalog');
-        window.showToast('Berhasil Masuk', 'Login menggunakan Google berhasil!', 'success');
+        const restricted = await checkRealtimeAccountRestriction();
+        if (!restricted) {
+            setAuthGateLock(false);
+            window.switchMainTab('katalog');
+            window.showToast('Berhasil Masuk', 'Login menggunakan Google berhasil!', 'success');
+        }
     } catch (error) {
         console.error(error);
     } finally {
@@ -2051,12 +2184,9 @@ window.processGoogleLogin = async function() {
     }
 };
 
-// PERBAIKAN BUG: Tombol Keluar kini benar-benar keluar kembali ke layar Masuk/Daftar awal!
 window.logoutUser = async function() {
     localStorage.setItem('vipercell_active_session_mode', 'logged_out');
 
-    // Jika yang keluar adalah Member resmi, panggil signOut(auth).
-    // Jika yang keluar adalah Anonim, kita cukup mengunci kembali tampilan ke layar Login (tanpa memutus token anonim di HP agar saat dia klik "Masuk sebagai Anonim" lagi, UID-nya tetap 1 HP 1 Akun!)
     if (currentUser && !currentUser.isAnonymous) {
         await signOut(auth).catch(() => {});
         currentUser = null;
@@ -2084,6 +2214,7 @@ window.saveUserProfile = async function() {
         userProfile.phone = phone;
         userProfile.whatsapp = phone;
         localStorage.setItem('vipercell_anon_name', name);
+        if (phone) localStorage.setItem('vipercell_track_phone', phone);
         applyUserSessionToUI();
         window.showToast('Profil Disimpan', 'Data identitas & nomor WhatsApp berhasil diperbarui.', 'success');
     } catch(e) { window.customAlert('Error', 'Gagal menyimpan perubahan profil.', 'error'); }
@@ -2284,7 +2415,6 @@ window.openReadNewsFullPage = function(idx) {
         imgWrap.style.display = 'none';
     }
 
-    // Atur tombol produk langsung di bawah artikel berita jika dicentang oleh Admin
     const ctaBox = document.getElementById('full-news-product-cta');
     const ctaTitle = document.getElementById('full-news-cta-title');
     const ctaSub = document.getElementById('full-news-cta-sub');
@@ -2650,10 +2780,18 @@ window.applyPromoDirect = function() {
     
     const effectiveUid = boundLegacyGuestUid || currentUser?.uid || '';
     const p = promos.find(x => x.code === codeInput);
+    const qty = parseInt(document.getElementById('buy-qty')?.value) || 1;
+    const rawSubtotal = selectedProductForBuy ? (selectedProductForBuy.priceNum * qty) : 0;
+    const todayIso = new Date().toISOString().slice(0, 10);
+
     if(!p || !p.active) {
         appliedPromo = null; msgEl.innerHTML = `<span style="color:var(--danger)"><i class="fa-solid fa-circle-xmark"></i> Kode promo tidak ditemukan atau tidak aktif.</span>`;
     } else if (p.usedCount >= p.maxUses) {
         appliedPromo = null; msgEl.innerHTML = `<span style="color:var(--danger)"><i class="fa-solid fa-circle-xmark"></i> Kuota kode promo sudah habis.</span>`;
+    } else if (p.expiryDate && p.expiryDate < todayIso) {
+        appliedPromo = null; msgEl.innerHTML = `<span style="color:var(--danger)"><i class="fa-solid fa-circle-xmark"></i> Masa berlaku kode promo telah berakhir.</span>`;
+    } else if (p.minOrder && p.minOrder > 0 && rawSubtotal < p.minOrder) {
+        appliedPromo = null; msgEl.innerHTML = `<span style="color:var(--danger)"><i class="fa-solid fa-circle-xmark"></i> Minimal belanja Rp${p.minOrder.toLocaleString('id-ID')}.</span>`;
     } else if (p.targetBrand !== 'all' && p.targetBrand !== currentCheckoutBrand.brandName) {
         appliedPromo = null; msgEl.innerHTML = `<span style="color:var(--danger)"><i class="fa-solid fa-circle-xmark"></i> Khusus produk ${escapeHtml(p.targetBrand)}.</span>`;
     } else if (p.targetUser === 'new') {
