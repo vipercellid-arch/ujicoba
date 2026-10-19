@@ -13,30 +13,31 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="theme-color" content="#ffffff" id="meta-theme-color">
-    <title>Vipercell V25 - Premium App, Game & Tools Store</title>
+    <title>Vipercell V25.1 - Premium App, Game & Tools Store</title>
     
     <!-- PWA Manifest & Dynamic Custom Icons -->
     <link rel="manifest" href="manifest.json" id="pwa-manifest-link">
     <link rel="icon" id="favicon" href="icon-192.png" onerror="this.href='data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 512 512\'%3E%3Crect width=\'512\' height=\'512\' rx=\'110\' fill=\'%232563eb\'/%3E%3Cpath d=\'M298 96L144 288h112l-42 128 154-192H256l42-128z\' fill=\'%23ffffff\'/%3E%3C/svg%3E'">
     <link rel="apple-touch-icon" id="apple-touch-icon" href="icon-192.png">
     
-    <!-- Google Fonts: Plus Jakarta Sans & Space Grotesk -->
+    <!-- Preconnect untuk Kecepatan Jaringan Maksimal -->
     <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="preconnect" href="https://firestore.googleapis.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Space+Grotesk:wght@700;800&display=swap" rel="stylesheet">
     
     <!-- FontAwesome -->
     <link rel="preload" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" as="style" onload="this.onload=null;this.rel='stylesheet'">
     <noscript><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"></noscript>
     
-    <!-- CSS Utama V25.0 (Neo-Brutalism V2) -->
+    <!-- CSS Utama V25.1 (Neo-Brutalism V2 Responsive & Fast) -->
     <link rel="stylesheet" href="css/main.css">
     
     <!-- QR Code Generator, JsBarcode & Html2Canvas -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js" defer></script>
+    <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js" defer></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" defer></script>
 
     <script>
         const savedTheme = localStorage.getItem('vipercell_theme') || 'light';
@@ -92,7 +93,7 @@
 
     <!-- CUSTOM PWA INSTALL PROMPT -->
     <div id="pwa-install-prompt" class="pwa-brutal-prompt" style="display:none;">
-        <img id="pwa-prompt-logo" src="" alt="Icon" class="pwa-custom-img" style="display:none;">
+        <img id="pwa-prompt-logo" src="" alt="Icon" class="pwa-custom-img" style="display:none;" decoding="async">
         <div id="pwa-prompt-fallback" class="pwa-icon-box">
             <i class="fa-solid fa-bolt"></i>
         </div>
@@ -108,14 +109,14 @@
     <div id="toast-container" class="toast-container"></div>
 
     <!-- ==========================================================================
-         KCONTAINER UTAMA APLIKASI (TERKUNCI RAPAT OLEH ZERO-LEAK PRELOADER)
+         KONTAINER UTAMA APLIKASI (TERKUNCI RAPAT OLEH ZERO-LEAK PRELOADER)
          ========================================================================== -->
     <div id="store-view">
         <!-- HEADER UTAMA -->
         <header>
             <div class="container nav-container">
                 <div class="logo-area" onclick="window.handleLogoClick()" role="button" aria-label="Ke Beranda">
-                    <img id="site-logo-img" src="" alt="Logo Vipercell" class="logo-img" width="38" height="38" style="display:none;">
+                    <img id="site-logo-img" src="" alt="Logo Vipercell" class="logo-img" width="38" height="38" style="display:none;" decoding="async">
                     <span id="site-logo-text" class="logo-text">VIPER<span>CELL</span></span>
                     <span id="store-status-badge" class="store-closed-badge">TUTUP</span>
                 </div>
@@ -182,15 +183,15 @@
                         <div class="showcase-stat-item">
                             <div class="showcase-icon bg-accent-blue"><i class="fa-solid fa-bolt"></i></div>
                             <div>
-                                <strong>Auto-Delivery Vault V25</strong>
-                                <span>Akun terkirim detik itu juga saat QRIS lunas</span>
+                                <strong>Auto-Delivery Vault V25.1</strong>
+                                <span>Akun terkirim detik itu juga ke Web & Email saat QRIS lunas</span>
                             </div>
                         </div>
                         <div class="showcase-stat-item">
                             <div class="showcase-icon bg-accent-amber"><i class="fa-solid fa-qrcode"></i></div>
                             <div>
                                 <strong>QRIS Real-Time & Barcode Kasir</strong>
-                                <span>Verifikasi pembayaran instan otomatis</span>
+                                <span>Verifikasi pembayaran instan otomatis tanpa antre</span>
                             </div>
                         </div>
                         <div class="showcase-stat-item">
@@ -231,12 +232,12 @@
                     <div class="catalog-filter-controls">
                         <div class="search-input-box">
                             <i class="fa-solid fa-magnifying-glass"></i>
-                            <input type="text" id="catalog-search-input" class="form-control" placeholder="Cari Netflix, MLBB, Canva, Tools..." oninput="window.handleCatalogSearch()">
-                            <button id="btn-clear-search" class="clear-search-btn" style="display:none;" onclick="window.clearCatalogSearch()">
+                            <input type="text" id="catalog-search-input" class="form-control" placeholder="Cari Netflix, MLBB, Canva, Tools..." oninput="window.handleCatalogSearch()" autocomplete="off">
+                            <button id="btn-clear-search" class="clear-search-btn" style="display:none;" onclick="window.clearCatalogSearch()" aria-label="Bersihkan Pencarian">
                                 <i class="fa-solid fa-xmark"></i>
                             </button>
                         </div>
-                        <select id="catalog-sort-select" class="form-control sort-select" onchange="window.renderBrands()">
+                        <select id="catalog-sort-select" class="form-control sort-select" onchange="window.renderBrands()" aria-label="Urutkan Produk">
                             <option value="popular">🔥 Terpopuler</option>
                             <option value="price_asc">💰 Harga Termurah</option>
                             <option value="name_asc">🔤 Nama (A - Z)</option>
@@ -278,12 +279,12 @@
                     <div class="feature-card">
                         <div class="feature-icon bg-accent-amber"><i class="fa-solid fa-bolt"></i></div>
                         <h4>Pengiriman Detik Itu Juga</h4>
-                        <p>Sistem gudang stok otomatis langsung mengirimkan detail akun atau link tools begitu pembayaran selesai.</p>
+                        <p>Sistem gudang stok otomatis langsung mengirimkan detail akun atau link tools ke E-Receipt & Email begitu pembayaran selesai.</p>
                     </div>
                     <div class="feature-card">
                         <div class="feature-icon bg-accent-blue"><i class="fa-solid fa-qrcode"></i></div>
                         <h4>QRIS Otomatis & Barcode Kasir</h4>
-                        <p>Bayar otomatis via QRIS semua bank & e-wallet, atau bayar tunai menggunakan kode Barcode kasir.</p>
+                        <p>Bayar otomatis via QRIS semua bank & e-wallet, atau bayar tunai menggunakan kode Barcode kasir. Bisa batalkan pesanan kapan saja jika salah pilih!</p>
                     </div>
                     <div class="feature-card">
                         <div class="feature-icon bg-accent-emerald"><i class="fa-solid fa-shield-halved"></i></div>
@@ -300,7 +301,7 @@
         <div id="tab-pesanan" class="main-tab-content container">
             <div class="section-header text-center" style="margin-bottom: 1.8rem;">
                 <h2 id="pesanan-title">Lacak & Riwayat Pesanan</h2>
-                <p id="pesanan-subtitle">Ketuk kartu pesanan di bawah untuk membuka E-Receipt, menyalin akun/password satu klik, atau melanjutkan pembayaran.</p>
+                <p id="pesanan-subtitle">Ketuk kartu pesanan di bawah untuk membuka E-Receipt, menyalin akun/password satu klik, melanjutkan pembayaran, atau membatalkan pesanan aktif.</p>
             </div>
 
             <!-- BANNER UPGRADE AKUN ANONIM DI HALAMAN RIWAYAT PESANAN -->
@@ -330,7 +331,7 @@
                     <div class="form-group" style="margin-bottom: 0;">
                         <label for="track-id"><i class="fa-solid fa-file-invoice"></i> Nomor Invoice</label>
                         <div style="display: flex; gap: 8px;">
-                            <input type="text" id="track-id" class="form-control" placeholder="VP-123456" style="text-transform: uppercase; font-weight: 800;">
+                            <input type="text" id="track-id" class="form-control" placeholder="VP-123456" style="text-transform: uppercase; font-weight: 800;" onkeypress="if(event.key === 'Enter') window.trackOrder()">
                             <button id="btn-track-order" aria-label="Cari Pesanan" class="btn btn-primary" onclick="window.trackOrder()" style="padding: 0 18px; white-space:nowrap;">
                                 <i class="fa-solid fa-magnifying-glass"></i> <span>Buka Struk</span>
                             </button>
@@ -347,7 +348,7 @@
                 <div class="history-toolbar">
                     <div>
                         <h3><i class="fa-solid fa-clock-rotate-left text-primary"></i> Daftar Riwayat Transaksi</h3>
-                        <small style="color:var(--text-muted); font-weight:600;">Klik kartu transaksi untuk melihat detail E-Receipt & menyalin data akun</small>
+                        <small style="color:var(--text-muted); font-weight:600;">Klik kartu transaksi untuk melihat detail E-Receipt, menyalin data akun, atau membatalkan tagihan</small>
                     </div>
                     <button class="btn btn-outline btn-sm" onclick="window.refreshOrderData()">
                         <i class="fa-solid fa-rotate-right"></i> Segarkan
@@ -359,6 +360,7 @@
                     <button class="hist-pill" onclick="window.filterUserHistory('UNPAID', this)">Belum Bayar</button>
                     <button class="hist-pill" onclick="window.filterUserHistory('PENDING', this)">Menunggu Kasir / Proses</button>
                     <button class="hist-pill" onclick="window.filterUserHistory('SUCCESS', this)">Selesai</button>
+                    <button class="hist-pill" onclick="window.filterUserHistory('FAILED', this)">Batal / Expired</button>
                 </div>
 
                 <div class="order-history-list" id="user-order-grid"></div>
@@ -457,7 +459,7 @@
                     <h3>Gabung Saluran WhatsApp Vipercell!</h3>
                     <p>Dapatkan notifikasi restock akun premium murah, bagi-bagi voucher diskon, dan info menarik langsung di WhatsApp kamu.</p>
                 </div>
-                <a id="btn-wa-channel" href="#" target="_blank" class="btn btn-success">
+                <a id="btn-wa-channel" href="#" target="_blank" rel="noopener noreferrer" class="btn btn-success">
                     <i class="fa-brands fa-whatsapp"></i> Gabung Saluran WA
                 </a>
             </div>
@@ -492,7 +494,7 @@
                     </div>
 
                     <div id="full-news-img-wrap" class="article-hero-image-box" style="display:none;">
-                        <img id="full-news-img" src="" alt="Gambar Artikel">
+                        <img id="full-news-img" src="" alt="Gambar Artikel" decoding="async">
                     </div>
 
                     <div id="full-news-body" class="article-content-body"></div>
@@ -524,7 +526,7 @@
                 <div class="upgrade-banner-left">
                     <div class="upgrade-banner-icon"><i class="fa-solid fa-user-shield"></i></div>
                     <div>
-                        <strong>Ubah Akun Anonim Menjadi Member Resmi (Verifikasi OTP)</strong>
+                        <strong>Ubah Akun Anonim Menjadi Member Resmi (Verifikasi OTP Email)</strong>
                         <p>Simpan seluruh riwayat pesanan dan garansi di perangkat ini secara permanen dengan mengaitkan Email & Password.</p>
                     </div>
                 </div>
@@ -657,7 +659,7 @@
             
             <div class="checkout-wrapper">
                 <div class="checkout-brand-header">
-                    <img id="buy-brand-img" src="" alt="Brand Produk" width="76" height="76" class="checkout-brand-logo">
+                    <img id="buy-brand-img" src="" alt="Brand Produk" width="76" height="76" class="checkout-brand-logo" decoding="async">
                     <div class="checkout-brand-meta">
                         <div style="display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin-bottom:6px;">
                             <span id="buy-brand-badge" class="brutal-tag tag-primary">PRODUK</span>
@@ -706,7 +708,7 @@
                                     </div>
                                     <!-- Quick Search Varian (Muncul otomatis jika varian > 6) -->
                                     <div id="variant-search-wrap" style="display:none; min-width: 210px;">
-                                        <input type="text" id="variant-quick-search" class="form-control" style="padding: 6px 12px; font-size: 0.78rem;" placeholder="🔍 Cari paket (Cth: 1 Bulan / Sharing)..." oninput="window.filterCheckoutVariants()">
+                                        <input type="text" id="variant-quick-search" class="form-control" style="padding: 6px 12px; font-size: 0.78rem;" placeholder="🔍 Cari paket (Cth: 1 Bulan / Sharing)..." oninput="window.filterCheckoutVariants()" autocomplete="off">
                                     </div>
                                 </div>
                                 <div id="buy-item-grid" class="item-selection-grid"></div>
@@ -730,9 +732,9 @@
                                         <small id="buy-qty-subtext" style="color:var(--text-muted); font-size:0.75rem;">Kuantitas item</small>
                                     </div>
                                     <div class="qty-stepper">
-                                        <button class="btn-icon-only" style="width:36px; height:36px;" onclick="window.changeBuyQty(-1)"><i class="fa-solid fa-minus"></i></button>
-                                        <input type="number" id="buy-qty" value="1" min="1" readonly class="qty-input">
-                                        <button class="btn-icon-only" style="width:36px; height:36px;" onclick="window.changeBuyQty(1)"><i class="fa-solid fa-plus"></i></button>
+                                        <button class="btn-icon-only" style="width:36px; height:36px;" onclick="window.changeBuyQty(-1)" aria-label="Kurangi Jumlah"><i class="fa-solid fa-minus"></i></button>
+                                        <input type="number" id="buy-qty" value="1" min="1" readonly class="qty-input" aria-label="Jumlah Item">
+                                        <button class="btn-icon-only" style="width:36px; height:36px;" onclick="window.changeBuyQty(1)" aria-label="Tambah Jumlah"><i class="fa-solid fa-plus"></i></button>
                                     </div>
                                 </div>
 
@@ -746,8 +748,9 @@
                                 </div>
                                 
                                 <div id="buy-email-group" class="form-group" style="margin-top: 0.8rem;">
-                                    <label for="buy-email"><i class="fa-solid fa-envelope text-primary"></i> Email Aktif (Bukti Struk & Akun) <span style="color:var(--danger)">*</span></label>
+                                    <label for="buy-email"><i class="fa-solid fa-envelope text-primary"></i> Email Aktif (Kirim Struk & Data Akun Otomatis) <span style="color:var(--danger)">*</span></label>
                                     <input type="email" id="buy-email" class="form-control" placeholder="nama@email.com" required>
+                                    <small class="form-helper">Bukti transaksi & detail akun otomatis dikirim ke alamat email ini.</small>
                                 </div>
 
                                 <div id="buy-phone-group" class="form-group" style="margin-top: 0.8rem;">
@@ -842,7 +845,7 @@
         </div>
 
         <!-- ==========================================================================
-             [FEATURE-07] TAB 6B: LAYAR PEMBAYARAN QRIS FULL-SCREEN + AUTO-DESTROY SAAT EXPIRED
+             [FEATURE-07] TAB 6B: LAYAR PEMBAYARAN QRIS FULL-SCREEN + TOMBOL BATAL PESANAN
              ID Elemen : #tab-payment-qris, #qris-fullscreen-card, #qris-expired-state
              ========================================================================== -->
         <div id="tab-payment-qris" class="main-tab-content container" style="padding-top: 1.2rem;">
@@ -874,7 +877,7 @@
                     </div>
                 </div>
 
-                <!-- STATE AKTIF: KARTU UTAMA QRIS NEO-BRUTALIST (DIHANCURKAN OTOMATIS SAAT EXPIRED) -->
+                <!-- STATE AKTIF: KARTU UTAMA QRIS NEO-BRUTALIST (DIHANCURKAN OTOMATIS SAAT EXPIRED / BATAL) -->
                 <div id="qris-fullscreen-card" class="qris-fs-main-grid">
                     <!-- Kolom Kiri: Kanvas QRIS Resmi & Nama Merchant Tag 59 -->
                     <div class="qris-fs-left-col">
@@ -895,7 +898,7 @@
                         </div>
                     </div>
 
-                    <!-- Kolom Kanan: Rincian Tagihan Nominal Unik & Live Listener -->
+                    <!-- Kolom Kanan: Rincian Tagihan Nominal Unik, Live Listener & Tombol Batal Pesanan -->
                     <div class="qris-fs-right-col">
                         <div class="brutal-panel" style="margin-bottom: 1.1rem;">
                             <div class="brutal-panel-title">
@@ -928,39 +931,53 @@
                             </small>
                         </div>
 
-                        <!-- Indikator Live Listener MacroDroid -->
+                        <!-- Indikator Live Listener MacroDroid + Tombol Cek Instan -->
                         <div class="qris-live-listener-box">
                             <span class="live-pulse-dot"></span>
-                            <div>
+                            <div style="flex:1; min-width:0;">
                                 <strong>Menunggu Pembayaran Otomatis...</strong>
                                 <span>Halaman ini akan terbuka otomatis begitu transfer QRIS kamu masuk.</span>
                             </div>
+                            <button type="button" id="btn-check-payment-now" class="btn btn-outline btn-sm" onclick="window.manualCheckQrisPaymentStatus()" title="Segarkan Status Pembayaran">
+                                <i class="fa-solid fa-rotate"></i> Cek Status
+                            </button>
                         </div>
 
                         <div class="qris-action-row" style="margin-top: 1.1rem;">
                             <button id="btn-download-qris" class="btn btn-outline" style="flex:1;" onclick="window.downloadQRIS()">
-                                <i class="fa-solid fa-download"></i> Unduh Gambar QRIS
+                                <i class="fa-solid fa-download"></i> Unduh QRIS
                             </button>
                             <button aria-label="Sudah Bayar" id="btn-final-pay" class="btn btn-success" style="flex:1.3;" onclick="window.goToPesananFromPay()">
-                                <i class="fa-solid fa-circle-check"></i> Cek Status Pesanan
+                                <i class="fa-solid fa-circle-check"></i> Lihat E-Receipt
+                            </button>
+                        </div>
+
+                        <!-- FITUR BARU: TOMBOL BATALKAN PESANAN TANPA TUNGGU EXPIRED -->
+                        <div class="qris-cancel-box">
+                            <div class="qris-cancel-info">
+                                <i class="fa-solid fa-circle-question text-danger"></i>
+                                <span>Ingin ganti varian produk, ubah data tujuan, atau ganti metode bayar?</span>
+                            </div>
+                            <button type="button" id="btn-cancel-qris-order" class="btn btn-danger btn-sm" onclick="window.cancelActiveOrder()">
+                                <i class="fa-solid fa-ban"></i> Batalkan Pesanan Ini
                             </button>
                         </div>
                     </div>
                 </div>
 
-                <!-- STATE EXPIRED: MUNCUL SAAT WAKTU HABIS & QRIS DIHANCURKAN TOTAL DARI DOM -->
+                <!-- STATE EXPIRED / CANCELLED: MUNCUL SAAT WAKTU HABIS ATAU DIBATALKAN USER -->
                 <div id="qris-expired-state" class="qris-expired-card" style="display: none;">
                     <div class="expired-icon-box">
                         <i class="fa-solid fa-ban"></i>
                     </div>
-                    <span class="status-badge status-failed" style="margin-bottom: 8px;"> TRANSAKSI KEDALUWARSA (EXPIRED) </span>
-                    <h2>Waktu Pembayaran Habis</h2>
-                    <p>
+                    <span id="qris-expired-badge" class="status-badge status-failed" style="margin-bottom: 8px;"> TRANSAKSI KEDALUWARSA (EXPIRED) </span>
+                    <h2 id="qris-expired-title">Waktu Pembayaran Habis</h2>
+                    <p id="qris-expired-desc">
                         Kode QRIS untuk tagihan ini telah <b>dihapus dan dinonaktifkan secara permanen</b> demi keamanan transaksi. Mohon jangan melakukan transfer ke kode QR sebelumnya.
                     </p>
                     <div class="expired-actions">
                         <button class="btn btn-primary" onclick="window.recreateExpiredOrder()">
-                            <i class="fa-solid fa-rotate-right"></i> Buat Pesanan Baru
+                            <i class="fa-solid fa-rotate-right"></i> Buat Pesanan Baru Sekarang
                         </button>
                         <button class="btn btn-outline" onclick="window.switchMainTab('katalog')">
                             <i class="fa-solid fa-store"></i> Kembali ke Katalog
@@ -976,15 +993,15 @@
         <div id="tab-auth" class="main-tab-content container">
             <div class="auth-modern-wrapper reveal">
                 <div class="auth-promo-side hide-mobile">
-                    <span class="auth-side-badge">SELAMAT DATANG DI VIPERCELL V25</span>
+                    <span class="auth-side-badge">SELAMAT DATANG DI VIPERCELL V25.1</span>
                     <h3>Satu Platform untuk Semua Kebutuhan Digitalmu.</h3>
                     <p>Pilih metode aksesmu: masuk menggunakan akun Member untuk menyimpan riwayat E-Receipt permanen, atau masuk cepat sebagai Anonim.</p>
                     <div class="auth-benefit-list">
                         <div class="auth-benefit-item">
                             <i class="fa-solid fa-clock-rotate-left"></i>
                             <div>
-                                <strong>Riwayat E-Receipt Otomatis</strong>
-                                <span>Tidak takut lupa atau kehilangan kode Invoice pesanan.</span>
+                                <strong>Riwayat E-Receipt & Email Otomatis</strong>
+                                <span>Tidak takut lupa atau kehilangan kode Invoice & akun pesanan.</span>
                             </div>
                         </div>
                         <div class="auth-benefit-item">
@@ -998,7 +1015,7 @@
                             <i class="fa-solid fa-shield-halved"></i>
                             <div>
                                 <strong>Proteksi 1 HP 1 Akun Anonim</strong>
-                                <span>Bisa belanja cepat tanpa daftar dan dikaitkan jadi Member kapan saja.</span>
+                                <span>Bisa belanja cepat tanpa daftar dan dikaitkan jadi Member kapan saja via OTP Email.</span>
                             </div>
                         </div>
                     </div>
@@ -1025,15 +1042,15 @@
                             <label for="auth-l-email">Alamat Email</label>
                             <div class="input-icon-wrap">
                                 <i class="fa-regular fa-envelope"></i>
-                                <input type="email" id="auth-l-email" class="form-control" placeholder="nama@email.com">
+                                <input type="email" id="auth-l-email" class="form-control" placeholder="nama@email.com" autocomplete="email">
                             </div>
                         </div>
                         <div class="form-group">
                             <label for="auth-l-pass">Kata Sandi</label>
                             <div class="input-icon-wrap">
                                 <i class="fa-solid fa-lock"></i>
-                                <input type="password" id="auth-l-pass" class="form-control" placeholder="Masukkan kata sandi" onkeypress="if(event.key === 'Enter') window.processLogin()">
-                                <button type="button" class="pass-eye-btn" onclick="window.togglePassVisibility('auth-l-pass', this)"><i class="fa-regular fa-eye"></i></button>
+                                <input type="password" id="auth-l-pass" class="form-control" placeholder="Masukkan kata sandi" autocomplete="current-password" onkeypress="if(event.key === 'Enter') window.processLogin()">
+                                <button type="button" class="pass-eye-btn" onclick="window.togglePassVisibility('auth-l-pass', this)" aria-label="Tampilkan Sandi"><i class="fa-regular fa-eye"></i></button>
                             </div>
                         </div>
                         <div style="text-align: right; margin-bottom: 1.3rem;">
@@ -1051,29 +1068,29 @@
                             <label for="auth-r-name">Nama Lengkap / Panggilan</label>
                             <div class="input-icon-wrap">
                                 <i class="fa-regular fa-user"></i>
-                                <input type="text" id="auth-r-name" class="form-control" placeholder="Siapa nama panggilanmu?">
+                                <input type="text" id="auth-r-name" class="form-control" placeholder="Siapa nama panggilanmu?" autocomplete="name">
                             </div>
                         </div>
                         <div class="form-group">
                             <label for="auth-r-phone">Nomor WhatsApp / HP Aktif</label>
                             <div class="input-icon-wrap">
                                 <i class="fa-brands fa-whatsapp"></i>
-                                <input type="tel" id="auth-r-phone" class="form-control" placeholder="Contoh: 081234567890">
+                                <input type="tel" id="auth-r-phone" class="form-control" placeholder="Contoh: 081234567890" autocomplete="tel">
                             </div>
                         </div>
                         <div class="form-group">
                             <label for="auth-r-email">Alamat Email Aktif</label>
                             <div class="input-icon-wrap">
                                 <i class="fa-regular fa-envelope"></i>
-                                <input type="email" id="auth-r-email" class="form-control" placeholder="nama@email.com">
+                                <input type="email" id="auth-r-email" class="form-control" placeholder="nama@email.com" autocomplete="email">
                             </div>
                         </div>
                         <div class="form-group">
                             <label for="auth-r-pass">Buat Kata Sandi (Min. 6 Karakter)</label>
                             <div class="input-icon-wrap">
                                 <i class="fa-solid fa-lock"></i>
-                                <input type="password" id="auth-r-pass" class="form-control" placeholder="Minimal 6 karakter" onkeypress="if(event.key === 'Enter') window.processRegister()">
-                                <button type="button" class="pass-eye-btn" onclick="window.togglePassVisibility('auth-r-pass', this)"><i class="fa-regular fa-eye"></i></button>
+                                <input type="password" id="auth-r-pass" class="form-control" placeholder="Minimal 6 karakter" autocomplete="new-password" onkeypress="if(event.key === 'Enter') window.processRegister()">
+                                <button type="button" class="pass-eye-btn" onclick="window.togglePassVisibility('auth-r-pass', this)" aria-label="Tampilkan Sandi"><i class="fa-regular fa-eye"></i></button>
                             </div>
                         </div>
                         
@@ -1089,7 +1106,7 @@
                             <label for="auth-res-email">Email Terdaftar</label>
                             <div class="input-icon-wrap">
                                 <i class="fa-regular fa-envelope"></i>
-                                <input type="email" id="auth-res-email" class="form-control" placeholder="nama@email.com">
+                                <input type="email" id="auth-res-email" class="form-control" placeholder="nama@email.com" autocomplete="email">
                             </div>
                         </div>
                         
@@ -1120,19 +1137,19 @@
             <div class="container footer-inner">
                 <div class="footer-left">
                     <div class="footer-brand">
-                        <img id="footer-logo-img-2" src="" alt="Footer Logo" width="36" height="36" style="display:none;" class="logo-img">
+                        <img id="footer-logo-img-2" src="" alt="Footer Logo" width="36" height="36" style="display:none;" class="logo-img" decoding="async">
                         <h2 id="footer-logo-text-2">VIPER<span>CELL</span></h2>
                     </div>
                     <div class="footer-tagline">Pusat Aplikasi Premium, Top Up Game & Tools Digital &bull; Otomatis 24/7 &bull; Bergaransi</div>
                     <div class="footer-social-links">
-                        <a href="#" id="footer-ig-btn" class="soc-btn soc-ig" target="_blank" style="display:none;" aria-label="Instagram"><i class="fa-brands fa-instagram"></i> Instagram</a>
-                        <a href="#" id="footer-tt-btn" class="soc-btn soc-tt" target="_blank" style="display:none;" aria-label="TikTok"><i class="fa-brands fa-tiktok"></i> TikTok</a>
+                        <a href="#" id="footer-ig-btn" class="soc-btn soc-ig" target="_blank" rel="noopener noreferrer" style="display:none;" aria-label="Instagram"><i class="fa-brands fa-instagram"></i> Instagram</a>
+                        <a href="#" id="footer-tt-btn" class="soc-btn soc-tt" target="_blank" rel="noopener noreferrer" style="display:none;" aria-label="TikTok"><i class="fa-brands fa-tiktok"></i> TikTok</a>
                     </div>
                 </div>
                 
                 <div class="footer-right">
                     <span style="font-weight:800; color:var(--text);">Butuh Bantuan Langsung?</span>
-                    <a href="#" id="footer-wa-link" target="_blank" class="wa-contact-btn" title="Customer Service / Bantuan" aria-label="WhatsApp Bantuan">
+                    <a href="#" id="footer-wa-link" target="_blank" rel="noopener noreferrer" class="wa-contact-btn" title="Customer Service / Bantuan" aria-label="WhatsApp Bantuan">
                         <i class="fa-brands fa-whatsapp"></i> <span id="footer-wa-display">Hubungi WhatsApp CS</span>
                     </a>
                 </div>
@@ -1182,24 +1199,24 @@
 
                 <div class="form-group">
                     <label for="upg-name">Nama Lengkap / Panggilan <span style="color:var(--danger)">*</span></label>
-                    <input type="text" id="upg-name" class="form-control" placeholder="Contoh: Budi Santoso">
+                    <input type="text" id="upg-name" class="form-control" placeholder="Contoh: Budi Santoso" autocomplete="name">
                 </div>
                 <div class="form-group">
                     <label for="upg-phone"><i class="fa-brands fa-whatsapp text-success"></i> Nomor WhatsApp Aktif <span style="color:var(--danger)">*</span></label>
-                    <input type="tel" id="upg-phone" class="form-control" placeholder="Contoh: 081234567890">
+                    <input type="tel" id="upg-phone" class="form-control" placeholder="Contoh: 081234567890" autocomplete="tel">
                 </div>
                 <div class="form-group">
                     <label for="upg-email">Alamat Email Aktif (Untuk Terima Kode OTP) <span style="color:var(--danger)">*</span></label>
-                    <input type="email" id="upg-email" class="form-control" placeholder="email@kamu.com">
+                    <input type="email" id="upg-email" class="form-control" placeholder="email@kamu.com" autocomplete="email">
                 </div>
                 <div class="grid-2col-form" style="grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 1.2rem;">
                     <div class="form-group" style="margin-bottom:0;">
                         <label for="upg-pass">Password Baru <span style="color:var(--danger)">*</span></label>
-                        <input type="password" id="upg-pass" class="form-control" placeholder="Min. 6 Karakter">
+                        <input type="password" id="upg-pass" class="form-control" placeholder="Min. 6 Karakter" autocomplete="new-password">
                     </div>
                     <div class="form-group" style="margin-bottom:0;">
                         <label for="upg-pass-confirm">Ulangi Password <span style="color:var(--danger)">*</span></label>
-                        <input type="password" id="upg-pass-confirm" class="form-control" placeholder="Konfirmasi">
+                        <input type="password" id="upg-pass-confirm" class="form-control" placeholder="Konfirmasi" autocomplete="new-password">
                     </div>
                 </div>
 
@@ -1214,12 +1231,15 @@
                     <i class="fa-solid fa-envelope-circle-check"></i>
                 </div>
                 <h3 style="font-size:1.15rem; font-weight:900; margin-bottom:4px;">Masukkan Kode OTP 6 Digit</h3>
-                <p style="font-size:0.82rem; color:var(--text-muted); font-weight:600; margin-bottom: 1rem;">
+                <p style="font-size:0.82rem; color:var(--text-muted); font-weight:600; margin-bottom: 0.6rem;">
                     Kode verifikasi telah dikirim ke <b id="upg-otp-target-email" class="text-primary">-</b>. Berlaku selama 5 menit.
                 </p>
+                <div id="upg-otp-delivery-hint" class="otp-spam-hint">
+                    <i class="fa-solid fa-circle-info text-primary"></i> Cek <b>Kotak Masuk (Inbox)</b> atau folder <b>Spam / Promosi</b> di aplikasi Email kamu.
+                </div>
 
-                <div class="form-group">
-                    <input type="text" id="upg-otp-input" class="form-control otp-code-input" maxlength="6" placeholder="000000" inputmode="numeric" autocomplete="one-time-code">
+                <div class="form-group" style="margin-top: 12px;">
+                    <input type="text" id="upg-otp-input" class="form-control otp-code-input" maxlength="6" placeholder="000000" inputmode="numeric" autocomplete="one-time-code" onkeypress="if(event.key === 'Enter') window.verifyOtpAndUpgradeMember()">
                 </div>
 
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.2rem; font-size:0.78rem; font-weight:700;">
@@ -1239,7 +1259,7 @@
     </div>
 
     <!-- ==========================================================================
-         MODAL TIKET BARCODE PEMBAYARAN TUNAI
+         MODAL TIKET BARCODE PEMBAYARAN TUNAI + TOMBOL BATALKAN PESANAN
          ========================================================================== -->
     <div class="modal-overlay" id="modal-cash-barcode">
         <div class="modal-content qris-fintech-modal">
@@ -1289,6 +1309,11 @@
                     <i class="fa-solid fa-headset"></i> Hubungi Kasir / Admin
                 </button>
             </div>
+
+            <!-- TOMBOL BATALKAN TIKET TUNAI -->
+            <button type="button" id="btn-cancel-cash-order" class="btn btn-danger btn-sm" style="width:100%; margin-top:10px;" onclick="window.cancelActiveOrder()">
+                <i class="fa-solid fa-ban"></i> Batalkan Tiket Pesanan Ini
+            </button>
         </div>
     </div>
 
@@ -1331,7 +1356,7 @@
         </div>
     </div>
 
-    <!-- Script Utama Web User V25.0 -->
+    <!-- Script Utama Web User V25.1 -->
     <script type="module" src="js/store.js" defer></script>
 
     <!-- SCRIPT PWA & UTILITAS HALAMAN -->
