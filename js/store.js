@@ -1,30 +1,6 @@
 /* ============================================================================
- * VIPERCELL V27.0 - STOREFRONT ENGINE (WEB USER - NEO-BRUTALISM V3)
+ * VIPERCELL - STOREFRONT ENGINE (WEB USER)
  * Nama File : js/store.js
- * Standar Arsitektur : Modular Feature Blocks ([FEATURE-01] s/d [FEATURE-25])
- * Pembaruan Utama V27.0:
- *  1. Tanpa Panel Pop-Up Mengambang (Full-Page Seamless View & Top Inline Banner)
- *  2. Hapus Tombol Kirim Email di Riwayat Transaksi Web User (Khusus di Admin)
- *  3. Otomatis Kirim Email Saat Stok Lokal Terkirim + Lacak Cukup Input ID Trx Saja
- *  4. Akun Anonim Terhapus Otomatis Setiap 6 Jam (Bisa Dihidupkan/Dimatikan Admin)
- *  5. Halaman & Alur Ubah Kata Sandi via Link Google Apps Script (Neo-Brutalism V3)
- *  6. Navigasi Mode Desktop Kapsul Lingkaran Penuh
- *  7. Efek Transisi Halus Tema Terang <-> Gelap
- *  8. Katalog Utama Tampil Semua + Tombol "Lihat Selengkapnya" & "Tutup Kembali" Variasi
- *  9. Dukungan Mega Footer Enterprise & Status Server Real-Time
- * 10. Perbaikan Permanen Bug Tiba-Tiba Ter-Logout ("Akun Telah Dihapus oleh Admin")
- * 11. Running Text Info Multi-Pesan (Hingga 6 Pesan) Interaktif Klik ke Promo/Berita
- * 12. Frosted Glass Translucent Preloader (Anti-Bocor & Cepat)
- * 13. Kode Promo: Pilihan Semua User atau Khusus Member Resmi (Non-Anonim)
- * 14. Sembunyikan Kolom Isi Email & No HP Saat Checkout untuk Member Resmi
- * 15. Tombol Upgrade Akun Anonim ke Member Resmi HANYA Ada di Tab Profil
- * 16. Perbaikan Favicon & Meta Icon Logo Web agar Selalu Tampil di Link Web
- * 17. Format Stok Produk Email ("email|password|refresh_token|client_id" + Link Akses Tanpa Login + Copy Utuh)
- * 18. Stok Produk Otomatis dari Tab Stok + 3 Mode (Otomatis, Manual, Tanya & Otomatis)
- * 19. Kode Promo Hanya Bisa 1 Email 1x Pakai
- * 20, 23, 24. Tampilan Baru Tab CS Bantuan & Panel Chat (Tanpa Pesan Cepat di Sisi User)
- * 21, 25. Sistem UI Neo-Brutalism V3 & Tipografi Multi-Font Estetik
- * 22. Isolasi Penuh Data Email & Transaksi Sesi Anonim Baru vs Akun Member di HP Sama
  * ============================================================================ */
 
 import { 
@@ -51,34 +27,33 @@ const pathChats = isWorkspace ? `artifacts/${appId}/public/data/chats` : 'chats'
 const pathReviews = isWorkspace ? `artifacts/${appId}/public/data/reviews` : 'reviews';
 const pathStocks = isWorkspace ? `artifacts/${appId}/public/data/stocks` : 'stocks';
 const pathDeviceLocks = isWorkspace ? `artifacts/${appId}/public/data/device_locks` : 'device_locks';
-const pathDeletedAccounts = isWorkspace ? `artifacts/${appId}/public/data/deleted_accounts` : 'deleted_accounts';
 const pathMutations = isWorkspace ? `artifacts/${appId}/public/data/payment_mutations` : 'payment_mutations';
 
 const fallbackSettingsPath = isWorkspace ? 'settings' : `artifacts/${appId}/public/data/settings`;
 
-// Konstanta Durasi Auto-Delete Anonim 6 Jam (21.600.000 ms)
+// Durasi pembersihan sesi tamu otomatis di latar belakang (6 jam)
 const ANON_AUTO_DELETE_TTL_MS = 6 * 60 * 60 * 1000;
 
-// SVG Default Favicon Vipercell V27 ([FEATURE-16])
+// SVG Default Favicon Vipercell
 const DEFAULT_VIPERCELL_SVG_ICON = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' rx='116' fill='%232563eb' stroke='%230f172a' stroke-width='28'/%3E%3Cpath d='M298 88L136 288h116l-44 136 168-200H260l38-136z' fill='%23facc15' stroke='%230f172a' stroke-width='18' stroke-linejoin='round'/%3E%3C/svg%3E";
 
 // ==========================================
-// STATE & VARIABEL GLOBAL (V27.0)
+// STATE & VARIABEL GLOBAL
 // ==========================================
 let products = [];
 let groupedBrands = []; 
 let orders = [];
 let promos = [];
 let reviewsData = [];
-let liveReadyStocksMap = {}; // Peta stok Ready dari koleksi `stocks` ([FEATURE-18])
+let liveReadyStocksMap = {};
 
 let siteSettings = { 
     logoText: 'VIPER',
     logoAccent: 'CELL',
     logoImgBase64: '',
     pwaIconBase64: '',
-    marquee: 'Selamat Datang di Vipercell V27! Layanan Otomatis 24 Jam.',
-    marqueeList: [], // Hingga 6 pesan interaktif ([FEATURE-11])
+    marquee: 'Selamat datang di Vipercell.',
+    marqueeList: [],
     qrisStringData: '',
     emailWebhookUrl: '',
     webhookSecret: 'VIPERCELL_SECRET_2026',
@@ -89,8 +64,12 @@ let siteSettings = {
     banners: [],
     isStoreOpen: true,
     waChannelLink: '',
-    anonAutoDelete6h: true, // Fitur Auto-Delete Anonim setiap 6 jam ([FEATURE-04])
-    defaultEmailPortalUrl: '', // Link akses web ambil kode email tanpa login ([FEATURE-17])
+    anonAutoDelete6h: true,
+    // Pengaturan Jam Operasional Toko (#20)
+    opHoursEnabled: false,
+    opOpenTime: '08:00',
+    opCloseTime: '22:00',
+    localStockOnlyMode: false,
     deletedUids: [],
     blockedUids: [],
     blockedDevices: []
@@ -123,19 +102,19 @@ let lastSuccessOrderCount = -1;
 let currentOpenedArticle = null;
 let parsedMarqueeSlots = [];
 
-// Smart Accordion & Filter States ([FEATURE-08])
+// Filter & Accordion States
 let currentBrandFilter = 'all';
 let currentSearchQuery = '';
-let isCatalogExpanded = true; // Katalog utama tampil penuh di V27 ([FEATURE-08])
+let isCatalogExpanded = true;
 let isVariantsExpanded = false;
 let currentVariantSearchQuery = '';
 let currentUserHistoryFilter = 'ALL';
 
-// Timer Debounce untuk Input Pencarian Cepat
+// Debounce Timers
 let catalogSearchDebounceTimer = null;
 let variantSearchDebounceTimer = null;
 
-// State Verifikasi OTP 6-Digit ([FEATURE-02 & FEATURE-15])
+// State Verifikasi OTP 6-Digit
 let pendingUpgradeState = {
     name: '',
     whatsapp: '',
@@ -146,12 +125,13 @@ let pendingUpgradeState = {
 };
 let otpResendTimer = null;
 
-// Registry Cleanup untuk Listener & Timer ([FEATURE-13])
+// Registry Cleanup untuk Listener & Timer
 const activeTimersRegistry = {
     qrisCountdown: null,
     bannerSlider: null,
     preloaderSafety: null,
-    anonSixHourCountdown: null
+    anonSixHourCountdown: null,
+    opHoursWatcher: null
 };
 const activeListenersRegistry = {
     chat: null,
@@ -163,15 +143,16 @@ const activeListenersRegistry = {
 // Preferensi Notifikasi User
 let isUserNotifEnabled = localStorage.getItem('vipercell_user_notif') !== 'off';
 
-// Gembok Anti-Dobel Transaksi, Pengiriman Vault & Ulasan
+// Gembok Anti-Dobel Transaksi, Pengiriman Stok & Email (#12)
 let isProcessingCheckout = false;
 let isCancellingOrder = false;
 let isCheckingPaymentNow = false;
 let isSubmittingReview = false;
 let isUpgradingAccount = false;
-let isSubmittingPasswordReset = false;
 let targetReviewOrderId = null;
 const deliveringOrderIds = new Set();
+const sentEmailOrderIds = new Set();
+const inFlightEmailOrderIds = new Set();
 
 // ==========================================
 // UTILITAS KEAMANAN TEKS & FORMATTER
@@ -191,12 +172,9 @@ function escapeJsStr(str) {
     return String(str).replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/"/g, '&quot;');
 }
 
-/* ============================================================================
- * [FEATURE-22] ISOLASI PENYIMPANAN LOKAL MEMBER VS ANONIM BARU
- * Deskripsi : Memastikan saat HP yang sudah pernah login Member masuk kembali
- *             menggunakan akun Anonim, data email, nomor HP, dan riwayat
- *             transaksinya benar-benar terpisah (dianggap akun Anonim baru).
- * ============================================================================ */
+// ==========================================
+// ISOLASI PENYIMPANAN LOKAL MEMBER VS TAMU
+// ==========================================
 function getActiveSessionStorageEmail() {
     const isMember = Boolean(currentUser && !currentUser.isAnonymous && !userProfile.isGuest);
     if (isMember) {
@@ -224,11 +202,89 @@ function saveActiveSessionContact(email, phone) {
     }
 }
 
-/* ============================================================================
- * [FEATURE-13, 03, 05] CLIENT-SIDE UNIFIED GAS WEBHOOK CALLER (V27.0)
- * Deskripsi : Memanggil Google Apps Script untuk OTP Email, Link Ubah Sandi,
- *             dan Pengiriman Otomatis E-Receipt + Stok Lokal/Email.
- * ============================================================================ */
+// ==========================================
+// PENGECEKAN JAM OPERASIONAL TOKO (#20)
+// ==========================================
+function isLocalStockOnlyRestrictionActive() {
+    if (siteSettings.localStockOnlyMode === true) {
+        return true;
+    }
+    if (!siteSettings.opHoursEnabled) {
+        return false;
+    }
+    const openStr = String(siteSettings.opOpenTime || '').trim();
+    const closeStr = String(siteSettings.opCloseTime || '').trim();
+
+    // Jika jam buka & tutup diatur, periksa apakah waktu sekarang berada di luar jam operasional
+    if (/^\d{1,2}:\d{2}$/.test(openStr) && /^\d{1,2}:\d{2}$/.test(closeStr)) {
+        const [openH, openM] = openStr.split(':').map(Number);
+        const [closeH, closeM] = closeStr.split(':').map(Number);
+        const now = new Date();
+        const curMins = now.getHours() * 60 + now.getMinutes();
+        const openMins = openH * 60 + openM;
+        const closeMins = closeH * 60 + closeM;
+
+        if (openMins === closeMins) {
+            return true;
+        }
+        let isWithinOpenHours = false;
+        if (openMins < closeMins) {
+            isWithinOpenHours = curMins >= openMins && curMins < closeMins;
+        } else {
+            // Lintas tengah malam (contoh 20:00 - 06:00)
+            isWithinOpenHours = curMins >= openMins || curMins < closeMins;
+        }
+        // Jika di luar jam operasional (atau jika mode jam operasional disetel membatasi stok non-lokal), aktifkan pembatasan
+        if (!isWithinOpenHours) {
+            return true;
+        }
+        // Jika admin mengaktifkan sakelar Jam Operasional khusus stok lokal
+        if (siteSettings.opHoursStrictLocalOnly === true) {
+            return true;
+        }
+        return false;
+    }
+
+    // Jika sakelar Jam Operasional diaktifkan tanpa jam spesifik, langsung batasi hanya produk berstok lokal
+    return true;
+}
+
+function getVariantLocalVaultStockCount(item) {
+    if (!item) return 0;
+    let vaultSlots = 0;
+    if (Array.isArray(item.stockVault) && item.stockVault.length > 0) {
+        vaultSlots = item.stockVault.reduce((sum, v) => {
+            if (v.isReusable) return sum + 999;
+            const maxQ = parseInt(v.maxQuota || item.defaultMaxQuota || 1, 10);
+            const usedQ = parseInt(v.usedQuota || 0, 10);
+            return sum + Math.max(0, maxQ - usedQ);
+        }, 0);
+    }
+    const brandKey = makeStockKey(item.brand || item.brandName, item.name);
+    const tabStocksSlots = liveReadyStocksMap[brandKey] || 0;
+    return vaultSlots + tabStocksSlots;
+}
+
+function updateOpHoursBannerUI() {
+    const bannerEl = document.getElementById('op-hours-banner');
+    const textEl = document.getElementById('op-hours-banner-text');
+    if (!bannerEl || !textEl) return;
+
+    const restricted = isLocalStockOnlyRestrictionActive();
+    if (restricted) {
+        const openStr = siteSettings.opOpenTime || '';
+        const closeStr = siteSettings.opCloseTime || '';
+        const timeInfo = (openStr && closeStr) ? ` (Jam layanan manual: ${openStr} - ${closeStr})` : '';
+        textEl.innerText = `Di luar jam layanan manual${timeInfo} — Saat ini hanya melayani produk dengan stok instan yang tersedia.`;
+        bannerEl.style.display = 'flex';
+    } else {
+        bannerEl.style.display = 'none';
+    }
+}
+
+// ==========================================
+// WEBHOOK CALLER & ANTI-DUPLIKAT EMAIL (#12)
+// ==========================================
 async function callUnifiedGasWebhook(payloadObj) {
     const gasWebAppUrl = (siteSettings.emailWebhookUrl || '').trim();
     if (!gasWebAppUrl || !gasWebAppUrl.startsWith('https://script.google.com/')) {
@@ -236,7 +292,6 @@ async function callUnifiedGasWebhook(payloadObj) {
     }
 
     const activeSecret = (siteSettings.webhookSecret || 'VIPERCELL_SECRET_2026').trim();
-
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 18000);
 
@@ -261,15 +316,11 @@ async function callUnifiedGasWebhook(payloadObj) {
         try {
             result = JSON.parse(rawText);
         } catch (parseErr) {
-            throw new Error('Respons server GAS bukan format JSON yang valid. Pastikan Web App di-deploy sebagai "Anyone" (Siapa saja).');
+            throw new Error('Respons server email tidak valid.');
         }
 
         if (!result || (result.ok === false && result.status !== 'ok')) {
-            const errCode = result?.error || '';
-            if (errCode === 'UNAUTHORIZED_SECRET') {
-                throw new Error('Kunci Rahasia (Webhook Secret) di Pengaturan Admin tidak cocok dengan WEBHOOK_SECRET di Google Apps Script.');
-            }
-            throw new Error((result && result.message) || (result && result.error) || 'Gagal menghubungi server GAS Webhook.');
+            throw new Error((result && result.message) || (result && result.error) || 'Gagal menghubungi server email.');
         }
         return result;
     } finally {
@@ -277,14 +328,52 @@ async function callUnifiedGasWebhook(payloadObj) {
     }
 }
 
-// [FEATURE-03] Pengiriman Email Otomatis Saat Stok Lokal Terkirim + Tandai emailSent di Firestore
+// Pengiriman Email Struk & Akun dengan Proteksi Anti-Dobel 3 Lapis (#12)
 async function sendOrderReceiptAndAccountEmail(orderData, accountDetailsText, orderDbId = null) {
+    if (!orderData || !orderData.id) return false;
+    const invKey = String(orderData.id).trim().toUpperCase();
+    const localSentKey = `vipercell_email_sent_${invKey}`;
+
+    // Lapis 1: Cek status di objek order, memori lokal, dan localStorage
+    if (
+        orderData.emailSent === true ||
+        orderData.emailSending === true ||
+        sentEmailOrderIds.has(invKey) ||
+        inFlightEmailOrderIds.has(invKey) ||
+        localStorage.getItem(localSentKey) === '1'
+    ) {
+        return true;
+    }
+
     const gasUrl = (siteSettings.emailWebhookUrl || '').trim();
     const buyerEmail = (orderData.userEmail || orderData.buyerEmail || '').trim();
     if (!gasUrl || !buyerEmail || !buyerEmail.includes('@')) return false;
 
-    // Cegah pengiriman email ganda jika sudah pernah terkirim
-    if (orderData.emailSent === true) return true;
+    const resolvedDbId = orderDbId || orderData.dbId;
+
+    // Lapis 2: Kunci segera di memori dan localStorage sebelum request jaringan dimulai
+    inFlightEmailOrderIds.add(invKey);
+    sentEmailOrderIds.add(invKey);
+    try { localStorage.setItem(localSentKey, '1'); } catch (e) {}
+
+    // Lapis 3: Cek dokumen terbaru di Firestore dan tandai emailSent = true lebih dulu agar tab/perangkat lain tidak ikut mengirim
+    if (resolvedDbId) {
+        try {
+            const latestSnap = await getDoc(doc(db, pathOrders, resolvedDbId));
+            if (latestSnap.exists()) {
+                const latestData = latestSnap.data();
+                if (latestData.emailSent === true || latestData.emailSending === true) {
+                    inFlightEmailOrderIds.delete(invKey);
+                    return true;
+                }
+            }
+            await updateDoc(doc(db, pathOrders, resolvedDbId), {
+                emailSent: true,
+                emailSending: false,
+                emailSentAt: Date.now()
+            }).catch(() => {});
+        } catch (e) {}
+    }
 
     const itemObj = (orderData.items && orderData.items[0]) ? orderData.items[0] : {};
     const finalNominal = Number(orderData.finalTotal || orderData.uniqueTotal || 0);
@@ -301,7 +390,7 @@ async function sendOrderReceiptAndAccountEmail(orderData, accountDetailsText, or
             buyerName: orderData.buyerName || userProfile.name || buyerEmail.split('@')[0],
             productName: itemObj.brandName || orderData.productName || itemObj.name || 'Produk Digital',
             variantName: itemObj.exactItemName || orderData.variantName || itemObj.name || '-',
-            itemName: itemObj.name || 'Layanan Digital Vipercell',
+            itemName: itemObj.name || 'Produk Vipercell',
             totalAmount: finalNominal,
             uniqueTotal: finalNominal,
             totalFormatted: `Rp ${finalNominal.toLocaleString('id-ID')}`,
@@ -310,31 +399,23 @@ async function sendOrderReceiptAndAccountEmail(orderData, accountDetailsText, or
             durationDays: Number(itemObj.durationDays || orderData.durationDays || 0),
             subscriptionEndAt: Number(orderData.subscriptionEndAt || 0)
         });
-
-        const resolvedDbId = orderDbId || orderData.dbId;
-        if (resolvedDbId) {
-            await updateDoc(doc(db, pathOrders, resolvedDbId), {
-                emailSent: true,
-                emailSentAt: Date.now()
-            }).catch(() => {});
-        }
         return true;
     } catch (e) {
-        console.warn("Automated Email Delivery Info:", e.message);
+        // Jika gagal karena jaringan, lepaskan kunci agar Admin masih bisa mengirim dari panel Admin
+        sentEmailOrderIds.delete(invKey);
+        try { localStorage.removeItem(localSentKey); } catch (err) {}
+        if (resolvedDbId) {
+            await updateDoc(doc(db, pathOrders, resolvedDbId), { emailSent: false }).catch(() => {});
+        }
         return false;
+    } finally {
+        inFlightEmailOrderIds.delete(invKey);
     }
 }
 
-// [FEATURE-02] Tombol kirim email di riwayat transaksi user telah dihapus (hanya ada di Admin)
-window.resendOrderEmailReceipt = async function() {
-    window.showToast('Otomatis Terkirim', 'Pengiriman email struk dikelola otomatis oleh sistem & Admin.', 'info');
-};
-
-/* ============================================================================
- * [FEATURE-01 & FEATURE-12] FROSTED GLASS TRANSLUCENT PRE-LOADER GATEKEEPER
- * Deskripsi : Latar belakang transparan agak buram sehingga siluet halaman
- *             terlihat, namun terkunci rapat tanpa bocor dan cepat selesai.
- * ============================================================================ */
+// ==========================================
+// PRE-LOADER & GERBANG LOGIN (#4)
+// ==========================================
 function updatePreloaderStage(percent, statusText, subText = '') {
     const txtEl = document.getElementById('preloader-status-text');
     const fillEl = document.getElementById('preloader-bar-fill');
@@ -342,7 +423,7 @@ function updatePreloaderStage(percent, statusText, subText = '') {
 
     if (txtEl && statusText) txtEl.innerText = statusText;
     if (fillEl) fillEl.style.width = `${Math.min(100, Math.max(8, percent))}%`;
-    if (subEl && subText) subEl.innerText = subText;
+    if (subEl && subText !== undefined) subEl.innerText = subText;
 }
 
 function showPreloaderRetryUI(reasonText) {
@@ -376,35 +457,67 @@ function unlockAppUI() {
         loader.classList.add('hidden');
         setTimeout(() => {
             loader.style.display = 'none';
-        }, 220);
+        }, 180);
     }
 }
 
 function setAuthGateLock(isLocked) {
+    const authTab = document.getElementById('tab-auth');
     if (isLocked) {
         document.body.classList.add('auth-locked');
         document.body.classList.remove('is-member-session');
-        document.querySelectorAll('.main-tab-content').forEach(el => el.classList.remove('active'));
-        const authTab = document.getElementById('tab-auth');
-        if (authTab) authTab.classList.add('active');
+        document.querySelectorAll('.main-tab-content').forEach(el => {
+            el.classList.remove('active');
+            el.style.display = 'none';
+        });
+        if (authTab) {
+            authTab.classList.add('active');
+            authTab.style.display = 'block';
+        }
         window.switchAuthTab('login');
         window.scrollTo({ top: 0, behavior: 'instant' });
     } else {
         document.body.classList.remove('auth-locked');
+        if (authTab) {
+            authTab.classList.remove('active');
+            authTab.style.display = '';
+        }
+        document.querySelectorAll('.main-tab-content').forEach(el => {
+            if (!el.classList.contains('active')) {
+                el.style.display = '';
+            }
+        });
     }
 }
 
 function checkAuthStateFirstLoad() {
     return new Promise((resolve) => {
+        let settled = false;
+        const timer = setTimeout(() => {
+            if (!settled) {
+                settled = true;
+                resolve(auth.currentUser || null);
+            }
+        }, 2200);
         const unsub = onAuthStateChanged(auth, (user) => {
-            unsub();
-            resolve(user);
-        }, () => resolve(null));
+            if (!settled) {
+                settled = true;
+                clearTimeout(timer);
+                unsub();
+                resolve(user);
+            }
+        }, () => {
+            if (!settled) {
+                settled = true;
+                clearTimeout(timer);
+                resolve(null);
+            }
+        });
     });
 }
 
 async function fetchInitialStoreDataWithGatekeeper() {
-    updatePreloaderStage(48, 'Menyiapkan ruang belanja...', 'Menarik konfigurasi toko & katalog produk...');
+    updatePreloaderStage(50, 'Memuat toko...', '');
     const [settingsSnap, productsSnap, ordersSnap, stocksSnap] = await Promise.all([
         getDoc(doc(db, pathSettings, 'mainConfig')).catch(() => null),
         getDocs(collection(db, pathProducts)).catch(() => null),
@@ -424,15 +537,20 @@ async function fetchInitialStoreDataWithGatekeeper() {
     window.applySettingsToUI();
     applyCustomPwaIcon();
 
-    // Hitung peta stok Ready dari koleksi `stocks` ([FEATURE-18])
     if (stocksSnap) {
         rebuildLiveReadyStocksMap(stocksSnap.docs);
     }
 
-    updatePreloaderStage(82, 'Menyiapkan ruang belanja...', 'Menyusun katalog produk & variasi layanan...');
+    updatePreloaderStage(85, 'Memuat produk...', '');
     if (ordersSnap) {
         orders = [];
-        ordersSnap.forEach((d) => orders.push({ dbId: d.id, ...d.data() }));
+        ordersSnap.forEach((d) => {
+            const oData = { dbId: d.id, ...d.data() };
+            if (oData.emailSent === true && oData.id) {
+                sentEmailOrderIds.add(String(oData.id).toUpperCase());
+            }
+            orders.push(oData);
+        });
         orders.sort((a, b) => new Date(b.date) - new Date(a.date));
         lastSuccessOrderCount = orders.filter(o => o.status === 'SUCCESS').length;
     }
@@ -457,26 +575,24 @@ async function initializeAppWithLoader() {
     const themeLbl = document.getElementById('theme-label-text');
     if (themeLbl) themeLbl.innerText = savedTheme === 'dark' ? 'Gelap' : 'Terang';
 
+    // Pastikan panel login siap tampil jika status terkunci
+    setAuthGateLock(true);
+
     if (!navigator.onLine) {
-        updatePreloaderStage(20, 'Koneksi Terputus', 'Periksa sambungan internet perangkat Anda.');
+        updatePreloaderStage(20, 'Koneksi Terputus', 'Periksa sambungan internet kamu.');
         showPreloaderRetryUI('Perangkat sedang offline.');
         return;
     }
 
-    // Safety Timeout Cepat 5.200ms agar preloader transparan tidak pernah terasa lama ([FEATURE-12])
     if (activeTimersRegistry.preloaderSafety) clearTimeout(activeTimersRegistry.preloaderSafety);
     activeTimersRegistry.preloaderSafety = setTimeout(() => {
         if (!isPreloaderFinished) {
-            if (!navigator.onLine) {
-                showPreloaderRetryUI('Waktu tunggu jaringan habis.');
-            } else {
-                unlockAppUI();
-            }
+            unlockAppUI();
         }
-    }, 5200);
+    }, 3800);
 
     try {
-        updatePreloaderStage(25, 'Menyiapkan ruang belanja...', 'Memeriksa sesi perangkat & keamanan V27...');
+        updatePreloaderStage(25, 'Memuat toko...', '');
         await setPersistence(auth, browserLocalPersistence).catch(() => {});
         await initDeviceIdentity();
         const initialUser = await checkAuthStateFirstLoad();
@@ -485,25 +601,10 @@ async function initializeAppWithLoader() {
 
         listenData();
         setupAuthStateListener();
-
-        updatePreloaderStage(95, 'Hampir siap...', 'Menyelesaikan render antarmuka Neo-Brutalism V3...');
-        if (document.fonts && document.fonts.ready) {
-            await Promise.race([
-                document.fonts.ready,
-                new Promise(res => setTimeout(res, 220))
-            ]);
-        }
-
-        // Cek apakah halaman dibuka melalui Link Ubah Sandi Apps Script ([FEATURE-05])
-        const urlParams = new URLSearchParams(window.location.search);
-        const urlAction = (urlParams.get('action') || urlParams.get('mode') || '').toLowerCase();
-        const urlToken = urlParams.get('token') || urlParams.get('oobCode') || '';
-        const urlEmail = urlParams.get('email') || '';
-        const isResetLink = (urlAction === 'reset_password' || urlAction === 'resetpassword' || window.location.hash === '#ubah-sandi');
+        startOpHoursWatcher();
 
         const sessionMode = localStorage.getItem('vipercell_active_session_mode');
-        if (initialUser && !initialUser.isAnonymous) {
-            // Sesi Member Resmi
+        if (initialUser && !initialUser.isAnonymous && sessionMode !== 'logged_out') {
             boundLegacyGuestUid = null;
             await clearMultiLayerToken('vipercell_anon_uid');
             await syncUserProfileFromAuth(initialUser);
@@ -513,9 +614,10 @@ async function initializeAppWithLoader() {
                 localStorage.setItem('vipercell_active_session_mode', 'member');
                 setAuthGateLock(false);
                 window.switchMainTab('katalog');
+            } else {
+                setAuthGateLock(true);
             }
         } else if (sessionMode === 'guest') {
-            // Sesi Anonim
             const expired6h = await checkAndExpireAnonSessionIf6Hours();
             if (!expired6h) {
                 const guestUidToUse = boundLegacyGuestUid || (initialUser?.isAnonymous ? initialUser.uid : `anon_${currentDeviceId}_${Date.now().toString(36).slice(-4)}`);
@@ -531,35 +633,43 @@ async function initializeAppWithLoader() {
                     localStorage.setItem('vipercell_active_session_mode', 'guest');
                     setAuthGateLock(false);
                     window.switchMainTab('katalog');
-                    startAnonSixHourTimer();
+                    startSilentAnonSixHourCleanup();
+                } else {
+                    setAuthGateLock(true);
                 }
             } else {
                 setAuthGateLock(true);
             }
         } else {
+            // Pengguna belum masuk atau sudah keluar -> wajib tampilkan panel login (#4)
             setAuthGateLock(true);
         }
 
-        if (isResetLink) {
-            setTimeout(() => {
-                window.openNeoResetPasswordPage(urlEmail, urlToken);
-            }, 150);
-        }
-
-        updatePreloaderStage(100, 'Siap!', 'Membuka halaman Vipercell V27...');
-        setTimeout(unlockAppUI, 80);
+        updatePreloaderStage(100, 'Siap', '');
+        setTimeout(unlockAppUI, 50);
     } catch (error) {
-        console.error("Gatekeeper Init Error:", error);
+        console.error("Init Error:", error);
         setAuthGateLock(true);
         unlockAppUI();
     }
     observeReveals();
 }
 
-/* ============================================================================
- * [FEATURE-02, 04, 10, 22] AUTH GATE, PERBAIKAN BUG FALSE-LOGOUT ADMIN DELETE,
- * ISOLASI SESI ANONIM BARU VS MEMBER, & AUTO-DELETE ANONIM 6 JAM
- * ============================================================================ */
+function startOpHoursWatcher() {
+    if (activeTimersRegistry.opHoursWatcher) clearInterval(activeTimersRegistry.opHoursWatcher);
+    updateOpHoursBannerUI();
+    activeTimersRegistry.opHoursWatcher = setInterval(() => {
+        updateOpHoursBannerUI();
+        if (currentCheckoutBrand) {
+            renderCheckoutVariantCards();
+            window.calculateDirectBuyTotal();
+        }
+    }, 30000);
+}
+
+// ==========================================
+// IDENTITAS PERANGKAT & PEMBATASAN AKUN
+// ==========================================
 function computeDeviceFingerprint() {
     try {
         const nav = window.navigator || {};
@@ -573,23 +683,6 @@ function computeDeviceFingerprint() {
             `${scr.width || 0}x${scr.height || 0}x${scr.colorDepth || 0}`,
             Intl.DateTimeFormat().resolvedOptions().timeZone || ''
         ];
-
-        try {
-            const canvas = document.createElement('canvas');
-            canvas.width = 200;
-            canvas.height = 40;
-            const ctx = canvas.getContext('2d');
-            if (ctx) {
-                ctx.textBaseline = 'top';
-                ctx.font = '14px Arial';
-                ctx.fillStyle = '#2563eb';
-                ctx.fillRect(10, 5, 80, 25);
-                ctx.fillStyle = '#0f172a';
-                ctx.fillText('VipercellGuardV27', 14, 12);
-                rawTraits.push(canvas.toDataURL().slice(-64));
-            }
-        } catch (e) {}
-
         const combined = rawTraits.join('||');
         let h1 = 0xdeadbeef ^ combined.length;
         let h2 = 0x41c6ce57 ^ combined.length;
@@ -620,29 +713,8 @@ async function readMultiLayerToken(key) {
     return null;
 }
 
-// [FEATURE-10] Pembersihan menyeluruh semua layer penyimpanan agar UID terhapus tidak pernah bangkit lagi
 async function clearMultiLayerToken(key) {
     try { localStorage.removeItem(key); } catch (e) {}
-    try {
-        if ('caches' in window) {
-            const cache = await caches.open('vipercell-guard-token-v25');
-            await cache.delete(`/__guard/${key}`);
-        }
-    } catch (e) {}
-    try {
-        if ('indexedDB' in window) {
-            const req = indexedDB.open('VipercellGuardDB', 1);
-            req.onsuccess = (e) => {
-                try {
-                    const idb = e.target.result;
-                    if (idb.objectStoreNames.contains('tokens')) {
-                        const tx = idb.transaction('tokens', 'readwrite');
-                        tx.objectStore('tokens').delete(key);
-                    }
-                } catch (err) {}
-            };
-        }
-    } catch (e) {}
 }
 
 async function initDeviceIdentity() {
@@ -666,17 +738,6 @@ async function initDeviceIdentity() {
     return currentDeviceId;
 }
 
-/* ============================================================================
- * [FEATURE-10] PERBAIKAN MATANG BUG TIBA-TIBA TER-LOGOUT SENDIRI
- * Deskripsi :
- * 1. Memastikan jika user login sebagai Member Resmi, effectiveUid HANYA
- *    menggunakan UID Member (tidak pernah menggunakan boundLegacyGuestUid).
- * 2. Jika UID anonim lama sudah masuk deletedUids saat startup, cukup bersihkan
- *    token lama secara diam-diam dan izinkan sesi baru tanpa menampilkan pesan
- *    palsu "Akun Anda telah dihapus oleh Administrator".
- * 3. Pesan "Akun Dihapus" hanya ditampilkan jika dokumen user sesi aktif saat
- *    ini benar-benar dihapus secara real-time (`isLiveSnapshot === true`).
- * ============================================================================ */
 async function checkRealtimeAccountRestriction(isLiveSnapshot = false) {
     if (!currentDeviceId) await initDeviceIdentity();
 
@@ -694,12 +755,11 @@ async function checkRealtimeAccountRestriction(isLiveSnapshot = false) {
     const isBlocked = blockedUidList.includes(effectiveUid) ||
                       (!isMemberSession && currentDeviceId && blockedDevList.includes(currentDeviceId));
 
-    const isDeleted = deletedList.includes(effectiveUid);
+    // Akun Member yang masuk dengan email/password atau Google tidak boleh ter-logout oleh deletedUids lama
+    const isDeleted = !isMemberSession && deletedList.includes(effectiveUid);
 
     if (!isBlocked && !isDeleted) return false;
 
-    // Jika bukan Member (yaitu sesi Anonim) dan terdeteksi isDeleted saat awal muat halaman (bukan live kick),
-    // bersihkan saja UID anonim usang tanpa memunculkan alert palsu!
     if (!isMemberSession && isDeleted && !isLiveSnapshot) {
         boundLegacyGuestUid = null;
         await clearMultiLayerToken('vipercell_anon_uid');
@@ -725,15 +785,9 @@ async function checkRealtimeAccountRestriction(isLiveSnapshot = false) {
 
         if (isBlocked) {
             window.customAlert(
-                'Akses Akun Diblokir',
-                'Maaf, akun atau perangkat Anda telah diblokir oleh Administrator Vipercell.',
+                'Akses Diblokir',
+                'Maaf, akun atau perangkat kamu telah diblokir oleh Admin.',
                 'error'
-            );
-        } else if (isLiveSnapshot) {
-            window.customAlert(
-                'Sesi Akun Berakhir',
-                'Sesi akun Anda telah ditutup atau dibersihkan oleh Administrator Vipercell. Silakan masuk kembali.',
-                'warning'
             );
         }
         return true;
@@ -745,34 +799,25 @@ function listenDeletedAccountStatus(uid) {
     if (!uid) return;
     if (activeListenersRegistry.deletedAccount) activeListenersRegistry.deletedAccount();
 
-    let isInitialDocSnap = true;
     activeListenersRegistry.deletedAccount = onSnapshot(doc(db, pathUsers, uid), async (docSnap) => {
         if (docSnap.exists()) {
             const uData = docSnap.data();
-            if (uData.isBlocked === true || (uData.isDeleted === true && !isInitialDocSnap)) {
+            if (uData.isBlocked === true) {
                 if (!siteSettings.blockedUids) siteSettings.blockedUids = [];
-                if (uData.isBlocked && !siteSettings.blockedUids.includes(uid)) siteSettings.blockedUids.push(uid);
-                if (!siteSettings.deletedUids) siteSettings.deletedUids = [];
-                if (uData.isDeleted && !siteSettings.deletedUids.includes(uid)) siteSettings.deletedUids.push(uid);
+                if (!siteSettings.blockedUids.includes(uid)) siteSettings.blockedUids.push(uid);
                 await checkRealtimeAccountRestriction(true);
             }
         }
-        isInitialDocSnap = false;
     }, () => {});
 }
 
-/* ============================================================================
- * [FEATURE-04] AUTO-DELETE AKUN ANONIM SETIAP 6 JAM (BISA ON/OFF DARI ADMIN)
- * ============================================================================ */
+// ==========================================
+// PEMBERSIHAN OTOMATIS TAMU 6 JAM TANPA INDIKATOR UI (#14)
+// ==========================================
 async function checkAndExpireAnonSessionIf6Hours() {
     if (siteSettings.anonAutoDelete6h === false) {
-        localStorage.setItem('vipercell_anon_autodelete_disabled', 'true');
-        const card = document.getElementById('anon-ttl-info-card');
-        if (card) card.style.display = 'none';
         return false;
     }
-    localStorage.setItem('vipercell_anon_autodelete_disabled', 'false');
-
     const startedRaw = localStorage.getItem('vipercell_anon_session_started_at');
     if (!startedRaw) return false;
 
@@ -800,18 +845,14 @@ async function checkAndExpireAnonSessionIf6Hours() {
     return false;
 }
 
-function startAnonSixHourTimer() {
+function startSilentAnonSixHourCleanup() {
     if (activeTimersRegistry.anonSixHourCountdown) {
         clearInterval(activeTimersRegistry.anonSixHourCountdown);
         activeTimersRegistry.anonSixHourCountdown = null;
     }
 
-    const card = document.getElementById('anon-ttl-info-card');
-    const timerEl = document.getElementById('anon-ttl-countdown');
-
     const isGuest = Boolean(!currentUser || currentUser.isAnonymous || userProfile.isGuest);
     if (!isGuest || siteSettings.anonAutoDelete6h === false) {
-        if (card) card.style.display = 'none';
         return;
     }
 
@@ -821,45 +862,28 @@ function startAnonSixHourTimer() {
         localStorage.setItem('vipercell_anon_session_started_at', String(startedAt));
     }
 
-    if (card) card.style.display = 'flex';
-
-    const tick = async () => {
+    activeTimersRegistry.anonSixHourCountdown = setInterval(async () => {
         if (siteSettings.anonAutoDelete6h === false || !userProfile.isGuest) {
-            if (card) card.style.display = 'none';
             clearInterval(activeTimersRegistry.anonSixHourCountdown);
             return;
         }
-        const elapsed = Date.now() - startedAt;
-        const remain = ANON_AUTO_DELETE_TTL_MS - elapsed;
-        if (remain <= 0) {
+        if (Date.now() - startedAt >= ANON_AUTO_DELETE_TTL_MS) {
             clearInterval(activeTimersRegistry.anonSixHourCountdown);
             await checkAndExpireAnonSessionIf6Hours();
             await window.logoutUser();
-            window.showToast('Sesi Anonim 6 Jam Berakhir', 'Akun anonim otomatis dihapus setelah 6 jam. Silakan buat sesi baru.', 'warning');
-            return;
         }
-        if (timerEl) {
-            const h = Math.floor(remain / 3600000);
-            const m = Math.floor((remain % 3600000) / 60000);
-            const s = Math.floor((remain % 60000) / 1000);
-            timerEl.innerText = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
-        }
-    };
-
-    tick();
-    activeTimersRegistry.anonSixHourCountdown = setInterval(tick, 1000);
+    }, 30000);
 }
-window.initAnonSixHourCountdownV27 = startAnonSixHourTimer;
 
-/* ============================================================================
- * [FEATURE-22] LOGIN ANONIM TERISOLASI PENUH (DATA BERBEDA DARI MEMBER)
- * ============================================================================ */
+// ==========================================
+// LOGIN ANONIM / TAMU
+// ==========================================
 window.processAnonymousLogin = async function() {
     const btnGuest = document.getElementById('auth-guest-btn');
     const ogHtml = btnGuest ? btnGuest.innerHTML : '';
     if (btnGuest) {
         btnGuest.disabled = true;
-        btnGuest.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> <span>Membuat Sesi Anonim Baru...</span>`;
+        btnGuest.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> <span>Memproses...</span>`;
     }
 
     try {
@@ -867,11 +891,10 @@ window.processAnonymousLogin = async function() {
 
         const blockedDevList = Array.isArray(siteSettings.blockedDevices) ? siteSettings.blockedDevices : [];
         if (blockedDevList.includes(currentDeviceId)) {
-            window.customAlert('Perangkat Diblokir', 'Maaf, akses sesi anonim pada perangkat ini telah diblokir oleh Administrator.', 'error');
+            window.customAlert('Akses Diblokir', 'Maaf, akses pada perangkat ini telah diblokir oleh Admin.', 'error');
             return;
         }
 
-        // [FEATURE-22] Bersihkan jejak sesi Member sebelumnya agar akun Anonim benar-benar baru & terpisah
         localStorage.removeItem('vipercell_track_email');
         localStorage.removeItem('vipercell_track_phone');
         localStorage.removeItem('vipercell_guest_email');
@@ -880,7 +903,9 @@ window.processAnonymousLogin = async function() {
         await clearMultiLayerToken('vipercell_anon_uid');
         boundLegacyGuestUid = null;
 
-        if (auth.currentUser) {
+        localStorage.setItem('vipercell_active_session_mode', 'guest');
+
+        if (auth.currentUser && !auth.currentUser.isAnonymous) {
             await signOut(auth).catch(() => {});
         }
 
@@ -893,7 +918,6 @@ window.processAnonymousLogin = async function() {
             activeUser = { uid: `anon_${currentDeviceId}_${salt}`, isAnonymous: true, email: '' };
         }
 
-        // Pastikan UID anonim unik dan tidak berada di daftar deletedUids
         const deletedUidList = Array.isArray(siteSettings.deletedUids) ? siteSettings.deletedUids : [];
         let effectiveUid = activeUser.uid;
         if (deletedUidList.includes(effectiveUid)) {
@@ -940,7 +964,6 @@ window.processAnonymousLogin = async function() {
             updatedAt: nowMs
         }, { merge: true }).catch(() => {});
 
-        localStorage.setItem('vipercell_active_session_mode', 'guest');
         listenDeletedAccountStatus(effectiveUid);
         setAuthGateLock(false);
         applyUserSessionToUI();
@@ -948,13 +971,13 @@ window.processAnonymousLogin = async function() {
         updateProfileStats();
         checkChatUserState();
         listenUserChat();
-        startAnonSixHourTimer();
+        startSilentAnonSixHourCleanup();
         window.switchMainTab('katalog');
 
-        window.showToast('Sesi Anonim Baru Aktif', `Selamat datang, ${userProfile.name}! Data sesi ini terpisah & aman.`, 'success');
+        window.showToast('Berhasil Masuk', `Selamat datang, ${userProfile.name}`, 'success');
     } catch (err) {
-        console.error("Anonymous Login Error:", err);
-        window.customAlert('Gagal Masuk', 'Terjadi kendala jaringan. Silakan periksa koneksi internet Anda.', 'error');
+        console.error("Guest Login Error:", err);
+        window.customAlert('Gagal Masuk', 'Periksa koneksi internet kamu dan coba lagi.', 'error');
     } finally {
         if (btnGuest && ogHtml) {
             btnGuest.disabled = false;
@@ -962,11 +985,10 @@ window.processAnonymousLogin = async function() {
         }
     }
 };
-window.startIsolatedAnonymousSessionV27 = window.processAnonymousLogin;
 
-// ============================================================================
-// [FEATURE-02 & FEATURE-15] UPGRADE AKUN ANONIM KE MEMBER RESMI (KHUSUS PROFIL)
-// ============================================================================
+// ==========================================
+// UPGRADE AKUN TAMU KE MEMBER (POP-UP MODAL #8 & #15)
+// ==========================================
 window.openUpgradeMemberModal = function() {
     const nameInp = document.getElementById('upg-name');
     const phoneInp = document.getElementById('upg-phone');
@@ -1027,15 +1049,15 @@ window.requestUpgradeOtpEmail = async function(isResend = false) {
     const passwordConfirm = document.getElementById('upg-pass-confirm')?.value || '';
 
     if (!name || !whatsapp || !email || !email.includes('@')) {
-        window.customAlert('Data Belum Lengkap', 'Harap isi Nama Lengkap, Nomor WhatsApp, dan Alamat Email yang valid.', 'warning');
+        window.customAlert('Data Belum Lengkap', 'Harap isi Nama, Nomor WhatsApp, dan Email.', 'warning');
         return;
     }
     if (password.length < 6) {
-        window.customAlert('Password Terlalu Pendek', 'Password baru minimal harus terdiri dari 6 karakter.', 'warning');
+        window.customAlert('Sandi Terlalu Pendek', 'Kata sandi minimal 6 karakter.', 'warning');
         return;
     }
     if (password !== passwordConfirm) {
-        window.customAlert('Password Tidak Cocok', 'Konfirmasi password tidak sama dengan password baru.', 'warning');
+        window.customAlert('Sandi Tidak Cocok', 'Konfirmasi kata sandi tidak sama.', 'warning');
         return;
     }
 
@@ -1078,18 +1100,9 @@ window.requestUpgradeOtpEmail = async function(isResend = false) {
         document.getElementById('upg-otp-input')?.focus();
 
         startOtpResendCountdown(60);
-        window.showToast('Kode OTP Terkirim', `Cek kotak masuk atau folder spam email ${email}`, 'success');
+        window.showToast('Kode OTP Terkirim', `Cek kotak masuk atau spam email ${email}`, 'success');
     } catch (err) {
-        console.warn("OTP Webhook Info:", err.message);
-        if (err.message === 'WEBHOOK_NOT_CONFIGURED') {
-            window.customAlert(
-                'Webhook Email Belum Diatur',
-                'URL Google Apps Script pengirim email belum diisi di Pengaturan Admin. Silakan hubungi Admin atau pastikan URL Webhook GAS sudah terpasang.',
-                'warning'
-            );
-        } else {
-            window.customAlert('Gagal Mengirim OTP', `${escapeHtml(err.message)}`, 'error');
-        }
+        window.customAlert('Gagal Mengirim OTP', 'Pastikan alamat email aktif dan coba lagi.', 'error');
     } finally {
         if (btn && ogHtml && !isResend) {
             btn.disabled = false;
@@ -1103,17 +1116,17 @@ window.verifyOtpAndUpgradeMember = async function() {
 
     const inputOtp = (document.getElementById('upg-otp-input')?.value || '').trim();
     if (!/^\d{6}$/.test(inputOtp)) {
-        window.customAlert('Kode OTP Belum Lengkap', 'Masukkan 6 digit angka kode OTP yang dikirim ke email kamu.', 'warning');
+        window.customAlert('Kode OTP Belum Lengkap', 'Masukkan 6 digit kode OTP dari email kamu.', 'warning');
         return;
     }
 
     if (!pendingUpgradeState.otpCode || Date.now() > pendingUpgradeState.otpExpiresAt) {
-        window.customAlert('Kode OTP Kedaluwarsa', 'Masa berlaku kode OTP (5 menit) telah habis. Silakan klik tombol Kirim Ulang OTP.', 'error');
+        window.customAlert('Kode OTP Kedaluwarsa', 'Masa berlaku kode OTP telah habis. Silakan kirim ulang.', 'error');
         return;
     }
 
     if (inputOtp !== pendingUpgradeState.otpCode) {
-        window.customAlert('Kode OTP Salah', 'Kode OTP yang kamu masukkan tidak cocok. Silakan periksa kembali email kamu.', 'error');
+        window.customAlert('Kode OTP Salah', 'Kode OTP yang dimasukkan tidak sesuai.', 'error');
         return;
     }
 
@@ -1123,7 +1136,7 @@ window.verifyOtpAndUpgradeMember = async function() {
     isUpgradingAccount = true;
     if (btn) {
         btn.disabled = true;
-        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> <span>Memverifikasi & Mengaitkan Akun...</span>';
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> <span>Memproses...</span>';
     }
 
     try {
@@ -1131,6 +1144,8 @@ window.verifyOtpAndUpgradeMember = async function() {
         await ensureAuthSession();
         const activeUser = auth.currentUser;
         let finalUid = activeUser ? activeUser.uid : null;
+
+        localStorage.setItem('vipercell_active_session_mode', 'member');
 
         if (activeUser && activeUser.isAnonymous && typeof activeUser.getIdToken === 'function') {
             const credential = EmailAuthProvider.credential(email, password);
@@ -1143,7 +1158,6 @@ window.verifyOtpAndUpgradeMember = async function() {
             currentUser = cred.user;
         }
 
-        // Migrasikan pesanan & riwayat chat milik sesi anonim saat ini ke akun Member baru
         if (previousAnonUid && previousAnonUid !== finalUid) {
             const oldOrders = orders.filter(o => o.userId === previousAnonUid);
             for (const ord of oldOrders) {
@@ -1202,7 +1216,6 @@ window.verifyOtpAndUpgradeMember = async function() {
         localStorage.removeItem('vipercell_guest_phone');
         localStorage.setItem('vipercell_member_email', email);
         localStorage.setItem('vipercell_member_phone', whatsapp);
-        localStorage.setItem('vipercell_active_session_mode', 'member');
 
         userProfile = memberData;
         window.closeModal('modal-upgrade-member');
@@ -1212,20 +1225,19 @@ window.verifyOtpAndUpgradeMember = async function() {
         updateProfileStats();
 
         window.customAlert(
-            'Upgrade Member Berhasil! 🎉',
-            `Selamat <b>${escapeHtml(name)}</b>! Email kamu telah terverifikasi dengan OTP dan akunmu resmi menjadi <b>Member Resmi</b>. Akun kamu bebas dari penghapusan 6 jam dan seluruh riwayat pesanan tersimpan permanen.`,
+            'Upgrade Berhasil',
+            `Akun kamu kini telah aktif sebagai Member.`,
             'success'
         );
     } catch (error) {
-        console.error("Upgrade Account Error:", error);
         if (error.code === 'auth/credential-already-in-use' || error.code === 'auth/email-already-in-use') {
             window.customAlert(
                 'Email Sudah Terdaftar',
-                'Email ini sudah terdaftar sebagai Member sebelumnya. Silakan gunakan email lain atau langsung Login ke akun Member Anda.',
+                'Email ini sudah terdaftar sebelumnya. Silakan gunakan email lain atau masuk ke akun kamu.',
                 'warning'
             );
         } else {
-            window.customAlert('Gagal Upgrade Akun', 'Terjadi kesalahan saat mengaitkan akun. Pastikan format email benar dan jaringan stabil.', 'error');
+            window.customAlert('Gagal Upgrade', 'Pastikan format email benar dan koneksi internet stabil.', 'error');
         }
     } finally {
         isUpgradingAccount = false;
@@ -1239,7 +1251,7 @@ window.verifyOtpAndUpgradeMember = async function() {
 window.upgradeAnonymousToMember = window.verifyOtpAndUpgradeMember;
 
 // ==========================================
-// JAMINAN SESI AUTH & SINKRONISASI PROFIL UI
+// SINKRONISASI SESI & TAMPILAN PROFIL (#15)
 // ==========================================
 async function ensureAuthSession() {
     if (auth.currentUser) {
@@ -1313,9 +1325,8 @@ async function syncUserProfileFromAuth(user) {
             };
             await setDoc(userDocRef, userProfile, { merge: true }).catch(() => {});
         }
-        startAnonSixHourTimer();
+        startSilentAnonSixHourCleanup();
     } else {
-        // Member Resmi: Bersihkan total atribut anonim agar tidak terjadi konflik false-logout (#10)
         boundLegacyGuestUid = null;
         await clearMultiLayerToken('vipercell_anon_uid');
         localStorage.removeItem('vipercell_anon_session_started_at');
@@ -1335,12 +1346,16 @@ async function syncUserProfileFromAuth(user) {
                 whatsapp: data.whatsapp || data.phone || '',
                 role: 'member',
                 isAnonymous: false,
-                isGuest: false
+                isGuest: false,
+                isDeleted: false
             };
+            if (data.isDeleted === true) {
+                await setDoc(userDocRef, { isDeleted: false }, { merge: true }).catch(() => {});
+            }
         } else {
             userProfile = {
                 uid: user.uid,
-                name: user.displayName || user.email?.split('@')[0] || 'Member Vipercell',
+                name: user.displayName || user.email?.split('@')[0] || 'Member',
                 email: user.email || '',
                 phone: '',
                 whatsapp: '',
@@ -1367,14 +1382,24 @@ async function syncUserProfileFromAuth(user) {
 
 function setupAuthStateListener() {
     onAuthStateChanged(auth, async (user) => {
-        if (!isPreloaderFinished) return;
         currentUser = user;
         const sessionMode = localStorage.getItem('vipercell_active_session_mode');
 
-        if (user && (!user.isAnonymous || sessionMode === 'guest')) {
+        if (user && !user.isAnonymous && sessionMode !== 'logged_out') {
+            localStorage.setItem('vipercell_active_session_mode', 'member');
             await syncUserProfileFromAuth(user);
             const restricted = await checkRealtimeAccountRestriction(false);
-            if (!restricted) setAuthGateLock(false);
+            if (!restricted && document.body.classList.contains('auth-locked')) {
+                setAuthGateLock(false);
+                window.switchMainTab('katalog');
+            }
+        } else if (user && user.isAnonymous && sessionMode === 'guest') {
+            await syncUserProfileFromAuth(user);
+            const restricted = await checkRealtimeAccountRestriction(false);
+            if (!restricted && document.body.classList.contains('auth-locked')) {
+                setAuthGateLock(false);
+                window.switchMainTab('katalog');
+            }
         } else if (!user && sessionMode !== 'guest') {
             userProfile = { uid: '', name: '', email: '', phone: '', isGuest: true, isAnonymous: true };
             setAuthGateLock(true);
@@ -1388,19 +1413,15 @@ function applyUserSessionToUI() {
 
     document.body.classList.toggle('is-member-session', isMember);
 
-    const btnUpgradeHeader = document.getElementById('btn-upgrade-guest-header');
     const textPesananDesk = document.getElementById('nav-text-pesanan-desk');
     const textProfilDesk = document.getElementById('nav-text-profil-desk');
     const textProfilMob = document.getElementById('nav-text-profil-mob');
 
-    const bannerUpgradeOrders = document.getElementById('guest-upgrade-banner-orders');
-    const bannerUpgradeProfile = document.getElementById('guest-upgrade-banner-profile');
+    // Hanya SATU tombol upgrade akun di profil (#15)
     const btnProfUpgrade = document.getElementById('btn-prof-upgrade-guest');
     const btnProfLogout = document.getElementById('btn-prof-logout-member');
     const textBtnLogout = document.getElementById('text-btn-logout');
     const secMemberBox = document.getElementById('prof-security-member-box');
-    const secGuestBox = document.getElementById('prof-security-guest-box');
-    const anonTtlCard = document.getElementById('anon-ttl-info-card');
 
     const guestTrackSec = document.getElementById('guest-tracking-section');
     const guestContactBox = document.getElementById('buy-guest-contact-box');
@@ -1417,43 +1438,35 @@ function applyUserSessionToUI() {
     const profEmailInp = document.getElementById('prof-email');
     const profPhoneInp = document.getElementById('prof-phone');
 
-    // [FEATURE-15] Pastikan tombol upgrade di Header dan di Tab Pesanan SELALU disembunyikan
-    if (btnUpgradeHeader) btnUpgradeHeader.style.display = 'none';
-    if (bannerUpgradeOrders) bannerUpgradeOrders.style.display = 'none';
-    // Form lacak ID Trx 1-input selalu bisa dipakai oleh siapa saja (#03)
     if (guestTrackSec) guestTrackSec.style.display = 'block';
 
     if (isMember) {
         const finalEmail = userProfile.email || currentUser.email || '';
-        const finalName = userProfile.name || finalEmail.split('@')[0] || 'Member Vipercell';
+        const finalName = userProfile.name || finalEmail.split('@')[0] || 'Member';
         const finalPhone = userProfile.phone || userProfile.whatsapp || '';
 
-        if (textPesananDesk) textPesananDesk.innerText = 'Pesanan Saya';
-        if (textProfilDesk) textProfilDesk.innerText = 'Profil Saya';
+        if (textPesananDesk) textPesananDesk.innerText = 'Pesanan';
+        if (textProfilDesk) textProfilDesk.innerText = 'Profil';
         if (textProfilMob) textProfilMob.innerText = 'Profil';
 
-        if (bannerUpgradeProfile) bannerUpgradeProfile.style.display = 'none';
         if (btnProfUpgrade) btnProfUpgrade.style.display = 'none';
-        if (anonTtlCard) anonTtlCard.style.display = 'none';
         if (btnProfLogout) btnProfLogout.style.display = 'inline-flex';
-        if (textBtnLogout) textBtnLogout.innerText = 'Keluar Akun';
+        if (textBtnLogout) textBtnLogout.innerText = 'Keluar';
         if (secMemberBox) secMemberBox.style.display = 'block';
-        if (secGuestBox) secGuestBox.style.display = 'none';
 
-        // [FEATURE-14] Sembunyikan kolom isi Email & No HP saat checkout untuk Member Resmi
         if (guestContactBox) guestContactBox.style.display = 'none';
         if (emailGroupBuy) emailGroupBuy.style.display = 'none';
         if (phoneGroupBuy) phoneGroupBuy.style.display = 'none';
         if (memberAutofillBadge) {
             memberAutofillBadge.style.display = 'flex';
             if (memberAutofillText) {
-                memberAutofillText.innerText = `Otomatis dikirim ke ${finalEmail}${finalPhone ? ' • WA: ' + finalPhone : ''}`;
+                memberAutofillText.innerText = `${finalEmail}${finalPhone ? ' • ' + finalPhone : ''}`;
             }
         }
 
         if (statusBadge) {
             statusBadge.className = 'brutal-tag tag-success';
-            statusBadge.innerHTML = '<i class="fa-solid fa-circle-check"></i> MEMBER RESMI';
+            statusBadge.innerHTML = '<i class="fa-solid fa-circle-check"></i> MEMBER';
         }
         if (dispNameEl) dispNameEl.innerText = finalName;
         if (dispEmailEl) dispEmailEl.innerText = finalEmail + (finalPhone ? ` • ${finalPhone}` : '');
@@ -1464,23 +1477,21 @@ function applyUserSessionToUI() {
         if (profPhoneInp) profPhoneInp.value = finalPhone;
 
     } else if (isGuestSession) {
-        const effectiveUid = boundLegacyGuestUid || currentUser?.uid || userProfile.uid || 'ANON';
+        const effectiveUid = boundLegacyGuestUid || currentUser?.uid || userProfile.uid || 'TAMU';
         const shortId = effectiveUid.slice(-4).toUpperCase();
         const guestName = userProfile.name || localStorage.getItem('vipercell_anon_name') || `Tamu #${shortId}`;
-        const guestEmail = userProfile.email || localStorage.getItem('vipercell_guest_email') || 'Belum dikaitkan (Sesi Anonim Baru)';
+        const guestEmail = userProfile.email || localStorage.getItem('vipercell_guest_email') || 'Belum ada email';
         const guestPhone = userProfile.phone || userProfile.whatsapp || localStorage.getItem('vipercell_guest_phone') || '';
 
-        if (textPesananDesk) textPesananDesk.innerText = 'Lacak Pesanan';
-        if (textProfilDesk) textProfilDesk.innerText = 'Akun Anonim';
-        if (textProfilMob) textProfilMob.innerText = 'Akun';
+        if (textPesananDesk) textPesananDesk.innerText = 'Pesanan';
+        if (textProfilDesk) textProfilDesk.innerText = 'Profil';
+        if (textProfilMob) textProfilMob.innerText = 'Profil';
 
-        // [FEATURE-15] Tombol & Banner Upgrade ke Member Resmi HANYA muncul di Tab Profil
-        if (bannerUpgradeProfile) bannerUpgradeProfile.style.display = 'flex';
+        // Hanya tampilkan 1 tombol Upgrade Member di bagian atas profil (#15)
         if (btnProfUpgrade) btnProfUpgrade.style.display = 'inline-flex';
         if (btnProfLogout) btnProfLogout.style.display = 'inline-flex';
-        if (textBtnLogout) textBtnLogout.innerText = 'Keluar Sesi';
+        if (textBtnLogout) textBtnLogout.innerText = 'Keluar';
         if (secMemberBox) secMemberBox.style.display = 'none';
-        if (secGuestBox) secGuestBox.style.display = 'block';
 
         if (guestContactBox) guestContactBox.style.display = 'block';
         if (emailGroupBuy) emailGroupBuy.style.display = 'block';
@@ -1489,25 +1500,21 @@ function applyUserSessionToUI() {
 
         if (statusBadge) {
             statusBadge.className = 'brutal-tag status-pending';
-            statusBadge.innerHTML = `<i class="fa-solid fa-user-secret"></i> SESI ANONIM (#${escapeHtml(shortId)})`;
+            statusBadge.innerHTML = `<i class="fa-solid fa-user"></i> TAMU (#${escapeHtml(shortId)})`;
         }
         if (dispNameEl) dispNameEl.innerText = guestName;
         if (dispEmailEl) dispEmailEl.innerText = guestEmail;
-        if (avatarEl) avatarEl.innerText = 'A';
+        if (avatarEl) avatarEl.innerText = 'T';
 
         if (profNameInp) profNameInp.value = guestName;
         if (profEmailInp) profEmailInp.value = guestEmail;
         if (profPhoneInp) profPhoneInp.value = guestPhone;
-
-        startAnonSixHourTimer();
     }
 }
 
-/* ============================================================================
- * [FEATURE-08, 09, 17, 18] SINKRONISASI STOK OTOMATIS DARI TAB STOK, 3 MODE
- * PENGIRIMAN (OTOMATIS, MANUAL, TANYA & OTOMATIS), FORMAT PRODUK EMAIL OAUTH
- * ("email|password|refresh_token|client_id|link_akses"), & AUTO-SEND EMAIL
- * ============================================================================ */
+// ==========================================
+// PERHITUNGAN STOK & JAM OPERASIONAL (#18 & #20)
+// ==========================================
 function makeStockKey(brandName, itemName) {
     return `${String(brandName || '').trim().toLowerCase()}__${String(itemName || '').trim().toLowerCase()}`;
 }
@@ -1531,39 +1538,30 @@ function rebuildLiveReadyStocksMap(stockDocsArray) {
     liveReadyStocksMap = nextMap;
 }
 
-// [FEATURE-18] Menghitung stok tersedia secara cerdas berdasarkan Mode Pengiriman (auto, manual, ask_auto)
 function computeVariantAvailableStock(item) {
     if (!item) return null;
 
     const procType = (item.processType || 'auto').toLowerCase();
+    const totalLocalVaultStock = getVariantLocalVaultStockCount(item);
+    const opRestricted = isLocalStockOnlyRestrictionActive();
 
-    // Hitung stok lokal yang ada di stockVault dokumen produk + koleksi `stocks`
-    let vaultSlots = 0;
-    if (Array.isArray(item.stockVault) && item.stockVault.length > 0) {
-        vaultSlots = item.stockVault.reduce((sum, v) => {
-            if (v.isReusable) return sum + 999;
-            const maxQ = parseInt(v.maxQuota || item.defaultMaxQuota || 1, 10);
-            const usedQ = parseInt(v.usedQuota || 0, 10);
-            return sum + Math.max(0, maxQ - usedQ);
-        }, 0);
+    // [FITUR #20] Jika Jam Operasional Toko aktif membatasi pembelian hanya untuk stok lokal:
+    // Semua produk/variasi yang tidak memiliki stok lokal di gudang (atau bertipe manual/game) otomatis tidak menerima pembelian (return 0).
+    if (opRestricted) {
+        if (procType === 'manual' || item.type === 'game') {
+            return 0;
+        }
+        return totalLocalVaultStock > 0 ? totalLocalVaultStock : 0;
     }
 
-    const brandKey = makeStockKey(item.brand || item.brandName, item.name);
-    const tabStocksSlots = liveReadyStocksMap[brandKey] || 0;
-    const totalLocalVaultStock = vaultSlots + tabStocksSlots;
-
-    // 1. Jika mode MANUAL murni: stok lokal gudang dikunci (tidak ikut terjual otomatis)
-    //    mengikuti pengaturan manual Admin (`stockCount` atau `soldOut`).
     if (procType === 'manual') {
         if (item.manualLockSoldOut === true || item.soldOut === true) return 0;
         if (typeof item.stockCount === 'number' && item.stockCount >= 0) {
             return item.stockCount;
         }
-        return null; // Unlimited manual
+        return null;
     }
 
-    // 2. Jika mode TANYA & OTOMATIS (`ask_auto` / `hybrid`):
-    //    Tetap bisa dibeli kapan saja (jika ada stok lokal langsung kirim otomatis, jika kosong diproses Admin)
     if (procType === 'ask_auto' || procType === 'hybrid') {
         if (item.soldOut === true && totalLocalVaultStock <= 0) return 0;
         if (totalLocalVaultStock > 0) return totalLocalVaultStock;
@@ -1571,8 +1569,6 @@ function computeVariantAvailableStock(item) {
         return null;
     }
 
-    // 3. Jika mode OTOMATIS (`auto`):
-    //    Jika ada stok ditambahkan di Tab Stok (`totalLocalVaultStock > 0`), stok produk OTOMATIS ADA & siap dijual!
     if (totalLocalVaultStock > 0) {
         return totalLocalVaultStock;
     }
@@ -1582,8 +1578,8 @@ function computeVariantAvailableStock(item) {
     return null;
 }
 
-// [FEATURE-17] Formatter Kredensial Stok (Mendukung Format Standar, Sharing, dan Produk Email OAuth)
-function formatStockCredentialLine(rawStr, stockMode = 'PRIVATE', slotInfo = '', customAccessUrl = '') {
+// Formatter Kredensial Stok Tanpa Link Default Ambil Kode (#18)
+function formatStockCredentialLine(rawStr, stockMode = 'PRIVATE', slotInfo = '') {
     const clean = String(rawStr || '').trim();
     if (!clean) return '';
 
@@ -1596,22 +1592,18 @@ function formatStockCredentialLine(rawStr, stockMode = 'PRIVATE', slotInfo = '',
         const refreshToken = parts[2] || '-';
         const clientId = parts[3] || '-';
         const fourPartRaw = `${emailAddr}|${passStr}|${refreshToken}|${clientId}`;
-        const accessLink = parts[4] || customAccessUrl || siteSettings.defaultEmailPortalUrl || '';
 
-        let out = `[PRODUK EMAIL OAUTH${slotInfo}]\n`;
+        let out = `[PRODUK EMAIL${slotInfo}]\n`;
         out += `FORMAT_UTUH : ${fourPartRaw}\n`;
         out += `Email       : ${emailAddr}\n`;
         out += `Password    : ${passStr}\n`;
         out += `RefreshToken: ${refreshToken}\n`;
         out += `Client_ID   : ${clientId}`;
-        if (accessLink) {
-            out += `\nLink_Akses  : ${accessLink}`;
-        }
         return out;
     }
 
     if (parts.length >= 2) {
-        return `[DETAIL AKUN ANDA${slotInfo}]\nEmail / ID : ${parts[0] || '-'}\nPassword   : ${parts[1] || '-'}\nKeterangan : ${parts.slice(2).join(' | ') || '-'}`;
+        return `[DETAIL AKUN${slotInfo}]\nEmail / ID : ${parts[0] || '-'}\nPassword   : ${parts[1] || '-'}\nKeterangan : ${parts.slice(2).join(' | ') || '-'}`;
     }
 
     return `[DETAIL PESANAN${slotInfo}]\n${clean}`;
@@ -1620,10 +1612,6 @@ function formatStockCredentialLine(rawStr, stockMode = 'PRIVATE', slotInfo = '',
 async function tryAutoDeliverOrderFromVault(orderData, orderDbId) {
     if (!orderData || !orderDbId || deliveringOrderIds.has(orderDbId)) return;
     if (orderData.adminReply && orderData.adminReply.trim() !== '') {
-        // Jika sudah ada adminReply tapi email belum terkirim, pastikan email terkirim otomatis (#03)
-        if (!orderData.emailSent) {
-            sendOrderReceiptAndAccountEmail(orderData, orderData.adminReply, orderDbId);
-        }
         return;
     }
 
@@ -1643,8 +1631,6 @@ async function tryAutoDeliverOrderFromVault(orderData, orderDbId) {
     } : {};
 
     try {
-        // [FEATURE-18] Jika mode MANUAL murni (atau game), jangan ambil stok lokal otomatis
-        // Namun jika mode `auto` ATAU `ask_auto` (Tanya & Otomatis), langsung cek stok lokal & kirim otomatis!
         if (procType === 'manual' || item.type === 'game') {
             if (Object.keys(subUpdates).length > 0 && !orderData.subscriptionEndAt) {
                 await updateDoc(doc(db, pathOrders, orderDbId), subUpdates).catch(() => {});
@@ -1654,7 +1640,6 @@ async function tryAutoDeliverOrderFromVault(orderData, orderDbId) {
 
         let deliveredCredentialsText = '';
 
-        // 1. Cek apakah produk menyimpan stockVault di dokumen products/{productDbId}
         if (item.productDbId) {
             const prodRef = doc(db, pathProducts, item.productDbId);
             try {
@@ -1687,7 +1672,7 @@ async function tryAutoDeliverOrderFromVault(orderData, orderDbId) {
 
                             const rawCred = slotItem.credentials || slotItem.data || '';
                             const slotLbl = maxQ > 1 ? ` (Slot #${newUsed}/${maxQ})` : '';
-                            collectedCreds.push(formatStockCredentialLine(rawCred, slotItem.stockFormat || pData.stockMode || 'PRIVATE', slotLbl, slotItem.accessLink || pData.emailPortalUrl || ''));
+                            collectedCreds.push(formatStockCredentialLine(rawCred, slotItem.stockFormat || pData.stockMode || 'PRIVATE', slotLbl));
 
                             if (newUsed >= maxQ && !slotItem.isReusable) {
                                 exhausted.push(slotItem);
@@ -1709,12 +1694,9 @@ async function tryAutoDeliverOrderFromVault(orderData, orderDbId) {
                         }
                     }
                 });
-            } catch (txErr) {
-                console.warn("Product Vault Transaction Fallback:", txErr.message);
-            }
+            } catch (txErr) {}
         }
 
-        // 2. Jika belum terkirim dari product.stockVault, ambil dari koleksi `stocks` (Tab Stok Admin)
         if (!deliveredCredentialsText) {
             const targetBrand = item.brandName || item.name.split(' - ')[0];
             const exactItemName = item.exactItemName || item.name.replace(`(x${item.qty})`, '').trim();
@@ -1731,7 +1713,7 @@ async function tryAutoDeliverOrderFromVault(orderData, orderDbId) {
                 const reusableDoc = snap.docs.find(d => d.data().isReusable === true);
                 if (reusableDoc) {
                     const rData = reusableDoc.data();
-                    deliveredCredentialsText = formatStockCredentialLine(rData.data || '', rData.stockFormat || 'REUSABLE', ' (Akses Instan)', rData.accessLink || '');
+                    deliveredCredentialsText = formatStockCredentialLine(rData.data || '', rData.stockFormat || 'REUSABLE', '');
                     await updateDoc(doc(db, pathStocks, reusableDoc.id), {
                         sentCount: increment(neededQty),
                         lastSentAt: nowMs,
@@ -1747,8 +1729,8 @@ async function tryAutoDeliverOrderFromVault(orderData, orderDbId) {
 
                         if (usedQ < maxQ) {
                             const nextUsed = usedQ + 1;
-                            const slotLabel = maxQ > 1 ? ` (Slot Sharing #${nextUsed}/${maxQ})` : '';
-                            collected.push(formatStockCredentialLine(sData.data || '', sData.stockFormat || sData.mode || 'PRIVATE', slotLabel, sData.accessLink || ''));
+                            const slotLabel = maxQ > 1 ? ` (Slot #${nextUsed}/${maxQ})` : '';
+                            collected.push(formatStockCredentialLine(sData.data || '', sData.stockFormat || sData.mode || 'PRIVATE', slotLabel));
 
                             await updateDoc(doc(db, pathStocks, sDoc.id), {
                                 usedQuota: nextUsed,
@@ -1770,9 +1752,9 @@ async function tryAutoDeliverOrderFromVault(orderData, orderDbId) {
             }
         }
 
-        // [FEATURE-03 & 18] Jika stok lokal tersedia & terkirim, otomatis kirim ke Email juga!
         if (deliveredCredentialsText) {
-            const finalReply = `Terima kasih! Pembayaran Anda telah diverifikasi otomatis.\n\n${deliveredCredentialsText}\n\nSimpan bukti E-Receipt ini sebagai garansi resmi Vipercell.`;
+            const finalReply = `Terima kasih telah berbelanja di Vipercell.\n\n${deliveredCredentialsText}`;
+            // Tandai emailSent: true sekaligus saat menulis adminReply untuk mencegah pengiriman email dobel (#12)
             await updateDoc(doc(db, pathOrders, orderDbId), {
                 status: 'SUCCESS',
                 adminReply: finalReply,
@@ -1790,14 +1772,14 @@ async function tryAutoDeliverOrderFromVault(orderData, orderDbId) {
             await updateDoc(doc(db, pathOrders, orderDbId), subUpdates).catch(() => {});
         }
     } catch (err) {
-        console.error("Vault Auto-Delivery Error:", err);
+        console.error("Auto-Delivery Error:", err);
     } finally {
-        setTimeout(() => deliveringOrderIds.delete(orderDbId), 3000);
+        setTimeout(() => deliveringOrderIds.delete(orderDbId), 4000);
     }
 }
 
 // ==========================================
-// REAL-TIME DATA LISTENER (FIRESTORE + STOK LOKAL + MUTATIONS)
+// REAL-TIME DATA LISTENER FIRESTORE
 // ==========================================
 let isListening = false;
 function listenData() {
@@ -1831,12 +1813,15 @@ function listenData() {
         isSettingsLoaded = true;
         window.applySettingsToUI();
         applyCustomPwaIcon();
-        startAnonSixHourTimer();
+        updateOpHoursBannerUI();
+        window.renderBrands(currentBrandFilter);
+        if (currentCheckoutBrand) {
+            renderCheckoutVariantCards();
+            window.calculateDirectBuyTotal();
+        }
         await checkRealtimeAccountRestriction(true);
     });
 
-    // [FEATURE-18] Listener Real-Time ke Koleksi `stocks` agar saat Admin menambah stok di Tab Stok,
-    // ketersediaan stok di Web User langsung otomatis bertambah detik itu juga!
     if (!activeListenersRegistry.stocks) {
         activeListenersRegistry.stocks = onSnapshot(query(collection(db, pathStocks), where("status", "==", "Ready")), (snapshot) => {
             rebuildLiveReadyStocksMap(snapshot.docs);
@@ -1857,7 +1842,7 @@ function listenData() {
                     const mutAge = Date.now() - mutTime;
                     if (mutAge < 180000) {
                         if (Array.isArray(mut.candidateAmounts) && mut.candidateAmounts.length > 0) {
-                            mut.candidateAmounts.forEach(amt => checkClientPendingOrdersAgainstAmount(Number(amt)));
+                            mutObjListMatch(mut.candidateAmounts);
                         } else if (mut.amount) {
                             checkClientPendingOrdersAgainstAmount(Number(mut.amount));
                         }
@@ -1884,12 +1869,14 @@ function listenData() {
         
         snapshot.forEach((docSnap) => {
             let data = { dbId: docSnap.id, ...docSnap.data() };
+            if (data.emailSent === true && data.id) {
+                sentEmailOrderIds.add(String(data.id).toUpperCase());
+            }
+
             const orderTime = new Date(data.date).getTime();
             const expiryLimitMs = data.expiresAt ? (data.expiresAt - orderTime) : 900000;
             const orderEmail = (data.userEmail || '').toLowerCase();
 
-            // [FEATURE-22] Isolasi kepemilikan pesanan:
-            // Jika sesi Anonim, cocokkan berdasarkan UID sesi anonim ini (atau email guest sesi ini).
             const isMyOrder = isMember
                 ? ((effectiveUid && data.userId === effectiveUid) || (activeEmail && activeEmail === orderEmail))
                 : ((effectiveUid && data.userId === effectiveUid));
@@ -1912,12 +1899,10 @@ function listenData() {
 
             newOrders.push(data);
 
-            // [FEATURE-03 & 18] Jika status SUCCESS dan belum ada adminReply, coba kirim otomatis dari Vault/Stok Lokal
+            // Hanya jalankan auto-deliver jika status SUCCESS dan adminReply masih kosong (#12)
+            // Jangan memicu ulang pengiriman email di listener jika adminReply sudah ada (karena sudah dikirim saat auto-deliver atau oleh Admin)
             if (isMyOrder && data.status === 'SUCCESS' && !data.adminReply) {
                 tryAutoDeliverOrderFromVault(data, data.dbId);
-            } else if (isMyOrder && data.status === 'SUCCESS' && data.adminReply && !data.emailSent) {
-                // Jika sudah ada adminReply (misal dari stok lokal) namun email belum terkirim, otomatis kirim email!
-                sendOrderReceiptAndAccountEmail(data, data.adminReply, data.dbId);
             }
 
             if (!initialOrderLoad && isMyOrder) {
@@ -1943,7 +1928,6 @@ function listenData() {
             if (currentTrackId) window.trackOrder(); 
         }
         
-        updateOrderBadges();
         window.renderUserOrders();
         updateProfileStats();
         if (currentCheckoutBrand) window.renderReviewsUI();
@@ -1968,6 +1952,10 @@ function listenData() {
         snapshot.forEach((docSnap) => { promos.push({ dbId: docSnap.id, ...docSnap.data() }); });
         if (selectedProductForBuy) window.calculateDirectBuyTotal();
     });
+}
+
+function mutObjListMatch(candidateAmounts) {
+    (candidateAmounts || []).forEach(amt => checkClientPendingOrdersAgainstAmount(Number(amt)));
 }
 
 async function checkClientPendingOrdersAgainstAmount(detectedAmount) {
@@ -2012,38 +2000,21 @@ function rebuildGroupedBrands() {
 
     const heroCatalogCount = document.getElementById('hero-live-catalog-count');
     if (heroCatalogCount && groupedBrands.length > 0) {
-        heroCatalogCount.innerText = `${groupedBrands.length} Brand & ${products.length} Layanan Aktif`;
+        heroCatalogCount.innerText = `${groupedBrands.length} Brand Tersedia`;
     }
     window.renderBrands(currentBrandFilter);
 }
 
-function updateOrderBadges() {
-    const isMember = Boolean(currentUser && !currentUser.isAnonymous && !userProfile.isGuest);
-    const effectiveUid = isMember ? currentUser.uid : (boundLegacyGuestUid || currentUser?.uid || userProfile.uid || '');
-    const activeEmail = getActiveSessionStorageEmail();
-
-    const hasActionNeeded = orders.some(o => {
-        const isMine = isMember
-            ? ((effectiveUid && o.userId === effectiveUid) || (activeEmail && o.userEmail?.toLowerCase() === activeEmail))
-            : (effectiveUid && o.userId === effectiveUid);
-        return isMine && (o.status === 'UNPAID' || o.status === 'PENDING_PAYMENT' || o.status === 'PENDING');
-    });
-    const badgeDesk = document.getElementById('user-order-badge-desktop');
-    if (badgeDesk) badgeDesk.style.display = hasActionNeeded ? 'block' : 'none';
-    const badgeMob = document.getElementById('user-order-badge-mobile');
-    if (badgeMob) badgeMob.style.display = hasActionNeeded ? 'block' : 'none';
-}
-
-/* ============================================================================
- * [FEATURE-07] FULL-SCREEN QRIS PAYMENT VIEW & INSTANT ORDER CANCELLATION
- * ============================================================================ */
+// ==========================================
+// PEMBAYARAN QRIS & PEMBATALAN PESANAN
+// ==========================================
 function extractMerchantInfoFromQris(qrisString) {
     if (!qrisString || typeof qrisString !== 'string' || !qrisString.trim().startsWith('000201')) {
-        return { merchantName: `${siteSettings.logoText || 'VIPER'}${siteSettings.logoAccent || 'CELL'} STORE`, merchantCity: 'INDONESIA' };
+        return { merchantName: `${siteSettings.logoText || 'VIPER'}${siteSettings.logoAccent || 'CELL'}`, merchantCity: 'INDONESIA' };
     }
     const raw = qrisString.trim();
     let index = 0;
-    let merchantName = `${siteSettings.logoText || 'VIPER'}${siteSettings.logoAccent || 'CELL'} STORE`;
+    let merchantName = `${siteSettings.logoText || 'VIPER'}${siteSettings.logoAccent || 'CELL'}`;
     let merchantCity = 'INDONESIA';
 
     while (index < raw.length - 4) {
@@ -2165,18 +2136,18 @@ function destroyExpiredQrisDom(orderDbId, reason = 'EXPIRED') {
     const isCancelled = (reason === 'CANCELLED');
     if (statusBadge) {
         statusBadge.className = 'status-badge status-failed';
-        statusBadge.innerText = isCancelled ? 'PESANAN DIBATALKAN' : 'WAKTU HABIS (EXPIRED)';
+        statusBadge.innerText = isCancelled ? 'DIBATALKAN' : 'WAKTU HABIS';
     }
     if (expBadge) {
-        expBadge.innerText = isCancelled ? 'TRANSAKSI DIBATALKAN PEMBELI' : 'TRANSAKSI KEDALUWARSA (EXPIRED)';
+        expBadge.innerText = isCancelled ? 'PESANAN DIBATALKAN' : 'WAKTU HABIS';
     }
     if (expTitle) {
         expTitle.innerText = isCancelled ? 'Pesanan Telah Dibatalkan' : 'Waktu Pembayaran Habis';
     }
     if (expDesc) {
         expDesc.innerHTML = isCancelled
-            ? 'Tagihan dan kode QRIS untuk pesanan ini telah <b>dibatalkan dan dinonaktifkan</b> atas permintaan kamu. Kamu bisa langsung membuat pesanan baru sekarang!'
-            : 'Kode QRIS untuk tagihan ini telah <b>dihapus dan dinonaktifkan secara permanen</b> demi keamanan transaksi. Mohon jangan melakukan transfer ke kode QR sebelumnya.';
+            ? 'Tagihan ini telah dibatalkan. Silakan buat pesanan baru.'
+            : 'Kode QRIS untuk tagihan ini sudah tidak aktif. Silakan buat pesanan baru.';
     }
 
     if (timeText) timeText.innerText = '00:00';
@@ -2194,16 +2165,16 @@ window.cancelActiveOrder = function(explicitDbId = null) {
     if (isCancellingOrder) return;
     const targetDbId = explicitDbId || currentCheckoutSession?.dbId;
     if (!targetDbId) {
-        window.customAlert('Tidak Ada Tagihan', 'Tidak ditemukan sesi pesanan aktif untuk dibatalkan.', 'warning');
+        window.customAlert('Tidak Ada Tagihan', 'Tidak ditemukan tagihan aktif.', 'warning');
         return;
     }
 
     const orderObj = orders.find(o => o.dbId === targetDbId);
-    const invLabel = orderObj ? orderObj.id : (currentCheckoutSession?.id || 'Pesanan Ini');
+    const invLabel = orderObj ? orderObj.id : (currentCheckoutSession?.id || 'Pesanan');
 
     window.openConfirm(
-        'Batalkan Pesanan Ini?',
-        `Apakah kamu yakin ingin membatalkan tagihan <b>#${escapeHtml(invLabel)}</b> sekarang?<br><br><small style="color:var(--text-muted);">Setelah dibatalkan, kode pembayaran ini tidak berlaku lagi dan kamu bisa langsung membuat pesanan baru tanpa menunggu 15 menit.</small>`,
+        'Batalkan Pesanan?',
+        `Batalkan tagihan <b>#${escapeHtml(invLabel)}</b> sekarang?`,
         async (confirmed) => {
             if (!confirmed) return;
             isCancellingOrder = true;
@@ -2236,21 +2207,19 @@ window.cancelActiveOrder = function(explicitDbId = null) {
                     destroyExpiredQrisDom(targetDbId, 'CANCELLED');
                 }
 
-                updateOrderBadges();
                 window.renderUserOrders();
-                window.showToast('Pesanan Dibatalkan', `Tagihan #${invLabel} berhasil dibatalkan. Silakan buat pesanan baru.`, 'info');
+                window.showToast('Dibatalkan', `Tagihan #${invLabel} berhasil dibatalkan.`, 'info');
             } catch (err) {
-                console.error("Cancel Order Error:", err);
-                window.customAlert('Gagal Membatalkan', 'Terjadi kendala jaringan saat membatalkan pesanan. Silakan coba lagi.', 'error');
+                window.customAlert('Gagal', 'Gagal membatalkan pesanan. Silakan coba lagi.', 'error');
             } finally {
                 isCancellingOrder = false;
                 if (btnCancelQris) {
                     btnCancelQris.disabled = false;
-                    btnCancelQris.innerHTML = '<i class="fa-solid fa-ban"></i> Batalkan Pesanan Ini';
+                    btnCancelQris.innerHTML = '<i class="fa-solid fa-ban"></i> Batalkan Pesanan';
                 }
                 if (btnCancelCash) {
                     btnCancelCash.disabled = false;
-                    btnCancelCash.innerHTML = '<i class="fa-solid fa-ban"></i> Batalkan Tiket Pesanan Ini';
+                    btnCancelCash.innerHTML = '<i class="fa-solid fa-ban"></i> Batalkan Pesanan';
                 }
             }
         },
@@ -2302,9 +2271,9 @@ window.manualCheckQrisPaymentStatus = async function() {
             }
         }
 
-        window.showToast('Belum Ada Mutasi Masuk', `Sistem masih menunggu transfer tepat Rp${(currentCheckoutSession.finalTotal || 0).toLocaleString('id-ID')}.`, 'info');
+        window.showToast('Menunggu Pembayaran', `Pastikan transfer sesuai nominal Rp${(currentCheckoutSession.finalTotal || 0).toLocaleString('id-ID')}.`, 'info');
     } catch (err) {
-        window.showToast('Gagal Mengecek', 'Periksa koneksi internet kamu dan coba lagi.', 'warning');
+        window.showToast('Gagal Mengecek', 'Periksa koneksi internet kamu.', 'warning');
     } finally {
         isCheckingPaymentNow = false;
         if (btn && ogHtml) {
@@ -2395,7 +2364,7 @@ window.openQRISModal = function() {
     const qrisBaseString = (siteSettings.qrisStringData || '').trim();
     const { merchantName, merchantCity } = extractMerchantInfoFromQris(qrisBaseString);
     if (merchantNameEl) merchantNameEl.innerText = merchantName;
-    if (merchantCityEl) merchantCityEl.innerText = merchantCity ? `LOKASI: ${merchantCity}` : 'STANDAR QRIS NASIONAL';
+    if (merchantCityEl) merchantCityEl.innerText = merchantCity ? `${merchantCity}` : 'INDONESIA';
 
     const orderObj = orders.find(o => o.dbId === currentCheckoutSession.dbId);
     if (orderObj && (orderObj.status === 'CANCELLED' || orderObj.status === 'EXPIRED')) {
@@ -2415,8 +2384,8 @@ window.openQRISModal = function() {
         const dynamicQRIS = generateDynamicQRIS(qrisBaseString, currentCheckoutSession.finalTotal);
         new QRCode(qrContainer, {
             text: dynamicQRIS,
-            width: 235,
-            height: 235,
+            width: 230,
+            height: 230,
             colorDark: "#000000",
             colorLight: "#ffffff",
             correctLevel: QRCode.CorrectLevel.M
@@ -2426,7 +2395,7 @@ window.openQRISModal = function() {
     } else if (qrContainer && qrErrorMsg) {
         qrContainer.style.display = 'none';
         qrErrorMsg.style.display = 'flex';
-        qrErrorMsg.innerHTML = `<i class="fa-solid fa-triangle-exclamation"></i> <span>String QRIS belum diatur di Admin atau nominal tidak valid.</span>`;
+        qrErrorMsg.innerHTML = `<i class="fa-solid fa-triangle-exclamation"></i> <span>Kode QRIS belum tersedia. Silakan hubungi Admin.</span>`;
     }
 
     const guestWarning = document.getElementById('pay-modal-guest-warning');
@@ -2453,10 +2422,9 @@ window.recreateExpiredOrder = function() {
     }
 };
 
-/* ============================================================================
- * [FEATURE-08, 17, 18] KATALOG TAMPIL PENUH, AKORDEON VARIASI (LIHAT
- * SELENGKAPNYA & TUTUP KEMBALI), & 3 MODE PENGIRIMAN STOK
- * ============================================================================ */
+// ==========================================
+// RENDER KATALOG & VARIASI 90FPS BEBAS LAG (#10 & #20)
+// ==========================================
 window.filterBrands = function(type, btnEl) {
     currentBrandFilter = type;
     document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
@@ -2474,7 +2442,7 @@ window.handleCatalogSearch = function() {
     catalogSearchDebounceTimer = setTimeout(() => {
         currentSearchQuery = val;
         window.renderBrands(currentBrandFilter);
-    }, 100);
+    }, 60);
 };
 
 window.clearCatalogSearch = function() {
@@ -2491,12 +2459,9 @@ window.toggleCatalogShowAll = function() {
     window.renderBrands(currentBrandFilter);
 };
 
-// [FEATURE-08] Katalog di Dashboard Utama selalu muncul semua tanpa disembunyikan
 window.renderBrands = function(filter = currentBrandFilter) {
     const grid = document.getElementById('brand-grid');
-    const moreWrap = document.getElementById('catalog-more-wrap');
     if (!grid) return;
-    if (moreWrap) moreWrap.style.display = 'none';
     
     let filteredBrands = filter === 'all' ? [...groupedBrands] : groupedBrands.filter(b => b.type === filter);
 
@@ -2526,41 +2491,51 @@ window.renderBrands = function(filter = currentBrandFilter) {
     }
     
     if (filteredBrands.length === 0) { 
-        grid.innerHTML = `<div class="brutal-empty-box" style="grid-column: 1/-1;"><i class="fa-solid fa-box-open" style="font-size:2rem; display:block; margin-bottom:8px;"></i>Produk yang kamu cari belum tersedia di kategori ini.</div>`; 
+        grid.innerHTML = `<div class="brutal-empty-box" style="grid-column: 1/-1;">Produk tidak ditemukan.</div>`; 
         return; 
     }
 
+    const opRestricted = isLocalStockOnlyRestrictionActive();
     let html = '';
-    filteredBrands.forEach((b, idx) => {
+
+    filteredBrands.forEach((b) => {
         const safeJsBrand = escapeJsStr(b.brandName);
         const safeHtmlBrand = escapeHtml(b.brandName);
         
+        // Cek apakah seluruh variasi di brand ini kosong saat Jam Operasional membatasi stok lokal (#20)
+        const hasAnyPurchasableVariant = b.items.some(it => {
+            const avail = computeVariantAvailableStock(it);
+            if (opRestricted) return typeof avail === 'number' && avail > 0;
+            return !it.soldOut || (typeof avail === 'number' && avail > 0);
+        });
+
         let tagClass = 'tag-app';
         let tagLabel = 'APLIKASI';
         if (b.isGangguan) {
             tagClass = 'tag-maint';
             tagLabel = 'GANGGUAN';
+        } else if (opRestricted && !hasAnyPurchasableVariant) {
+            tagClass = 'tag-maint';
+            tagLabel = 'STOK HABIS';
         } else if (b.type === 'game') {
             tagClass = 'tag-game';
             tagLabel = 'GAME';
         } else if (b.type === 'tools') {
-            const hasEmailFormat = b.items.some(it => it.stockMode === 'EMAIL_OAUTH' || (it.name || '').toLowerCase().includes('email') || (it.name || '').toLowerCase().includes('mail'));
-            tagClass = hasEmailFormat ? 'tag-email' : 'tag-tools';
-            tagLabel = hasEmailFormat ? 'EMAIL / TOOLS' : 'TOOLS';
+            tagClass = 'tag-tools';
+            tagLabel = 'TOOLS';
         }
 
         const imgHtml = b.imgUrlBase64 
              ? `<img src="${b.imgUrlBase64}" alt="${safeHtmlBrand}" loading="lazy" decoding="async">` 
-             : `<div style="width:100%; height:100%; background:var(--primary); display:flex; align-items:center; justify-content:center; font-size:1.9rem; font-weight:900; color:#ffffff;">${safeHtmlBrand.charAt(0)}</div>`;
+             : `<div style="width:100%; height:100%; background:var(--primary); display:flex; align-items:center; justify-content:center; font-size:1.7rem; font-weight:800; color:#ffffff;">${safeHtmlBrand.charAt(0)}</div>`;
              
         const clickAction = b.isGangguan 
-            ? `window.customAlert('Maintenance Server', 'Mohon maaf, layanan produk ini sedang dalam pemeliharaan jaringan.', 'warning')` 
+            ? `window.customAlert('Maintenance', 'Layanan produk ini sedang dalam pemeliharaan.', 'warning')` 
             : `window.openDirectBuyModal('${safeJsBrand}')`;
-        const cssClass = b.isGangguan ? 'brand-card stagger-card sold-out' : 'brand-card stagger-card';
-        const animDelay = `${Math.min(idx * 25, 220)}ms`;
+        const cssClass = b.isGangguan ? 'brand-card sold-out' : 'brand-card';
         
         html += `
-            <div class="${cssClass}" style="animation-delay: ${animDelay};" onclick="${clickAction}">
+            <div class="${cssClass}" onclick="${clickAction}">
                 <div>
                     <div class="brand-card-top">
                         <div class="brand-img-wrapper">
@@ -2575,14 +2550,13 @@ window.renderBrands = function(filter = currentBrandFilter) {
                 </div>
                 <div class="brand-meta-footer">
                     <span class="sold-pill"><i class="fa-solid fa-fire"></i> ${b.soldCount} Terjual</span>
-                    <span class="buy-arrow-pill">Beli <i class="fa-solid fa-arrow-right"></i></span>
+                    <span class="buy-arrow-pill">Pilih <i class="fa-solid fa-arrow-right"></i></span>
                 </div>
             </div>`;
     });
     grid.innerHTML = html;
 };
 
-// [FEATURE-08] Render Daftar Variasi di Halaman Checkout dengan Tombol "Lihat Selengkapnya" & "Tutup Kembali"
 window.filterCheckoutVariants = function() {
     const inp = document.getElementById('variant-quick-search');
     const val = inp ? inp.value.trim().toLowerCase() : '';
@@ -2590,7 +2564,7 @@ window.filterCheckoutVariants = function() {
     variantSearchDebounceTimer = setTimeout(() => {
         currentVariantSearchQuery = val;
         renderCheckoutVariantCards();
-    }, 90);
+    }, 50);
 };
 
 window.toggleVariantsShowAll = function() {
@@ -2627,24 +2601,23 @@ function renderCheckoutVariantCards() {
         );
     }
 
-    const INITIAL_VARIANT_LIMIT = 6;
+    const INITIAL_VARIANT_LIMIT = 8;
     const shouldCollapse = !currentVariantSearchQuery && filteredItems.length > INITIAL_VARIANT_LIMIT;
     const visibleItems = (shouldCollapse && !isVariantsExpanded)
         ? filteredItems.slice(0, INITIAL_VARIANT_LIMIT)
         : filteredItems;
 
-    // [FEATURE-08] Tampilkan tombol "Lihat Variasi Selengkapnya" saat terlipat, dan "Tutup Kembali Variasi" saat terbuka
     if (moreBtn && collapseBtn) {
         if (shouldCollapse) {
             const hiddenCount = filteredItems.length - INITIAL_VARIANT_LIMIT;
             if (!isVariantsExpanded) {
                 moreBtn.style.display = 'inline-flex';
-                moreBtn.innerHTML = `<i class="fa-solid fa-plus"></i> <span>Lihat ${hiddenCount} Variasi Selengkapnya</span> <i class="fa-solid fa-chevron-down"></i>`;
+                moreBtn.innerHTML = `<i class="fa-solid fa-plus"></i> <span>Lihat ${hiddenCount} Variasi Lainnya</span> <i class="fa-solid fa-chevron-down"></i>`;
                 collapseBtn.style.display = 'none';
             } else {
                 moreBtn.style.display = 'none';
                 collapseBtn.style.display = 'inline-flex';
-                collapseBtn.innerHTML = `<i class="fa-solid fa-angles-up"></i> <span>Tutup Kembali Variasi</span>`;
+                collapseBtn.innerHTML = `<i class="fa-solid fa-angles-up"></i> <span>Tutup Variasi</span>`;
             }
         } else {
             moreBtn.style.display = 'none';
@@ -2653,32 +2626,37 @@ function renderCheckoutVariantCards() {
     }
 
     if (visibleItems.length === 0) {
-        itemGrid.innerHTML = `<div class="brutal-empty-box" style="grid-column: 1/-1; padding: 1.4rem;">Variasi paket tidak ditemukan.</div>`;
+        itemGrid.innerHTML = `<div class="brutal-empty-box" style="grid-column: 1/-1; padding: 1.4rem;">Variasi tidak ditemukan.</div>`;
         return;
     }
 
+    const opRestricted = isLocalStockOnlyRestrictionActive();
     let html = '';
-    visibleItems.forEach((item, idx) => {
+
+    visibleItems.forEach((item) => {
         const normalPrice = item.priceNum || 0;
         const procType = (item.processType || 'auto').toLowerCase();
         const availQuota = computeVariantAvailableStock(item);
         const hasStockQuota = typeof availQuota === 'number' && availQuota >= 0;
         const isQuotaEmpty = hasStockQuota && availQuota === 0;
 
-        // Jika mode auto dan stok di tab stok ada (availQuota > 0), maka otomatis bisa dibeli walaupun item.soldOut lama bernilai true (#18)
-        const isSold = procType === 'auto' && hasStockQuota && availQuota > 0
-            ? false
-            : Boolean(item.soldOut || isQuotaEmpty);
+        // Jika Jam Operasional aktif membatasi stok lokal, varian yang tidak punya stok lokal terkunci (#20)
+        const isLockedByOpHours = opRestricted && (availQuota === null || availQuota <= 0);
+        const isSold = isLockedByOpHours
+            ? true
+            : (procType === 'auto' && hasStockQuota && availQuota > 0 ? false : Boolean(item.soldOut || isQuotaEmpty));
 
-        const isSelected = selectedProductForBuy && selectedProductForBuy.dbId === item.dbId;
+        const isSelected = !isSold && selectedProductForBuy && selectedProductForBuy.dbId === item.dbId;
 
         let procBadge = '';
-        if (procType === 'manual') {
-            procBadge = '<span class="proc-mode-badge proc-mode-manual"><i class="fa-solid fa-user-gear"></i> MANUAL</span>';
+        if (isLockedByOpHours) {
+            procBadge = '<span class="proc-mode-badge proc-mode-manual">TUTUP JAM LAYANAN</span>';
+        } else if (procType === 'manual') {
+            procBadge = '<span class="proc-mode-badge proc-mode-manual">MANUAL</span>';
         } else if (procType === 'ask_auto' || procType === 'hybrid') {
-            procBadge = '<span class="proc-mode-badge proc-mode-ask-auto"><i class="fa-solid fa-comments"></i> TANYA / AUTO</span>';
+            procBadge = '<span class="proc-mode-badge proc-mode-ask-auto">TANYA / AUTO</span>';
         } else {
-            procBadge = '<span class="proc-mode-badge proc-mode-auto"><i class="fa-solid fa-bolt"></i> OTOMATIS</span>';
+            procBadge = '<span class="proc-mode-badge proc-mode-auto">INSTAN</span>';
         }
 
         const varDescText = (item.variantDesc || item.description || '').trim();
@@ -2687,22 +2665,19 @@ function renderCheckoutVariantCards() {
             : '';
 
         let badgesHtml = '';
-        if (item.stockMode === 'EMAIL_OAUTH') {
-            badgesHtml += `<span class="item-email-format-pill"><i class="fa-solid fa-envelope-open-text"></i> FORMAT EMAIL</span>`;
-        } else if (item.stockMode === 'SHARING' || (item.defaultMaxQuota && item.defaultMaxQuota > 1)) {
-            badgesHtml += `<span class="item-sharing-pill"><i class="fa-solid fa-users"></i> SHARING</span>`;
-        }
         if (item.durationDays && item.durationDays > 0) {
             badgesHtml += `<span class="item-duration-pill"><i class="fa-regular fa-clock"></i> ${item.durationDays} Hari</span>`;
         }
         if (hasStockQuota) {
-            badgesHtml += `<span class="item-stock-pill"><i class="fa-solid fa-layer-group"></i> Stok: <b>${availQuota >= 999 ? '∞' : availQuota}</b></span>`;
+            badgesHtml += `<span class="item-stock-pill">Stok: <b>${availQuota >= 999 ? 'Tersedia' : availQuota}</b></span>`;
         }
 
-        const animDelay = `${Math.min(idx * 25, 200)}ms`;
+        const clickHandler = isSold
+            ? (isLockedByOpHours ? `window.showToast('Di Luar Jam Layanan', 'Saat ini hanya melayani variasi yang memiliki stok tersedia.', 'warning')` : '')
+            : `window.selectItemToBuy('${item.dbId}')`;
 
         html += `
-            <div class="item-card stagger-card ${isSold ? 'sold-out' : ''} ${isSelected ? 'selected' : ''}" style="animation-delay:${animDelay};" id="buy-card-${item.dbId}" onclick="${isSold ? '' : `window.selectItemToBuy('${item.dbId}')`}">
+            <div class="item-card ${isSold ? 'sold-out' : ''} ${isSelected ? 'selected' : ''}" id="buy-card-${item.dbId}" onclick="${clickHandler}">
                 <div>
                     <h4>${escapeHtml(item.name)}</h4>
                     ${varDescHtml}
@@ -2718,11 +2693,14 @@ function renderCheckoutVariantCards() {
     itemGrid.innerHTML = html;
 }
 
+// ==========================================
+// CHECKOUT, PROMO & VERIFIKASI JAM OPERASIONAL (#11, #18, #20)
+// ==========================================
 window.openDirectBuyModal = function(brandName) {
     const brandObj = groupedBrands.find(b => b.brandName === brandName);
     if (!brandObj) return;
     if (brandObj.isGangguan) {
-        window.customAlert('Maintenance Server', 'Mohon maaf, produk sedang gangguan.', 'warning');
+        window.customAlert('Maintenance', 'Layanan produk ini sedang dalam pemeliharaan.', 'warning');
         return;
     }
     
@@ -2750,9 +2728,9 @@ window.openDirectBuyModal = function(brandName) {
     document.getElementById('btn-desc-more').style.display = 'block';
 
     document.getElementById('buy-brand-name').innerText = brandObj.brandName;
-    let badgeTypeLabel = 'APLIKASI PREMIUM';
-    if (brandObj.type === 'game') badgeTypeLabel = 'TOP UP GAME';
-    else if (brandObj.type === 'tools') badgeTypeLabel = 'TOOLS & EMAIL';
+    let badgeTypeLabel = 'APLIKASI';
+    if (brandObj.type === 'game') badgeTypeLabel = 'GAME';
+    else if (brandObj.type === 'tools') badgeTypeLabel = 'TOOLS';
     document.getElementById('buy-brand-badge').innerText = badgeTypeLabel;
     
     const totalSold = orders.filter(o => o.status === 'SUCCESS' && o.items && o.items[0]?.brandName === brandObj.brandName)
@@ -2771,7 +2749,7 @@ window.openDirectBuyModal = function(brandName) {
     const requireAppTarget = Boolean(brandObj.requireAppTarget || firstItem.requireAppTarget || (brandObj.type === 'app' && inpType && inpType !== 'none'));
 
     let fmtDesc = brandObj.desc ? escapeHtml(brandObj.desc).replace(/\n/g, '<br>') : '';
-    let extraDesc = fmtDesc ? `<div style="font-size:0.84rem; font-weight:600; color:var(--text); background:var(--bg); padding:12px; border-radius:10px; border:1.5px solid var(--border); margin-bottom:12px;"><i class="fa-solid fa-circle-info text-primary" style="margin-right:6px;"></i> ${fmtDesc}</div>` : '';
+    let extraDesc = fmtDesc ? `<div style="font-size:0.84rem; font-weight:600; color:var(--text); background:var(--bg); padding:12px; border-radius:10px; border:1.5px solid var(--border); margin-bottom:12px;">${fmtDesc}</div>` : '';
     
     if (!fmtDesc || brandObj.desc.length < 130) {
         document.getElementById('buy-desc-fade').style.display = 'none';
@@ -2780,14 +2758,13 @@ window.openDirectBuyModal = function(brandName) {
     }
 
     if (brandObj.type === 'app' && requireAppTarget) {
-        const customLbl = firstItem.appTargetLabel || brandObj.appTargetLabel || 'Masukkan Email / Akun Tujuan (Untuk Invite / Upgrade)';
-        const customPh = firstItem.appTargetPlaceholder || brandObj.appTargetPlaceholder || 'Contoh: emailkamu@gmail.com / Username Akun';
+        const customLbl = firstItem.appTargetLabel || brandObj.appTargetLabel || 'Email / Akun Tujuan';
+        const customPh = firstItem.appTargetPlaceholder || brandObj.appTargetPlaceholder || 'Contoh: emailkamu@gmail.com';
         fields.innerHTML = `
             ${extraDesc}
             <div class="form-group" style="margin-bottom:0;">
-                <label for="buy-id"><i class="fa-solid fa-at text-primary"></i> ${escapeHtml(customLbl)} <span style="color:var(--danger)">*</span></label>
+                <label for="buy-id">${escapeHtml(customLbl)} <span style="color:var(--danger)">*</span></label>
                 <input type="text" id="buy-id" class="form-control" placeholder="${escapeHtml(customPh)}" required>
-                <small class="form-helper" style="color:var(--danger);">*Pastikan alamat Email atau akun tujuan yang dimasukkan sudah benar.</small>
             </div>`;
     } else if (brandObj.type === 'game' || (brandObj.type === 'tools' && inpType && inpType !== 'none')) {
         if (inpType === 'id_only') {
@@ -2795,16 +2772,14 @@ window.openDirectBuyModal = function(brandName) {
                 ${extraDesc}
                 <div class="form-group" style="margin-bottom:0;">
                     <label for="buy-id">ID Player / UID Tujuan <span style="color:var(--danger)">*</span></label>
-                    <input type="text" id="buy-id" class="form-control" placeholder="Masukkan ID Player (Contoh: 123456789)" required>
-                    <small class="form-helper" style="color:var(--danger);">*Pastikan ID sudah benar.</small>
+                    <input type="text" id="buy-id" class="form-control" placeholder="Masukkan ID Player" required>
                 </div>`;
         } else if (inpType === 'custom' || inpType === 'roblox') {
             fields.innerHTML = `
                 ${extraDesc}
                 <div class="form-group" style="margin-bottom:0;">
                     <label for="buy-id">Username / Email / Link Tujuan <span style="color:var(--danger)">*</span></label>
-                    <input type="text" id="buy-id" class="form-control" placeholder="Masukkan Username / Email Akun / Link Target" required>
-                    <small class="form-helper" style="color:var(--danger);">*Pastikan data target sudah benar.</small>
+                    <input type="text" id="buy-id" class="form-control" placeholder="Masukkan data tujuan" required>
                 </div>`;
         } else {
             fields.innerHTML = `
@@ -2812,25 +2787,23 @@ window.openDirectBuyModal = function(brandName) {
                 <div style="display:grid; grid-template-columns: 2fr 1fr; gap:10px;">
                     <div class="form-group" style="margin-bottom:0;">
                         <label for="buy-id">ID Player <span style="color:var(--danger)">*</span></label>
-                        <input type="text" id="buy-id" class="form-control" placeholder="Contoh: 12345678" required>
+                        <input type="text" id="buy-id" class="form-control" placeholder="ID Player" required>
                     </div>
                     <div class="form-group" style="margin-bottom:0;">
                         <label for="buy-zone">Zone / Server</label>
-                        <input type="text" id="buy-zone" class="form-control" placeholder="1234">
+                        <input type="text" id="buy-zone" class="form-control" placeholder="Zone">
                     </div>
-                </div>
-                <small class="form-helper" style="color:var(--danger); margin-top:6px;">*Pastikan ID & Zone sudah sesuai.</small>`;
+                </div>`;
         }
     } else {
         fields.innerHTML = `
             ${extraDesc}
             <div class="brutal-alert-box" style="background:var(--bg); color:var(--text);">
-                <i class="fa-solid fa-bolt text-primary" style="font-size:1.2rem;"></i>
-                <span>Detail <b>Akun / Format Email / Link Akses Tools</b> akan langsung dikirimkan otomatis ke menu <b>Pesanan (E-Receipt)</b> & Email kamu detik itu juga setelah pembayaran lunas!</span>
+                <i class="fa-solid fa-circle-check text-primary"></i>
+                <span>Detail akun akan dikirim ke halaman Pesanan & Email kamu setelah pembayaran selesai.</span>
             </div>`;
     }
     
-    // [FEATURE-14] Sembunyikan Kolom Email DAN No HP untuk Member Resmi
     const isMember = Boolean(currentUser && !currentUser.isAnonymous && !userProfile.isGuest);
     const guestContactBox = document.getElementById('buy-guest-contact-box');
     const emailGroup = document.getElementById('buy-email-group');
@@ -2849,7 +2822,6 @@ window.openDirectBuyModal = function(brandName) {
         if (phoneGroup) phoneGroup.style.display = 'none';
         if (memberAutofillBadge) memberAutofillBadge.style.display = 'flex';
     } else {
-        // Sesi Anonim: hanya ambil email/phone milik sesi anonim saat ini (bukan milik Member)
         if (emailInput) emailInput.value = localStorage.getItem('vipercell_guest_email') || '';
         if (phoneInput) phoneInput.value = localStorage.getItem('vipercell_guest_phone') || '';
         if (guestContactBox) guestContactBox.style.display = 'block';
@@ -2867,7 +2839,18 @@ window.openDirectBuyModal = function(brandName) {
 };
 
 window.selectItemToBuy = function(dbId) {
-    selectedProductForBuy = currentCheckoutBrand.items.find(i => i.dbId === dbId);
+    const candidate = currentCheckoutBrand.items.find(i => i.dbId === dbId);
+    if (!candidate) return;
+
+    const opRestricted = isLocalStockOnlyRestrictionActive();
+    const availQuota = computeVariantAvailableStock(candidate);
+
+    if (opRestricted && (availQuota === null || availQuota <= 0)) {
+        window.showToast('Di Luar Jam Layanan', 'Saat ini hanya melayani produk dengan stok yang tersedia.', 'warning');
+        return;
+    }
+
+    selectedProductForBuy = candidate;
     document.querySelectorAll('.item-card').forEach(el => el.classList.remove('selected'));
     const cardEl = document.getElementById(`buy-card-${dbId}`);
     if (cardEl) cardEl.classList.add('selected');
@@ -2885,10 +2868,9 @@ window.selectItemToBuy = function(dbId) {
 
     const qtyInput = document.getElementById('buy-qty');
     const qtySub = document.getElementById('buy-qty-subtext');
-    const availQuota = computeVariantAvailableStock(selectedProductForBuy);
 
     if (typeof availQuota === 'number' && availQuota < 999) {
-        if (qtySub) qtySub.innerText = `Tersedia ${availQuota} stok/slot`;
+        if (qtySub) qtySub.innerText = `Tersedia ${availQuota} stok`;
         if (parseInt(qtyInput.value) > availQuota) {
             qtyInput.value = Math.max(1, availQuota);
         }
@@ -2899,9 +2881,6 @@ window.selectItemToBuy = function(dbId) {
     window.calculateDirectBuyTotal();
 };
 
-/* ============================================================================
- * [FEATURE-06, 13, 19] PROMO ENGINE (SEMUA USER VS MEMBER RESMI & 1 EMAIL 1X)
- * ============================================================================ */
 window.selectPaymentUI = function(val, el) {
     document.querySelectorAll('input[name="payment_method"]').forEach(input => { input.parentElement.classList.remove('active'); });
     if (el) {
@@ -2926,7 +2905,7 @@ window.changeBuyQty = function(change) {
     if (typeof availQuota === 'number' && availQuota > 0 && availQuota < 999) {
         if (newVal > availQuota) {
             newVal = availQuota;
-            window.showToast('Batas Stok', `Maksimal stok/slot tersedia untuk varian ini adalah ${availQuota}.`, 'warning');
+            window.showToast('Batas Stok', `Maksimal stok tersedia adalah ${availQuota}.`, 'warning');
         }
     }
 
@@ -2953,22 +2932,20 @@ window.applyPromoDirect = function() {
 
     if (!p || !p.active) {
         appliedPromo = null;
-        msgEl.innerHTML = `<span style="color:var(--danger)"><i class="fa-solid fa-circle-xmark"></i> Kode promo tidak ditemukan atau tidak aktif.</span>`;
+        msgEl.innerHTML = `<span style="color:var(--danger)">Kode promo tidak valid.</span>`;
         window.calculateDirectBuyTotal();
         return;
     }
 
-    // [FEATURE-13] Cek apakah Kode Promo Khusus Member Resmi (Anonim tidak bisa gunakan)
     const isMemberOnlyPromo = (p.targetUser === 'member' || p.targetUser === 'member_only' || p.memberOnly === true);
     if (isMemberOnlyPromo && !isMember) {
         appliedPromo = null;
-        msgEl.innerHTML = `<span style="color:var(--danger)"><i class="fa-solid fa-user-lock"></i> Kode promo ini <b>Khusus Member Resmi</b>! Akun Anonim tidak dapat menggunakannya (Upgrade di tab Profil).</span>`;
+        msgEl.innerHTML = `<span style="color:var(--danger)">Kode promo ini khusus untuk Member.</span>`;
         window.calculateDirectBuyTotal();
         return;
     }
 
-    // [FEATURE-19] Cek aturan 1 Email = 1x Pakai
-    if (buyerEmail && buyerEmail.includes('@')) {
+    if (p.onePerEmail !== false && buyerEmail && buyerEmail.includes('@')) {
         const usedEmailsList = Array.isArray(p.usedEmails) ? p.usedEmails.map(e => String(e).toLowerCase()) : [];
         const hasUsedInOrders = orders.some(o =>
             o.promoCode && o.promoCode.toUpperCase() === p.code.toUpperCase() &&
@@ -2979,27 +2956,27 @@ window.applyPromoDirect = function() {
 
         if (usedEmailsList.includes(buyerEmail) || hasUsedInOrders || hasUsedLocal) {
             appliedPromo = null;
-            msgEl.innerHTML = `<span style="color:var(--danger)"><i class="fa-solid fa-ban"></i> Kode promo <b>${escapeHtml(p.code)}</b> hanya berlaku 1x per Email (Email ${escapeHtml(buyerEmail)} sudah pernah mengklaim).</span>`;
+            msgEl.innerHTML = `<span style="color:var(--danger)">Kode promo sudah pernah digunakan pada email ini.</span>`;
             window.calculateDirectBuyTotal();
             return;
         }
     }
 
     if (p.usedCount >= p.maxUses) {
-        appliedPromo = null; msgEl.innerHTML = `<span style="color:var(--danger)"><i class="fa-solid fa-circle-xmark"></i> Kuota kode promo sudah habis.</span>`;
+        appliedPromo = null; msgEl.innerHTML = `<span style="color:var(--danger)">Kuota kode promo sudah habis.</span>`;
     } else if (p.expiryDate && p.expiryDate < todayIso) {
-        appliedPromo = null; msgEl.innerHTML = `<span style="color:var(--danger)"><i class="fa-solid fa-circle-xmark"></i> Masa berlaku kode promo telah berakhir.</span>`;
+        appliedPromo = null; msgEl.innerHTML = `<span style="color:var(--danger)">Masa berlaku kode promo telah berakhir.</span>`;
     } else if (p.minOrder && p.minOrder > 0 && rawSubtotal < p.minOrder) {
-        appliedPromo = null; msgEl.innerHTML = `<span style="color:var(--danger)"><i class="fa-solid fa-circle-xmark"></i> Minimal belanja Rp${p.minOrder.toLocaleString('id-ID')}.</span>`;
+        appliedPromo = null; msgEl.innerHTML = `<span style="color:var(--danger)">Minimal belanja Rp${p.minOrder.toLocaleString('id-ID')}.</span>`;
     } else if (p.targetBrand && p.targetBrand !== 'all' && currentCheckoutBrand && p.targetBrand !== currentCheckoutBrand.brandName) {
-        appliedPromo = null; msgEl.innerHTML = `<span style="color:var(--danger)"><i class="fa-solid fa-circle-xmark"></i> Khusus produk ${escapeHtml(p.targetBrand)}.</span>`;
+        appliedPromo = null; msgEl.innerHTML = `<span style="color:var(--danger)">Khusus produk ${escapeHtml(p.targetBrand)}.</span>`;
     } else if (p.targetUser === 'new') {
         const hasOrders = orders.some(o =>
             (effectiveUid && o.userId === effectiveUid) ||
             (buyerEmail && (o.userEmail || '').toLowerCase() === buyerEmail)
         );
         if (hasOrders) {
-            appliedPromo = null; msgEl.innerHTML = `<span style="color:var(--danger)"><i class="fa-solid fa-circle-xmark"></i> Khusus pengguna transaksi pertama.</span>`;
+            appliedPromo = null; msgEl.innerHTML = `<span style="color:var(--danger)">Khusus transaksi pertama.</span>`;
         } else {
             setValidPromo(p, msgEl, isMemberOnlyPromo);
         }
@@ -3008,16 +2985,15 @@ window.applyPromoDirect = function() {
     }
     window.calculateDirectBuyTotal();
 };
-window.applyPromoDirectV27 = window.applyPromoDirect;
 
 function setValidPromo(p, msgEl, isMemberOnlyPromo = false) {
     appliedPromo = { dbId: p.dbId, code: p.code, amount: p.amount, type: p.type || 'nominal', memberOnly: isMemberOnlyPromo };
-    const badgeTag = isMemberOnlyPromo ? ' (VIP Member)' : '';
-    msgEl.innerHTML = `<span style="color:var(--success)"><i class="fa-solid fa-circle-check"></i> Promo ${escapeHtml(p.code)}${badgeTag} berhasil dipasang!</span>`;
+    msgEl.innerHTML = `<span style="color:var(--success)"><i class="fa-solid fa-circle-check"></i> Promo ${escapeHtml(p.code)} diterapkan.</span>`;
 }
 
 window.calculateDirectBuyTotal = function() {
     const btnProc = document.getElementById('btn-process-buy');
+    if (!btnProc) return;
     
     if (!selectedProductForBuy) {
         document.getElementById('buy-total-price').innerText = 'Rp0';
@@ -3047,17 +3023,36 @@ window.calculateDirectBuyTotal = function() {
         btnProc.disabled = true;
         return;
     }
+
+    const opRestricted = isLocalStockOnlyRestrictionActive();
+    const availQuota = computeVariantAvailableStock(selectedProductForBuy);
+    if (opRestricted && (availQuota === null || availQuota <= 0)) {
+        btnProc.innerHTML = '<i class="fa-solid fa-clock"></i> <span>Stok Lokal Kosong (Tutup Jam Layanan)</span>';
+        btnProc.disabled = true;
+        return;
+    }
     
-    btnProc.innerHTML = '<i class="fa-solid fa-bolt"></i> <span id="btn-process-text">Beli & Bayar Sekarang</span>'; 
+    btnProc.innerHTML = '<i class="fa-solid fa-bolt"></i> <span id="btn-process-text">Beli Sekarang</span>'; 
     btnProc.disabled = false;
 };
 
 window.processDirectCheckout = async function() {
     if (isProcessingCheckout || !selectedProductForBuy) return;
     
+    if (siteSettings.isStoreOpen === false) {
+        window.customAlert('Toko Sedang Tutup', 'Maaf, toko sedang tutup sementara.', 'warning');
+        return;
+    }
+
+    const opRestricted = isLocalStockOnlyRestrictionActive();
+    const availQuota = computeVariantAvailableStock(selectedProductForBuy);
+    if (opRestricted && (availQuota === null || availQuota <= 0)) {
+        window.customAlert('Di Luar Jam Layanan', 'Saat ini toko hanya melayani pembelian produk yang memiliki stok lokal tersedia.', 'warning');
+        return;
+    }
+
     const isMember = Boolean(currentUser && !currentUser.isAnonymous && !userProfile.isGuest);
 
-    // [FEATURE-14] Untuk Member Resmi, otomatis gunakan Email & No HP dari profil Member tanpa perlu input!
     let emailInput = isMember
         ? (userProfile.email || currentUser?.email || document.getElementById('buy-email')?.value || '').trim()
         : (document.getElementById('buy-email')?.value || '').trim();
@@ -3067,40 +3062,39 @@ window.processDirectCheckout = async function() {
         : (document.getElementById('buy-phone')?.value || '').trim();
 
     if (!emailInput || !emailInput.includes('@')) { 
-        window.customAlert('Email Diperlukan', 'Harap masukkan alamat Email aktif untuk pengiriman struk & akun!', 'warning'); 
+        window.customAlert('Email Diperlukan', 'Harap masukkan alamat email aktif.', 'warning'); 
         return; 
     }
 
-    // Validasi ulang Promo Member Only & 1 Email 1x Pakai tepat sebelum membuat order (#13 & #19)
     if (appliedPromo) {
         const promoDoc = promos.find(x => x.code === appliedPromo.code);
         if (promoDoc) {
             const isMemOnly = (promoDoc.targetUser === 'member' || promoDoc.targetUser === 'member_only' || promoDoc.memberOnly === true);
             if (isMemOnly && !isMember) {
-                window.customAlert('Khusus Member Resmi', 'Kode promo yang kamu pasang hanya berlaku untuk Member Resmi.', 'warning');
+                window.customAlert('Khusus Member', 'Kode promo ini hanya berlaku untuk Member.', 'warning');
                 return;
             }
-            const lowerEm = emailInput.toLowerCase();
-            const usedEmails = Array.isArray(promoDoc.usedEmails) ? promoDoc.usedEmails.map(e => String(e).toLowerCase()) : [];
-            const alreadyClaimed = usedEmails.includes(lowerEm) || orders.some(o =>
-                o.promoCode && o.promoCode.toUpperCase() === promoDoc.code.toUpperCase() &&
-                o.status !== 'CANCELLED' && o.status !== 'EXPIRED' && o.status !== 'FAILED' &&
-                (o.userEmail || '').toLowerCase() === lowerEm
-            );
-            if (alreadyClaimed) {
-                appliedPromo = null;
-                window.calculateDirectBuyTotal();
-                window.customAlert('Promo Sudah Pernah Dipakai', `Kode promo <b>${escapeHtml(promoDoc.code)}</b> hanya berlaku 1x untuk setiap alamat Email (${escapeHtml(emailInput)}).`, 'warning');
-                return;
+            if (promoDoc.onePerEmail !== false) {
+                const lowerEm = emailInput.toLowerCase();
+                const usedEmails = Array.isArray(promoDoc.usedEmails) ? promoDoc.usedEmails.map(e => String(e).toLowerCase()) : [];
+                const alreadyClaimed = usedEmails.includes(lowerEm) || orders.some(o =>
+                    o.promoCode && o.promoCode.toUpperCase() === promoDoc.code.toUpperCase() &&
+                    o.status !== 'CANCELLED' && o.status !== 'EXPIRED' && o.status !== 'FAILED' &&
+                    (o.userEmail || '').toLowerCase() === lowerEm
+                );
+                if (alreadyClaimed) {
+                    appliedPromo = null;
+                    window.calculateDirectBuyTotal();
+                    window.customAlert('Promo Sudah Digunakan', `Kode promo ${escapeHtml(promoDoc.code)} sudah pernah digunakan pada email ini.`, 'warning');
+                    return;
+                }
             }
         }
     }
     
     const qty = parseInt(document.getElementById('buy-qty').value) || 1;
-    const availQuota = computeVariantAvailableStock(selectedProductForBuy);
-
     if (typeof availQuota === 'number' && availQuota < qty) {
-        window.customAlert('Stok Tidak Cukup', `Sisa stok/slot untuk varian ini hanya ${availQuota}.`, 'warning');
+        window.customAlert('Stok Tidak Cukup', `Sisa stok tersedia untuk varian ini adalah ${availQuota}.`, 'warning');
         return;
     }
     
@@ -3111,20 +3105,19 @@ window.processDirectCheckout = async function() {
         const pid = buyIdEl.value.trim();
         const zol = document.getElementById('buy-zone') ? document.getElementById('buy-zone').value.trim() : '';
         if (!pid) {
-            window.customAlert('Data Tujuan Kosong', 'Harap isi kolom Data Tujuan / Email / ID terlebih dahulu!', 'warning');
+            window.customAlert('Data Tujuan Kosong', 'Harap isi kolom Data Tujuan terlebih dahulu.', 'warning');
             return;
         }
         rawTargetId = zol ? `${pid} (${zol})` : pid;
 
         let inpType = currentCheckoutBrand.items[0]?.inputType || 'id_zone';
-        if (currentCheckoutBrand.type === 'app') playerInfo = `Email/Akun Tujuan: ${pid}`;
+        if (currentCheckoutBrand.type === 'app') playerInfo = `Tujuan: ${pid}`;
         else if (inpType === 'id_only') playerInfo = `ID: ${pid}`;
         else if (inpType === 'custom' || inpType === 'roblox') playerInfo = `Target: ${pid}`;
         else playerInfo = `ID: ${pid} | Zone: ${zol}`;
     } else {
-        const typeLabel = currentCheckoutBrand.type === 'tools' ? 'Tools / Email Digital' : 'Akun Premium';
-        const modeLbl = selectedProductForBuy.processType === 'manual' ? 'Manual' : (selectedProductForBuy.processType === 'ask_auto' ? 'Tanya/Auto' : 'Auto');
-        playerInfo = `${typeLabel} (Delivery: ${modeLbl})`;
+        const typeLabel = currentCheckoutBrand.type === 'tools' ? 'Tools' : 'Aplikasi';
+        playerInfo = `${typeLabel}`;
     }
 
     await ensureAuthSession();
@@ -3145,7 +3138,7 @@ window.processDirectCheckout = async function() {
     });
 
     if (existingActiveOrder) {
-        window.showToast('Tagihan Aktif Ditemukan', `Membuka kembali tagihan ${existingActiveOrder.id}. Kamu juga bisa membatalkannya jika ingin buat baru.`, 'warning');
+        window.showToast('Tagihan Aktif', `Membuka tagihan #${existingActiveOrder.id}.`, 'info');
         window.resumePayment(existingActiveOrder.dbId);
         return;
     }
@@ -3153,10 +3146,9 @@ window.processDirectCheckout = async function() {
     isProcessingCheckout = true;
     const btnProc = document.getElementById('btn-process-buy');
     const ogHtml = btnProc.innerHTML;
-    btnProc.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> <span>Menerbitkan Tagihan...</span>';
+    btnProc.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> <span>Memproses...</span>';
     btnProc.disabled = true;
 
-    // [FEATURE-22] Simpan kontak sesuai sesi (Member vs Guest Terpisah)
     saveActiveSessionContact(emailInput, phoneInput);
     
     let rawTotal = selectedProductForBuy.priceNum * qty;
@@ -3255,65 +3247,51 @@ window.processDirectCheckout = async function() {
         }
         
         if (paymentMethod === 'qris') {
-            setTimeout(() => window.openQRISModal(), 80);
+            setTimeout(() => window.openQRISModal(), 50);
         } else {
-            setTimeout(() => window.openCashBarcodeModal(), 80);
+            setTimeout(() => window.openCashBarcodeModal(), 50);
         }
     } catch (e) { 
-        window.customAlert("Gagal", "Gagal membuat pesanan ke server, silakan coba lagi.", "error"); 
+        window.customAlert("Gagal", "Gagal membuat pesanan, silakan coba lagi.", "error"); 
     } finally {
         setTimeout(() => {
             isProcessingCheckout = false;
             btnProc.innerHTML = ogHtml;
             btnProc.disabled = false;
-        }, 700);
+        }, 500);
     }
 };
 
-/* ============================================================================
- * [FEATURE-02, 03, 15, 17, 22, 23, 24] E-RECEIPT TANPA TOMBOL EMAIL USER,
- * PARSER FORMAT PRODUK EMAIL OAUTH ("email|password|refresh_token|client_id"),
- * PELACAK 1-INPUT ID TRX, & LIVE CHAT SUPPORT STUDIO V27
- * ============================================================================ */
-function buildQuickCopyCredentialButtons(rawReplyText, invId) {
+// ==========================================
+// STRUK DETAIL PESANAN & LACAK ID TRANSAKSI (#18)
+// ==========================================
+function buildQuickCopyCredentialButtons(rawReplyText) {
     if (!rawReplyText) return '';
     const lines = String(rawReplyText).split(/\r?\n/).map(l => l.trim()).filter(Boolean);
     const extractedPairs = [];
     const emailOAuthBlocks = [];
 
-    let pendingEmailOAuth = null;
-
     lines.forEach(line => {
         if (line.startsWith('[') && line.endsWith(']')) return;
 
-        // Deteksi baris FORMAT_UTUH khusus produk Email OAuth (#17)
         if (line.toUpperCase().startsWith('FORMAT_UTUH')) {
             const cIdx = line.indexOf(':');
             const rawPipe = cIdx > 0 ? line.substring(cIdx + 1).trim() : '';
             if (rawPipe) {
-                pendingEmailOAuth = { rawPipe, accessLink: '' };
-                emailOAuthBlocks.push(pendingEmailOAuth);
+                emailOAuthBlocks.push({ rawPipe });
             }
             return;
         }
 
+        // Abaikan baris LINK_AKSES karena fitur link default web ambil kode telah dihapus (#18)
         if (line.toUpperCase().startsWith('LINK_AKSES')) {
-            const cIdx = line.indexOf(':');
-            const linkVal = cIdx > 0 ? line.substring(cIdx + 1).trim() : '';
-            if (linkVal && pendingEmailOAuth) {
-                pendingEmailOAuth.accessLink = linkVal;
-            } else if (linkVal) {
-                extractedPairs.push({ label: 'Link Akses Tanpa Login', val: linkVal, isUrl: linkVal.startsWith('http') });
-            }
             return;
         }
 
-        // Deteksi baris mentah yang langsung berformat email|password|refresh_token|client_id(|link)
         if (line.includes('|') && line.split('|').length >= 4) {
             const segs = line.split('|').map(s => s.trim());
             const fourPart = `${segs[0]}|${segs[1]}|${segs[2]}|${segs[3]}`;
-            const linkSeg = segs[4] || siteSettings.defaultEmailPortalUrl || '';
-            emailOAuthBlocks.push({ rawPipe: fourPart, accessLink: linkSeg });
+            emailOAuthBlocks.push({ rawPipe: fourPart });
             if (segs[0]) extractedPairs.push({ label: 'Email', val: segs[0] });
             if (segs[1] && segs[1] !== '-') extractedPairs.push({ label: 'Password', val: segs[1] });
             if (segs[2] && segs[2] !== '-') extractedPairs.push({ label: 'Refresh Token', val: segs[2] });
@@ -3325,43 +3303,32 @@ function buildQuickCopyCredentialButtons(rawReplyText, invId) {
         if (colonIdx > 0 && colonIdx < 28) {
             const label = line.substring(0, colonIdx).trim();
             const val = line.substring(colonIdx + 1).trim();
-            if (val && val !== '-' && !label.toLowerCase().includes('terima kasih')) {
+            if (val && val !== '-' && !label.toLowerCase().includes('terima kasih') && !label.toUpperCase().includes('LINK_AKSES')) {
                 extractedPairs.push({ label, val, isUrl: val.startsWith('http') });
             }
         } else if (line.includes('|')) {
             const parts = line.split('|').map(s => s.trim()).filter(Boolean);
-            if (parts[0]) extractedPairs.push({ label: 'Email / ID / Link', val: parts[0] });
-            if (parts[1] && parts[1] !== '-') extractedPairs.push({ label: 'Password / Kode', val: parts[1] });
-            if (parts[2] && parts[2] !== '-') extractedPairs.push({ label: 'Profil / Info', val: parts[2] });
+            if (parts[0]) extractedPairs.push({ label: 'Email / ID', val: parts[0] });
+            if (parts[1] && parts[1] !== '-') extractedPairs.push({ label: 'Password', val: parts[1] });
+            if (parts[2] && parts[2] !== '-') extractedPairs.push({ label: 'Keterangan', val: parts[2] });
         }
     });
 
     let html = '';
 
-    // [FEATURE-17] Render Kartu Khusus Format Produk Email OAuth + Tombol Copy Seutuhnya + Link Akses Tanpa Login
     if (emailOAuthBlocks.length > 0) {
         emailOAuthBlocks.forEach((blk, bIdx) => {
             const safePipeJs = escapeJsStr(blk.rawPipe);
-            const accessUrl = blk.accessLink || siteSettings.defaultEmailPortalUrl || '';
-            const safeAccessHtml = escapeHtml(accessUrl);
-            const openPortalBtn = accessUrl
-                ? `<a href="${safeAccessHtml}" target="_blank" rel="noopener noreferrer" class="btn btn-sm btn-open-mail-portal" style="flex:1;">
-                       <i class="fa-solid fa-up-right-from-square"></i> Buka Link Akses Ambil Kode (Tanpa Login)
-                   </a>`
-                : '';
-
             html += `
             <div class="email-oauth-vault-box">
                 <div class="email-oauth-head">
-                    <span class="brutal-tag tag-amber"><i class="fa-solid fa-envelope-open-text"></i> FORMAT PRODUK EMAIL ${emailOAuthBlocks.length > 1 ? '#' + (bIdx + 1) : ''}</span>
-                    <small style="font-size:0.7rem; font-weight:700; color:var(--text-muted);">Salin utuh lalu tempel di web ambil kode</small>
+                    <span class="brutal-tag tag-amber">FORMAT EMAIL ${emailOAuthBlocks.length > 1 ? '#' + (bIdx + 1) : ''}</span>
                 </div>
                 <div class="raw-pipe-code">${escapeHtml(blk.rawPipe)}</div>
                 <div class="email-oauth-actions">
-                    <button type="button" class="btn btn-primary btn-sm" style="flex:1;" onclick="window.copyRawPipeFormatV27('${safePipeJs}')">
-                        <i class="fa-regular fa-copy"></i> Salin Format Utuh (1-Klik)
+                    <button type="button" class="btn btn-primary btn-sm" style="width:100%;" onclick="window.copyRawPipeFormat('${safePipeJs}')">
+                        <i class="fa-regular fa-copy"></i> Salin Format Utuh
                     </button>
-                    ${openPortalBtn}
                 </div>
             </div>`;
         });
@@ -3374,14 +3341,14 @@ function buildQuickCopyCredentialButtons(rawReplyText, invId) {
             const safeLbl = escapeJsStr(pair.label);
             const actionBtn = pair.isUrl
                 ? `<div style="display:flex; gap:6px;">
-                       <a href="${escapeHtml(pair.val)}" target="_blank" rel="noopener noreferrer" class="btn btn-warning btn-sm" style="padding:4px 10px; min-height:30px; font-size:0.72rem;">
-                           <i class="fa-solid fa-up-right-from-square"></i> Buka Link
+                       <a href="${escapeHtml(pair.val)}" target="_blank" rel="noopener noreferrer" class="btn btn-warning btn-sm" style="padding:4px 10px; min-height:28px; font-size:0.72rem;">
+                           Buka
                        </a>
-                       <button type="button" class="btn btn-primary btn-sm" style="padding:4px 10px; min-height:30px; font-size:0.72rem;" onclick="window.copyCredentialPart('${safeVal}', '${safeLbl}')">
+                       <button type="button" class="btn btn-primary btn-sm" style="padding:4px 10px; min-height:28px; font-size:0.72rem;" onclick="window.copyCredentialPart('${safeVal}', '${safeLbl}')">
                            <i class="fa-regular fa-copy"></i>
                        </button>
                    </div>`
-                : `<button type="button" class="btn btn-primary btn-sm" style="padding:4px 10px; min-height:30px; font-size:0.72rem;" onclick="window.copyCredentialPart('${safeVal}', '${safeLbl}')">
+                : `<button type="button" class="btn btn-primary btn-sm" style="padding:4px 10px; min-height:28px; font-size:0.72rem;" onclick="window.copyCredentialPart('${safeVal}', '${safeLbl}')">
                        <i class="fa-regular fa-copy"></i> Salin
                    </button>`;
 
@@ -3400,17 +3367,17 @@ function buildQuickCopyCredentialButtons(rawReplyText, invId) {
     return html;
 }
 
-window.copyRawPipeFormatV27 = function(rawPipeStr) {
+window.copyRawPipeFormat = function(rawPipeStr) {
     if (!rawPipeStr) return;
     navigator.clipboard.writeText(rawPipeStr).then(() => {
-        window.showToast('Format Email Utuh Disalin!', 'Format email|password|refresh_token|client_id berhasil disalin untuk ditempel di web akses kode tanpa login.', 'success');
+        window.showToast('Disalin', 'Format email berhasil disalin.', 'success');
     });
 };
 
 window.copyCredentialPart = function(val, label) {
     if (!val) return;
     navigator.clipboard.writeText(val).then(() => {
-        window.showToast(`${label} Disalin`, `${val} berhasil disalin ke papan klip!`, 'success');
+        window.showToast(`${label} Disalin`, `${val} disalin.`, 'success');
     });
 };
 
@@ -3418,31 +3385,31 @@ window.copyAccountReplyText = function(invId) {
     const order = orders.find(o => o.id === invId);
     if (!order || !order.adminReply) return;
     navigator.clipboard.writeText(order.adminReply).then(() => {
-        window.showToast('Data Disalin', 'Seluruh detail akun/link pesanan berhasil disalin!', 'success');
+        window.showToast('Disalin', 'Seluruh detail pesanan berhasil disalin.', 'success');
     });
 };
 
 function generateHelpButtons(invId, orderStatus, item) {
     let actionBtn = '';
     if (orderStatus === 'PENDING') {
-        const msg = `Halo Admin, saya sudah membayar untuk pesanan ${invId}. Tolong dicek ya Min.`;
-        actionBtn = `<button class="btn btn-warning" style="width:100%;" onclick="window.sendPredefinedChat('${escapeJsStr(msg)}')"><i class="fa-solid fa-check-double"></i> Konfirmasi Pembayaran ke Admin</button>`;
+        const msg = `Halo Admin, saya sudah membayar pesanan #${invId}. Mohon dicek.`;
+        actionBtn = `<button class="btn btn-warning" style="width:100%;" onclick="window.sendPredefinedChat('${escapeJsStr(msg)}')"><i class="fa-solid fa-check-double"></i> Konfirmasi ke Admin</button>`;
     } else if (orderStatus === 'SUCCESS') {
         if (item?.processType === 'manual') {
-            const msg = `Halo Admin, pesanan ${invId} saya statusnya SUKSES (Manual). Mohon segera diproses ya.`;
-            actionBtn = `<button class="btn btn-primary" style="width:100%;" onclick="window.sendPredefinedChat('${escapeJsStr(msg)}')"><i class="fa-solid fa-headset"></i> Hubungi Admin (Proses Manual)</button>`;
+            const msg = `Halo Admin, pesanan #${invId} saya sudah lunas. Mohon segera diproses.`;
+            actionBtn = `<button class="btn btn-primary" style="width:100%;" onclick="window.sendPredefinedChat('${escapeJsStr(msg)}')"><i class="fa-solid fa-headset"></i> Hubungi Admin</button>`;
         } else {
-            const msg = `Halo Admin, saya butuh bantuan / klaim garansi untuk pesanan ID: ${invId}.`;
-            actionBtn = `<button class="btn btn-outline" style="width:100%;" onclick="window.sendPredefinedChat('${escapeJsStr(msg)}')"><i class="fa-solid fa-shield-halved"></i> Bantuan / Klaim Garansi</button>`;
+            const msg = `Halo Admin, saya butuh bantuan untuk pesanan #${invId}.`;
+            actionBtn = `<button class="btn btn-outline" style="width:100%;" onclick="window.sendPredefinedChat('${escapeJsStr(msg)}')"><i class="fa-solid fa-headset"></i> Bantuan Pesanan</button>`;
         }
     } else if (orderStatus === 'EXPIRED') {
-        const msg = `Halo Admin, saya sudah membayar untuk pesanan ${invId} namun statusnya Expired. Mohon bantuannya.`;
-        actionBtn = `<button class="btn btn-danger" style="width:100%;" onclick="window.sendPredefinedChat('${escapeJsStr(msg)}')"><i class="fa-solid fa-triangle-exclamation"></i> Lapor Kendala Expired</button>`;
+        const msg = `Halo Admin, saya butuh bantuan terkait pesanan #${invId}.`;
+        actionBtn = `<button class="btn btn-danger" style="width:100%;" onclick="window.sendPredefinedChat('${escapeJsStr(msg)}')"><i class="fa-solid fa-headset"></i> Hubungi Admin</button>`;
     }
     
     if (!actionBtn) return '';
     return `
-    <div style="margin-top: 1rem; padding-top: 1rem; border-top: 1.5px dashed var(--border-subtle);">
+    <div style="margin-top: 0.9rem; padding-top: 0.9rem; border-top: 1.5px dashed var(--border-subtle);">
         ${actionBtn}
     </div>`;
 }
@@ -3452,14 +3419,13 @@ function hasOrderBeenReviewed(order) {
     return reviewsData.some(r => r.orderId && r.orderId === order.id);
 }
 
-// [FEATURE-02 & 15] E-Receipt Bersih: Tanpa Tombol Kirim Email User & Tanpa Banner Upgrade Anonim
 function buildFullReceiptHTML(order) {
     const isUnpaid = order.status === 'UNPAID' || order.status === 'PENDING_PAYMENT';
     const isCancelled = order.status === 'CANCELLED';
     const isFailed = order.status === 'FAILED' || order.status === 'EXPIRED' || isCancelled;
 
     const sBadge = isUnpaid ? 'status-unpaid' : order.status === 'PENDING' ? 'status-pending' : isCancelled ? 'status-cancelled' : isFailed ? 'status-failed' : 'status-success';
-    const sName = isUnpaid ? 'BELUM DIBAYAR' : order.status === 'PENDING' ? 'MENUNGGU KASIR / PROSES' : isCancelled ? 'DIBATALKAN PEMBELI' : order.status === 'FAILED' ? 'GAGAL / BATAL' : order.status === 'EXPIRED' ? 'WAKTU HABIS' : 'TRANSAKSI SUKSES';
+    const sName = isUnpaid ? 'BELUM BAYAR' : order.status === 'PENDING' ? 'MENUNGGU PROSES' : isCancelled ? 'DIBATALKAN' : order.status === 'FAILED' ? 'GAGAL' : order.status === 'EXPIRED' ? 'WAKTU HABIS' : 'SELESAI';
     
     const brandName = order.items[0]?.brandName || '';
     const safeJsBrand = escapeJsStr(brandName);
@@ -3472,35 +3438,34 @@ function buildFullReceiptHTML(order) {
         actionHtml = `
         <div class="ereceipt-action-grid">
             <button class="btn btn-primary" onclick="window.resumePayment('${order.dbId}')">
-                <i class="fa-solid fa-qrcode"></i> Bayar QRIS Sekarang
+                <i class="fa-solid fa-qrcode"></i> Bayar QRIS
             </button>
             <button class="btn btn-danger" onclick="window.cancelActiveOrder('${order.dbId}')">
-                <i class="fa-solid fa-ban"></i> Batalkan Pesanan
+                <i class="fa-solid fa-ban"></i> Batalkan
             </button>
         </div>`;
     } else if (order.status === 'PENDING' && order.paymentMethod === 'cash') {
         actionHtml = `
         <div class="ereceipt-action-grid">
             <button class="btn btn-primary" onclick="window.resumePayment('${order.dbId}')">
-                <i class="fa-solid fa-barcode"></i> Buka Barcode Kasir
+                <i class="fa-solid fa-barcode"></i> Buka Barcode
             </button>
             <button class="btn btn-danger" onclick="window.cancelActiveOrder('${order.dbId}')">
-                <i class="fa-solid fa-ban"></i> Batalkan Pesanan
+                <i class="fa-solid fa-ban"></i> Batalkan
             </button>
         </div>`;
     } else if (isCancelled || order.status === 'EXPIRED') {
         if (brandName) {
-            actionHtml = `<button class="btn btn-primary" style="width:100%; margin-top:1rem;" onclick="window.closeModal('modal-order-detail'); window.openDirectBuyModal('${safeJsBrand}')"><i class="fa-solid fa-rotate-right"></i> Buat Pesanan Baru Produk Ini</button>`;
+            actionHtml = `<button class="btn btn-primary" style="width:100%; margin-top:0.9rem;" onclick="window.closeModal('modal-order-detail'); window.openDirectBuyModal('${safeJsBrand}')"><i class="fa-solid fa-rotate-right"></i> Beli Lagi</button>`;
         }
     } else if (order.status === 'SUCCESS') {
-        // [FEATURE-02] Tombol kirim email telah dihapus dari sisi user (hanya ada di Admin)
         const alreadyReviewed = hasOrderBeenReviewed(order);
         if (!alreadyReviewed && brandName) {
             actionHtml = `
-                <button class="btn btn-warning" style="width:100%; margin-top:1rem;" onclick="window.goToReview('${safeJsBrand}', '${order.id}')"><i class="fa-solid fa-star"></i> Beri Ulasan Transaksi Ini</button>`;
+                <button class="btn btn-warning" style="width:100%; margin-top:0.9rem;" onclick="window.goToReview('${safeJsBrand}', '${order.id}')"><i class="fa-solid fa-star"></i> Beri Ulasan</button>`;
         } else if (alreadyReviewed) {
             actionHtml = `
-                <div style="margin-top:1rem; text-align:center; font-size:0.78rem; font-weight:800; color:var(--success); padding:8px; border:1.5px dashed var(--success); border-radius:8px;"><i class="fa-solid fa-circle-check"></i> Transaksi ini sudah diulas</div>`;
+                <div style="margin-top:0.9rem; text-align:center; font-size:0.76rem; font-weight:800; color:var(--success); padding:7px; border:1.5px dashed var(--success); border-radius:8px;"><i class="fa-solid fa-circle-check"></i> Sudah diulas</div>`;
         }
     }
 
@@ -3509,8 +3474,8 @@ function buildFullReceiptHTML(order) {
     if (durDays > 0 && order.status === 'SUCCESS') {
         const endMs = order.subscriptionEndAt || (new Date(order.date).getTime() + durDays * 86400000);
         durationReceiptHtml = `
-            <div style="margin-top:8px; padding-top:8px; border-top:1px dashed var(--border-subtle); font-size:0.76rem; font-weight:800; color:var(--primary-light); display:flex; justify-content:space-between; flex-wrap:wrap;">
-                <span><i class="fa-regular fa-clock"></i> Paket Langganan: ${durDays} Hari</span>
+            <div style="margin-top:8px; padding-top:8px; border-top:1px dashed var(--border-subtle); font-size:0.75rem; font-weight:800; color:var(--primary-light); display:flex; justify-content:space-between; flex-wrap:wrap;">
+                <span>Durasi: ${durDays} Hari</span>
                 <span>Berakhir: ${new Date(endMs).toLocaleDateString('id-ID', { day:'2-digit', month:'short', year:'numeric' })}</span>
             </div>`;
     }
@@ -3518,31 +3483,25 @@ function buildFullReceiptHTML(order) {
     let replyHtml = '';
     if (order.status === 'SUCCESS') {
         if (order.adminReply) {
-            const quickCopyButtonsHtml = buildQuickCopyCredentialButtons(order.adminReply, order.id);
+            const quickCopyButtonsHtml = buildQuickCopyCredentialButtons(order.adminReply);
             replyHtml = `
             <div class="ereceipt-cred-vault">
                 <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px;">
-                    <span style="font-weight: 800; color: var(--success); font-size: 0.84rem; display: flex; align-items: center; gap: 6px;">
-                        <i class="fa-solid fa-key"></i> DATA AKUN / FORMAT EMAIL / VOUCHER TERKIRIM:
+                    <span style="font-weight: 800; color: var(--success); font-size: 0.82rem; display: flex; align-items: center; gap: 6px;">
+                        <i class="fa-solid fa-key"></i> DETAIL PESANAN:
                     </span>
                     <button class="btn btn-outline btn-sm" style="padding:3px 10px; min-height:28px; font-size:0.7rem;" onclick="window.copyAccountReplyText('${escapeJsStr(order.id)}')">
-                        <i class="fa-regular fa-copy"></i> Salin Semua Teks
+                        <i class="fa-regular fa-copy"></i> Salin Semua
                     </button>
                 </div>
                 ${quickCopyButtonsHtml}
                 <div class="ereceipt-cred-content">${escapeHtml(order.adminReply)}</div>
             </div>`;
-        } else if (order.items[0]?.processType === 'manual') {
-            replyHtml = `
-            <div class="brutal-alert-box alert-warning" style="margin-top: 12px;">
-                <i class="fa-solid fa-user-clock"></i>
-                <span>Pembayaran terverifikasi! Pesanan manual sedang disiapkan oleh Admin dan akan langsung dikirim ke E-Receipt & Email kamu.</span>
-            </div>`;
         } else {
             replyHtml = `
             <div class="brutal-alert-box alert-warning" style="margin-top: 12px;">
                 <i class="fa-solid fa-clock"></i>
-                <span>Pembayaran lunas! Sistem sedang menyiapkan pengiriman stok otomatis untukmu.</span>
+                <span>Pembayaran diterima. Pesanan sedang diproses.</span>
             </div>`;
         }
     }
@@ -3553,10 +3512,10 @@ function buildFullReceiptHTML(order) {
     <div class="ereceipt-ticket">
         <div class="ereceipt-top-banner">
             <div>
-                <span style="font-size:0.68rem; font-weight:800; color:var(--text-muted); display:block;">NOMOR INVOICE RESMI</span>
+                <span style="font-size:0.66rem; font-weight:800; color:var(--text-muted); display:block;">NOMOR INVOICE</span>
                 <div class="ereceipt-inv-code">
                     <span>#${escapeHtml(order.id)}</span>
-                    <button class="mini-copy-btn" onclick="navigator.clipboard.writeText('${escapeJsStr(order.id)}'); window.showToast('Tersalin','Nomor Invoice disalin','success');"><i class="fa-regular fa-copy"></i></button>
+                    <button class="mini-copy-btn" onclick="navigator.clipboard.writeText('${escapeJsStr(order.id)}'); window.showToast('Disalin','Nomor Invoice disalin','success');"><i class="fa-regular fa-copy"></i></button>
                 </div>
             </div>
             <span class="status-badge ${sBadge}">${sName}</span>
@@ -3565,26 +3524,26 @@ function buildFullReceiptHTML(order) {
         <div class="ereceipt-stepper">
             <div class="estep-item done">
                 <div class="estep-dot"><i class="fa-solid fa-check"></i></div>
-                <span class="estep-label">1. Order Dibuat</span>
+                <span class="estep-label">1. Dibuat</span>
             </div>
             <div class="estep-item ${step2Class}">
                 <div class="estep-dot"><i class="fa-solid ${isFailed ? 'fa-xmark' : (order.paymentMethod === 'cash' ? 'fa-barcode' : 'fa-qrcode')}"></i></div>
-                <span class="estep-label">2. ${order.paymentMethod === 'cash' ? 'Kasir Tunai' : 'Bayar QRIS'}</span>
+                <span class="estep-label">2. ${order.paymentMethod === 'cash' ? 'Tunai' : 'QRIS'}</span>
             </div>
             <div class="estep-item ${step3Class}">
                 <div class="estep-dot"><i class="fa-solid fa-box-open"></i></div>
-                <span class="estep-label">3. Selesai Dikirim</span>
+                <span class="estep-label">3. Selesai</span>
             </div>
         </div>
 
         <div class="ereceipt-body">
-            <div style="font-size: 0.76rem; font-weight: 700; color: var(--text-muted); margin-bottom: 10px; display:flex; justify-content:space-between; flex-wrap:wrap; gap:6px;">
-                <span><i class="fa-regular fa-calendar-check"></i> ${new Date(order.date).toLocaleString('id-ID')}</span>
+            <div style="font-size: 0.75rem; font-weight: 700; color: var(--text-muted); margin-bottom: 10px; display:flex; justify-content:space-between; flex-wrap:wrap; gap:6px;">
+                <span>${new Date(order.date).toLocaleString('id-ID')}</span>
                 <span>Email: <b>${escapeHtml(order.userEmail || '-')}</b></span>
             </div>
             <div class="ereceipt-product-box">
-                ${order.items.map(i => `<div style="font-weight: 800; font-size: 0.96rem; color: var(--text);">${escapeHtml(i.name)}</div>`).join('')}
-                <div style="font-size: 0.78rem; font-weight: 700; color: var(--text-muted); margin-top:4px;">${escapeHtml(order.items[0]?.playerInfo || '')}</div>
+                ${order.items.map(i => `<div style="font-weight: 800; font-size: 0.94rem; color: var(--text);">${escapeHtml(i.name)}</div>`).join('')}
+                <div style="font-size: 0.76rem; font-weight: 700; color: var(--text-muted); margin-top:4px;">${escapeHtml(order.items[0]?.playerInfo || '')}</div>
                 ${durationReceiptHtml}
             </div>
             ${replyHtml}
@@ -3592,22 +3551,22 @@ function buildFullReceiptHTML(order) {
 
         <div class="ereceipt-footer">
             <div class="receipt-row">
-                <span style="color:var(--text-muted);">Harga Layanan</span>
+                <span style="color:var(--text-muted);">Subtotal</span>
                 <span>Rp${(order.baseTotal + (order.promoDiscount || 0)).toLocaleString('id-ID')}</span>
             </div>
             ${order.promoDiscount > 0 ? `
             <div class="receipt-row">
-                <span style="color:var(--success);">Diskon Voucher (${escapeHtml(order.promoCode)})</span>
+                <span style="color:var(--success);">Diskon (${escapeHtml(order.promoCode)})</span>
                 <span style="color:var(--success);">-Rp${order.promoDiscount.toLocaleString('id-ID')}</span>
             </div>` : ''}
             ${order.uniqueCode > 0 ? `
             <div class="receipt-row">
-                <span style="color:var(--warning);">Kode Unik Verifikasi QRIS</span>
+                <span style="color:var(--warning);">Kode Unik</span>
                 <span style="color:var(--warning);">+Rp${order.uniqueCode}</span>
             </div>` : ''}
             <div class="receipt-row" style="margin-top: 8px; padding-top: 8px; border-top: 1.5px solid var(--border);">
-                <strong style="font-size: 0.95rem; font-weight: 900; color: var(--text);">TOTAL TAGIHAN</strong>
-                <strong style="font-size: 1.2rem; font-weight: 900; color: var(--primary-light);">Rp${order.finalTotal.toLocaleString('id-ID')}</strong>
+                <strong style="font-size: 0.92rem; font-weight: 800; color: var(--text);">TOTAL</strong>
+                <strong style="font-size: 1.15rem; font-weight: 800; color: var(--primary-light);">Rp${order.finalTotal.toLocaleString('id-ID')}</strong>
             </div>
             ${actionHtml}
             ${helpHtml}
@@ -3621,7 +3580,7 @@ function buildCompactOrderItemHTML(order) {
     const isFailed = order.status === 'FAILED' || order.status === 'EXPIRED' || isCancelled;
 
     const sBadge = isUnpaid ? 'status-unpaid' : order.status === 'PENDING' ? 'status-pending' : isCancelled ? 'status-cancelled' : isFailed ? 'status-failed' : 'status-success';
-    const sName = isUnpaid ? 'BELUM BAYAR' : order.status === 'PENDING' ? (order.paymentMethod === 'cash' ? 'TUNAI BARCODE' : 'DIPROSES') : isCancelled ? 'DIBATALKAN' : order.status === 'FAILED' ? 'GAGAL' : order.status === 'EXPIRED' ? 'EXPIRED' : 'SELESAI';
+    const sName = isUnpaid ? 'BELUM BAYAR' : order.status === 'PENDING' ? (order.paymentMethod === 'cash' ? 'TUNAI' : 'DIPROSES') : isCancelled ? 'DIBATALKAN' : order.status === 'FAILED' ? 'GAGAL' : order.status === 'EXPIRED' ? 'EXPIRED' : 'SELESAI';
     
     const item = order.items && order.items[0] ? order.items[0] : {};
     const typeIcon = item.type === 'game' ? 'fa-gamepad' : (item.type === 'tools' ? 'fa-screwdriver-wrench' : 'fa-mobile-screen');
@@ -3635,7 +3594,7 @@ function buildCompactOrderItemHTML(order) {
             <div class="order-compact-info">
                 <div class="order-compact-top">
                     <span class="order-compact-inv">#${escapeHtml(order.id)}</span>
-                    <span class="status-badge ${sBadge}" style="font-size:0.62rem; padding:2px 6px;">${sName}</span>
+                    <span class="status-badge ${sBadge}" style="font-size:0.6rem; padding:2px 6px;">${sName}</span>
                     <span class="order-compact-date">${new Date(order.date).toLocaleDateString('id-ID', { day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' })}</span>
                 </div>
                 <div class="order-compact-title">${escapeHtml(item.name || 'Pesanan Vipercell')}</div>
@@ -3644,7 +3603,7 @@ function buildCompactOrderItemHTML(order) {
         </div>
         <div class="order-compact-right">
             <span class="order-compact-price">Rp${(order.finalTotal || 0).toLocaleString('id-ID')}</span>
-            <span class="order-tap-hint">Buka E-Receipt <i class="fa-solid fa-chevron-right"></i></span>
+            <span class="order-tap-hint">Detail <i class="fa-solid fa-chevron-right"></i></span>
         </div>
     </div>`;
 }
@@ -3671,10 +3630,24 @@ window.refreshOrderData = function() {
     window.renderUserOrders();
     const trackResult = document.getElementById('track-result');
     if (trackResult && trackResult.style.display === 'block') window.trackOrder();
-    window.showToast('Diperbarui', 'Status transaksi telah disegarkan.', 'info');
+    window.showToast('Diperbarui', 'Daftar pesanan telah diperbarui.', 'info');
 };
 
-// [FEATURE-03] Pelacak Pesanan Matang: Cukup Masukkan ID Transaksi Saja (Tanpa Email!)
+window.pasteTrackIdFromClipboard = async function() {
+    try {
+        const text = await navigator.clipboard.readText();
+        if (text) {
+            const inp = document.getElementById('track-id');
+            if (inp) {
+                inp.value = text.trim().replace(/^#/, '').toUpperCase();
+                window.trackOrder();
+            }
+        }
+    } catch (e) {
+        window.showToast('Tempel Manual', 'Silakan tempel ID Transaksi pada kolom.', 'info');
+    }
+};
+
 window.trackOrder = async function() {
     const trackInp = document.getElementById('track-id');
     if (!trackInp) return;
@@ -3682,14 +3655,13 @@ window.trackOrder = async function() {
     trackInp.value = invId;
 
     if (!invId) {
-        window.customAlert('ID Transaksi Diperlukan', 'Silakan masukkan Nomor Invoice / ID Transaksi (contoh: VP-123456).', 'warning');
+        window.customAlert('ID Kosong', 'Masukkan Nomor ID Transaksi (contoh: VP-123456).', 'warning');
         return;
     }
 
     const resBox = document.getElementById('track-result');
     let order = orders.find(o => (o.id || '').toUpperCase() === invId);
 
-    // Jika belum ada di memori lokal, cari langsung ke Firestore berdasarkan field `id`
     if (!order) {
         try {
             const q = query(collection(db, pathOrders), where("id", "==", invId));
@@ -3704,7 +3676,7 @@ window.trackOrder = async function() {
     if (!order) {
         if (resBox) {
             resBox.style.display = 'block';
-            resBox.innerHTML = `<div class="brutal-alert-box alert-danger"><i class="fa-solid fa-circle-xmark"></i> <span>ID Transaksi <b>#${escapeHtml(invId)}</b> tidak ditemukan. Pastikan kode Invoice sudah benar.</span></div>`;
+            resBox.innerHTML = `<div class="brutal-alert-box alert-danger"><i class="fa-solid fa-circle-xmark"></i> <span>ID Transaksi <b>#${escapeHtml(invId)}</b> tidak ditemukan.</span></div>`;
         }
         return;
     }
@@ -3717,7 +3689,6 @@ window.trackOrder = async function() {
 };
 window.trackOrderByIdOnly = window.trackOrder;
 
-// [FEATURE-22] Render Riwayat Pesanan Terisolasi (Sesi Anonim Baru tidak menarik riwayat Member)
 window.renderUserOrders = function() {
     const grid = document.getElementById('user-order-grid');
     if (!grid) return;
@@ -3732,7 +3703,6 @@ window.renderUserOrders = function() {
             const matchEmail = activeMemberEmail && o.userEmail && o.userEmail.toLowerCase() === activeMemberEmail;
             return matchUid || matchEmail;
         } else {
-            // Untuk akun Anonim: HANYA tampilkan transaksi milik UID sesi anonim ini!
             return Boolean(effectiveUid && o.userId === effectiveUid);
         }
     });
@@ -3746,7 +3716,7 @@ window.renderUserOrders = function() {
     }
     
     if (userOrders.length === 0) {
-        grid.innerHTML = `<div class="brutal-empty-box">Belum ada riwayat transaksi pada sesi ini. Gunakan kotak Lacak ID Transaksi di atas jika ingin mencari struk tertentu.</div>`;
+        grid.innerHTML = `<div class="brutal-empty-box">Belum ada riwayat pesanan.</div>`;
         return;
     }
     
@@ -3758,7 +3728,7 @@ window.renderUserOrders = function() {
 };
 
 // ==========================================
-// [FEATURE-20, 23, 24] FITUR LIVE CHAT BANTUAN BARU (TANPA PESAN CEPAT USER)
+// MENU CHAT BANTUAN BERSIH (#13)
 // ==========================================
 async function getResolvedChatDocId() {
     const isMember = Boolean(currentUser && !currentUser.isAnonymous && !userProfile.isGuest);
@@ -3778,11 +3748,7 @@ function checkChatUserState() {
     const chatHeader = document.getElementById('chat-wa-header');
     const chatBody = document.getElementById('user-chat-body');
     const chatFooter = document.getElementById('user-chat-footer');
-    const chatChips = document.getElementById('chat-quick-chips');
     const userLabel = document.getElementById('chat-current-user-label');
-    
-    // [FEATURE-23] Pastikan bar pesan cepat di sisi user selalu disembunyikan
-    if (chatChips) chatChips.style.display = 'none';
 
     let savedName = userProfile.name || localStorage.getItem('vipercell_anon_name') || '';
     if (!userProfile.name && savedName) userProfile.name = savedName;
@@ -3811,14 +3777,14 @@ window.startAnonChat = async function() {
     const input = document.getElementById('chat-anon-name');
     const name = input ? input.value.trim() : '';
     if (!name) {
-        window.customAlert('Nama Diperlukan', 'Silakan masukkan nama panggilan kamu terlebih dahulu.', 'warning');
+        window.customAlert('Nama Diperlukan', 'Masukkan nama panggilan kamu terlebih dahulu.', 'warning');
         return;
     }
     
     const btn = document.getElementById('btn-start-chat');
     if (btn) {
         btn.disabled = true;
-        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> <span>Menghubungkan...</span>';
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> <span>Membuka...</span>';
     }
 
     await ensureAuthSession();
@@ -3832,7 +3798,7 @@ window.startAnonChat = async function() {
 
     if (btn) {
         btn.disabled = false;
-        btn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> <span>Buka Ruang Obrolan CS</span>';
+        btn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> <span>Mulai Chat</span>';
     }
 
     checkChatUserState();
@@ -3866,14 +3832,6 @@ window.changeChatNamePrompt = function() {
 };
 window.changeChatNameInline = window.changeChatNamePrompt;
 
-window.insertQuickUserChat = function(text) {
-    const inp = document.getElementById('user-chat-input');
-    if (inp) {
-        inp.value = text;
-        window.sendUserChat();
-    }
-};
-
 async function listenUserChat() {
     const chatId = await getResolvedChatDocId();
     if (!chatId) return;
@@ -3898,16 +3856,10 @@ async function listenUserChat() {
             const activeTab = document.querySelector('.main-tab-content.active');
             const isBantuanOpen = activeTab && activeTab.id === 'tab-bantuan';
 
-            const chatBadgeDesk = document.getElementById('user-chat-badge-desktop');
-            const chatBadgeMob = document.getElementById('user-chat-badge-mobile');
-            const showUnreadDot = lastMsg && lastMsg.sender === 'admin' && !isBantuanOpen;
-            if (chatBadgeDesk) chatBadgeDesk.style.display = showUnreadDot ? 'block' : 'none';
-            if (chatBadgeMob) chatBadgeMob.style.display = showUnreadDot ? 'block' : 'none';
-
             if (oldLen > 0 && userChatMessages.length > oldLen && lastMsg && lastMsg.sender === 'admin') {
-                sendNativeNotification('Balasan Baru dari Admin CS 💬', lastMsg.text);
+                sendNativeNotification('Pesan Baru dari Admin', lastMsg.text);
                 if (!isBantuanOpen) {
-                    window.showToast('Pesan Baru dari Admin CS', lastMsg.text, 'info', () => window.switchMainTab('bantuan'));
+                    window.showToast('Pesan Admin', lastMsg.text, 'info', () => window.switchMainTab('bantuan'));
                 }
             }
         } else {
@@ -3924,11 +3876,11 @@ window.renderUserChatMessages = function() {
     if (userChatMessages.length === 0) {
         body.innerHTML = `
             <div style="display:flex; flex-direction:column; justify-content:center; align-items:center; height:100%; color:var(--text-muted); text-align:center; padding: 1.5rem;">
-                <div style="width:64px; height:64px; border-radius:16px; background:var(--surface); border:var(--brutal-border); box-shadow:var(--brutal-shadow-xs); display:flex; align-items:center; justify-content:center; font-size:1.8rem; color:var(--primary); margin-bottom:12px;">
-                    <i class="fa-solid fa-headset"></i>
+                <div style="width:52px; height:52px; border-radius:14px; background:var(--surface); border:var(--brutal-border); display:flex; align-items:center; justify-content:center; font-size:1.4rem; color:var(--primary); margin-bottom:10px;">
+                    <i class="fa-solid fa-comments"></i>
                 </div>
-                <strong style="color:var(--text); font-size:1rem; font-weight:800;">Ruang Bantuan CS Siap Digunakan</strong>
-                <small style="max-width:320px; margin-top:6px; font-weight:600; line-height:1.5;">Ketik pertanyaan, konsultasi stok, atau sebutkan Nomor Invoice pesananmu di kolom bawah.</small>
+                <strong style="color:var(--text); font-size:0.95rem; font-weight:800;">Belum ada pesan</strong>
+                <small style="margin-top:4px; font-weight:600;">Tulis pesan di bawah untuk menghubungi Admin.</small>
             </div>`;
         return;
     }
@@ -3938,8 +3890,8 @@ window.renderUserChatMessages = function() {
         const isUser = msg.sender === 'user';
         const msgClass = isUser ? 'user' : 'admin';
         const senderLabel = isUser
-            ? `<span class="chat-sender-label"><i class="fa-solid fa-user"></i> ${escapeHtml(userProfile.name || 'Kamu')}</span>`
-            : `<span class="chat-sender-label" style="color:var(--primary-light);"><i class="fa-solid fa-headset"></i> Admin Support Vipercell</span>`;
+            ? `<span class="chat-sender-label">${escapeHtml(userProfile.name || 'Kamu')}</span>`
+            : `<span class="chat-sender-label" style="color:var(--primary-light);">Admin</span>`;
 
         html += `
             <div class="chat-msg ${msgClass}">
@@ -3955,7 +3907,7 @@ window.renderUserChatMessages = function() {
 
 function scrollToBottomUserChat() {
     const body = document.getElementById('user-chat-body');
-    if (body) setTimeout(() => { body.scrollTop = body.scrollHeight; }, 80);
+    if (body) setTimeout(() => { body.scrollTop = body.scrollHeight; }, 60);
 }
 
 window.sendUserChat = async function() {
@@ -3981,7 +3933,7 @@ window.sendUserChat = async function() {
 
         const displayName = userProfile.name
             ? userProfile.name
-            : (localStorage.getItem('vipercell_anon_name') || (userProfile.isGuest ? 'Pelanggan Tamu' : (currentUser?.email || 'Pelanggan')));
+            : (localStorage.getItem('vipercell_anon_name') || (userProfile.isGuest ? 'Tamu' : (currentUser?.email || 'Pelanggan')));
 
         await setDoc(chatRef, {
             uid: chatId,
@@ -3994,9 +3946,8 @@ window.sendUserChat = async function() {
 
         scrollToBottomUserChat();
     } catch (e) {
-        console.error("Send Chat Error:", e);
         input.value = text;
-        window.customAlert('Gagal Mengirim Pesan', 'Koneksi ke server chat terganggu. Silakan klik tombol kirim sekali lagi.', 'error');
+        window.customAlert('Gagal Mengirim', 'Periksa koneksi internet kamu dan coba lagi.', 'error');
     } finally {
         btn.disabled = false;
         btn.innerHTML = ogBtnHtml;
@@ -4004,7 +3955,7 @@ window.sendUserChat = async function() {
 };
 
 // ==========================================
-// [FEATURE-07] TEMA DENGAN TRANSISI HALUS, NOTIFIKASI & NAVIGASI TAB
+// TEMA, NOTIFIKASI POP-UP KECIL (#19) & MODAL POP-UP (#15)
 // ==========================================
 window.toggleTheme = function() {
     const html = document.documentElement;
@@ -4034,7 +3985,7 @@ window.toggleThemeWithTransition = function(evt) {
         curtain.style.setProperty('--theme-x', x + '%');
         curtain.style.setProperty('--theme-y', y + '%');
         curtain.classList.add('active');
-        setTimeout(() => curtain.classList.remove('active'), 460);
+        setTimeout(() => curtain.classList.remove('active'), 400);
     }
 
     html.classList.add('theme-transitioning');
@@ -4045,7 +3996,7 @@ window.toggleThemeWithTransition = function(evt) {
     setTimeout(() => {
         html.classList.remove('theme-transitioning');
         if (btn) btn.classList.remove('spin-theme-icon');
-    }, 480);
+    }, 420);
 };
 
 function updateProfileNotifToggleUI() {
@@ -4060,7 +4011,7 @@ function updateProfileNotifToggleUI() {
     const isActive = isUserNotifEnabled && browserGranted;
 
     if (isActive) {
-        statusText.innerText = 'Status: Aktif (Menerima pemberitahuan pesanan & chat)';
+        statusText.innerText = 'Aktif';
         statusText.style.color = 'var(--success)';
         toggleBtn.innerText = 'Matikan';
         toggleBtn.className = 'btn btn-sm btn-danger';
@@ -4070,9 +4021,7 @@ function updateProfileNotifToggleUI() {
             iconBox.style.color = 'var(--success)';
         }
     } else {
-        statusText.innerText = isUserNotifEnabled
-            ? 'Status: Belum diizinkan di browser'
-            : 'Status: Dinonaktifkan oleh kamu';
+        statusText.innerText = 'Nonaktif';
         statusText.style.color = 'var(--text-muted)';
         toggleBtn.innerText = 'Aktifkan';
         toggleBtn.className = 'btn btn-sm btn-primary';
@@ -4086,7 +4035,7 @@ function updateProfileNotifToggleUI() {
 
 window.toggleUserNotificationSetting = async function() {
     if (!('Notification' in window)) {
-        window.customAlert('Tidak Didukung', 'Browser perangkat kamu belum mendukung notifikasi sistem.', 'warning');
+        window.customAlert('Tidak Didukung', 'Browser kamu belum mendukung notifikasi.', 'warning');
         return;
     }
 
@@ -4096,27 +4045,26 @@ window.toggleUserNotificationSetting = async function() {
         isUserNotifEnabled = false;
         localStorage.setItem('vipercell_user_notif', 'off');
         updateProfileNotifToggleUI();
-        window.showToast('Notifikasi Dimatikan', 'Pemberitahuan browser telah dinonaktifkan.', 'info');
+        window.showToast('Nonaktif', 'Notifikasi dimatikan.', 'info');
         return;
     }
 
     if (Notification.permission === 'default') {
         const perm = await Notification.requestPermission();
         if (perm !== 'granted') {
-            window.showToast('Izin Ditolak', 'Mohon izinkan notifikasi pada pengaturan browser kamu.', 'warning');
+            window.showToast('Izin Ditolak', 'Izinkan notifikasi pada pengaturan browser.', 'warning');
             updateProfileNotifToggleUI();
             return;
         }
     } else if (Notification.permission === 'denied') {
-        window.customAlert('Izin Diblokir Browser', 'Kamu sebelumnya memblokir izin notifikasi. Silakan buka pengaturan situs di browser lalu ubah izin Notifikasi menjadi "Izinkan".', 'warning');
+        window.customAlert('Izin Diblokir', 'Ubah izin Notifikasi menjadi Izinkan di pengaturan browser.', 'warning');
         return;
     }
 
     isUserNotifEnabled = true;
     localStorage.setItem('vipercell_user_notif', 'on');
     updateProfileNotifToggleUI();
-    window.showToast('Notifikasi Diaktifkan', 'Kamu akan menerima pemberitahuan saat pesanan selesai atau dibalas CS.', 'success');
-    sendNativeNotification('Notifikasi Vipercell Aktif!', 'Pemberitahuan transaksi dan chat bantuan siap dikirim ke perangkatmu.');
+    window.showToast('Aktif', 'Notifikasi diaktifkan.', 'success');
 };
 
 function sendNativeNotification(title, bodyText) {
@@ -4128,8 +4076,7 @@ function sendNativeNotification(title, bodyText) {
             reg.showNotification(title, {
                 body: bodyText,
                 icon: iconUrl,
-                badge: iconUrl,
-                vibrate: [150, 80, 150]
+                badge: iconUrl
             });
         }).catch(() => {
             try { new Notification(title, { body: bodyText, icon: iconUrl }); } catch (e) {}
@@ -4139,7 +4086,6 @@ function sendNativeNotification(title, bodyText) {
     }
 }
 
-// [FEATURE-16] Perbaikan Icon Logo Web agar Selalu Tampil di Tab Browser & Link Web
 let dynamicManifestBlobUrl = null;
 function applyCustomPwaIcon() {
     const customIcon = siteSettings.pwaIconBase64 || siteSettings.logoImgBase64 || DEFAULT_VIPERCELL_SVG_ICON;
@@ -4155,7 +4101,7 @@ function applyCustomPwaIcon() {
     if (ogImg) ogImg.setAttribute('content', customIcon);
 
     if (customIcon.startsWith('data:image')) {
-        try { localStorage.setItem('vipercell_cached_icon_v27', customIcon); } catch (e) {}
+        try { localStorage.setItem('vipercell_cached_icon', customIcon); } catch (e) {}
     }
 
     try {
@@ -4165,9 +4111,9 @@ function applyCustomPwaIcon() {
 
         const manifestObj = {
             id: "/",
-            name: `${siteSettings.logoText || 'Viper'}${siteSettings.logoAccent || 'cell'} V27 - Digital Store`,
+            name: `${siteSettings.logoText || 'Viper'}${siteSettings.logoAccent || 'cell'}`,
             short_name: `${siteSettings.logoText || 'Viper'}${siteSettings.logoAccent || 'cell'}`,
-            description: "Platform penyedia layanan aplikasi premium, akun email, top up game, dan tools digital otomatis 24/7.",
+            description: "Layanan aplikasi premium, top up game, dan produk digital.",
             start_url: window.location.origin + window.location.pathname,
             scope: window.location.origin + "/",
             display: "standalone",
@@ -4188,10 +4134,10 @@ function applyCustomPwaIcon() {
 }
 
 const twWords = [
-    "Aplikasi Premium Bergaransi",
-    "Top Up Game Instan 24 Jam",
-    "Produk Email & Tools Digital",
-    "QRIS Otomatis & Barcode Kasir"
+    "Aplikasi Premium",
+    "Top Up Game",
+    "Produk Digital",
+    "QRIS & Tunai"
 ];
 let twWordIdx = 0;
 let twCharIdx = 0;
@@ -4210,7 +4156,7 @@ function initTypewriter() {
         el.textContent = currentWord.substring(0, twCharIdx);
     }
 
-    let speed = twIsDeleting ? 35 : 80;
+    let speed = twIsDeleting ? 40 : 85;
 
     if (!twIsDeleting && twCharIdx === currentWord.length) {
         speed = 2200;
@@ -4229,16 +4175,16 @@ function triggerSuccessConfetti() {
     if (!container) return;
     container.innerHTML = '';
 
-    const colors = ['#2563eb', '#facc15', '#10b981', '#ec4899', '#8b5cf6', '#ef4444'];
-    for (let i = 0; i < 60; i++) {
+    const colors = ['#2563eb', '#facc15', '#10b981', '#ec4899', '#8b5cf6'];
+    for (let i = 0; i < 45; i++) {
         const piece = document.createElement('div');
         piece.className = 'confetti-piece';
         piece.style.left = Math.random() * 100 + 'vw';
         piece.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
-        piece.style.width = (Math.floor(Math.random() * 10) + 8) + 'px';
-        piece.style.height = (Math.floor(Math.random() * 14) + 8) + 'px';
-        piece.style.animationDuration = (Math.random() * 1.8 + 1.4) + 's';
-        piece.style.animationDelay = (Math.random() * 0.5) + 's';
+        piece.style.width = (Math.floor(Math.random() * 8) + 6) + 'px';
+        piece.style.height = (Math.floor(Math.random() * 12) + 6) + 'px';
+        piece.style.animationDuration = (Math.random() * 1.6 + 1.2) + 's';
+        piece.style.animationDelay = (Math.random() * 0.4) + 's';
         container.appendChild(piece);
     }
 }
@@ -4249,7 +4195,7 @@ window.showPaymentSuccessAnimation = function(orderId) {
         activeTimersRegistry.qrisCountdown = null;
     }
     window.closeModal('modal-cash-barcode');
-    sendNativeNotification('Pembayaran Berhasil! 🎉', `Pesanan #${orderId} telah selesai diproses oleh sistem Vipercell.`);
+    sendNativeNotification('Pembayaran Berhasil', `Pesanan #${orderId} telah selesai.`);
     const successOverlay = document.getElementById('payment-success-overlay');
     if (successOverlay) {
         triggerSuccessConfetti();
@@ -4264,11 +4210,12 @@ window.showPaymentSuccessAnimation = function(orderId) {
                 successOverlay.classList.remove('active');
                 window.switchMainTab('pesanan');
                 window.openOrderDetailModalById(orderId);
-            }, 400);
-        }, 2100);
+            }, 320);
+        }, 1800);
     }
 };
 
+// Pop-Up Toast Notifikasi Kecil & Ringkas (#19)
 window.showToast = function(title, msg, type = 'info', actionCallback = null) {
     const container = document.getElementById('toast-container');
     if (!container) return;
@@ -4280,88 +4227,44 @@ window.showToast = function(title, msg, type = 'info', actionCallback = null) {
     if (type === 'success') icon = '<i class="fa-solid fa-circle-check"></i>';
     if (type === 'warning') icon = '<i class="fa-solid fa-triangle-exclamation"></i>';
     if (type === 'error') icon = '<i class="fa-solid fa-circle-xmark"></i>';
-    
-    const hintText = actionCallback ? 'Ketuk untuk buka &bull; Geser untuk tutup' : 'Geser ke kiri/kanan untuk tutup';
 
     toast.innerHTML = `
         <div class="toast-icon">${icon}</div>
         <div class="toast-content">
             <h4>${escapeHtml(title)}</h4>
             <p>${escapeHtml(msg)}</p>
-            <span class="toast-swipe-hint">${hintText}</span>
         </div>
     `;
     
-    let startX = 0;
-    let currentX = 0;
-    let isDragging = false;
     let autoRemoveTimer = null;
-
-    const dismissToast = (direction = 1) => {
+    const dismissToast = () => {
         if (autoRemoveTimer) clearTimeout(autoRemoveTimer);
-        toast.style.transition = 'transform 0.22s ease, opacity 0.22s ease';
-        toast.style.transform = `translateX(${direction * 120}%)`;
-        toast.style.opacity = '0';
-        setTimeout(() => toast.remove(), 220);
+        toast.classList.remove('show');
+        setTimeout(() => toast.remove(), 200);
     };
 
-    const onDragStart = (clientX) => {
-        startX = clientX;
-        currentX = 0;
-        isDragging = true;
-        toast.style.transition = 'none';
-    };
+    toast.addEventListener('click', () => {
+        if (actionCallback) actionCallback();
+        dismissToast();
+    });
 
-    const onDragMove = (clientX) => {
-        if (!isDragging) return;
-        currentX = clientX - startX;
-        toast.style.transform = `translateX(${currentX}px)`;
-        toast.style.opacity = String(Math.max(0.2, 1 - Math.abs(currentX) / 180));
-    };
-
-    const onDragEnd = () => {
-        if (!isDragging) return;
-        isDragging = false;
-        if (Math.abs(currentX) > 65) {
-            dismissToast(currentX > 0 ? 1 : -1);
-        } else {
-            toast.style.transition = 'transform 0.2s ease, opacity 0.2s ease';
-            toast.style.transform = 'translateY(0) translateX(0)';
-            toast.style.opacity = '1';
-            if (Math.abs(currentX) < 10 && actionCallback) {
-                actionCallback();
-                dismissToast(1);
-            }
-        }
-    };
-
-    toast.addEventListener('touchstart', (e) => onDragStart(e.touches[0].clientX), { passive: true });
-    toast.addEventListener('touchmove', (e) => onDragMove(e.touches[0].clientX), { passive: true });
-    toast.addEventListener('touchend', onDragEnd);
-
-    toast.addEventListener('mousedown', (e) => onDragStart(e.clientX));
-    window.addEventListener('mousemove', (e) => { if (isDragging) onDragMove(e.clientX); });
-    window.addEventListener('mouseup', () => { if (isDragging) onDragEnd(); });
-
-    toast.style.cursor = actionCallback ? 'pointer' : 'grab';
+    toast.style.cursor = 'pointer';
     container.appendChild(toast);
-    setTimeout(() => toast.classList.add('show'), 15);
+    requestAnimationFrame(() => toast.classList.add('show'));
     autoRemoveTimer = setTimeout(() => {
         if (document.body.contains(toast)) {
-            toast.classList.remove('show');
-            setTimeout(() => toast.remove(), 250);
+            dismissToast();
         }
-    }, 4800);
+    }, 3400);
 };
 
-// [FEATURE-01] Seamless Full-Page View Controller (Menggantikan Pop-Up Mengambang)
+// Modal Pop-Up Controller (#15)
 window.openModal = (id) => {
     const el = document.getElementById(id);
     if (el) {
         el.classList.add('active');
         if (el.classList.contains('modal-overlay')) {
             document.body.classList.add('no-scroll');
-            el.scrollTop = 0;
         }
     }
 };
@@ -4369,7 +4272,10 @@ window.closeModal = (id) => {
     const el = document.getElementById(id);
     if (el) { 
         el.classList.remove('active');
-        document.body.classList.remove('no-scroll'); 
+        const anyOpenModal = document.querySelector('.modal-overlay.active');
+        if (!anyOpenModal) {
+            document.body.classList.remove('no-scroll'); 
+        }
     }
 };
 window.handleLogoClick = () => {
@@ -4436,7 +4342,7 @@ window.resolveConfirm = function(isConfirmed) {
 
 const revealObserver = new IntersectionObserver((entries) => {
     entries.forEach(entry => { if (entry.isIntersecting) entry.target.classList.add('reveal-visible'); });
-}, { threshold: 0.1 });
+}, { threshold: 0.08 });
 function observeReveals() { document.querySelectorAll('.reveal').forEach(el => revealObserver.observe(el)); }
 
 window.openAuthModal = function() {
@@ -4444,9 +4350,12 @@ window.openAuthModal = function() {
 };
 
 window.switchAuthTab = function(tab) {
-    document.getElementById('form-login').style.display = tab === 'login' ? 'block' : 'none';
-    document.getElementById('form-register').style.display = tab === 'register' ? 'block' : 'none';
-    document.getElementById('form-reset').style.display = tab === 'reset' ? 'block' : 'none';
+    const fLogin = document.getElementById('form-login');
+    const fReg = document.getElementById('form-register');
+    const fReset = document.getElementById('form-reset');
+    if (fLogin) fLogin.style.display = tab === 'login' ? 'block' : 'none';
+    if (fReg) fReg.style.display = tab === 'register' ? 'block' : 'none';
+    if (fReset) fReset.style.display = tab === 'reset' ? 'block' : 'none';
     
     const authTabsContainer = document.getElementById('auth-tabs-container');
     const authDivider = document.getElementById('auth-divider');
@@ -4460,15 +4369,15 @@ window.switchAuthTab = function(tab) {
         if (authDivider) authDivider.style.display = 'none';
         if (googleBtn) googleBtn.style.display = 'none';
         if (guestBtn) guestBtn.style.display = 'none';
-        authTitle.innerText = 'Pulihkan Kata Sandi (Apps Script)'; 
-        authSub.innerText = 'Masukkan email terdaftar untuk menerima tautan & token ubah sandi.';
+        if (authTitle) authTitle.innerText = 'Ganti Kata Sandi'; 
+        if (authSub) authSub.innerText = 'Link ganti sandi akan dikirim ke email kamu.';
     } else {
         if (authTabsContainer) authTabsContainer.style.display = 'flex';
         if (authDivider) authDivider.style.display = 'flex';
         if (googleBtn) googleBtn.style.display = 'inline-flex';
         if (guestBtn) guestBtn.style.display = 'inline-flex';
-        authTitle.innerText = tab === 'login' ? 'Masuk ke Vipercell' : 'Daftar Member Vipercell';
-        authSub.innerText = tab === 'login' ? 'Silakan masuk ke akun kamu atau pilih akses cepat di bawah.' : 'Daftar gratis untuk menyimpan riwayat E-Receipt permanen & promo Member.';
+        if (authTitle) authTitle.innerText = tab === 'login' ? 'Masuk Akun' : 'Daftar Member';
+        if (authSub) authSub.innerText = tab === 'login' ? 'Masuk untuk mulai berbelanja.' : 'Daftar akun untuk menyimpan riwayat pesanan.';
         
         const btnL = document.getElementById('tab-login');
         const btnR = document.getElementById('tab-register');
@@ -4478,8 +4387,9 @@ window.switchAuthTab = function(tab) {
 };
 window.showResetPassword = () => window.switchAuthTab('reset');
 
+// Transisi Tab Halus & Navigasi Mobile Aktif Tanpa Harus Scroll (#9 & #22)
 window.switchMainTab = function(tab) {
-    if (document.body.classList.contains('auth-locked') && tab !== 'auth' && tab !== 'ubah-sandi') {
+    if (document.body.classList.contains('auth-locked') && tab !== 'auth') {
         return;
     }
 
@@ -4488,27 +4398,30 @@ window.switchMainTab = function(tab) {
         activeTimersRegistry.qrisCountdown = null;
     }
 
-    document.querySelectorAll('.main-tab-content').forEach(el => el.classList.remove('active'));
+    document.querySelectorAll('.main-tab-content').forEach(el => {
+        el.classList.remove('active');
+        if (el.id === 'tab-auth') el.style.display = 'none';
+        else el.style.display = '';
+    });
     document.querySelectorAll('nav a').forEach(el => el.classList.remove('active'));
     
-    const navKey = tab === 'baca-berita' ? 'berita' : (tab === 'payment-qris' ? 'pesanan' : (tab === 'ubah-sandi' ? 'profil' : tab));
-    let navEl = document.getElementById('nav-' + navKey);
+    const navKey = tab === 'baca-berita' ? 'berita' : (tab === 'payment-qris' ? 'pesanan' : tab);
+    const navEl = document.getElementById('nav-' + navKey);
     if (navEl) navEl.classList.add('active');
-    let botNavEl = document.getElementById('nav-bot-' + navKey);
+    const botNavEl = document.getElementById('nav-bot-' + navKey);
     if (botNavEl) botNavEl.classList.add('active');
     
-    let tabEl = document.getElementById('tab-' + tab);
+    const tabEl = document.getElementById('tab-' + tab);
     if (tabEl) {
-        tabEl.classList.add('active');
+        tabEl.style.display = '';
+        requestAnimationFrame(() => {
+            tabEl.classList.add('active');
+        });
         window.scrollTo({ top: 0, behavior: 'instant' }); 
     }
     
     if (tab === 'bantuan') {
         checkChatUserState();
-        const chatBadgeDesk = document.getElementById('user-chat-badge-desktop');
-        const chatBadgeMob = document.getElementById('user-chat-badge-mobile');
-        if (chatBadgeDesk) chatBadgeDesk.style.display = 'none';
-        if (chatBadgeMob) chatBadgeMob.style.display = 'none';
     }
     if (tab === 'profil') {
         applyUserSessionToUI();
@@ -4516,7 +4429,7 @@ window.switchMainTab = function(tab) {
         updateProfileNotifToggleUI();
     }
     if (tab === 'pesanan') window.renderUserOrders();
-    setTimeout(observeReveals, 50);
+    setTimeout(observeReveals, 40);
 };
 
 window.goToReview = function(brandName, orderId = null) {
@@ -4525,62 +4438,85 @@ window.goToReview = function(brandName, orderId = null) {
     window.openDirectBuyModal(brandName);
     setTimeout(() => {
         window.switchBuyModalTab('reviews');
-    }, 200); 
+    }, 150); 
 };
 
 // ==========================================
-// [FEATURE-05, 10, 22] AUTHENTICATION, UBAH SANDI APPS SCRIPT & LOGOUT BERSIH
+// LOGIN EMAIL/PASSWORD, GOOGLE & GANTI SANDI VIA EMAIL (#4 & #8)
 // ==========================================
 window.processLogin = async function() {
-    const em = document.getElementById('auth-l-email').value.trim();
-    const pw = document.getElementById('auth-l-pass').value.trim();
-    if (!em || !pw) { window.customAlert('Error', 'Email dan Kata Sandi wajib diisi!', 'error'); return; }
+    const em = (document.getElementById('auth-l-email')?.value || '').trim();
+    const pw = (document.getElementById('auth-l-pass')?.value || '').trim();
+    if (!em || !pw) {
+        window.customAlert('Belum Lengkap', 'Masukkan email dan kata sandi kamu.', 'warning');
+        return;
+    }
     
     const btn = document.getElementById('btn-do-login');
-    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> <span>Memproses...</span>'; 
-    btn.disabled = true;
+    const ogHtml = btn ? btn.innerHTML : '';
+    if (btn) {
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> <span>Memproses...</span>'; 
+        btn.disabled = true;
+    }
     try {
-        // Bersihkan total atribut anonim sebelum login Member (#10 & #22)
         boundLegacyGuestUid = null;
         await clearMultiLayerToken('vipercell_anon_uid');
         localStorage.removeItem('vipercell_anon_session_started_at');
+        localStorage.setItem('vipercell_active_session_mode', 'member');
+
+        if (auth.currentUser && auth.currentUser.isAnonymous) {
+            await signOut(auth).catch(() => {});
+        }
 
         const cred = await signInWithEmailAndPassword(auth, em, pw);
         currentUser = cred.user;
-        localStorage.setItem('vipercell_active_session_mode', 'member');
         await syncUserProfileFromAuth(cred.user);
+
         const restricted = await checkRealtimeAccountRestriction(false);
         if (!restricted) {
             setAuthGateLock(false);
             window.switchMainTab('katalog');
-            window.showToast('Berhasil Masuk', 'Selamat datang kembali di Vipercell!', 'success');
+            window.showToast('Berhasil Masuk', `Selamat datang kembali!`, 'success');
         }
     } catch (e) {
-        window.customAlert('Gagal Masuk', 'Email atau kata sandi tidak cocok.', 'error');
+        console.error("Login Error:", e);
+        let msg = 'Email atau kata sandi tidak sesuai.';
+        if (e.code === 'auth/too-many-requests') {
+            msg = 'Terlalu banyak percobaan. Silakan coba beberapa saat lagi atau gunakan Lupa Sandi.';
+        } else if (e.code === 'auth/invalid-email') {
+            msg = 'Format alamat email tidak valid.';
+        }
+        window.customAlert('Gagal Masuk', msg, 'error');
     } finally { 
-        btn.innerHTML = '<i class="fa-solid fa-arrow-right-to-bracket"></i> <span>Masuk Sekarang</span>'; 
-        btn.disabled = false; 
+        if (btn) {
+            btn.innerHTML = ogHtml || '<i class="fa-solid fa-arrow-right-to-bracket"></i> <span>Masuk</span>'; 
+            btn.disabled = false; 
+        }
     }
 };
 
 window.processRegister = async function() {
-    const name = document.getElementById('auth-r-name').value.trim();
-    const phone = document.getElementById('auth-r-phone') ? document.getElementById('auth-r-phone').value.trim() : '';
-    const em = document.getElementById('auth-r-email').value.trim();
-    const pw = document.getElementById('auth-r-pass').value.trim();
+    const name = (document.getElementById('auth-r-name')?.value || '').trim();
+    const phone = (document.getElementById('auth-r-phone')?.value || '').trim();
+    const em = (document.getElementById('auth-r-email')?.value || '').trim();
+    const pw = (document.getElementById('auth-r-pass')?.value || '').trim();
     
     if (!name || !em || pw.length < 6) { 
-        window.customAlert('Peringatan', 'Harap lengkapi Nama, Email, dan Kata Sandi minimal 6 karakter.', 'warning');
+        window.customAlert('Belum Lengkap', 'Lengkapi Nama, Email, dan Kata Sandi minimal 6 karakter.', 'warning');
         return; 
     }
     
     const btn = document.getElementById('btn-do-register');
-    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> <span>Memproses...</span>'; 
-    btn.disabled = true;
+    const ogHtml = btn ? btn.innerHTML : '';
+    if (btn) {
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> <span>Memproses...</span>'; 
+        btn.disabled = true;
+    }
     try {
         boundLegacyGuestUid = null;
         await clearMultiLayerToken('vipercell_anon_uid');
         localStorage.removeItem('vipercell_anon_session_started_at');
+        localStorage.setItem('vipercell_active_session_mode', 'member');
 
         if (auth.currentUser && auth.currentUser.isAnonymous) {
             await signOut(auth).catch(() => {});
@@ -4614,43 +4550,45 @@ window.processRegister = async function() {
         userProfile = newMemberObj;
         localStorage.setItem('vipercell_member_email', em.toLowerCase());
         localStorage.setItem('vipercell_member_phone', phone);
-        localStorage.setItem('vipercell_active_session_mode', 'member');
         setAuthGateLock(false);
         applyUserSessionToUI();
         window.switchMainTab('katalog');
-        window.customAlert('Pendaftaran Berhasil', 'Akun Member Resmi kamu telah aktif dan siap digunakan!', 'success');
+        window.showToast('Pendaftaran Berhasil', `Selamat datang, ${name}!`, 'success');
     } catch (e) {
-        window.customAlert('Gagal Daftar', 'Email mungkin sudah terdaftar atau format salah.', 'error');
+        let errMsg = 'Email sudah terdaftar atau format email salah.';
+        if (e.code === 'auth/email-already-in-use') {
+            errMsg = 'Email ini sudah terdaftar. Silakan masuk menggunakan tab Masuk.';
+        }
+        window.customAlert('Gagal Daftar', errMsg, 'error');
     } finally { 
-        btn.innerHTML = '<i class="fa-solid fa-user-check"></i> <span>Buat Akun Member Resmi</span>'; 
-        btn.disabled = false; 
+        if (btn) {
+            btn.innerHTML = ogHtml || '<i class="fa-solid fa-user-check"></i> <span>Daftar Member</span>'; 
+            btn.disabled = false; 
+        }
     }
 };
 
 function checkResetCooldown() {
-    const lastResetTime = localStorage.getItem('vipercell_last_reset') || 0;
-    const COOLDOWN = 2 * 60 * 1000;
+    const lastResetTime = Number(localStorage.getItem('vipercell_last_reset') || 0);
+    const COOLDOWN = 60 * 1000;
     const now = Date.now();
     if (now - lastResetTime < COOLDOWN) {
         const remaining = Math.ceil((COOLDOWN - (now - lastResetTime)) / 1000);
-        const min = Math.floor(remaining / 60); const sec = remaining % 60;
-        window.customAlert('Tunggu Sebentar', `Harap tunggu <b>${min}m ${sec}s</b> sebelum mengirim ulang link ubah sandi.`, 'warning');
+        window.customAlert('Tunggu Sebentar', `Harap tunggu <b>${remaining} detik</b> sebelum mengirim ulang link.`, 'warning');
         return false;
     }
     return true;
 }
 
-/* ============================================================================
- * [FEATURE-05] ALUR & HALAMAN UBAH SANDI VIA LINK GOOGLE APPS SCRIPT
- * ============================================================================ */
-window.requestAppsScriptPasswordResetLink = async function(source = 'auth') {
+// Ganti Kata Sandi Dikirim Langsung ke Email Akun (Bukan Halaman di Web #8)
+async function sendPasswordResetToAccountEmail(source = 'auth') {
     const rawEmail = source === 'profile'
         ? (userProfile.email || currentUser?.email || document.getElementById('prof-email')?.value || '')
-        : (document.getElementById('auth-res-email')?.value || document.getElementById('reset-page-email')?.value || '');
+        : (document.getElementById('auth-res-email')?.value || document.getElementById('auth-l-email')?.value || '');
 
     const email = String(rawEmail).trim().toLowerCase();
     if (!email || !email.includes('@')) {
-        window.customAlert('Email Diperlukan', 'Masukkan alamat email akun Member yang terdaftar.', 'warning');
+        window.customAlert('Email Diperlukan', 'Masukkan alamat email akun kamu.', 'warning');
         return;
     }
     if (!checkResetCooldown()) return;
@@ -4659,245 +4597,58 @@ window.requestAppsScriptPasswordResetLink = async function(source = 'auth') {
     const ogHtml = btn ? btn.innerHTML : '';
     if (btn) {
         btn.disabled = true;
-        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> <span>Mengirim Link via Apps Script...</span>';
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> <span>Mengirim ke Email...</span>';
     }
 
-    const token6 = String(Math.floor(100000 + Math.random() * 900000));
-    const resetUrl = `${window.location.origin}${window.location.pathname}?action=reset_password&email=${encodeURIComponent(email)}&token=${encodeURIComponent(token6)}#ubah-sandi`;
-
-    localStorage.setItem(`vipercell_reset_token_${email}`, JSON.stringify({
-        token: token6,
-        email: email,
-        expiresAt: Date.now() + 900000
-    }));
-
     try {
-        let gasSent = false;
-        if ((siteSettings.emailWebhookUrl || '').trim().startsWith('https://script.google.com/')) {
-            try {
-                await callUnifiedGasWebhook({
-                    action: 'SEND_PASSWORD_RESET_LINK',
-                    email: email,
-                    to: email,
-                    otpCode: token6,
-                    otp: token6,
-                    token: token6,
-                    resetLink: resetUrl,
-                    userName: userProfile.name || email.split('@')[0],
-                    expiryMinutes: 15
-                });
-                gasSent = true;
-            } catch (gasActionErr) {
-                // Fallback ke SEND_OTP_EMAIL jika Apps Script lama belum memiliki route SEND_PASSWORD_RESET_LINK
-                await callUnifiedGasWebhook({
-                    action: 'SEND_OTP_EMAIL',
-                    email: email,
-                    to: email,
-                    otpCode: token6,
-                    otp: token6,
-                    userName: `${userProfile.name || email.split('@')[0]} (Token Ubah Sandi)`,
-                    expiryMinutes: 15
-                });
-                gasSent = true;
-            }
+        await sendPasswordResetEmail(auth, email);
+        localStorage.setItem('vipercell_last_reset', String(Date.now()));
+        if (source === 'auth') {
+            window.switchAuthTab('login');
         }
-
-        // Kirim juga Firebase Password Reset standar sebagai cadangan sinkronisasi Auth
-        await sendPasswordResetEmail(auth, email).catch(() => {});
-
-        localStorage.setItem('vipercell_last_reset', Date.now());
-        window.openNeoResetPasswordPage(email, '');
-        window.showToast(
-            gasSent ? 'Link & Token Terkirim via Apps Script!' : 'Tautan Reset Terkirim!',
-            `Cek kotak masuk/spam email ${email} untuk klik link atau masukkan kode token 6 digit.`,
+        window.customAlert(
+            'Link Terkirim ke Email',
+            `Tautan untuk mengganti kata sandi telah dikirim ke <b>${escapeHtml(email)}</b>. Silakan buka kotak masuk atau folder spam email kamu.`,
             'success'
         );
     } catch (e) {
-        window.customAlert('Gagal Mengirim Link', `Pastikan email terdaftar dan URL Webhook Apps Script aktif. (${escapeHtml(e.message)})`, 'error');
+        console.error("Reset Password Error:", e);
+        window.customAlert('Gagal Mengirim', 'Pastikan alamat email sudah terdaftar dan aktif.', 'error');
     } finally {
-        if (btn && ogHtml) {
+        if (btn) {
             btn.disabled = false;
-            btn.innerHTML = ogHtml;
+            btn.innerHTML = ogHtml || '<i class="fa-solid fa-paper-plane"></i> <span>Kirim Link ke Email</span>';
         }
     }
-};
+}
 
 window.processReset = function() {
-    return window.requestAppsScriptPasswordResetLink('auth');
+    return sendPasswordResetToAccountEmail('auth');
 };
 
 window.sendProfileResetPassword = function() {
-    return window.requestAppsScriptPasswordResetLink('profile');
-};
-
-window.openNeoResetPasswordPage = function(prefillEmail = '', prefillToken = '') {
-    const wasAuthLocked = document.body.classList.contains('auth-locked');
-    if (wasAuthLocked) {
-        document.body.setAttribute('data-return-auth-lock', '1');
-        document.body.classList.remove('auth-locked');
-    }
-    document.querySelectorAll('.main-tab-content').forEach(el => el.classList.remove('active'));
-    const resetTab = document.getElementById('tab-ubah-sandi');
-    if (resetTab) resetTab.classList.add('active');
-
-    const emailInp = document.getElementById('reset-page-email');
-    const tokenInp = document.getElementById('reset-page-token');
-    const fallbackEmail = userProfile.email || document.getElementById('auth-res-email')?.value || '';
-
-    if (emailInp) emailInp.value = prefillEmail || (fallbackEmail.includes('@') ? fallbackEmail : '');
-    if (tokenInp && prefillToken) tokenInp.value = prefillToken;
-
-    const banner = document.getElementById('reset-link-detected-banner');
-    if (banner) banner.style.display = prefillToken ? 'flex' : 'none';
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-};
-
-window.closeNeoResetPasswordPage = function() {
-    const shouldRelock = document.body.getAttribute('data-return-auth-lock') === '1';
-    document.body.removeAttribute('data-return-auth-lock');
-    if (shouldRelock) {
-        setAuthGateLock(true);
-    } else {
-        window.switchMainTab('profil');
-    }
-};
-
-window.evaluateResetPasswordStrength = function(val) {
-    const fill = document.getElementById('reset-pass-meter-fill');
-    const txt = document.getElementById('reset-pass-meter-text');
-    if (!fill || !txt) return;
-
-    const s = String(val || '');
-    let score = 0;
-    if (s.length >= 6) score += 35;
-    if (s.length >= 8) score += 25;
-    if (/[A-Z]/.test(s) && /[a-z]/.test(s)) score += 20;
-    if (/[0-9]/.test(s) || /[^A-Za-z0-9]/.test(s)) score += 20;
-
-    fill.style.width = score + '%';
-    if (score < 40) {
-        fill.style.backgroundColor = 'var(--danger)';
-        txt.innerText = 'Kekuatan sandi: Lemah (Minimal 6 karakter)';
-    } else if (score < 75) {
-        fill.style.backgroundColor = 'var(--warning)';
-        txt.innerText = 'Kekuatan sandi: Cukup Kuat';
-    } else {
-        fill.style.backgroundColor = 'var(--success)';
-        txt.innerText = 'Kekuatan sandi: Sangat Kuat & Aman';
-    }
-};
-
-window.sendTokenFromResetPage = function() {
-    const em = document.getElementById('reset-page-email')?.value.trim() || '';
-    if (!em || !em.includes('@')) {
-        window.customAlert('Isi Email Dahulu', 'Masukkan alamat email akun pada kolom di atas sebelum meminta token.', 'warning');
-        return;
-    }
-    const resInp = document.getElementById('auth-res-email');
-    if (resInp) resInp.value = em;
-    window.requestAppsScriptPasswordResetLink('auth');
-};
-
-window.submitNewPasswordViaAppsScript = async function() {
-    if (isSubmittingPasswordReset) return;
-
-    const email = (document.getElementById('reset-page-email')?.value || '').trim().toLowerCase();
-    const token = (document.getElementById('reset-page-token')?.value || '').trim();
-    const pass1 = document.getElementById('reset-page-new-pass')?.value || '';
-    const pass2 = document.getElementById('reset-page-confirm-pass')?.value || '';
-
-    if (!email || !email.includes('@')) {
-        window.customAlert('Email Tidak Valid', 'Masukkan alamat email akun yang benar.', 'warning');
-        return;
-    }
-    if (!token || token.length < 4) {
-        window.customAlert('Token Diperlukan', 'Masukkan kode token 6 digit dari link email Apps Script.', 'warning');
-        return;
-    }
-    if (pass1.length < 6) {
-        window.customAlert('Sandi Terlalu Pendek', 'Kata sandi baru minimal harus 6 karakter.', 'warning');
-        return;
-    }
-    if (pass1 !== pass2) {
-        window.customAlert('Sandi Tidak Cocok', 'Konfirmasi kata sandi baru tidak sama.', 'error');
-        return;
-    }
-
-    const savedRaw = localStorage.getItem(`vipercell_reset_token_${email}`);
-    if (savedRaw) {
-        try {
-            const parsed = JSON.parse(savedRaw);
-            if (parsed.expiresAt && Date.now() > parsed.expiresAt) {
-                window.customAlert('Token Kedaluwarsa', 'Masa berlaku kode token (15 menit) telah habis. Silakan kirim ulang token.', 'error');
-                return;
-            }
-            if (parsed.token && parsed.token !== token) {
-                window.customAlert('Token Salah', 'Kode token reset tidak cocok dengan yang dikirim ke email kamu.', 'error');
-                return;
-            }
-        } catch (e) {}
-    }
-
-    isSubmittingPasswordReset = true;
-    const btn = document.getElementById('btn-submit-new-pass-v27');
-    const ogHtml = btn ? btn.innerHTML : '';
-    if (btn) {
-        btn.disabled = true;
-        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> <span>Menyimpan Kata Sandi Baru...</span>';
-    }
-
-    try {
-        // Jika user sedang login di sesi aktif dengan email yang sama, langsung update password di Firebase Auth
-        if (auth.currentUser && !auth.currentUser.isAnonymous && (auth.currentUser.email || '').toLowerCase() === email) {
-            await updatePassword(auth.currentUser, pass1);
-        }
-
-        // Jika Apps Script mendukung sinkronisasi password / konfirmasi reset, kirim sinyal ke GAS
-        if ((siteSettings.emailWebhookUrl || '').trim().startsWith('https://script.google.com/')) {
-            await callUnifiedGasWebhook({
-                action: 'CONFIRM_PASSWORD_RESET',
-                email: email,
-                token: token,
-                newPassword: pass1
-            }).catch(() => {});
-        }
-
-        localStorage.removeItem(`vipercell_reset_token_${email}`);
-        document.getElementById('reset-page-token').value = '';
-        document.getElementById('reset-page-new-pass').value = '';
-        document.getElementById('reset-page-confirm-pass').value = '';
-
-        if (window.history && window.history.replaceState) {
-            window.history.replaceState({}, document.title, window.location.pathname);
-        }
-
-        window.customAlert(
-            'Kata Sandi Berhasil Diubah! 🔐',
-            `Kata sandi baru untuk akun <b>${escapeHtml(email)}</b> telah diperbarui menggunakan sistem keamanan Vipercell V27.`,
-            'success'
-        );
-        window.closeNeoResetPasswordPage();
-    } catch (err) {
-        window.customAlert('Perlu Login Ulang', 'Untuk keamanan ekstra, silakan masuk terlebih dahulu atau gunakan tautan verifikasi di email kamu.', 'warning');
-    } finally {
-        isSubmittingPasswordReset = false;
-        if (btn && ogHtml) {
-            btn.disabled = false;
-            btn.innerHTML = ogHtml;
-        }
-    }
+    return sendPasswordResetToAccountEmail('profile');
 };
 
 window.processGoogleLogin = async function() {
     const provider = new GoogleAuthProvider();
+    provider.setCustomParameters({ prompt: 'select_account' });
+
+    const btn = document.getElementById('auth-google-btn');
     const btnText = document.getElementById('text-google-btn');
-    const ogText = btnText ? btnText.innerText : 'Lanjutkan dengan Google';
-    if (btnText) btnText.innerText = 'Memverifikasi...';
+    const ogText = btnText ? btnText.innerText : 'Masuk dengan Google';
+    if (btnText) btnText.innerText = 'Memproses...';
+    if (btn) btn.disabled = true;
     
     try {
         boundLegacyGuestUid = null;
         await clearMultiLayerToken('vipercell_anon_uid');
         localStorage.removeItem('vipercell_anon_session_started_at');
+        localStorage.setItem('vipercell_active_session_mode', 'member');
+
+        if (auth.currentUser && auth.currentUser.isAnonymous) {
+            await signOut(auth).catch(() => {});
+        }
 
         const result = await signInWithPopup(auth, provider);
         const userDoc = await getDoc(doc(db, pathUsers, result.user.uid)).catch(() => null);
@@ -4905,8 +4656,8 @@ window.processGoogleLogin = async function() {
         if (!userDoc || !userDoc.exists()) {
             await setDoc(doc(db, pathUsers, result.user.uid), { 
                 uid: result.user.uid,
-                email: result.user.email, 
-                name: result.user.displayName || 'Member Google', 
+                email: result.user.email || '', 
+                name: result.user.displayName || 'Member', 
                 phone: '',
                 whatsapp: '',
                 role: 'member',
@@ -4918,23 +4669,29 @@ window.processGoogleLogin = async function() {
                 deviceId: currentDeviceId,
                 createdAt: Date.now() 
             }, { merge: true });
+        } else if (userDoc.data()?.isDeleted === true) {
+            await setDoc(doc(db, pathUsers, result.user.uid), { isDeleted: false }, { merge: true }).catch(() => {});
         }
-        localStorage.setItem('vipercell_active_session_mode', 'member');
+
+        currentUser = result.user;
         await syncUserProfileFromAuth(result.user);
         const restricted = await checkRealtimeAccountRestriction(false);
         if (!restricted) {
             setAuthGateLock(false);
             window.switchMainTab('katalog');
-            window.showToast('Berhasil Masuk', 'Login menggunakan Google berhasil!', 'success');
+            window.showToast('Berhasil Masuk', 'Selamat datang di Vipercell!', 'success');
         }
     } catch (error) {
-        console.error(error);
+        console.error("Google Login Error:", error);
+        if (error.code !== 'auth/popup-closed-by-user' && error.code !== 'auth/cancelled-popup-request') {
+            window.customAlert('Gagal Masuk Google', 'Pastikan pop-up browser diizinkan atau gunakan masuk dengan Email dan Kata Sandi.', 'warning');
+        }
     } finally {
         if (btnText) btnText.innerText = ogText;
+        if (btn) btn.disabled = false;
     }
 };
 
-// [FEATURE-22] Logout Bersih (Memisahkan Data Sesi Member & Anonim)
 window.logoutUser = async function() {
     localStorage.setItem('vipercell_active_session_mode', 'logged_out');
     localStorage.removeItem('vipercell_track_email');
@@ -4958,15 +4715,14 @@ window.logoutUser = async function() {
     userProfile = { uid: '', name: '', email: '', phone: '', isGuest: true, isAnonymous: true };
 
     setAuthGateLock(true);
-    window.showToast('Berhasil Keluar', 'Anda telah keluar ke halaman Login utama.', 'info');
+    window.showToast('Keluar', 'Kamu telah keluar dari sesi akun.', 'info');
 };
-window.logoutUserCleanV27 = window.logoutUser;
 
 window.saveUserProfile = async function() {
     if (!currentUser) return;
     const name = document.getElementById('prof-name').value.trim();
     const phone = document.getElementById('prof-phone') ? document.getElementById('prof-phone').value.trim() : '';
-    if (!name) { window.customAlert('Peringatan', 'Nama panggilan tidak boleh kosong.', 'warning'); return; }
+    if (!name) { window.customAlert('Peringatan', 'Nama tidak boleh kosong.', 'warning'); return; }
     
     const isMember = Boolean(currentUser && !currentUser.isAnonymous && !userProfile.isGuest);
     const effectiveUid = isMember ? currentUser.uid : (boundLegacyGuestUid || currentUser.uid);
@@ -4990,8 +4746,8 @@ window.saveUserProfile = async function() {
         }
 
         applyUserSessionToUI();
-        window.showToast('Profil Disimpan', 'Data identitas & nomor WhatsApp berhasil diperbarui.', 'success');
-    } catch (e) { window.customAlert('Error', 'Gagal menyimpan perubahan profil.', 'error'); }
+        window.showToast('Tersimpan', 'Profil berhasil diperbarui.', 'success');
+    } catch (e) { window.customAlert('Error', 'Gagal menyimpan profil.', 'error'); }
 };
 
 function updateProfileStats() {
@@ -5018,18 +4774,14 @@ function updateProfileStats() {
     if (spentEl) spentEl.innerText = `Rp${totalSpent.toLocaleString('id-ID')}`;
 }
 
-/* ============================================================================
- * [FEATURE-11] MULTI-MESSAGE RUNNING INFO (HINGGA 6 PESAN) INTERAKTIF
- * Deskripsi : Mendukung hingga 6 pesan berjalan dari Admin. Ketika diklik:
- *             - Jika berisi Kode Promo / Target Produk -> Otomatis tempel promo
- *               dan langsung masuk ke halaman Checkout produk tersebut!
- *             - Jika berisi tautan Berita -> Langsung membuka artikel berita!
- * ============================================================================ */
+// ==========================================
+// RUNNING TEXT MULTI-PESAN (#21) & PENGATURAN UI
+// ==========================================
 function buildStructuredMarqueeSlots() {
     const slots = [];
 
     if (Array.isArray(siteSettings.marqueeList) && siteSettings.marqueeList.length > 0) {
-        siteSettings.marqueeList.slice(0, 6).forEach((item, idx) => {
+        siteSettings.marqueeList.slice(0, 6).forEach((item) => {
             if (!item) return;
             if (typeof item === 'string' && item.trim()) {
                 slots.push({ text: item.trim(), type: 'info', promoCode: '', targetBrand: '', newsIndex: -1 });
@@ -5045,9 +4797,8 @@ function buildStructuredMarqueeSlots() {
         });
     }
 
-    // Jika marqueeList belum diatur, ekstrak hingga 6 pesan dari string `siteSettings.marquee` (dipisah `||` atau baris baru)
     if (slots.length === 0) {
-        const rawMarquee = String(siteSettings.marquee || 'Selamat Datang di Vipercell V27!').trim();
+        const rawMarquee = String(siteSettings.marquee || 'Selamat datang di Vipercell.').trim();
         const rawParts = rawMarquee.includes('||')
             ? rawMarquee.split('||')
             : rawMarquee.split(/\r?\n/);
@@ -5069,13 +4820,9 @@ function buildStructuredMarqueeSlots() {
 
 function renderInteractiveMarqueeUI() {
     const marqueeContent = document.getElementById('marquee-content');
-    const slotCounter = document.getElementById('marquee-slot-counter');
     if (!marqueeContent) return;
 
     const slots = buildStructuredMarqueeSlots();
-    if (slotCounter) {
-        slotCounter.innerText = `${slots.length} INFO`;
-    }
 
     const buildPassHtml = () => slots.map((slot, idx) => {
         const safePromo = escapeJsStr(slot.promoCode || '');
@@ -5083,32 +4830,26 @@ function renderInteractiveMarqueeUI() {
         const newsIdx = typeof slot.newsIndex === 'number' ? slot.newsIndex : -1;
 
         let badgeClass = '';
-        let badgeLabel = `INFO #${idx + 1}`;
-        let actionHint = '<span class="marquee-item-action"><i class="fa-solid fa-arrow-up-right-from-square"></i> Buka</span>';
+        let badgeLabel = `INFO`;
 
         if (slot.promoCode) {
             badgeClass = 'badge-promo';
             badgeLabel = `PROMO: ${escapeHtml(slot.promoCode)}`;
-            actionHint = `<span class="marquee-item-action"><i class="fa-solid fa-ticket"></i> Pakai Promo</span>`;
         } else if (slot.newsIndex >= 0 || slot.type === 'news') {
             badgeClass = 'badge-news';
             badgeLabel = 'BERITA';
-            actionHint = `<span class="marquee-item-action"><i class="fa-solid fa-newspaper"></i> Baca Info</span>`;
         } else if (slot.targetBrand) {
             badgeLabel = escapeHtml(slot.targetBrand);
-            actionHint = `<span class="marquee-item-action"><i class="fa-solid fa-cart-shopping"></i> Beli Sekarang</span>`;
         }
 
         return `
             <span class="marquee-item-pill" onclick="window.handleMarqueeItemClick(${idx}, '${safePromo}', '${safeBrand}', ${newsIdx})">
                 <span class="marquee-item-badge ${badgeClass}">${badgeLabel}</span>
                 <span>${escapeHtml(slot.text)}</span>
-                ${actionHint}
             </span>
         `;
     }).join('');
 
-    // Gandakan untuk efek animasi marquee tak berujung yang mulus
     marqueeContent.innerHTML = buildPassHtml() + buildPassHtml();
 }
 
@@ -5118,7 +4859,6 @@ window.handleMarqueeItemClick = function(slotIndex = 0, explicitPromo = '', expl
     let targetBrand = (explicitBrand || slot.targetBrand || '').trim();
     const newsIndex = explicitNewsIdx >= 0 ? explicitNewsIdx : (typeof slot.newsIndex === 'number' ? slot.newsIndex : -1);
 
-    // 1. Jika memiliki kode promo, cari produk yang memenuhi syarat promo tersebut
     if (promoCode) {
         navigator.clipboard.writeText(promoCode).catch(() => {});
         if (!targetBrand) {
@@ -5140,26 +4880,23 @@ window.handleMarqueeItemClick = function(slotIndex = 0, explicitPromo = '', expl
                     if (firstAvail) window.selectItemToBuy(firstAvail.dbId);
                 }
                 window.applyPromoDirect();
-                window.showToast(`Kode Promo ${promoCode} Dipasang!`, `Menampilkan produk yang memenuhi syarat promo ${promoCode}.`, 'success');
-            }, 180);
+                window.showToast(`Promo ${promoCode}`, `Kode promo berhasil dipasang.`, 'success');
+            }, 140);
             return;
         }
     }
 
-    // 2. Jika memiliki target brand langsung
     if (targetBrand) {
         window.openDirectBuyModal(targetBrand);
         return;
     }
 
-    // 3. Jika tertaut ke artikel berita tertentu
     const visibleNews = (siteSettings.newsList || []).filter(t => !t.isHidden);
     if (newsIndex >= 0 && newsIndex < visibleNews.length) {
         window.openReadNewsFullPage(newsIndex);
         return;
     }
 
-    // 4. Default: jika ada berita, buka berita terbaru atau tab berita
     if (visibleNews.length > 0) {
         window.openReadNewsFullPage(0);
     } else {
@@ -5167,9 +4904,6 @@ window.handleMarqueeItemClick = function(slotIndex = 0, explicitPromo = '', expl
     }
 };
 
-// ==========================================
-// RENDER SETTINGS, BANNERS, BERITA & BARCODE TUNAI
-// ==========================================
 window.applySettingsToUI = function() {
     const logoDasar = siteSettings.logoText || 'VIPER';
     const logoAksen = siteSettings.logoAccent || 'CELL';
@@ -5191,6 +4925,7 @@ window.applySettingsToUI = function() {
     }
     
     renderInteractiveMarqueeUI();
+    updateOpHoursBannerUI();
     
     const igBtn = document.getElementById('footer-ig-btn');
     if (igBtn) {
@@ -5206,7 +4941,7 @@ window.applySettingsToUI = function() {
     
     let adminWaNum = siteSettings.adminWa || '085656321860';
     if (adminWaNum.startsWith('0')) adminWaNum = '62' + adminWaNum.substring(1);
-    const waHref = `https://wa.me/${adminWaNum}?text=${encodeURIComponent('Halo Min Vipercell')}`;
+    const waHref = `https://wa.me/${adminWaNum}?text=${encodeURIComponent('Halo Admin Vipercell')}`;
     
     const fWaLink = document.getElementById('footer-wa-link');
     if (fWaLink) fWaLink.href = waHref;
@@ -5225,22 +4960,20 @@ window.applySettingsToUI = function() {
 window.renderBanners = function() {
     const container = document.getElementById('banner-container');
     const track = document.getElementById('banner-track');
-    const dotsContainer = document.getElementById('banner-dots');
     
-    if (!container || !track || !dotsContainer) return;
+    if (!container || !track) return;
     const banners = siteSettings.banners || [];
     
     if (banners.length === 0) { container.style.display = 'none'; return; }
     
     container.style.display = 'block';
-    setTimeout(() => { container.classList.add('reveal-visible'); }, 50);
+    setTimeout(() => { container.classList.add('reveal-visible'); }, 40);
     
-    let trackHtml = ''; let dotsHtml = '';
-    banners.forEach((b64, idx) => {
+    let trackHtml = '';
+    banners.forEach((b64) => {
         trackHtml += `<img src="${b64}" class="banner-slide" alt="Promo Vipercell" loading="lazy" decoding="async">`;
-        dotsHtml += `<div class="banner-dot ${idx === 0 ? 'active' : ''}" onclick="window.goToBanner(${idx})"></div>`;
     });
-    track.innerHTML = trackHtml; dotsContainer.innerHTML = dotsHtml;
+    track.innerHTML = trackHtml;
     window.startBannerAuto();
 };
 
@@ -5248,12 +4981,8 @@ let currentBanner = 0;
 window.goToBanner = function(idx) {
     currentBanner = idx;
     const track = document.getElementById('banner-track');
-    const dots = document.querySelectorAll('.banner-dot');
     if (!track) return;
-    
-    track.style.transform = `translateX(-${currentBanner * 100}%)`;
-    dots.forEach(d => d.classList.remove('active'));
-    if (dots[currentBanner]) dots[currentBanner].classList.add('active');
+    track.style.transform = `translate3d(-${currentBanner * 100}%, 0, 0)`;
 };
 window.startBannerAuto = function() {
     if (activeTimersRegistry.bannerSlider) clearInterval(activeTimersRegistry.bannerSlider);
@@ -5271,7 +5000,7 @@ window.renderNews = function() {
     const visibleList = list.filter(t => !t.isHidden);
     
     if (visibleList.length === 0) {
-        grid.innerHTML = '<div class="brutal-empty-box" style="grid-column: 1/-1;">Belum ada artikel berita atau pengumuman terbaru.</div>';
+        grid.innerHTML = '<div class="brutal-empty-box" style="grid-column: 1/-1;">Belum ada berita terbaru.</div>';
         return;
     }
     
@@ -5300,7 +5029,7 @@ window.renderNews = function() {
                     <div class="news-card-body">
                         <div>
                             <div style="display:flex; flex-wrap:wrap; gap:4px; align-items:center;">
-                                <span class="brutal-tag tag-primary"><i class="fa-solid fa-bullhorn"></i> INFO VIPERCELL</span>
+                                <span class="brutal-tag tag-primary">INFO</span>
                                 ${prodBadgeHtml}
                             </div>
                             <h3 class="news-card-title">${escapeHtml(news.title)}</h3>
@@ -5308,7 +5037,7 @@ window.renderNews = function() {
                         </div>
                         <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:4px;">
                             <button class="btn btn-outline btn-sm" style="flex:1;">
-                                <i class="fa-solid fa-expand"></i> Baca Berita
+                                Baca Selengkapnya
                             </button>
                             ${directBuyBtnHtml}
                         </div>
@@ -5343,20 +5072,20 @@ window.openReadNewsFullPage = function(idx) {
 
     if (news.enableProductBtn && news.linkedBrand) {
         if (ctaBox) ctaBox.classList.add('linked-highlight');
-        if (ctaTitle) ctaTitle.innerText = `Ingin langsung membeli produk ${news.linkedBrand}?`;
-        if (ctaSub) ctaSub.innerText = `Klik tombol di samping untuk memilih variasi ${news.linkedBrand} dan melakukan pembayaran instan!`;
+        if (ctaTitle) ctaTitle.innerText = `Ingin membeli ${news.linkedBrand}?`;
+        if (ctaSub) ctaSub.innerText = `Pilih variasi ${news.linkedBrand} di halaman produk.`;
         if (ctaBtn) {
             ctaBtn.className = 'btn btn-primary';
-            ctaBtn.innerHTML = `<i class="fa-solid fa-bolt"></i> <span>Beli ${escapeHtml(news.linkedBrand)} Sekarang</span>`;
+            ctaBtn.innerHTML = `<i class="fa-solid fa-bolt"></i> <span>Beli ${escapeHtml(news.linkedBrand)}</span>`;
             ctaBtn.onclick = () => window.openDirectBuyModal(news.linkedBrand);
         }
     } else {
         if (ctaBox) ctaBox.classList.remove('linked-highlight');
-        if (ctaTitle) ctaTitle.innerText = 'Tertarik dengan promo atau layanan di atas?';
-        if (ctaSub) ctaSub.innerText = 'Langsung cek ketersediaan stoknya di katalog utama kami sekarang!';
+        if (ctaTitle) ctaTitle.innerText = 'Tertarik dengan promo ini?';
+        if (ctaSub) ctaSub.innerText = 'Lihat daftar produk di katalog.';
         if (ctaBtn) {
             ctaBtn.className = 'btn btn-outline';
-            ctaBtn.innerHTML = `<i class="fa-solid fa-store"></i> <span>Lihat Katalog Produk</span>`;
+            ctaBtn.innerHTML = `<i class="fa-solid fa-store"></i> <span>Lihat Katalog</span>`;
             ctaBtn.onclick = () => window.switchMainTab('katalog');
         }
     }
@@ -5374,7 +5103,7 @@ window.shareCurrentArticle = function() {
         }).catch(() => {});
     } else {
         navigator.clipboard.writeText(`${currentOpenedArticle.title}\n\n${currentOpenedArticle.desc}`).then(() => {
-            window.showToast('Artikel Disalin', 'Isi berita berhasil disalin untuk dibagikan.', 'success');
+            window.showToast('Disalin', 'Isi berita berhasil disalin.', 'success');
         });
     }
 };
@@ -5400,17 +5129,15 @@ window.openCashBarcodeModal = function(orderObj = null) {
                 format: "CODE128",
                 lineColor: "#0f172a",
                 background: "#ffffff",
-                width: 2.2,
-                height: 75,
+                width: 2.1,
+                height: 70,
                 displayValue: true,
-                font: "JetBrains Mono",
+                font: "Space Grotesk",
                 fontOptions: "bold",
-                fontSize: 16,
+                fontSize: 15,
                 margin: 6
             });
-        } catch (err) {
-            console.error("Barcode Render Error:", err);
-        }
+        } catch (err) {}
     }
 
     currentCheckoutSession = {
@@ -5430,7 +5157,7 @@ window.confirmCashBarcodeToChat = function() {
     const invToTrack = currentCheckoutSession ? currentCheckoutSession.id : '';
     window.closeModal('modal-cash-barcode');
     if (invToTrack) {
-        window.sendPredefinedChat(`Halo Admin, saya ingin melakukan pembayaran TUNAI (Barcode Kasir) untuk Invoice #${invToTrack}. Mohon di-scan ya Min.`);
+        window.sendPredefinedChat(`Halo Admin, saya ingin membayar tunai untuk Invoice #${invToTrack}.`);
     } else {
         window.switchMainTab('bantuan');
     }
@@ -5457,7 +5184,7 @@ window.copyNominal = function() {
     if (!currentCheckoutSession) return;
     const nominal = currentCheckoutSession.finalTotal.toString();
     navigator.clipboard.writeText(nominal).then(() => {
-        window.showToast('Nominal Disalin', `Angka Rp${Number(nominal).toLocaleString('id-ID')} berhasil disalin.`, 'success');
+        window.showToast('Disalin', `Rp${Number(nominal).toLocaleString('id-ID')} disalin.`, 'success');
     });
 };
 
@@ -5486,7 +5213,7 @@ window.goToPesananFromPay = function() {
 };
 
 // ==========================================
-// FITUR ULASAN: 1X ULASAN PER TRANSAKSI
+// FITUR ULASAN PEMBELI
 // ==========================================
 function getUnreviewedSuccessOrdersForBrand(brandName) {
     const isMember = Boolean(currentUser && !currentUser.isAnonymous && !userProfile.isGuest);
@@ -5546,7 +5273,7 @@ window.renderReviewsUI = function() {
             writeContainer.style.display = 'block';
             const stepHead = writeContainer.querySelector('.step-header h4');
             if (stepHead) {
-                stepHead.innerHTML = `Tulis Ulasan <span class="brutal-tag tag-primary" style="margin-left:8px;">INVOICE #${escapeHtml(activeOrderForReview.id)}</span>`;
+                stepHead.innerHTML = `Tulis Ulasan <span class="brutal-tag tag-primary" style="margin-left:8px;">#${escapeHtml(activeOrderForReview.id)}</span>`;
             }
         } else {
             writeContainer.style.display = 'none';
@@ -5556,7 +5283,7 @@ window.renderReviewsUI = function() {
     const brandReviews = reviewsData.filter(r => r.brandName === brandName).sort((a, b) => b.timestamp - a.timestamp);
     
     if (brandReviews.length === 0) {
-        reviewListContainer.innerHTML = `<div class="brutal-empty-box"><i class="fa-regular fa-comment-dots" style="font-size:2rem; margin-bottom:8px; display:block;"></i>Belum ada ulasan untuk produk ini.</div>`;
+        reviewListContainer.innerHTML = `<div class="brutal-empty-box">Belum ada ulasan untuk produk ini.</div>`;
         return;
     }
     
@@ -5572,10 +5299,10 @@ window.renderReviewsUI = function() {
         
         const adminReplyHtml = r.adminReply ? `
             <div style="margin-top: 10px; padding: 10px 12px; background: var(--surface); border-left: 3.5px solid var(--primary); border-radius: 8px; border: 1.5px solid var(--border);">
-                <div style="font-size: 0.74rem; font-weight: 800; color: var(--primary-light); margin-bottom: 3px;">
-                    <i class="fa-solid fa-reply"></i> BALASAN ADMIN VIPERCELL:
+                <div style="font-size: 0.72rem; font-weight: 800; color: var(--primary-light); margin-bottom: 3px;">
+                    <i class="fa-solid fa-reply"></i> Balasan Admin:
                 </div>
-                <p style="font-size: 0.84rem; font-weight: 600; color: var(--text); margin: 0;">${escapeHtml(r.adminReply)}</p>
+                <p style="font-size: 0.82rem; font-weight: 600; color: var(--text); margin: 0;">${escapeHtml(r.adminReply)}</p>
             </div>
         ` : '';
 
@@ -5583,13 +5310,13 @@ window.renderReviewsUI = function() {
         <div style="background:var(--bg); border:var(--brutal-border); padding:14px; border-radius:12px;">
             <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; margin-bottom:6px;">
                 <div style="display:flex; align-items:center; gap:8px;">
-                    <strong style="color:var(--text); font-size:0.9rem; font-weight:800;">${escapeHtml(r.userName || 'Pelanggan Vipercell')}</strong>
+                    <strong style="color:var(--text); font-size:0.88rem; font-weight:800;">${escapeHtml(r.userName || 'Pelanggan')}</strong>
                     ${invBadge}
                 </div>
                 <span style="font-size:0.72rem; font-weight:700; color:var(--text-muted);">${new Date(r.timestamp).toLocaleDateString('id-ID')}</span>
             </div>
             <div style="margin-bottom:8px; display:flex; gap:3px;">${starsHtml}</div>
-            <p style="font-size:0.86rem; font-weight:600; color:var(--text); margin:0;">"${escapeHtml(r.text)}"</p>
+            <p style="font-size:0.85rem; font-weight:600; color:var(--text); margin:0;">"${escapeHtml(r.text)}"</p>
             ${adminReplyHtml}
         </div>`;
     });
@@ -5603,11 +5330,11 @@ window.submitReview = async function() {
     const textInput = document.getElementById('review-text').value.trim();
     const rating = window.selectedReviewStar || 5;
     
-    if (!textInput) { window.customAlert('Ulasan Kosong', 'Silakan tulis pengalaman belanjamu terlebih dahulu.', 'warning'); return; }
+    if (!textInput) { window.customAlert('Ulasan Kosong', 'Tulis ulasan kamu terlebih dahulu.', 'warning'); return; }
     
     const eligibleOrders = getUnreviewedSuccessOrdersForBrand(currentCheckoutBrand.brandName);
     if (eligibleOrders.length === 0) {
-        window.customAlert('Sudah Diulas', 'Kamu sudah memberikan ulasan untuk transaksi ini (Maksimal 1x ulasan per transaksi).', 'warning');
+        window.customAlert('Sudah Diulas', 'Transaksi ini sudah pernah diulas.', 'warning');
         window.renderReviewsUI();
         return;
     }
@@ -5616,11 +5343,11 @@ window.submitReview = async function() {
 
     isSubmittingReview = true;
     const anonName = localStorage.getItem('vipercell_anon_name');
-    const userName = userProfile.name ? userProfile.name : (anonName ? anonName : 'Pelanggan Vipercell');
+    const userName = userProfile.name ? userProfile.name : (anonName ? anonName : 'Pelanggan');
     
     const btnSubmit = document.getElementById('btn-submit-review');
     const ogHtml = btnSubmit.innerHTML;
-    btnSubmit.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> <span>Mempublikasikan...</span>';
+    btnSubmit.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> <span>Mengirim...</span>';
     btnSubmit.disabled = true;
 
     const isMember = Boolean(currentUser && !currentUser.isAnonymous && !userProfile.isGuest);
@@ -5641,10 +5368,10 @@ window.submitReview = async function() {
         document.getElementById('review-text').value = '';
         targetReviewOrderId = null;
         window.setReviewStar(5);
-        window.customAlert('Terima Kasih!', `Ulasanmu untuk transaksi <b>#${orderToReview.id}</b> berhasil dipublikasikan!`, 'success');
+        window.showToast('Terkirim', `Ulasan untuk #${orderToReview.id} berhasil dikirim.`, 'success');
         window.renderReviewsUI();
     } catch (e) {
-        window.customAlert('Gagal', 'Gagal mengirim ulasan. Pastikan jaringan kamu stabil.', 'error');
+        window.customAlert('Gagal', 'Gagal mengirim ulasan.', 'error');
     } finally {
         isSubmittingReview = false;
         btnSubmit.innerHTML = ogHtml;
@@ -5652,9 +5379,6 @@ window.submitReview = async function() {
     }
 };
 
-// ==========================================
-// FUNGSI HELPER & INISIALISASI AKHIR STORE.JS V27.0
-// ==========================================
 window.togglePassVisibility = function(inputId, btnEl) {
     const inp = document.getElementById(inputId);
     if (!inp) return;
@@ -5743,12 +5467,12 @@ window.copyInvoiceIdModal = function() {
     if (invIdEl && invIdEl.innerText !== '-') {
         const cleanInv = invIdEl.innerText.replace(/^#/, '');
         navigator.clipboard.writeText(cleanInv).then(() => {
-            if (window.showToast) window.showToast('Tersalin', 'ID Invoice berhasil disalin ke Papan Klip.', 'success');
+            if (window.showToast) window.showToast('Disalin', 'ID Invoice berhasil disalin.', 'success');
         });
     }
 };
 
-// Jalankan Inisialisasi Gatekeeper V27
+// Jalankan Inisialisasi Aplikasi
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', initializeAppWithLoader);
 } else {
