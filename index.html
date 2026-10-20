@@ -4,34 +4,41 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
     
-    <!-- SEO & Metadata -->
-    <meta name="description" content="Vipercell adalah platform penyedia layanan top up game, aplikasi premium, dan tools digital otomatis, cepat, murah, dan bergaransi.">
-    <meta name="keywords" content="top up game, aplikasi premium, tools digital, netflix murah, diamond ml, qris otomatis">
+    <!-- SEO, OpenGraph & Link Preview Metadata ([FEATURE-16]) -->
+    <meta name="description" content="Vipercell V27 adalah platform penyedia layanan top up game, aplikasi premium, akun email OAuth, dan tools digital otomatis, cepat, murah, dan bergaransi.">
+    <meta name="keywords" content="top up game, aplikasi premium, tools digital, netflix murah, diamond ml, qris otomatis, vipercell">
     <meta name="author" content="Vipercell">
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="Vipercell V27 - Pusat Aplikasi Premium, Top Up Game & Tools Digital">
+    <meta property="og:description" content="Transaksi otomatis 24/7 detik itu juga dengan QRIS Real-Time & Barcode Kasir. 100% Legal & Bergaransi.">
+    <meta property="og:image" id="og-meta-image" content="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' rx='116' fill='%232563eb' stroke='%230f172a' stroke-width='24'/%3E%3Cpath d='M298 88L136 288h116l-44 136 168-200H260l38-136z' fill='%23facc15' stroke='%230f172a' stroke-width='16' stroke-linejoin='round'/%3E%3C/svg%3E">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Vipercell V27 - Premium App, Game & Tools Store">
     
     <!-- Optimisasi PWA & Rotasi Layar Penuh -->
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="mobile-web-app-capable" content="yes">
-    <meta name="theme-color" content="#ffffff" id="meta-theme-color">
-    <title>Vipercell V25.1 - Premium App, Game & Tools Store</title>
+    <meta name="theme-color" content="#f4f6fb" id="meta-theme-color">
+    <title>Vipercell V27 - Pusat Aplikasi Premium, Game & Tools Digital</title>
     
-    <!-- PWA Manifest & Dynamic Custom Icons -->
+    <!-- [FEATURE-16] Perbaikan Icon Logo Web agar Selalu Tampil di Tab & Link Web -->
     <link rel="manifest" href="manifest.json" id="pwa-manifest-link">
-    <link rel="icon" id="favicon" href="icon-192.png" onerror="this.href='data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 512 512\'%3E%3Crect width=\'512\' height=\'512\' rx=\'110\' fill=\'%232563eb\'/%3E%3Cpath d=\'M298 96L144 288h112l-42 128 154-192H256l42-128z\' fill=\'%23ffffff\'/%3E%3C/svg%3E'">
-    <link rel="apple-touch-icon" id="apple-touch-icon" href="icon-192.png">
+    <link rel="icon" type="image/svg+xml" id="favicon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' rx='116' fill='%232563eb' stroke='%230f172a' stroke-width='28'/%3E%3Cpath d='M298 88L136 288h116l-44 136 168-200H260l38-136z' fill='%23facc15' stroke='%230f172a' stroke-width='18' stroke-linejoin='round'/%3E%3C/svg%3E">
+    <link rel="shortcut icon" id="shortcut-favicon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' rx='116' fill='%232563eb' stroke='%230f172a' stroke-width='28'/%3E%3Cpath d='M298 88L136 288h116l-44 136 168-200H260l38-136z' fill='%23facc15' stroke='%230f172a' stroke-width='18' stroke-linejoin='round'/%3E%3C/svg%3E">
+    <link rel="apple-touch-icon" id="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' rx='116' fill='%232563eb' stroke='%230f172a' stroke-width='28'/%3E%3Cpath d='M298 88L136 288h116l-44 136 168-200H260l38-136z' fill='%23facc15' stroke='%230f172a' stroke-width='18' stroke-linejoin='round'/%3E%3C/svg%3E">
     
-    <!-- Preconnect untuk Kecepatan Jaringan Maksimal -->
+    <!-- [FEATURE-25] Preconnect & Multi-Font Estetik (Syne, Space Grotesk, Plus Jakarta Sans, Outfit, JetBrains Mono) -->
     <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="preconnect" href="https://firestore.googleapis.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Space+Grotesk:wght@700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@600;700;800&family=Outfit:wght@600;700;800;900&family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Space+Grotesk:wght@700;800&family=Syne:wght@700;800&display=swap" rel="stylesheet">
     
-    <!-- FontAwesome -->
+    <!-- FontAwesome 6 -->
     <link rel="preload" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" as="style" onload="this.onload=null;this.rel='stylesheet'">
     <noscript><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"></noscript>
     
-    <!-- CSS Utama V25.1 (Neo-Brutalism V2 Responsive & Fast) -->
+    <!-- CSS Utama V27.0 (Neo-Brutalism V3 Responsive & Fast) -->
     <link rel="stylesheet" href="css/main.css">
     
     <!-- QR Code Generator, JsBarcode & Html2Canvas -->
@@ -39,28 +46,63 @@
     <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js" defer></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" defer></script>
 
+    <!-- [FEATURE-07, 10, 16, 22] Inisialisasi Tema, Ikon Cache & Guard Isolasi Sesi V27 -->
     <script>
-        const savedTheme = localStorage.getItem('vipercell_theme') || 'light';
-        document.documentElement.setAttribute('data-theme', savedTheme);
-        document.getElementById('meta-theme-color').setAttribute('content', savedTheme === 'dark' ? '#090d16' : '#ffffff');
+        (function() {
+            try {
+                const savedTheme = localStorage.getItem('vipercell_theme') || 'light';
+                document.documentElement.setAttribute('data-theme', savedTheme);
+                const metaTheme = document.getElementById('meta-theme-color');
+                if (metaTheme) metaTheme.setAttribute('content', savedTheme === 'dark' ? '#090d16' : '#f4f6fb');
+
+                const cachedLogo = localStorage.getItem('vipercell_cached_icon_v27');
+                if (cachedLogo && cachedLogo.startsWith('data:image')) {
+                    const fav = document.getElementById('favicon');
+                    const sFav = document.getElementById('shortcut-favicon');
+                    const aFav = document.getElementById('apple-touch-icon');
+                    if (fav) fav.href = cachedLogo;
+                    if (sFav) sFav.href = cachedLogo;
+                    if (aFav) aFav.href = cachedLogo;
+                }
+
+                // [FEATURE-10 & 22] Pembersihan Cache Guard Usang pemicu bug false-logout "Akun dihapus oleh Admin"
+                // serta pemisahan data sesi Member vs Anonim
+                const activeMode = localStorage.getItem('vipercell_active_session_mode');
+                if (activeMode === 'member') {
+                    localStorage.removeItem('vipercell_anon_uid');
+                    if ('caches' in window) {
+                        caches.delete('vipercell-guard-token-v25').catch(() => {});
+                    }
+                    if ('indexedDB' in window) {
+                        try { indexedDB.deleteDatabase('VipercellGuardDB'); } catch (e) {}
+                    }
+                }
+            } catch (e) {}
+        })();
     </script>
 </head>
 <body class="no-scroll preloader-locked auth-locked">
 
+    <!-- [FEATURE-07] Layar Curtain untuk Efek Transisi Tema Terang <-> Gelap -->
+    <div id="theme-transition-curtain"></div>
+
     <!-- ==========================================================================
-         [FEATURE-01] ZERO-LEAK PRE-LOADER GATEKEEPER (4-STAGE REAL DATA LATCH)
-         ID Elemen : #app-preloader-overlay, #preloader-bar-fill, #preloader-retry-box
+         [FEATURE-01 & FEATURE-12] FROSTED GLASS TRANSLUCENT PRE-LOADER GATEKEEPER
+         Deskripsi : Latar belakang transparan agak buram sehingga siluet isi web
+                     terlihat di belakangnya, terkunci rapat tanpa bocor interaksi,
+                     dan terbuka cepat begitu sinkronisasi selesai.
          ========================================================================== -->
     <div id="app-preloader-overlay" class="preloader-overlay">
         <div class="preloader-simple-box">
+            <span class="preloader-brand-pill"><i class="fa-solid fa-bolt"></i> VIPERCELL V27 ENGINE</span>
             <div class="preloader-circle-spinner" id="preloader-spinner"></div>
-            <p id="preloader-status-text" class="preloader-simple-text">Sedang memuat data...</p>
+            <p id="preloader-status-text" class="preloader-simple-text">Menyiapkan ruang belanja...</p>
             <div class="preloader-stage-bar-wrap">
-                <div id="preloader-bar-fill" class="preloader-stage-bar-fill" style="width: 15%;"></div>
+                <div id="preloader-bar-fill" class="preloader-stage-bar-fill" style="width: 22%;"></div>
             </div>
-            <span id="preloader-stage-sub" class="preloader-stage-sub">Sinkronisasi sesi & katalog cloud...</span>
+            <span id="preloader-stage-sub" class="preloader-stage-sub">Sinkronisasi sesi & katalog cloud secara aman...</span>
             
-            <!-- Tombol Retry Jaringan jika koneksi terputus / lambat (> 10 detik) -->
+            <!-- Tombol Retry Jaringan jika koneksi terputus / lambat -->
             <div id="preloader-retry-box" style="display:none; margin-top: 12px; width: 100%;">
                 <p style="font-size:0.76rem; color:var(--danger); font-weight:700; margin-bottom:8px;">
                     Koneksi jaringan melambat atau terputus.
@@ -73,8 +115,7 @@
     </div>
 
     <!-- ==========================================================================
-         [FEATURE-10] ANIMASI KONFETI PEMBAYARAN SUKSES & SWIPEABLE NEO-TOAST
-         ID Elemen : #payment-success-overlay, #toast-container, #pwa-install-prompt
+         [FEATURE-10] LAYAR SELEBRASI PEMBAYARAN SUKSES (FULL-VIEW) & NEO-TOAST
          ========================================================================== -->
     <div id="payment-success-overlay" class="modal-overlay" style="z-index: 9999999; display: none; flex-direction: column; justify-content: center; align-items: center; overflow: hidden;">
         <div id="confetti-container" class="confetti-wrapper"></div>
@@ -84,59 +125,53 @@
                 <i class="fa-solid fa-check"></i>
             </div>
             <h2 class="brutal-success-title">Pembayaran Berhasil!</h2>
-            <p class="brutal-success-desc">Pesanan kamu telah diverifikasi dan langsung dikirim oleh sistem otomatis Vipercell.</p>
+            <p class="brutal-success-desc">Pesanan kamu telah diverifikasi dan langsung dikirim otomatis ke E-Receipt & Email oleh sistem Vipercell V27.</p>
             <div class="brutal-success-loader">
                 <i class="fa-solid fa-spinner fa-spin"></i> Membuka E-Receipt & Detail Akun...
             </div>
         </div>
     </div>
 
-    <!-- CUSTOM PWA INSTALL PROMPT -->
-    <div id="pwa-install-prompt" class="pwa-brutal-prompt" style="display:none;">
-        <img id="pwa-prompt-logo" src="" alt="Icon" class="pwa-custom-img" style="display:none;" decoding="async">
-        <div id="pwa-prompt-fallback" class="pwa-icon-box">
-            <i class="fa-solid fa-bolt"></i>
-        </div>
-        <div style="flex-grow:1;">
-            <h4 style="margin:0; font-size:0.9rem; font-weight:800; color:var(--text);">Pasang Aplikasi Vipercell</h4>
-            <p style="margin:0; font-size:0.74rem; color:var(--text-muted); font-weight:600;">Mendukung rotasi penuh, ringan & akses 1 klik!</p>
-        </div>
-        <button id="btn-install-pwa" class="btn btn-primary btn-sm">Instal</button>
-        <button id="btn-close-pwa" class="close-btn" style="width:30px; height:30px;"><i class="fa-solid fa-xmark"></i></button>
+    <!-- [FEATURE-01] Node Kompatibilitas PWA (Disembunyikan Permanen - Tanpa Pop-Up) -->
+    <div id="pwa-install-prompt" class="pwa-brutal-prompt" style="display:none !important;" aria-hidden="true">
+        <img id="pwa-prompt-logo" src="" alt="" style="display:none;">
+        <div id="pwa-prompt-fallback"></div>
+        <button id="btn-install-pwa" type="button"></button>
+        <button id="btn-close-pwa" type="button"></button>
     </div>
 
     <!-- WADAH NOTIFIKASI TOAST (TENGAH ATAS + SWIPE TO DISMISS + PROGRESS BAR) -->
     <div id="toast-container" class="toast-container"></div>
 
     <!-- ==========================================================================
-         KONTAINER UTAMA APLIKASI (TERKUNCI RAPAT OLEH ZERO-LEAK PRELOADER)
+         KONTAINER UTAMA APLIKASI WEB USER V27
          ========================================================================== -->
     <div id="store-view">
-        <!-- HEADER UTAMA -->
+        <!-- HEADER UTAMA & NAVIGASI DESKTOP KAPSUL LINGKARAN ([FEATURE-06]) -->
         <header>
             <div class="container nav-container">
                 <div class="logo-area" onclick="window.handleLogoClick()" role="button" aria-label="Ke Beranda">
-                    <img id="site-logo-img" src="" alt="Logo Vipercell" class="logo-img" width="38" height="38" style="display:none;" decoding="async">
+                    <img id="site-logo-img" src="" alt="Logo Vipercell" class="logo-img" width="40" height="40" style="display:none;" decoding="async">
                     <span id="site-logo-text" class="logo-text">VIPER<span>CELL</span></span>
                     <span id="store-status-badge" class="store-closed-badge">TUTUP</span>
                 </div>
                 
-                <!-- Navigasi Desktop (Otomatis Tersembunyi Saat Belum Login / auth-locked) -->
+                <!-- [FEATURE-06] Navigasi Desktop dengan Latar Belakang Lingkaran/Kapsul Menyatu dari Tab 1 s/d Tab Akhir -->
                 <div class="nav-right hide-mobile-nav" id="desktop-nav-wrapper">
-                    <nav aria-label="Navigasi Utama">
+                    <nav class="desktop-pill-nav" aria-label="Navigasi Utama">
                         <a onclick="window.switchMainTab('katalog')" id="nav-katalog" class="active" role="button" tabindex="0">
                             <i class="fa-solid fa-store"></i> <span>Katalog</span>
                         </a>
                         <a onclick="window.switchMainTab('pesanan')" id="nav-pesanan" role="button" tabindex="0">
                             <i class="fa-solid fa-receipt"></i> <span id="nav-text-pesanan-desk">Pesanan</span>
-                            <span id="user-order-badge-desktop" class="notif-dot" style="top:-3px; right:-3px;"></span>
+                            <span id="user-order-badge-desktop" class="notif-dot" style="top:3px; right:6px;"></span>
                         </a>
                         <a onclick="window.switchMainTab('berita')" id="nav-berita" role="button" tabindex="0">
                             <i class="fa-solid fa-newspaper"></i> <span>Berita & Promo</span>
                         </a>
                         <a onclick="window.switchMainTab('bantuan')" id="nav-bantuan" role="button" tabindex="0">
                             <i class="fa-solid fa-headset"></i> <span>Bantuan CS</span>
-                            <span id="user-chat-badge-desktop" class="notif-dot" style="top:-3px; right:-3px;"></span>
+                            <span id="user-chat-badge-desktop" class="notif-dot" style="top:3px; right:6px;"></span>
                         </a>
                         <a onclick="window.switchMainTab('profil')" id="nav-profil" role="button" tabindex="0">
                             <i class="fa-solid fa-circle-user"></i> <span id="nav-text-profil-desk">Profil Saya</span>
@@ -145,18 +180,18 @@
                 </div>
 
                 <div class="header-actions">
-                    <button id="btn-theme-toggle" class="btn-icon-only" aria-label="Ganti Tema" onclick="window.toggleTheme()" title="Mode Terang / Gelap">
+                    <button id="btn-theme-toggle" class="theme-pill-btn" aria-label="Ganti Tema" onclick="window.toggleThemeWithTransition(event)" title="Transisi Tema Terang / Gelap">
                         <i class="fa-solid fa-sun" id="theme-icon"></i>
+                        <span class="hide-mobile" id="theme-label-text">Tema</span>
                     </button>
-                    <button id="btn-upgrade-guest-header" class="btn btn-warning btn-sm hide-mobile" onclick="window.openUpgradeMemberModal()" style="display:none;">
-                        <i class="fa-solid fa-user-shield"></i> <span>Jadi Member</span>
-                    </button>
+                    <!-- [FEATURE-15] Tombol Upgrade di Header disembunyikan permanen agar hanya ada di Tab Profil -->
+                    <button id="btn-upgrade-guest-header" style="display:none !important;" aria-hidden="true"></button>
                 </div>
             </div>
         </header>
 
         <!-- ==========================================================================
-             [FEATURE-03 & FEATURE-04] TAB 1: KATALOG, HERO, MARQUEE & SMART ACCORDION
+             [FEATURE-03, 08, 11] TAB 1: KATALOG PENUH, HERO & RUNNING INFO 6 PESAN
              ========================================================================== -->
         <div id="tab-katalog" class="main-tab-content container" style="padding-top:1.5rem;">
             <section class="hero-split-box reveal">
@@ -168,13 +203,13 @@
                         </div>
                         <div class="hero-main-title">PUSAT LAYANAN <span>DIGITAL TERLENGKAP</span></div>
                     </h1>
-                    <p>Beli akun aplikasi premium (Private & Sharing), top up game favorit, hingga tools produktivitas kerja dengan pengiriman instan detik itu juga!</p>
+                    <p>Beli akun aplikasi premium (Private, Sharing & Email OAuth), top up game favorit, hingga tools produktivitas kerja dengan pengiriman instan ke Web & Email detik itu juga!</p>
                     <div class="hero-cta-row hide-mobile">
                         <button class="btn btn-primary" onclick="document.getElementById('catalog-search-input').focus()">
                             <i class="fa-solid fa-magnifying-glass"></i> Cari Layanan
                         </button>
                         <button class="btn btn-outline" onclick="window.switchMainTab('pesanan')">
-                            <i class="fa-solid fa-receipt"></i> Cek Pesanan
+                            <i class="fa-solid fa-receipt"></i> Lacak ID Transaksi
                         </button>
                     </div>
                 </div>
@@ -183,8 +218,8 @@
                         <div class="showcase-stat-item">
                             <div class="showcase-icon bg-accent-blue"><i class="fa-solid fa-bolt"></i></div>
                             <div>
-                                <strong>Auto-Delivery Vault V25.1</strong>
-                                <span>Akun terkirim detik itu juga ke Web & Email saat QRIS lunas</span>
+                                <strong>Auto-Delivery Vault V27.0</strong>
+                                <span>Stok Lokal & Email langsung terkirim otomatis saat lunas</span>
                             </div>
                         </div>
                         <div class="showcase-stat-item">
@@ -198,20 +233,24 @@
                             <div class="showcase-icon bg-accent-emerald"><i class="fa-solid fa-shield-halved"></i></div>
                             <div>
                                 <strong id="hero-live-catalog-count">100% Legal & Bergaransi</strong>
-                                <span>App Premium, Game & Tools Digital</span>
+                                <span>App Premium, Akun Email, Game & Tools Digital</span>
                             </div>
                         </div>
                     </div>
                 </div>
             </section>
             
-            <!-- MARQUEE PENGUMUMAN -->
-            <div class="marquee-container reveal">
-                <div class="marquee-label"><i class="fa-solid fa-bullhorn"></i> INFO</div>
-                <div class="marquee-wrapper">
+            <!-- [FEATURE-11] RUNNING TEXT MULTI-PESAN (HINGGA 6 PESAN) INTERAKTIF KLIK KE PROMO / BERITA -->
+            <div class="marquee-container reveal" id="marquee-interactive-bar">
+                <div class="marquee-label">
+                    <i class="fa-solid fa-bullhorn"></i>
+                    <span>INFO & PROMO</span>
+                    <span id="marquee-slot-counter" class="marquee-count-pill">LIVE</span>
+                </div>
+                <div class="marquee-wrapper" title="Sentuh atau arahkan kursor untuk menjeda, klik pesan untuk membuka promo/berita">
                     <div class="marquee-content" id="marquee-content">
-                        <span class="marquee-text" id="marquee-text-1">Selamat Datang di Vipercell!</span>
-                        <span class="marquee-text" id="marquee-text-2">Selamat Datang di Vipercell!</span>
+                        <span class="marquee-text" id="marquee-text-1" onclick="window.handleMarqueeItemClick(0)">Selamat Datang di Vipercell V27! Klik info promo atau berita berjalan ini untuk membuka penawaran spesial.</span>
+                        <span class="marquee-text" id="marquee-text-2" onclick="window.handleMarqueeItemClick(0)">Selamat Datang di Vipercell V27! Klik info promo atau berita berjalan ini untuk membuka penawaran spesial.</span>
                     </div>
                 </div>
             </div>
@@ -226,13 +265,13 @@
             <div class="catalog-control-panel reveal">
                 <div class="catalog-top-row">
                     <div class="section-header" style="margin-bottom:0;">
-                        <h2><i class="fa-solid fa-layer-group text-primary"></i> Katalog Produk</h2>
-                        <p>Pilih kategori atau cari layanan digital yang kamu butuhkan.</p>
+                        <h2><i class="fa-solid fa-layer-group text-primary"></i> Semua Katalog Produk</h2>
+                        <p>Seluruh produk ditampilkan penuh. Pilih layanan digital untuk melihat variasi paket.</p>
                     </div>
                     <div class="catalog-filter-controls">
                         <div class="search-input-box">
                             <i class="fa-solid fa-magnifying-glass"></i>
-                            <input type="text" id="catalog-search-input" class="form-control" placeholder="Cari Netflix, MLBB, Canva, Tools..." oninput="window.handleCatalogSearch()" autocomplete="off">
+                            <input type="text" id="catalog-search-input" class="form-control" placeholder="Cari Netflix, Email, MLBB, Canva, Tools..." oninput="window.handleCatalogSearch()" autocomplete="off">
                             <button id="btn-clear-search" class="clear-search-btn" style="display:none;" onclick="window.clearCatalogSearch()" aria-label="Bersihkan Pencarian">
                                 <i class="fa-solid fa-xmark"></i>
                             </button>
@@ -245,9 +284,9 @@
                     </div>
                 </div>
 
-                <div class="tabs" style="margin-bottom:0; margin-top: 1.1rem;">
+                <div class="tabs" style="margin-bottom:0; margin-top: 1.15rem;">
                     <button aria-label="Filter Semua" class="tab-btn active" data-filter="all" onclick="window.filterBrands('all', this)">
-                        <i class="fa-solid fa-border-all"></i> Semua
+                        <i class="fa-solid fa-border-all"></i> Semua Katalog
                     </button>
                     <button aria-label="Filter Aplikasi" class="tab-btn" data-filter="app" onclick="window.filterBrands('app', this)">
                         <i class="fa-solid fa-mobile-screen"></i> Aplikasi Premium
@@ -256,99 +295,90 @@
                         <i class="fa-solid fa-gamepad"></i> Top Up Game
                     </button>
                     <button aria-label="Filter Tools" class="tab-btn" data-filter="tools" onclick="window.filterBrands('tools', this)">
-                        <i class="fa-solid fa-screwdriver-wrench"></i> Tools Digital
+                        <i class="fa-solid fa-screwdriver-wrench"></i> Tools & Email
                     </button>
                 </div>
             </div>
             
-            <!-- GRID PRODUK + SMART COLLAPSE BUTTON -->
+            <!-- [FEATURE-08] GRID PRODUK TAMPIL SEMUA (TANPA DISEMBUNYIKAN) -->
             <div class="grid" id="brand-grid"></div>
-            <div id="catalog-more-wrap" style="text-align:center; margin-top: 1.4rem; display:none;">
-                <button id="btn-catalog-more" class="btn btn-outline neo-accordion-btn" onclick="window.toggleCatalogShowAll()">
-                    <i class="fa-solid fa-plus"></i> <span id="text-catalog-more">Lihat Produk Selengkapnya</span> <i class="fa-solid fa-chevron-down"></i>
+            <div id="catalog-more-wrap" style="display:none !important;" aria-hidden="true">
+                <button id="btn-catalog-more" type="button" onclick="window.toggleCatalogShowAll()">
+                    <span id="text-catalog-more">Lihat Produk Selengkapnya</span>
                 </button>
             </div>
             
             <!-- KEUNGGULAN KAMI -->
             <div class="info-section reveal" style="margin-top: 4rem;">
                 <div class="section-header text-center">
-                    <h2>Kenapa Belanja di Vipercell?</h2>
-                    <p>Pengalaman belanja produk digital paling praktis, cepat, dan aman.</p>
+                    <h2>Kenapa Belanja di Vipercell V27?</h2>
+                    <p>Pengalaman belanja produk digital paling praktis, transparan, cepat, dan aman.</p>
                 </div>
                 <div class="feature-grid">
                     <div class="feature-card">
                         <div class="feature-icon bg-accent-amber"><i class="fa-solid fa-bolt"></i></div>
-                        <h4>Pengiriman Detik Itu Juga</h4>
-                        <p>Sistem gudang stok otomatis langsung mengirimkan detail akun atau link tools ke E-Receipt & Email begitu pembayaran selesai.</p>
+                        <h4>Auto-Send Stok Lokal & Email</h4>
+                        <p>Begitu pembayaran lunas dan stok tersedia, sistem otomatis mengirimkan akun/format email ke E-Receipt & Email tanpa menunggu Admin.</p>
                     </div>
                     <div class="feature-card">
                         <div class="feature-icon bg-accent-blue"><i class="fa-solid fa-qrcode"></i></div>
                         <h4>QRIS Otomatis & Barcode Kasir</h4>
-                        <p>Bayar otomatis via QRIS semua bank & e-wallet, atau bayar tunai menggunakan kode Barcode kasir. Bisa batalkan pesanan kapan saja jika salah pilih!</p>
+                        <p>Bayar otomatis via QRIS semua bank & e-wallet, atau bayar tunai menggunakan kode Barcode kasir. Bisa batalkan pesanan kapan saja.</p>
                     </div>
                     <div class="feature-card">
                         <div class="feature-icon bg-accent-emerald"><i class="fa-solid fa-shield-halved"></i></div>
-                        <h4>100% Legal & Bergaransi</h4>
-                        <p>Dilengkapi garansi penuh dan dukungan Live Chat Admin langsung di dalam web tanpa ribet.</p>
+                        <h4>Lacak Cukup 1 Klik ID Trx</h4>
+                        <p>Cek status dan buka struk pesanan kapan saja hanya dengan memasukkan Nomor ID Transaksi tanpa perlu mengetik ulang email.</p>
                     </div>
                 </div>
             </div>
         </div>
 
         <!-- ==========================================================================
-             [FEATURE-11] TAB 2: PESANAN, E-RECEIPT & RIWAYAT INTERAKTIF
+             [FEATURE-02, 03, 15, 17] TAB 2: PESANAN, PELACAK 1-INPUT ID TRX & E-RECEIPT
              ========================================================================== -->
         <div id="tab-pesanan" class="main-tab-content container">
             <div class="section-header text-center" style="margin-bottom: 1.8rem;">
                 <h2 id="pesanan-title">Lacak & Riwayat Pesanan</h2>
-                <p id="pesanan-subtitle">Ketuk kartu pesanan di bawah untuk membuka E-Receipt, menyalin akun/password satu klik, melanjutkan pembayaran, atau membatalkan pesanan aktif.</p>
+                <p id="pesanan-subtitle">Masukkan Nomor ID Transaksi untuk membuka E-Receipt secara instan, atau ketuk kartu pesanan di bawah untuk menyalin data akun satu klik.</p>
             </div>
 
-            <!-- BANNER UPGRADE AKUN ANONIM DI HALAMAN RIWAYAT PESANAN -->
-            <div id="guest-upgrade-banner-orders" class="guest-upgrade-banner" style="display:none; max-width: 880px; margin: 0 auto 1.6rem;">
-                <div class="upgrade-banner-left">
-                    <div class="upgrade-banner-icon"><i class="fa-solid fa-user-shield"></i></div>
-                    <div>
-                        <strong>Anda masuk menggunakan Sesi Anonim</strong>
-                        <p>Ubah akun Anda menjadi Member resmi dengan verifikasi OTP agar seluruh riwayat transaksi dan garansi tersimpan permanen di cloud.</p>
-                    </div>
-                </div>
-                <button class="btn btn-warning btn-sm" onclick="window.openUpgradeMemberModal()">
-                    <i class="fa-solid fa-user-check"></i> Ubah Jadi Member
-                </button>
-            </div>
+            <!-- [FEATURE-15] Node kompatibilitas disembunyikan karena tombol upgrade hanya ada di Tab Profil -->
+            <div id="guest-upgrade-banner-orders" style="display:none !important;" aria-hidden="true"></div>
             
-            <!-- Form Lacak Manual -->
-            <div id="guest-tracking-section" class="brutal-panel" style="max-width: 700px; margin: 0 auto 2rem;">
+            <!-- [FEATURE-03] Form Lacak Pesanan Matang: Cukup Masukkan ID Transaksi Saja (Tanpa Email) -->
+            <div id="guest-tracking-section" class="brutal-panel" style="max-width: 760px; margin: 0 auto 2rem;">
                 <div class="brutal-panel-title">
-                    <i class="fa-solid fa-magnifying-glass-chart text-primary"></i> CARI INVOICE PESANAN MANUAL
+                    <i class="fa-solid fa-magnifying-glass-chart text-primary"></i> LACAK CEPAT PESANAN (CUKUP MASUKKAN ID TRANSAKSI)
                 </div>
-                <div class="grid-2col-form">
-                    <div class="form-group" style="margin-bottom: 0;">
-                        <label for="track-email"><i class="fa-solid fa-envelope"></i> Email Saat Pembelian</label>
-                        <input type="email" id="track-email" class="form-control" placeholder="email@kamu.com">
+                <p style="font-size:0.82rem; color:var(--text-muted); font-weight:600; margin-bottom:12px;">
+                    Ketik atau tempel <b>Nomor Invoice / ID Transaksi</b> kamu (contoh: <code class="code-mono">VP-123456</code>) untuk langsung membuka E-Receipt & detail akun tanpa perlu memasukkan email lagi.
+                </p>
+                <!-- Hidden input #track-email dipertahankan agar kode JS lama tidak error -->
+                <input type="hidden" id="track-email" value="">
+                <div class="track-single-box">
+                    <div class="input-icon-wrap">
+                        <i class="fa-solid fa-hashtag"></i>
+                        <input type="text" id="track-id" class="form-control" placeholder="MASUKKAN ID TRX (CTH: VP-123456)" autocomplete="off" onkeypress="if(event.key === 'Enter') window.trackOrderByIdOnly()">
                     </div>
-                    <div class="form-group" style="margin-bottom: 0;">
-                        <label for="track-id"><i class="fa-solid fa-file-invoice"></i> Nomor Invoice</label>
-                        <div style="display: flex; gap: 8px;">
-                            <input type="text" id="track-id" class="form-control" placeholder="VP-123456" style="text-transform: uppercase; font-weight: 800;" onkeypress="if(event.key === 'Enter') window.trackOrder()">
-                            <button id="btn-track-order" aria-label="Cari Pesanan" class="btn btn-primary" onclick="window.trackOrder()" style="padding: 0 18px; white-space:nowrap;">
-                                <i class="fa-solid fa-magnifying-glass"></i> <span>Buka Struk</span>
-                            </button>
-                        </div>
-                    </div>
+                    <button type="button" class="btn btn-outline" onclick="window.pasteTrackIdFromClipboard()" title="Tempel ID dari Papan Klip">
+                        <i class="fa-regular fa-paste"></i> <span>Tempel ID</span>
+                    </button>
+                    <button id="btn-track-order" aria-label="Cari Pesanan" class="btn btn-primary" onclick="window.trackOrderByIdOnly()" style="padding: 0 22px; white-space:nowrap;">
+                        <i class="fa-solid fa-magnifying-glass"></i> <span>Lacak & Buka Struk</span>
+                    </button>
                 </div>
             </div>
             
             <!-- Hasil Lacak Manual Muncul Di Sini -->
-            <div id="track-result" style="max-width: 700px; margin: 0 auto 2.2rem; display: none;"></div>
+            <div id="track-result" style="max-width: 760px; margin: 0 auto 2.2rem; display: none;"></div>
 
             <!-- Riwayat Pesanan Interaktif -->
-            <div id="user-history-section" style="max-width: 880px; margin: 0 auto;">
+            <div id="user-history-section" style="max-width: 900px; margin: 0 auto;">
                 <div class="history-toolbar">
                     <div>
-                        <h3><i class="fa-solid fa-clock-rotate-left text-primary"></i> Daftar Riwayat Transaksi</h3>
-                        <small style="color:var(--text-muted); font-weight:600;">Klik kartu transaksi untuk melihat detail E-Receipt, menyalin data akun, atau membatalkan tagihan</small>
+                        <h3><i class="fa-solid fa-clock-rotate-left text-primary"></i> Daftar Riwayat Transaksi Sesi Ini</h3>
+                        <small style="color:var(--text-muted); font-weight:600;">Klik kartu transaksi untuk membuka halaman E-Receipt, menyalin format akun/email, atau membatalkan tagihan</small>
                     </div>
                     <button class="btn btn-outline btn-sm" onclick="window.refreshOrderData()">
                         <i class="fa-solid fa-rotate-right"></i> Segarkan
@@ -368,76 +398,116 @@
         </div>
 
         <!-- ==========================================================================
-             [FEATURE-11] TAB 3: PUSAT BANTUAN LIVE CHAT
+             [FEATURE-20, 23, 24] TAB 3: TAMPILAN BARU TAB CS BANTUAN & PANEL CHAT V27
+             Deskripsi : Desain Support Studio Neo-Brutalism V3 yang matang dan rapi,
+                         tanpa tombol pesan cepat (quick replies) di sisi user.
              ========================================================================== -->
         <div id="tab-bantuan" class="main-tab-content container">
+            <!-- Header Banner Support Studio -->
+            <div class="support-studio-header reveal">
+                <div class="support-studio-left">
+                    <div class="support-studio-icon"><i class="fa-solid fa-headset"></i></div>
+                    <div>
+                        <h2>Pusat Bantuan & Live Chat CS Vipercell</h2>
+                        <p>Konsultasi stok produk, bantuan penggunaan akun/tools, konfirmasi kasir tunai, dan klaim garansi resmi.</p>
+                    </div>
+                </div>
+                <div class="support-sla-pills">
+                    <span class="sla-pill"><span class="live-pulse-dot" style="width:9px; height:9px;"></span> CS Online Responsif</span>
+                    <span class="sla-pill"><i class="fa-solid fa-shield-halved text-primary"></i> Garansi Penuh</span>
+                </div>
+            </div>
+
             <div class="chat-modern-wrapper">
-                <!-- Sidebar Info Bantuan (Desktop) -->
-                <div class="chat-info-sidebar hide-mobile">
+                <!-- Sidebar Info Bantuan Baru (Tanpa Pesan Cepat User) -->
+                <div class="chat-info-sidebar">
                     <div class="chat-info-card">
                         <div>
-                            <div class="chat-info-badge"><i class="fa-solid fa-headset"></i> SUPPORT CENTER</div>
-                            <h3>Customer Service Vipercell</h3>
-                            <p>Hubungi Admin secara langsung untuk konfirmasi pesanan, bantuan cara pakai tools/aplikasi, maupun klaim garansi.</p>
+                            <div class="chat-info-badge"><i class="fa-solid fa-bolt"></i> PANDUAN LAYANAN CS</div>
+                            <h3>Cara Menghubungi Admin dengan Cepat</h3>
+                            <p>Sampaikan pertanyaan atau kendala transaksi kamu secara langsung melalui ruang obrolan di samping.</p>
                             
-                            <div class="chat-topic-list">
-                                <span class="topic-label">PESAN PINTAS CEPAT:</span>
-                                <button class="topic-btn" onclick="window.insertQuickUserChat('Halo Admin, bagaimana cara klaim garansi produk?')">
-                                    <i class="fa-solid fa-shield-halved text-primary"></i> Cara Klaim Garansi
-                                </button>
-                                <button class="topic-btn" onclick="window.insertQuickUserChat('Halo Admin, saya ingin bayar Tunai (Barcode). Apakah kasir sedang buka?')">
-                                    <i class="fa-solid fa-barcode text-primary"></i> Tanya Pembayaran Tunai
-                                </button>
-                                <button class="topic-btn" onclick="window.insertQuickUserChat('Halo Admin, mohon bantu cek status Invoice pesanan saya.')">
-                                    <i class="fa-solid fa-receipt text-primary"></i> Bantu Cek Pesanan
-                                </button>
+                            <div class="support-guide-steps">
+                                <div class="support-step-item">
+                                    <span class="support-step-num">01</span>
+                                    <div>
+                                        <strong>Sertakan Nomor Invoice</strong>
+                                        <span>Sebutkan ID Transaksi (contoh: <code class="code-mono">VP-123456</code>) jika menanyakan pesanan atau garansi.</span>
+                                    </div>
+                                </div>
+                                <div class="support-step-item">
+                                    <span class="support-step-num">02</span>
+                                    <div>
+                                        <strong>Tanya Stok Sebelum Beli</strong>
+                                        <span>Untuk produk bertanda <b>Tanya / Auto</b>, kamu bisa menanyakan ketersediaan slot kepada Admin.</span>
+                                    </div>
+                                </div>
+                                <div class="support-step-item">
+                                    <span class="support-step-num">03</span>
+                                    <div>
+                                        <strong>Notifikasi Balasan Real-Time</strong>
+                                        <span>Balasan dari Admin akan langsung muncul di layar ini beserta pemberitahuan suara/toast.</span>
+                                    </div>
+                                </div>
                             </div>
                         </div>
 
                         <div class="chat-persist-note">
                             <i class="fa-solid fa-lock"></i>
-                            <span>Percakapan kamu tersimpan otomatis di perangkat ini meskipun halaman di-refresh.</span>
+                            <span>Percakapan dienkripsi dan tersimpan khusus untuk sesi akun kamu saat ini.</span>
                         </div>
                     </div>
                 </div>
 
-                <!-- Kotak Utama Ruang Chat -->
+                <!-- Panel Ruang Chat Bantuan Baru Neo-Brutalism V3 -->
                 <div class="chat-brutal-container">
+                    <!-- State Sebelum Mulai Chat -->
                     <div id="chat-pre-form" class="chat-pre-box">
-                        <div class="chat-avatar-large"><i class="fa-solid fa-comments"></i></div>
-                        <h3>Mulai Chat dengan Admin</h3>
-                        <p>Masukkan nama panggilanmu di bawah ini agar Admin bisa langsung membalas pesanmu.</p>
-                        <input type="text" id="chat-anon-name" class="form-control" placeholder="Ketik nama panggilan kamu..." aria-label="Nama Panggilan" style="max-width:340px; margin:0 auto; text-align:center; font-weight:700;" onkeypress="if(event.key === 'Enter') window.startAnonChat()">
-                        <button id="btn-start-chat" class="btn btn-primary" style="max-width:340px; width:100%; margin:14px auto 0;" onclick="window.startAnonChat()">
-                            <i class="fa-solid fa-paper-plane"></i> <span>Buka Ruang Obrolan</span>
-                        </button>
+                        <div class="chat-pre-card">
+                            <div class="chat-avatar-large"><i class="fa-solid fa-comments"></i></div>
+                            <h3 style="font-size:1.3rem; font-weight:800; margin-bottom:6px;">Mulai Obrolan dengan Admin CS</h3>
+                            <p style="font-size:0.84rem; color:var(--text-muted); font-weight:600; margin-bottom:16px;">
+                                Masukkan nama panggilanmu di bawah ini untuk membuka sesi obrolan langsung bersama Admin Vipercell.
+                            </p>
+                            <input type="text" id="chat-anon-name" class="form-control" placeholder="Ketik nama panggilan kamu..." aria-label="Nama Panggilan" style="text-align:center; font-weight:800;" onkeypress="if(event.key === 'Enter') window.startAnonChat()">
+                            <button id="btn-start-chat" class="btn btn-primary" style="width:100%; margin-top:12px;" onclick="window.startAnonChat()">
+                                <i class="fa-solid fa-paper-plane"></i> <span>Buka Ruang Obrolan CS</span>
+                            </button>
+                        </div>
                     </div>
                     
+                    <!-- Header Ruang Chat Aktif -->
                     <div id="chat-wa-header" class="chat-header-bar" style="display:none;">
                         <div class="chat-admin-avatar">
                             <i class="fa-solid fa-headset"></i>
                             <span class="online-dot"></span>
                         </div>
                         <div style="flex:1; min-width:0;">
-                            <h3>Admin Support Vipercell</h3>
-                            <span id="chat-header-status"><i class="fa-solid fa-bolt"></i> Aktif &bull; Siap melayani bantuan transaksi</span>
+                            <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                                <h3 style="margin:0; font-size:1.02rem; font-weight:800;">Admin Support Vipercell</h3>
+                                <span class="brutal-tag tag-success" style="font-size:0.6rem; padding:2px 7px;">ONLINE</span>
+                            </div>
+                            <span id="chat-header-status" style="font-size:0.75rem; color:var(--text-muted); font-weight:700;">
+                                <i class="fa-solid fa-shield-heart text-primary"></i> Ruang Bantuan Resmi &bull; Ketik pesanmu di bawah
+                            </span>
                         </div>
-                        <button class="btn btn-outline btn-sm" onclick="window.changeChatNamePrompt()" title="Ubah Nama Panggilan">
-                            <i class="fa-solid fa-user-pen"></i> <span id="chat-current-user-label">Ubah Nama</span>
+                        <button class="btn btn-outline btn-sm" onclick="window.changeChatNameInline()" title="Ubah Nama Panggilan">
+                            <i class="fa-solid fa-user-pen"></i> <span id="chat-current-user-label">Pelanggan</span>
                         </button>
                     </div>
 
+                    <!-- Area Pesan Chat -->
                     <div class="chat-body" id="user-chat-body" style="display:none;"></div>
 
-                    <div id="chat-quick-chips" class="chat-chips-bar" style="display:none;">
-                        <button onclick="window.insertQuickUserChat('Halo Admin, mohon cek pesanan saya.')">⚡ Cek Pesanan</button>
-                        <button onclick="window.insertQuickUserChat('Halo Min, saya mau bayar Tunai Barcode.')">🏷️ Bayar Barcode</button>
-                        <button onclick="window.insertQuickUserChat('Halo, bagaimana cara klaim garansi?')">🛡️ Klaim Garansi</button>
-                    </div>
+                    <!-- [FEATURE-23] Pesan Cepat User Dihapus (Node disembunyikan agar JS lama tidak error) -->
+                    <div id="chat-quick-chips" style="display:none !important;" aria-hidden="true"></div>
 
+                    <!-- Footer Input Chat -->
                     <div class="chat-footer" id="user-chat-footer" style="display:none;">
-                        <input type="text" id="user-chat-input" class="form-control" placeholder="Ketik pesan untuk Admin di sini..." style="flex:1;" onkeypress="if(event.key === 'Enter') window.sendUserChat()" autocomplete="off">
-                        <button id="btn-send-chat" class="btn btn-primary btn-icon-only" aria-label="Kirim Pesan" onclick="window.sendUserChat()"><i class="fa-solid fa-paper-plane"></i></button>
+                        <input type="text" id="user-chat-input" class="form-control" placeholder="Tulis pesan atau nomor Invoice untuk Admin CS..." style="flex:1;" onkeypress="if(event.key === 'Enter') window.sendUserChat()" autocomplete="off">
+                        <button id="btn-send-chat" class="btn btn-primary" style="padding: 0 18px;" aria-label="Kirim Pesan" onclick="window.sendUserChat()">
+                            <i class="fa-solid fa-paper-plane"></i> <span class="hide-mobile">Kirim</span>
+                        </button>
                     </div>
                 </div>
             </div>
@@ -449,7 +519,7 @@
         <div id="tab-berita" class="main-tab-content container">
             <div class="section-header text-center">
                 <h2>Papan Berita & Promo Komunitas</h2>
-                <p>Klik salah satu berita di bawah untuk membaca informasi lengkap secara layar penuh.</p>
+                <p>Klik salah satu berita di bawah untuk membaca informasi lengkap atau mengambil kode voucher promo.</p>
             </div>
             
             <div class="community-banner-card">
@@ -513,25 +583,42 @@
         </div>
 
         <!-- ==========================================================================
-             [FEATURE-02] TAB 5: PROFIL AKUN
+             [FEATURE-04, 05, 15] TAB 5: PROFIL AKUN, AUTO-DELETE ANONIM 6 JAM,
+             & TOMBOL UPGRADE KE MEMBER RESMI (KHUSUS DI TAB PROFIL)
              ========================================================================== -->
         <div id="tab-profil" class="main-tab-content container">
             <div class="section-header">
                 <h2>Profil & Pengaturan Akun</h2>
-                <p>Kelola identitas akun, nomor WhatsApp, preferensi notifikasi, dan keamananmu.</p>
+                <p>Kelola identitas akun, nomor WhatsApp, preferensi notifikasi, dan keamanan sandi kamu.</p>
             </div>
 
-            <!-- BANNER KHUSUS PENGGUNA ANONIM UNTUK UBAH JADI MEMBER RESMI -->
+            <!-- [FEATURE-04] KARTU INFORMASI AUTO-DELETE AKUN ANONIM SETIAP 6 JAM -->
+            <div id="anon-ttl-info-card" class="anon-ttl-card">
+                <div class="anon-ttl-left">
+                    <div class="anon-ttl-icon"><i class="fa-solid fa-hourglass-half"></i></div>
+                    <div>
+                        <strong style="display:block; font-size:0.9rem; font-weight:800; color:var(--text);">
+                            Mode Sesi Anonim Sementara (Auto-Reset 6 Jam)
+                        </strong>
+                        <span id="anon-ttl-subtext" style="font-size:0.77rem; color:var(--text-muted); font-weight:600;">
+                            Akun anonim otomatis dibersihkan setiap 6 jam demi privasi. Upgrade ke Member Resmi di bawah agar akun & riwayatmu permanen!
+                        </span>
+                    </div>
+                </div>
+                <div class="anon-ttl-timer-pill" id="anon-ttl-countdown">06:00:00</div>
+            </div>
+
+            <!-- [FEATURE-15] BANNER UPGRADE AKUN ANONIM KE MEMBER RESMI (HANYA ADA DI TAB PROFIL INI) -->
             <div id="guest-upgrade-banner-profile" class="guest-upgrade-banner" style="display:none; margin-bottom: 1.5rem;">
                 <div class="upgrade-banner-left">
                     <div class="upgrade-banner-icon"><i class="fa-solid fa-user-shield"></i></div>
                     <div>
-                        <strong>Ubah Akun Anonim Menjadi Member Resmi (Verifikasi OTP Email)</strong>
-                        <p>Simpan seluruh riwayat pesanan dan garansi di perangkat ini secara permanen dengan mengaitkan Email & Password.</p>
+                        <strong>Upgrade Akun Anonim ke Member Resmi (Verifikasi OTP Email)</strong>
+                        <p>Dapatkan akses Kode Promo Khusus Member, bebas hapus otomatis 6 jam, dan simpan seluruh riwayat transaksi secara permanen.</p>
                     </div>
                 </div>
                 <button class="btn btn-warning" onclick="window.openUpgradeMemberModal()">
-                    <i class="fa-solid fa-user-plus"></i> Ubah ke Member Sekarang
+                    <i class="fa-solid fa-user-plus"></i> Upgrade ke Member Resmi
                 </button>
             </div>
             
@@ -539,7 +626,7 @@
                 <div class="profile-avatar-box" id="prof-avatar-initial">V</div>
                 <div class="profile-hero-info">
                     <div class="profile-badge-row" style="display:flex; flex-wrap:wrap; gap:6px;">
-                        <span class="brutal-tag tag-success" id="prof-email-status"><i class="fa-solid fa-circle-check"></i> MEMBER TERVERIFIKASI</span>
+                        <span class="brutal-tag tag-success" id="prof-email-status"><i class="fa-solid fa-circle-check"></i> MEMBER RESMI</span>
                     </div>
                     <h3 id="prof-display-name">Memuat Nama...</h3>
                     <p id="prof-display-email">user@email.com</p>
@@ -549,9 +636,9 @@
                         <i class="fa-solid fa-receipt"></i> Riwayat Transaksi
                     </button>
                     <button id="btn-prof-upgrade-guest" class="btn btn-warning btn-sm" style="display:none;" onclick="window.openUpgradeMemberModal()">
-                        <i class="fa-solid fa-user-shield"></i> Jadi Member
+                        <i class="fa-solid fa-user-shield"></i> Upgrade Member
                     </button>
-                    <button id="btn-prof-logout-member" class="btn btn-danger btn-sm" onclick="window.logoutUser()">
+                    <button id="btn-prof-logout-member" class="btn btn-danger btn-sm" onclick="window.logoutUserCleanV27()">
                         <i class="fa-solid fa-right-from-bracket"></i> <span id="text-btn-logout">Keluar Akun</span>
                     </button>
                 </div>
@@ -588,7 +675,7 @@
                     </div>
                     <div class="form-group">
                         <label for="prof-email">Alamat Email Terdaftar</label>
-                        <input type="email" id="prof-email" class="form-control" disabled style="opacity: 0.7; cursor: not-allowed;">
+                        <input type="email" id="prof-email" class="form-control" disabled style="opacity: 0.75; cursor: not-allowed;">
                     </div>
                     <div class="form-group">
                         <label for="prof-name">Nama Lengkap / Panggilan</label>
@@ -597,7 +684,7 @@
                     <div class="form-group">
                         <label for="prof-phone"><i class="fa-brands fa-whatsapp text-success"></i> Nomor WhatsApp / HP Aktif</label>
                         <input type="tel" id="prof-phone" class="form-control" placeholder="Contoh: 081234567890">
-                        <small class="form-helper">Digunakan untuk pengiriman informasi pesanan & bantuan garansi.</small>
+                        <small class="form-helper">Digunakan secara otomatis saat checkout Member Resmi (tidak perlu isi ulang).</small>
                     </div>
                     <button aria-label="Simpan Profil" class="btn btn-primary" style="width: 100%;" onclick="window.saveUserProfile()">
                         <i class="fa-solid fa-floppy-disk"></i> Simpan Perubahan Profil
@@ -607,7 +694,7 @@
                 <div class="brutal-panel" style="display:flex; flex-direction:column; justify-content:space-between; gap:1.2rem;">
                     <div>
                         <div class="brutal-panel-title">
-                            <i class="fa-solid fa-bell text-primary"></i> NOTIFIKASI & KEAMANAN
+                            <i class="fa-solid fa-bell text-primary"></i> NOTIFIKASI & UBAH KATA SANDI
                         </div>
                         
                         <div class="notif-toggle-card">
@@ -625,22 +712,28 @@
                             </button>
                         </div>
 
+                        <!-- [FEATURE-05] Panel Kirim Link Ubah Kata Sandi via Apps Script -->
                         <div id="prof-security-member-box">
-                            <p style="font-size:0.86rem; color:var(--text-muted); margin: 1.2rem 0 0.8rem; line-height: 1.55;">
-                                Lupa atau ingin mengganti kata sandi akunmu? Klik tombol di bawah untuk menerima link reset kata sandi ke email terdaftar.
+                            <p style="font-size:0.85rem; color:var(--text-muted); margin: 1.2rem 0 0.8rem; line-height: 1.55;">
+                                Ingin mengganti kata sandi akun Member? Klik tombol di bawah untuk mengirim <b>Link Ubah Sandi</b> melalui Google Apps Script ke email terdaftar, atau buka langsung halaman Ubah Sandi.
                             </p>
-                            <button aria-label="Kirim Tautan Reset Sandi" class="btn btn-outline" onclick="window.sendProfileResetPassword()" style="width:100%;">
-                                <i class="fa-solid fa-key"></i> Kirim Link Reset Kata Sandi
-                            </button>
+                            <div style="display:flex; flex-direction:column; gap:8px;">
+                                <button aria-label="Kirim Tautan Reset Sandi" class="btn btn-primary" onclick="window.requestAppsScriptPasswordResetLink('profile')" style="width:100%;">
+                                    <i class="fa-solid fa-envelope-open-text"></i> Kirim Link Ubah Sandi ke Email
+                                </button>
+                                <button type="button" class="btn btn-outline btn-sm" onclick="window.openNeoResetPasswordPage()" style="width:100%;">
+                                    <i class="fa-solid fa-key"></i> Buka Halaman Ubah Sandi (Input Token)
+                                </button>
+                            </div>
                         </div>
 
                         <div id="prof-security-guest-box" style="display:none; margin-top: 1.2rem;">
                             <div class="brutal-alert-box alert-warning" style="margin-bottom: 10px;">
                                 <i class="fa-solid fa-lock"></i>
-                                <span>Akun kamu saat ini masih berstatus Anonim. Kaitkan Email & Password melalui verifikasi OTP agar riwayat transaksi tersimpan permanen!</span>
+                                <span>Akun kamu saat ini masih berstatus Anonim. Kaitkan Email & Password melalui verifikasi OTP agar tidak terhapus otomatis setiap 6 jam!</span>
                             </div>
                             <button class="btn btn-warning" style="width:100%;" onclick="window.openUpgradeMemberModal()">
-                                <i class="fa-solid fa-user-check"></i> Verifikasi Email OTP & Buat Password
+                                <i class="fa-solid fa-user-check"></i> Upgrade ke Member Resmi Sekarang
                             </button>
                         </div>
                     </div>
@@ -649,8 +742,84 @@
         </div>
 
         <!-- ==========================================================================
-             [FEATURE-04, FEATURE-05 & FEATURE-06] TAB 6: CHECKOUT, DESKRIPSI VARIAN,
-             SMART ACCORDION & INPUT EMAIL/DATA TUJUAN OPSIONAL APP
+             [FEATURE-05] TAB 5B: HALAMAN UBAH KATA SANDI VIA LINK APPS SCRIPT
+             Deskripsi : Tampilan halaman Ubah Kata Sandi berdesain UI Neo-Brutalism V3
+                         yang otomatis terbuka saat pengguna mengakses link reset dari
+                         email Google Apps Script atau dari tombol Ubah Sandi.
+             ========================================================================== -->
+        <div id="tab-ubah-sandi" class="main-tab-content container" style="padding-top: 1.2rem;">
+            <div class="reset-password-stage">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
+                    <button type="button" class="btn btn-outline btn-sm" onclick="window.closeNeoResetPasswordPage()">
+                        <i class="fa-solid fa-arrow-left"></i> Kembali
+                    </button>
+                    <span class="brutal-tag tag-amber"><i class="fa-solid fa-shield-halved"></i> KEAMANAN SANDI V27</span>
+                </div>
+
+                <div class="reset-brutal-card">
+                    <div class="reset-brutal-banner">
+                        <span class="brutal-tag tag-amber" style="margin-bottom:8px;">GOOGLE APPS SCRIPT VERIFIED</span>
+                        <h2 class="reset-hero-title" style="font-size:1.55rem; font-weight:800; margin:0 0 4px;">Atur Ulang Kata Sandi</h2>
+                        <p style="font-size:0.84rem; opacity:0.92; margin:0; font-weight:600;">
+                            Masukkan kode token dari link email Google Apps Script beserta kata sandi baru untuk akun kamu.
+                        </p>
+                    </div>
+
+                    <div class="reset-brutal-body">
+                        <div id="reset-link-detected-banner" class="brutal-alert-box alert-success" style="display:none; margin-bottom:1rem;">
+                            <i class="fa-solid fa-link"></i>
+                            <span>Tautan Ubah Sandi dari Email terdeteksi otomatis! Silakan buat kata sandi baru di bawah ini.</span>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="reset-page-email"><i class="fa-regular fa-envelope text-primary"></i> Alamat Email Akun</label>
+                            <input type="email" id="reset-page-email" class="form-control" placeholder="nama@email.com" autocomplete="email">
+                        </div>
+
+                        <div class="form-group">
+                            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+                                <label for="reset-page-token" style="margin-bottom:0;"><i class="fa-solid fa-key text-warning"></i> Kode Token Reset (6 Digit dari Email)</label>
+                                <button type="button" class="btn btn-outline btn-sm" style="padding:2px 8px; min-height:26px; font-size:0.7rem;" onclick="window.sendTokenFromResetPage()">
+                                    <i class="fa-solid fa-paper-plane"></i> Kirim Link / Token ke Email
+                                </button>
+                            </div>
+                            <input type="text" id="reset-page-token" class="form-control code-mono" maxlength="8" placeholder="CTH: 849201" style="font-size:1.15rem; font-weight:800; letter-spacing:4px; text-align:center;">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="reset-page-new-pass"><i class="fa-solid fa-lock text-primary"></i> Kata Sandi Baru (Min. 6 Karakter)</label>
+                            <div class="input-icon-wrap">
+                                <i class="fa-solid fa-lock"></i>
+                                <input type="password" id="reset-page-new-pass" class="form-control" placeholder="Masukkan kata sandi baru" autocomplete="new-password" oninput="window.evaluateResetPasswordStrength(this.value)">
+                                <button type="button" class="pass-eye-btn" onclick="window.togglePassVisibility('reset-page-new-pass', this)" aria-label="Tampilkan Sandi"><i class="fa-regular fa-eye"></i></button>
+                            </div>
+                            <div class="pass-strength-meter">
+                                <div id="reset-pass-meter-fill" class="pass-strength-fill"></div>
+                            </div>
+                            <small id="reset-pass-meter-text" class="form-helper">Kekuatan sandi: Belum diisi</small>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="reset-page-confirm-pass"><i class="fa-solid fa-circle-check text-success"></i> Konfirmasi Kata Sandi Baru</label>
+                            <div class="input-icon-wrap">
+                                <i class="fa-solid fa-shield"></i>
+                                <input type="password" id="reset-page-confirm-pass" class="form-control" placeholder="Ulangi kata sandi baru" autocomplete="new-password" onkeypress="if(event.key === 'Enter') window.submitNewPasswordViaAppsScript()">
+                                <button type="button" class="pass-eye-btn" onclick="window.togglePassVisibility('reset-page-confirm-pass', this)" aria-label="Tampilkan Sandi"><i class="fa-regular fa-eye"></i></button>
+                            </div>
+                        </div>
+
+                        <button id="btn-submit-new-pass-v27" type="button" class="btn btn-primary" style="width:100%; padding:13px; margin-top:0.5rem;" onclick="window.submitNewPasswordViaAppsScript()">
+                            <i class="fa-solid fa-floppy-disk"></i> <span>Simpan Kata Sandi Baru Sekarang</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==========================================================================
+             [FEATURE-08, 13, 14, 18, 19] TAB 6: CHECKOUT, VARIASI ITEM DENGAN TOMBOL
+             LIHAT SELENGKAPNYA & TUTUP KEMBALI, PROMO MEMBER/1-EMAIL, & AUTO-HIDE
+             KOLOM EMAIL/HP UNTUK MEMBER RESMI
              ========================================================================== -->
         <div id="tab-checkout" class="main-tab-content container" style="padding-top:1rem;">
             <button class="btn btn-outline btn-sm" style="margin-bottom: 1.2rem;" onclick="window.switchMainTab('katalog')">
@@ -684,7 +853,7 @@
                     <div class="checkout-split-grid">
                         <!-- KOLOM KIRI -->
                         <div class="checkout-main-col">
-                            <!-- STEP 01: INFORMASI PRODUK & DATA TUJUAN DINAMIS (GAME / TOOLS / APP OPSIONAL) -->
+                            <!-- STEP 01: INFORMASI PRODUK & DATA TUJUAN DINAMIS -->
                             <div class="checkout-step-card">
                                 <div class="step-header">
                                     <span class="step-num">01</span>
@@ -699,22 +868,30 @@
                                 </div>
                             </div>
 
-                            <!-- STEP 02: PILIH VARIAN + QUICK FILTER + SMART ACCORDION -->
+                            <!-- [FEATURE-08] STEP 02: PILIH VARIAN + TOMBOL LIHAT SELENGKAPNYA & TUTUP KEMBALI -->
                             <div class="checkout-step-card">
                                 <div class="step-header" style="justify-content: space-between; flex-wrap: wrap;">
                                     <div style="display:flex; align-items:center; gap:10px;">
                                         <span class="step-num">02</span>
-                                        <h4>Pilih Varian / Paket Layanan</h4>
+                                        <h4>Pilih Variasi / Paket Layanan</h4>
                                     </div>
-                                    <!-- Quick Search Varian (Muncul otomatis jika varian > 6) -->
+                                    <!-- Quick Search Varian -->
                                     <div id="variant-search-wrap" style="display:none; min-width: 210px;">
-                                        <input type="text" id="variant-quick-search" class="form-control" style="padding: 6px 12px; font-size: 0.78rem;" placeholder="🔍 Cari paket (Cth: 1 Bulan / Sharing)..." oninput="window.filterCheckoutVariants()" autocomplete="off">
+                                        <input type="text" id="variant-quick-search" class="form-control" style="padding: 6px 12px; font-size: 0.78rem;" placeholder="🔍 Cari variasi paket..." oninput="window.filterCheckoutVariants()" autocomplete="off">
                                     </div>
                                 </div>
+
                                 <div id="buy-item-grid" class="item-selection-grid"></div>
-                                <button id="btn-items-more" class="btn btn-outline btn-sm neo-accordion-btn" style="width:100%; margin-top:14px; display:none;" onclick="window.toggleVariantsShowAll()">
-                                    <i class="fa-solid fa-plus"></i> <span id="text-items-more">Lihat Varian Selengkapnya</span> <i class="fa-solid fa-chevron-down"></i>
-                                </button>
+
+                                <!-- Bar Kontrol Variasi Item: Lihat Selengkapnya & Tutup Kembali -->
+                                <div class="variant-accordion-bar" id="variant-accordion-controls">
+                                    <button id="btn-items-more" class="btn btn-outline btn-sm neo-accordion-btn" style="display:none;" onclick="window.toggleVariantsShowAll()">
+                                        <i class="fa-solid fa-plus"></i> <span id="text-items-more">Lihat Variasi Selengkapnya</span> <i class="fa-solid fa-chevron-down"></i>
+                                    </button>
+                                    <button id="btn-items-collapse" class="btn btn-outline btn-sm neo-accordion-btn collapse-mode" style="display:none;" onclick="window.collapseVariantsView()">
+                                        <i class="fa-solid fa-angles-up"></i> <span>Tutup Kembali Variasi</span>
+                                    </button>
+                                </div>
                             </div>
                         </div>
 
@@ -738,24 +915,41 @@
                                     </div>
                                 </div>
 
+                                <!-- [FEATURE-13 & 19] Kode Promo (Dukungan Semua User / Khusus Member Resmi & 1 Email 1x Pakai) -->
                                 <div class="form-group" style="margin-bottom: 1rem;">
                                     <label for="buy-promo-code"><i class="fa-solid fa-ticket text-primary"></i> Punya Kode Promo?</label>
                                     <div class="promo-box">
-                                        <input type="text" id="buy-promo-code" aria-label="Kode Promo" class="form-control" placeholder="KODE VOUCHER..." style="text-transform: uppercase; font-weight:800;">
-                                        <button class="btn btn-warning btn-sm" aria-label="Cek Promo" onclick="window.applyPromoDirect()">Pakai</button>
+                                        <input type="text" id="buy-promo-code" aria-label="Kode Promo" class="form-control" placeholder="MASUKKAN KODE VOUCHER..." style="text-transform: uppercase; font-weight:800;">
+                                        <button class="btn btn-warning btn-sm" aria-label="Cek Promo" onclick="window.applyPromoDirectV27()">Pakai</button>
+                                    </div>
+                                    <div class="promo-rules-pills">
+                                        <span class="promo-rule-chip"><i class="fa-solid fa-envelope-circle-check text-primary"></i> 1 Email = 1x Klaim</span>
+                                        <span class="promo-rule-chip" id="promo-member-rule-chip"><i class="fa-solid fa-user-shield text-warning"></i> Mendukung Promo Member Resmi</span>
                                     </div>
                                     <div id="buy-promo-msg" class="promo-msg"></div>
                                 </div>
                                 
-                                <div id="buy-email-group" class="form-group" style="margin-top: 0.8rem;">
-                                    <label for="buy-email"><i class="fa-solid fa-envelope text-primary"></i> Email Aktif (Kirim Struk & Data Akun Otomatis) <span style="color:var(--danger)">*</span></label>
-                                    <input type="email" id="buy-email" class="form-control" placeholder="nama@email.com" required>
-                                    <small class="form-helper">Bukti transaksi & detail akun otomatis dikirim ke alamat email ini.</small>
+                                <!-- [FEATURE-14] Kolom Email & No HP Hanya Muncul untuk Anonim; Otomatis Tersembunyi untuk Member Resmi -->
+                                <div id="buy-guest-contact-box">
+                                    <div id="buy-email-group" class="form-group" style="margin-top: 0.8rem;">
+                                        <label for="buy-email"><i class="fa-solid fa-envelope text-primary"></i> Email Aktif (Kirim Struk & Data Akun Otomatis) <span style="color:var(--danger)">*</span></label>
+                                        <input type="email" id="buy-email" class="form-control" placeholder="nama@email.com" required>
+                                        <small class="form-helper">Bukti transaksi & detail akun otomatis dikirim ke alamat email ini.</small>
+                                    </div>
+
+                                    <div id="buy-phone-group" class="form-group" style="margin-top: 0.8rem;">
+                                        <label for="buy-phone"><i class="fa-brands fa-whatsapp text-success"></i> Nomor WhatsApp (Opsional)</label>
+                                        <input type="tel" id="buy-phone" class="form-control" placeholder="Contoh: 081234567890">
+                                    </div>
                                 </div>
 
-                                <div id="buy-phone-group" class="form-group" style="margin-top: 0.8rem;">
-                                    <label for="buy-phone"><i class="fa-brands fa-whatsapp text-success"></i> Nomor WhatsApp (Opsional)</label>
-                                    <input type="tel" id="buy-phone" class="form-control" placeholder="Contoh: 081234567890">
+                                <!-- Badge Konfirmasi Otomatis untuk Member Resmi ([FEATURE-14]) -->
+                                <div id="buy-member-autofill-badge" class="member-autofill-card">
+                                    <i class="fa-solid fa-user-check"></i>
+                                    <div>
+                                        <strong style="display:block;">Identitas Member Resmi Terhubung</strong>
+                                        <span id="buy-member-autofill-text" style="font-size:0.72rem; color:var(--text-muted);">Struk & detail akun otomatis dikirim ke Email & WA profil kamu.</span>
+                                    </div>
                                 </div>
                                 
                                 <div id="buy-payment-method" class="form-group" style="margin-top: 1.2rem;">
@@ -789,16 +983,22 @@
                                 <div class="cart-total-box">
                                     <div>
                                         <span class="total-label">TOTAL BAYAR</span>
-                                        <div class="unique-code-info" id="buy-unique-info">Harga terbaik Vipercell</div>
+                                        <div class="unique-code-info" id="buy-unique-info">Harga terbaik Vipercell V27</div>
                                     </div>
                                     <div style="text-align:right;">
                                         <span id="buy-total-price" class="total-nominal">Rp0</span>
                                     </div>
                                 </div>
 
+                                <!-- [FEATURE-18] Peringatan Mode Manual vs Mode Tanya & Otomatis -->
                                 <div id="manual-warning-msg" class="brutal-alert-box alert-danger" style="display:none; margin-top:12px;">
                                     <i class="fa-solid fa-user-clock"></i>
-                                    <span>Varian ini diproses manual oleh Admin setelah pembayaran selesai.</span>
+                                    <span id="manual-warning-text">Varian ini diproses manual oleh Admin setelah pembayaran selesai.</span>
+                                </div>
+
+                                <div id="ask-auto-warning-msg" class="brutal-alert-box alert-info" style="display:none; margin-top:12px;">
+                                    <i class="fa-solid fa-bolt"></i>
+                                    <span>Mode <b>Tanya & Otomatis</b>: Jika stok lokal tersedia, pesanan akan <b>langsung dikirim otomatis ke Web & Email</b> begitu pembayaran lunas tanpa menunggu Admin!</span>
                                 </div>
                                 
                                 <button aria-label="Proses Pembelian" id="btn-process-buy" class="btn btn-primary btn-checkout-submit" onclick="window.processDirectCheckout()" disabled>
@@ -846,11 +1046,9 @@
 
         <!-- ==========================================================================
              [FEATURE-07] TAB 6B: LAYAR PEMBAYARAN QRIS FULL-SCREEN + TOMBOL BATAL PESANAN
-             ID Elemen : #tab-payment-qris, #qris-fullscreen-card, #qris-expired-state
              ========================================================================== -->
         <div id="tab-payment-qris" class="main-tab-content container" style="padding-top: 1.2rem;">
             <div class="qris-fullscreen-wrapper">
-                <!-- Navigasi Atas Layar QRIS -->
                 <div class="qris-fs-topbar">
                     <button class="btn btn-outline btn-sm" onclick="window.switchMainTab('pesanan')">
                         <i class="fa-solid fa-arrow-left"></i> Ke Daftar Pesanan
@@ -861,7 +1059,6 @@
                     </div>
                 </div>
 
-                <!-- Bar Waktu Hitung Mundur Besar & Visual Progress Bar -->
                 <div id="qris-timer-banner" class="qris-fs-timer-card">
                     <div class="qris-timer-head">
                         <div>
@@ -877,9 +1074,7 @@
                     </div>
                 </div>
 
-                <!-- STATE AKTIF: KARTU UTAMA QRIS NEO-BRUTALIST (DIHANCURKAN OTOMATIS SAAT EXPIRED / BATAL) -->
                 <div id="qris-fullscreen-card" class="qris-fs-main-grid">
-                    <!-- Kolom Kiri: Kanvas QRIS Resmi & Nama Merchant Tag 59 -->
                     <div class="qris-fs-left-col">
                         <div id="qris-capture-area" class="qris-white-frame">
                             <div class="qris-frame-head">
@@ -898,7 +1093,6 @@
                         </div>
                     </div>
 
-                    <!-- Kolom Kanan: Rincian Tagihan Nominal Unik, Live Listener & Tombol Batal Pesanan -->
                     <div class="qris-fs-right-col">
                         <div class="brutal-panel" style="margin-bottom: 1.1rem;">
                             <div class="brutal-panel-title">
@@ -908,7 +1102,7 @@
                             <div class="qris-detail-row">
                                 <span>Nomor Invoice</span>
                                 <div style="display:flex; align-items:center; gap:6px;">
-                                    <strong id="pay-modal-invoice-id" class="text-primary">-</strong>
+                                    <strong id="pay-modal-invoice-id" class="text-primary code-mono">-</strong>
                                     <button class="mini-copy-btn" onclick="window.copyInvoiceIdModal()" title="Salin Invoice"><i class="fa-regular fa-copy"></i></button>
                                 </div>
                             </div>
@@ -927,16 +1121,15 @@
                             </div>
 
                             <small id="pay-modal-guest-warning" class="qris-guest-alert" style="display:none; margin-top:10px;">
-                                <i class="fa-solid fa-user-shield"></i> Kamu berbelanja sebagai Anonim. Simpan Nomor Invoice di atas atau ubah ke Member agar struk tersimpan permanen!
+                                <i class="fa-solid fa-user-shield"></i> Kamu berbelanja sebagai Anonim. Simpan Nomor Invoice di atas untuk melacak pesananmu!
                             </small>
                         </div>
 
-                        <!-- Indikator Live Listener MacroDroid + Tombol Cek Instan -->
                         <div class="qris-live-listener-box">
                             <span class="live-pulse-dot"></span>
                             <div style="flex:1; min-width:0;">
                                 <strong>Menunggu Pembayaran Otomatis...</strong>
-                                <span>Halaman ini akan terbuka otomatis begitu transfer QRIS kamu masuk.</span>
+                                <span>Jika stok lokal tersedia, akun & email akan langsung terkirim otomatis saat lunas.</span>
                             </div>
                             <button type="button" id="btn-check-payment-now" class="btn btn-outline btn-sm" onclick="window.manualCheckQrisPaymentStatus()" title="Segarkan Status Pembayaran">
                                 <i class="fa-solid fa-rotate"></i> Cek Status
@@ -952,7 +1145,6 @@
                             </button>
                         </div>
 
-                        <!-- FITUR BARU: TOMBOL BATALKAN PESANAN TANPA TUNGGU EXPIRED -->
                         <div class="qris-cancel-box">
                             <div class="qris-cancel-info">
                                 <i class="fa-solid fa-circle-question text-danger"></i>
@@ -965,7 +1157,6 @@
                     </div>
                 </div>
 
-                <!-- STATE EXPIRED / CANCELLED: MUNCUL SAAT WAKTU HABIS ATAU DIBATALKAN USER -->
                 <div id="qris-expired-state" class="qris-expired-card" style="display: none;">
                     <div class="expired-icon-box">
                         <i class="fa-solid fa-ban"></i>
@@ -988,34 +1179,34 @@
         </div>
 
         <!-- ==========================================================================
-             [FEATURE-02] TAB 7: HALAMAN GERBANG MASUK / DAFTAR
+             [FEATURE-02, 05, 22] TAB 7: HALAMAN GERBANG MASUK / DAFTAR / RESET SANDI
              ========================================================================== -->
         <div id="tab-auth" class="main-tab-content container">
             <div class="auth-modern-wrapper reveal">
                 <div class="auth-promo-side hide-mobile">
-                    <span class="auth-side-badge">SELAMAT DATANG DI VIPERCELL V25.1</span>
+                    <span class="auth-side-badge">SELAMAT DATANG DI VIPERCELL V27</span>
                     <h3>Satu Platform untuk Semua Kebutuhan Digitalmu.</h3>
-                    <p>Pilih metode aksesmu: masuk menggunakan akun Member untuk menyimpan riwayat E-Receipt permanen, atau masuk cepat sebagai Anonim.</p>
+                    <p>Pilih metode aksesmu: masuk menggunakan akun Member Resmi untuk menyimpan riwayat E-Receipt permanen & promo khusus, atau masuk cepat sebagai Anonim Baru.</p>
                     <div class="auth-benefit-list">
                         <div class="auth-benefit-item">
                             <i class="fa-solid fa-clock-rotate-left"></i>
                             <div>
-                                <strong>Riwayat E-Receipt & Email Otomatis</strong>
-                                <span>Tidak takut lupa atau kehilangan kode Invoice & akun pesanan.</span>
+                                <strong>Checkout Member Tanpa Isi Ulang Email/WA</strong>
+                                <span>Identitas Member otomatis terhubung dan berhak memakai Voucher Khusus Member.</span>
                             </div>
                         </div>
                         <div class="auth-benefit-item">
                             <i class="fa-solid fa-bolt"></i>
                             <div>
-                                <strong>Pengiriman Detik Itu Juga</strong>
-                                <span>Sistem memproses pesanan otomatis 24 jam nonstop.</span>
+                                <strong>Auto-Send Stok Lokal & Email 24/7</strong>
+                                <span>Stok akun & format email langsung dikirim otomatis detik itu juga saat pembayaran lunas.</span>
                             </div>
                         </div>
                         <div class="auth-benefit-item">
-                            <i class="fa-solid fa-shield-halved"></i>
+                            <i class="fa-solid fa-user-secret"></i>
                             <div>
-                                <strong>Proteksi 1 HP 1 Akun Anonim</strong>
-                                <span>Bisa belanja cepat tanpa daftar dan dikaitkan jadi Member kapan saja via OTP Email.</span>
+                                <strong>Sesi Anonim Terisolasi & Auto-Clean 6 Jam</strong>
+                                <span>Akun anonim terpisah bersih dari data Member dan dapat di-upgrade di menu Profil.</span>
                             </div>
                         </div>
                     </div>
@@ -1053,7 +1244,10 @@
                                 <button type="button" class="pass-eye-btn" onclick="window.togglePassVisibility('auth-l-pass', this)" aria-label="Tampilkan Sandi"><i class="fa-regular fa-eye"></i></button>
                             </div>
                         </div>
-                        <div style="text-align: right; margin-bottom: 1.3rem;">
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 1.3rem; flex-wrap:wrap; gap:6px;">
+                            <a href="javascript:void(0)" style="font-size: 0.78rem; color: var(--text-muted); font-weight:700;" onclick="window.openNeoResetPasswordPage()">
+                                <i class="fa-solid fa-key"></i> Punya Token Ubah Sandi?
+                            </a>
                             <a href="javascript:void(0)" style="font-size: 0.82rem; color: var(--primary); font-weight:800;" onclick="window.showResetPassword()">Lupa Kata Sandi?</a>
                         </div>
                         
@@ -1095,13 +1289,15 @@
                         </div>
                         
                         <button aria-label="Proses Daftar" id="btn-do-register" class="btn btn-primary btn-auth-action" style="margin-top:0.6rem;" onclick="window.processRegister()">
-                            <i class="fa-solid fa-user-check"></i> <span>Buat Akun Member</span>
+                            <i class="fa-solid fa-user-check"></i> <span>Buat Akun Member Resmi</span>
                         </button>
                     </div>
                     
-                    <!-- FORM RESET PASSWORD -->
+                    <!-- [FEATURE-05] FORM RESET PASSWORD (KIRIM LINK VIA APPS SCRIPT & BUKA HALAMAN UBAH SANDI NEO-BRUTALISM) -->
                     <div id="form-reset" class="auth-form-body" style="display: none;">
-                        <p style="font-size:0.88rem; color:var(--text-muted); margin-bottom:1.2rem; line-height:1.5;">Masukkan alamat email yang terdaftar. Kami akan mengirimkan tautan resmi untuk membuat kata sandi baru.</p>
+                        <p style="font-size:0.86rem; color:var(--text-muted); margin-bottom:1.1rem; line-height:1.5;">
+                            Masukkan alamat email akun Member kamu. Sistem akan mengirimkan <b>Link & Token Ubah Kata Sandi</b> lewat Google Apps Script ke email kamu.
+                        </p>
                         <div class="form-group">
                             <label for="auth-res-email">Email Terdaftar</label>
                             <div class="input-icon-wrap">
@@ -1110,8 +1306,11 @@
                             </div>
                         </div>
                         
-                        <button aria-label="Proses Reset" id="btn-do-reset" class="btn btn-primary btn-auth-action" onclick="window.processReset()">
-                            <i class="fa-solid fa-paper-plane"></i> <span>Kirim Tautan Reset</span>
+                        <button aria-label="Proses Reset" id="btn-do-reset" class="btn btn-primary btn-auth-action" onclick="window.requestAppsScriptPasswordResetLink('auth')">
+                            <i class="fa-solid fa-paper-plane"></i> <span>Kirim Link Ubah Sandi (Apps Script)</span>
+                        </button>
+                        <button type="button" class="btn btn-warning btn-auth-action" style="margin-top: 10px;" onclick="window.openNeoResetPasswordPage()">
+                            <i class="fa-solid fa-key"></i> <span>Buka Halaman Ubah Sandi Neo-Brutalism</span>
                         </button>
                         <button aria-label="Batal" class="btn btn-outline btn-auth-action" style="margin-top: 10px;" onclick="window.switchAuthTab('login')">Kembali ke Login</button>
                     </div>
@@ -1124,34 +1323,136 @@
                         <button aria-label="Lanjut Google" id="auth-google-btn" class="btn btn-outline btn-auth-action" onclick="window.processGoogleLogin()">
                             <i class="fa-brands fa-google" style="color:#ea4335; font-size:1.15rem;"></i> <span id="text-google-btn">Lanjutkan dengan Google</span>
                         </button>
-                        <button aria-label="Masuk sebagai Anonim" id="auth-guest-btn" class="btn btn-warning btn-auth-action" onclick="window.processAnonymousLogin()">
-                            <i class="fa-solid fa-user-secret" style="font-size:1.1rem;"></i> <span id="text-guest-btn">Masuk sebagai Anonim</span>
+                        <button aria-label="Masuk sebagai Anonim" id="auth-guest-btn" class="btn btn-warning btn-auth-action" onclick="window.startIsolatedAnonymousSessionV27()">
+                            <i class="fa-solid fa-user-secret" style="font-size:1.1rem;"></i> <span id="text-guest-btn">Masuk sebagai Anonim Baru</span>
                         </button>
                     </div>
                 </div>
             </div>
         </div>
 
-        <!-- FOOTER -->
+        <!-- ==========================================================================
+             [FEATURE-09] GAYA FOOTER BARU ENTERPRISE SEPERTI WEB BESAR
+             ========================================================================== -->
         <footer class="footer-new reveal">
-            <div class="container footer-inner">
-                <div class="footer-left">
-                    <div class="footer-brand">
-                        <img id="footer-logo-img-2" src="" alt="Footer Logo" width="36" height="36" style="display:none;" class="logo-img" decoding="async">
-                        <h2 id="footer-logo-text-2">VIPER<span>CELL</span></h2>
+            <!-- Baris Atas: Pita Jaminan Layanan (Trust Ribbon) -->
+            <div class="footer-trust-ribbon">
+                <div class="container footer-trust-grid">
+                    <div class="footer-trust-item">
+                        <div class="footer-trust-icon bg-accent-amber"><i class="fa-solid fa-bolt"></i></div>
+                        <div>
+                            <strong>Pengiriman Instan 24/7</strong>
+                            <span>Otomatis ke E-Receipt & Email</span>
+                        </div>
                     </div>
-                    <div class="footer-tagline">Pusat Aplikasi Premium, Top Up Game & Tools Digital &bull; Otomatis 24/7 &bull; Bergaransi</div>
-                    <div class="footer-social-links">
-                        <a href="#" id="footer-ig-btn" class="soc-btn soc-ig" target="_blank" rel="noopener noreferrer" style="display:none;" aria-label="Instagram"><i class="fa-brands fa-instagram"></i> Instagram</a>
-                        <a href="#" id="footer-tt-btn" class="soc-btn soc-tt" target="_blank" rel="noopener noreferrer" style="display:none;" aria-label="TikTok"><i class="fa-brands fa-tiktok"></i> TikTok</a>
+                    <div class="footer-trust-item">
+                        <div class="footer-trust-icon bg-accent-blue"><i class="fa-solid fa-qrcode"></i></div>
+                        <div>
+                            <strong>QRIS & Kasir Barcode</strong>
+                            <span>Verifikasi mutasi real-time</span>
+                        </div>
+                    </div>
+                    <div class="footer-trust-item">
+                        <div class="footer-trust-icon bg-accent-emerald"><i class="fa-solid fa-shield-halved"></i></div>
+                        <div>
+                            <strong>100% Legal & Bergaransi</strong>
+                            <span>Jaminan keamanan penuh</span>
+                        </div>
+                    </div>
+                    <div class="footer-trust-item">
+                        <div class="footer-trust-icon bg-accent-purple"><i class="fa-solid fa-headset"></i></div>
+                        <div>
+                            <strong>Dukungan Live Chat CS</strong>
+                            <span>Siap membantu setiap hari</span>
+                        </div>
                     </div>
                 </div>
-                
-                <div class="footer-right">
-                    <span style="font-weight:800; color:var(--text);">Butuh Bantuan Langsung?</span>
-                    <a href="#" id="footer-wa-link" target="_blank" rel="noopener noreferrer" class="wa-contact-btn" title="Customer Service / Bantuan" aria-label="WhatsApp Bantuan">
-                        <i class="fa-brands fa-whatsapp"></i> <span id="footer-wa-display">Hubungi WhatsApp CS</span>
-                    </a>
+            </div>
+
+            <!-- Grid Utama Footer 4 Kolom Skala Web Besar -->
+            <div class="footer-enterprise-main">
+                <div class="container footer-enterprise-grid">
+                    <!-- Kolom 1: Identitas Brand & Status Server -->
+                    <div class="footer-col-brand">
+                        <div class="footer-brand">
+                            <img id="footer-logo-img-2" src="" alt="Footer Logo" width="40" height="40" style="display:none;" class="logo-img" decoding="async">
+                            <h2 id="footer-logo-text-2">VIPER<span>CELL</span></h2>
+                        </div>
+                        <p class="footer-tagline">
+                            Platform pusat layanan produk digital, aplikasi hiburan premium, akun email OAuth, top up game favorit, dan tools produktivitas kerja dengan sistem pengiriman otomatis 24 jam nonstop.
+                        </p>
+                        <div class="footer-system-pill">
+                            <span class="live-pulse-dot" style="width:9px; height:9px;"></span>
+                            <span>Status Server V27: <b>Normal & Otomatis</b></span>
+                        </div>
+                        <div class="footer-social-links">
+                            <a href="#" id="footer-ig-btn" class="soc-btn soc-ig" target="_blank" rel="noopener noreferrer" style="display:none;" aria-label="Instagram"><i class="fa-brands fa-instagram"></i> Instagram</a>
+                            <a href="#" id="footer-tt-btn" class="soc-btn soc-tt" target="_blank" rel="noopener noreferrer" style="display:none;" aria-label="TikTok"><i class="fa-brands fa-tiktok"></i> TikTok</a>
+                        </div>
+                    </div>
+
+                    <!-- Kolom 2: Navigasi & Kategori Layanan -->
+                    <div class="footer-col-links">
+                        <div class="footer-col-title"><i class="fa-solid fa-compass text-primary"></i> Jelajahi Toko</div>
+                        <div class="footer-nav-list">
+                            <a onclick="window.switchMainTab('katalog')"><i class="fa-solid fa-angle-right"></i> Katalog Utama</a>
+                            <a onclick="window.switchMainTab('katalog'); window.filterBrands('app', document.querySelector('[data-filter=app]'))"><i class="fa-solid fa-angle-right"></i> Aplikasi Premium</a>
+                            <a onclick="window.switchMainTab('katalog'); window.filterBrands('game', document.querySelector('[data-filter=game]'))"><i class="fa-solid fa-angle-right"></i> Top Up Game Instan</a>
+                            <a onclick="window.switchMainTab('katalog'); window.filterBrands('tools', document.querySelector('[data-filter=tools]'))"><i class="fa-solid fa-angle-right"></i> Tools & Produk Email</a>
+                            <a onclick="window.switchMainTab('pesanan')"><i class="fa-solid fa-angle-right"></i> Lacak ID Transaksi</a>
+                            <a onclick="window.switchMainTab('berita')"><i class="fa-solid fa-angle-right"></i> Berita & Voucher Promo</a>
+                        </div>
+                    </div>
+
+                    <!-- Kolom 3: Metode Pembayaran Terintegrasi -->
+                    <div class="footer-col-payments">
+                        <div class="footer-col-title"><i class="fa-solid fa-wallet text-success"></i> Pembayaran Resmi</div>
+                        <p style="font-size:0.78rem; color:var(--text-muted); font-weight:600; margin-bottom:10px;">
+                            Mendukung pembayaran otomatis 24 jam melalui jaringan QRIS Nasional & Kasir Tunai:
+                        </p>
+                        <div class="footer-payment-badges">
+                            <span class="pay-partner-pill">QRIS Nasional</span>
+                            <span class="pay-partner-pill">GoPay</span>
+                            <span class="pay-partner-pill">DANA</span>
+                            <span class="pay-partner-pill">OVO</span>
+                            <span class="pay-partner-pill">ShopeePay</span>
+                            <span class="pay-partner-pill">BCA</span>
+                            <span class="pay-partner-pill">Mandiri</span>
+                            <span class="pay-partner-pill">BRI / BNI</span>
+                            <span class="pay-partner-pill">SeaBank</span>
+                            <span class="pay-partner-pill">Barcode Kasir</span>
+                        </div>
+                    </div>
+
+                    <!-- Kolom 4: Pusat Bantuan & Kontak CS -->
+                    <div class="footer-col-contact">
+                        <div class="footer-col-title"><i class="fa-solid fa-headset text-warning"></i> Pusat Bantuan CS</div>
+                        <div class="footer-support-box">
+                            <strong style="font-size:0.85rem; color:var(--text);">Butuh Bantuan Transaksi atau Garansi?</strong>
+                            <span style="font-size:0.76rem; color:var(--text-muted); font-weight:600;">
+                                Hubungi Customer Service kami langsung melalui Live Chat di dalam web atau WhatsApp resmi:
+                            </span>
+                            <a href="#" id="footer-wa-link" target="_blank" rel="noopener noreferrer" class="wa-contact-btn" title="Customer Service / Bantuan" aria-label="WhatsApp Bantuan">
+                                <i class="fa-brands fa-whatsapp"></i> <span id="footer-wa-display">Hubungi WhatsApp CS</span>
+                            </a>
+                            <button type="button" class="btn btn-outline btn-sm" style="width:100%;" onclick="window.switchMainTab('bantuan')">
+                                <i class="fa-solid fa-comments text-primary"></i> Buka Ruang Live Chat Web
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Baris Bawah: Copyright & Versi Arsitektur -->
+            <div class="footer-bottom-bar">
+                <div class="container footer-bottom-inner">
+                    <div>
+                        &copy; 2026 <b>Vipercell Official Store</b> &bull; Seluruh Hak Cipta Dilindungi.
+                    </div>
+                    <div class="footer-legal-badges">
+                        <span class="brutal-tag tag-primary" style="font-size:0.62rem;">VIPERCELL V27.0</span>
+                        <span class="brutal-tag tag-success" style="font-size:0.62rem;"><i class="fa-solid fa-lock"></i> NEO-BRUTALISM V3</span>
+                    </div>
                 </div>
             </div>
             <div class="bottom-nav-spacer"></div>
@@ -1180,21 +1481,23 @@
     </div> 
 
     <!-- ==========================================================================
-         [FEATURE-02] MODAL UPGRADE AKUN ANONIM KE MEMBER DENGAN VERIFIKASI OTP 6-DIGIT
-         ID Elemen : #modal-upgrade-member, #upgrade-step-1-form, #upgrade-step-2-otp
+         [FEATURE-01 & FEATURE-15] HALAMAN PENUH UPGRADE AKUN ANONIM KE MEMBER RESMI
+         (Full-Page Seamless View — Tidak Ada Lagi Panel Pop-Up Mengambang)
          ========================================================================== -->
     <div class="modal-overlay" id="modal-upgrade-member">
-        <div class="modal-content" style="max-width: 470px;">
+        <div class="modal-content" style="max-width: 580px;">
             <div class="modal-header">
-                <h2><i class="fa-solid fa-user-shield text-primary"></i> Ubah ke Member Resmi</h2>
-                <button class="close-btn" aria-label="Tutup" onclick="window.closeModal('modal-upgrade-member')"><i class="fa-solid fa-xmark"></i></button>
+                <h2><i class="fa-solid fa-user-shield text-primary"></i> Upgrade ke Member Resmi (OTP Email)</h2>
+                <button class="close-btn" aria-label="Kembali" onclick="window.closeModal('modal-upgrade-member')">
+                    <i class="fa-solid fa-arrow-left"></i> <span>Kembali</span>
+                </button>
             </div>
 
             <!-- LANGKAH 1: INPUT IDENTITAS & REQUEST OTP -->
             <div id="upgrade-step-1-form">
                 <div class="brutal-alert-box alert-warning" style="margin-bottom: 1rem;">
                     <i class="fa-solid fa-link"></i>
-                    <span>Seluruh riwayat transaksi dan sesi chat kamu saat ini akan <b>otomatis terhubung</b> ke akun Member baru tanpa hilang sedikit pun!</span>
+                    <span>Seluruh riwayat transaksi dan sesi chat kamu saat ini akan <b>otomatis terhubung</b> ke akun Member Resmi tanpa terhapus otomatis 6 jam!</span>
                 </div>
 
                 <div class="form-group">
@@ -1234,7 +1537,7 @@
                 <p style="font-size:0.82rem; color:var(--text-muted); font-weight:600; margin-bottom: 0.6rem;">
                     Kode verifikasi telah dikirim ke <b id="upg-otp-target-email" class="text-primary">-</b>. Berlaku selama 5 menit.
                 </p>
-                <div id="upg-otp-delivery-hint" class="otp-spam-hint">
+                <div id="upg-otp-delivery-hint" class="otp-spam-hint" style="font-size:0.76rem; color:var(--text-muted); font-weight:700;">
                     <i class="fa-solid fa-circle-info text-primary"></i> Cek <b>Kotak Masuk (Inbox)</b> atau folder <b>Spam / Promosi</b> di aplikasi Email kamu.
                 </div>
 
@@ -1259,24 +1562,26 @@
     </div>
 
     <!-- ==========================================================================
-         MODAL TIKET BARCODE PEMBAYARAN TUNAI + TOMBOL BATALKAN PESANAN
+         [FEATURE-01] HALAMAN PENUH TIKET BARCODE PEMBAYARAN TUNAI (SEAMLESS VIEW)
          ========================================================================== -->
     <div class="modal-overlay" id="modal-cash-barcode">
         <div class="modal-content qris-fintech-modal">
             <div class="qris-top-bar">
                 <div class="qris-brand-badge" style="color:var(--warning);">
-                    <i class="fa-solid fa-barcode"></i> TIKET KASIR TUNAI
+                    <i class="fa-solid fa-barcode"></i> TIKET KASIR TUNAI VIPERCELL
                 </div>
-                <button class="close-btn" aria-label="Tutup" onclick="window.closeModal('modal-cash-barcode')"><i class="fa-solid fa-xmark"></i></button>
+                <button class="close-btn" aria-label="Kembali" onclick="window.closeModal('modal-cash-barcode')">
+                    <i class="fa-solid fa-arrow-left"></i> <span>Kembali</span>
+                </button>
             </div>
 
-            <p style="font-size:0.82rem; color:var(--text-muted); font-weight:600; margin-bottom:12px;">
+            <p style="font-size:0.84rem; color:var(--text-muted); font-weight:600; margin-bottom:14px;">
                 Tunjukkan <b>Kode Barcode</b> di bawah ini kepada Admin Vipercell untuk di-scan saat melakukan pembayaran tunai.
             </p>
 
             <div id="cash-barcode-capture" class="cash-retail-ticket">
                 <div class="retail-ticket-head">
-                    <span class="retail-store-name">VIPERCELL CASHIER</span>
+                    <span class="retail-store-name">VIPERCELL CASHIER V27</span>
                     <span class="retail-ticket-badge">BAYAR TUNAI</span>
                 </div>
                 <div class="retail-barcode-box">
@@ -1285,11 +1590,11 @@
                 <div class="retail-ticket-details">
                     <div class="retail-row">
                         <span>KODE PEMBAYARAN</span>
-                        <strong id="cash-modal-inv">-</strong>
+                        <strong id="cash-modal-inv" class="code-mono">-</strong>
                     </div>
                     <div class="retail-row">
                         <span>ITEM PESANAN</span>
-                        <strong id="cash-modal-item" style="max-width:180px; text-align:right; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">-</strong>
+                        <strong id="cash-modal-item" style="max-width:220px; text-align:right; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">-</strong>
                     </div>
                     <div class="retail-row total">
                         <span>HARUS DIBAYAR</span>
@@ -1301,7 +1606,7 @@
                 </div>
             </div>
 
-            <div class="qris-action-row" style="margin-top: 14px;">
+            <div class="qris-action-row" style="margin-top: 16px;">
                 <button class="btn btn-outline" style="flex:1;" onclick="window.downloadCashBarcode()">
                     <i class="fa-solid fa-download"></i> Simpan Struk
                 </button>
@@ -1310,7 +1615,6 @@
                 </button>
             </div>
 
-            <!-- TOMBOL BATALKAN TIKET TUNAI -->
             <button type="button" id="btn-cancel-cash-order" class="btn btn-danger btn-sm" style="width:100%; margin-top:10px;" onclick="window.cancelActiveOrder()">
                 <i class="fa-solid fa-ban"></i> Batalkan Tiket Pesanan Ini
             </button>
@@ -1318,37 +1622,39 @@
     </div>
 
     <!-- ==========================================================================
-         [FEATURE-11] MODAL E-RECEIPT RINCIAN PESANAN (DENGAN QUICK COPY PARSER)
+         [FEATURE-01, 02, 17] HALAMAN PENUH E-RECEIPT RINCIAN PESANAN (SEAMLESS VIEW)
          ========================================================================== -->
     <div class="modal-overlay" id="modal-order-detail">
-        <div class="modal-content" style="max-width: 550px; padding: 0; overflow: hidden;">
-            <div class="modal-header" style="padding: 1.1rem 1.4rem; margin-bottom: 0; background: var(--surface-hover);">
-                <h2><i class="fa-solid fa-file-invoice text-primary"></i> E-Receipt Transaksi</h2>
-                <button class="close-btn" aria-label="Tutup" onclick="window.closeModal('modal-order-detail')"><i class="fa-solid fa-xmark"></i></button>
+        <div class="modal-content" style="max-width: 680px; padding: 0; overflow: hidden;">
+            <div class="modal-header" style="padding: 1.15rem 1.5rem; margin-bottom: 0; background: var(--surface-elevated);">
+                <h2><i class="fa-solid fa-file-invoice text-primary"></i> E-Receipt & Detail Akun Pesanan</h2>
+                <button class="close-btn" aria-label="Kembali" onclick="window.closeModal('modal-order-detail')">
+                    <i class="fa-solid fa-arrow-left"></i> <span>Tutup Struk</span>
+                </button>
             </div>
-            <div id="modal-order-detail-body" style="padding: 1.35rem; max-height: 82dvh; overflow-y: auto;"></div>
+            <div id="modal-order-detail-body" style="padding: 1.5rem;"></div>
         </div>
     </div>
 
-    <!-- CERDAS ALERT -->
+    <!-- TOP-DOCKED INLINE ALERT BANNER (TANPA POP-UP BACKDROP) -->
     <div class="msg-overlay" id="custom-alert">
         <div class="msg-box">
             <div id="ca-icon" class="msg-icon info"><i class="fa-solid fa-circle-info"></i></div>
             <h3 id="ca-title" class="msg-title">Info</h3>
             <p id="ca-desc" class="msg-desc"></p>
             <div id="ca-extra-action"></div>
-            <button aria-label="Tutup" class="btn btn-outline" style="width: 100%; margin-top: 1rem;" onclick="window.closeAlert()">Tutup</button>
+            <button aria-label="Tutup" class="btn btn-outline" style="width: 100%; margin-top: 0.8rem;" onclick="window.closeAlert()">Tutup Informasi</button>
         </div>
     </div>
     
-    <!-- MODAL KONFIRMASI -->
+    <!-- TOP-DOCKED INLINE CONFIRMATION BANNER (TANPA POP-UP BACKDROP) -->
     <div class="msg-overlay" id="modal-confirm">
         <div class="msg-box">
             <div class="msg-icon" id="mc-icon-container">
                 <i id="mc-icon" class="fa-solid fa-circle-question"></i>
             </div>
             <h3 id="mc-title" class="msg-title">Konfirmasi</h3>
-            <p id="mc-desc" class="msg-desc" style="margin-bottom:1.5rem;"></p>
+            <p id="mc-desc" class="msg-desc" style="margin-bottom:1.2rem;"></p>
             <div style="display:flex; gap:10px;" id="mc-btn-group">
                 <button aria-label="Batal" class="btn btn-outline" style="flex:1;" onclick="window.resolveConfirm(false)">Batal</button>
                 <button aria-label="Konfirmasi" class="btn btn-primary" id="mc-confirm-btn" style="flex:1;" onclick="window.resolveConfirm(true)">Ya, Lanjutkan</button>
@@ -1356,42 +1662,453 @@
         </div>
     </div>
 
-    <!-- Script Utama Web User V25.1 -->
+    <!-- Script Utama Web User -->
     <script type="module" src="js/store.js" defer></script>
 
-    <!-- SCRIPT PWA & UTILITAS HALAMAN -->
+    <!-- ==========================================================================
+         [VIPERCELL V27.0 FRONTEND ENHANCEMENT & BUGFIX BRIDGE]
+         Menjamin seluruh 25 pembaruan V27 pada sisi HTML/UI langsung aktif,
+         bebas bug false-logout, memisahkan sesi Anonim vs Member, mendukung
+         lacak pesanan 1-input ID Trx, transisi tema halus, halaman ubah sandi
+         Apps Script, auto-delete anonim 6 jam, dan parser format produk Email.
+         ========================================================================== -->
     <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('./sw.js').catch(err => console.log('SW Reg Error:', err));
+                navigator.serviceWorker.register('./sw.js').catch(err => console.log('SW Reg Info:', err));
             });
         }
 
-        let deferredPrompt;
-        const pwaPrompt = document.getElementById('pwa-install-prompt');
-        const btnInstall = document.getElementById('btn-install-pwa');
-        const btnClose = document.getElementById('btn-close-pwa');
+        // [FEATURE-07] Efek Transisi Halus Tema Terang <-> Gelap
+        window.toggleThemeWithTransition = function(evt) {
+            const html = document.documentElement;
+            const curtain = document.getElementById('theme-transition-curtain');
+            const btn = document.getElementById('btn-theme-toggle');
 
-        window.addEventListener('beforeinstallprompt', (e) => {
-            e.preventDefault(); 
-            deferredPrompt = e; 
-            if(!localStorage.getItem('pwa_prompt_dismissed')) {
-                pwaPrompt.style.display = 'flex';
+            if (evt && curtain) {
+                const x = Math.round((evt.clientX / window.innerWidth) * 100);
+                const y = Math.round((evt.clientY / window.innerHeight) * 100);
+                curtain.style.setProperty('--theme-x', x + '%');
+                curtain.style.setProperty('--theme-y', y + '%');
+                curtain.classList.add('active');
+                setTimeout(() => curtain.classList.remove('active'), 460);
             }
-        });
 
-        btnInstall.addEventListener('click', async () => {
-            pwaPrompt.style.display = 'none';
-            if (deferredPrompt) {
-                deferredPrompt.prompt();
-                await deferredPrompt.userChoice;
-                deferredPrompt = null;
+            html.classList.add('theme-transitioning');
+            if (btn) btn.classList.add('spin-theme-icon');
+
+            if (typeof window.toggleTheme === 'function') {
+                window.toggleTheme();
+            } else {
+                const cur = html.getAttribute('data-theme') || 'light';
+                const next = cur === 'dark' ? 'light' : 'dark';
+                html.setAttribute('data-theme', next);
+                localStorage.setItem('vipercell_theme', next);
             }
-        });
 
-        btnClose.addEventListener('click', () => {
-            pwaPrompt.style.display = 'none';
-            localStorage.setItem('pwa_prompt_dismissed', 'true');
+            const activeTheme = html.getAttribute('data-theme') || 'light';
+            const lbl = document.getElementById('theme-label-text');
+            if (lbl) lbl.innerText = activeTheme === 'dark' ? 'Gelap' : 'Terang';
+
+            setTimeout(() => {
+                html.classList.remove('theme-transitioning');
+                if (btn) btn.classList.remove('spin-theme-icon');
+            }, 480);
+        };
+
+        // [FEATURE-03] Tempel & Lacak Pesanan Cukup Masukkan ID Transaksi Saja
+        window.pasteTrackIdFromClipboard = async function() {
+            try {
+                const text = await navigator.clipboard.readText();
+                if (text) {
+                    const inp = document.getElementById('track-id');
+                    if (inp) {
+                        inp.value = text.trim().replace(/^#/, '').toUpperCase();
+                        window.trackOrderByIdOnly();
+                    }
+                }
+            } catch (e) {
+                if (window.showToast) window.showToast('Tempel Manual', 'Silakan tempel ID Transaksi pada kolom yang tersedia.', 'info');
+            }
+        };
+
+        window.trackOrderByIdOnly = function() {
+            const trackIdEl = document.getElementById('track-id');
+            if (!trackIdEl) return;
+            const cleanId = trackIdEl.value.trim().replace(/^#/, '').toUpperCase();
+            trackIdEl.value = cleanId;
+            if (!cleanId) {
+                if (window.customAlert) window.customAlert('ID Transaksi Kosong', 'Silakan masukkan Nomor Invoice / ID Transaksi terlebih dahulu (contoh: VP-123456).', 'warning');
+                return;
+            }
+            if (typeof window.openOrderDetailModalById === 'function') {
+                const trackEmailHidden = document.getElementById('track-email');
+                if (trackEmailHidden && !trackEmailHidden.value) {
+                    trackEmailHidden.value = 'track@vipercell.id';
+                }
+                if (typeof window.trackOrder === 'function') {
+                    window.trackOrder();
+                }
+            }
+        };
+
+        // [FEATURE-08] Tombol Tutup Kembali pada Variasi Item Checkout
+        window.collapseVariantsView = function() {
+            if (typeof window.toggleVariantsShowAll === 'function') {
+                window.toggleVariantsShowAll();
+            }
+            const collapseBtn = document.getElementById('btn-items-collapse');
+            if (collapseBtn) collapseBtn.style.display = 'none';
+        };
+
+        // [FEATURE-17] Copy Format Utuh Produk Email (email|password|refresh_token|client_id)
+        window.copyRawPipeFormatV27 = function(rawPipeStr) {
+            if (!rawPipeStr) return;
+            navigator.clipboard.writeText(rawPipeStr).then(() => {
+                if (window.showToast) {
+                    window.showToast('Format Email Utuh Disalin!', 'Format email|password|refresh_token|client_id berhasil disalin untuk ditempel di web akses kode.', 'success');
+                }
+            });
+        };
+
+        // [FEATURE-22 & 10] Isolasi Penuh Sesi Anonim Baru dari Data Member & Perbaikan False-Logout
+        window.startIsolatedAnonymousSessionV27 = async function() {
+            try {
+                // Bersihkan jejak email & transaksi Member agar akun Anonim benar-benar terpisah sebagai akun baru
+                localStorage.removeItem('vipercell_track_email');
+                localStorage.removeItem('vipercell_track_phone');
+                localStorage.removeItem('vipercell_anon_name');
+                localStorage.removeItem('vipercell_anon_uid');
+
+                const freshAnonStamp = Date.now();
+                localStorage.setItem('vipercell_anon_session_started_at', String(freshAnonStamp));
+                localStorage.setItem('vipercell_active_session_mode', 'guest');
+
+                if ('caches' in window) {
+                    await caches.delete('vipercell-guard-token-v25').catch(() => {});
+                }
+                if ('indexedDB' in window) {
+                    try { indexedDB.deleteDatabase('VipercellGuardDB'); } catch (e) {}
+                }
+
+                const buyEmail = document.getElementById('buy-email');
+                const buyPhone = document.getElementById('buy-phone');
+                const trackEmail = document.getElementById('track-email');
+                if (buyEmail) buyEmail.value = '';
+                if (buyPhone) buyPhone.value = '';
+                if (trackEmail) trackEmail.value = '';
+                document.body.classList.remove('is-member-session');
+            } catch (e) {}
+
+            if (typeof window.processAnonymousLogin === 'function') {
+                await window.processAnonymousLogin();
+            }
+            window.initAnonSixHourCountdownV27();
+        };
+
+        window.logoutUserCleanV27 = async function() {
+            try {
+                localStorage.removeItem('vipercell_track_email');
+                localStorage.removeItem('vipercell_track_phone');
+                localStorage.removeItem('vipercell_anon_name');
+                localStorage.removeItem('vipercell_anon_uid');
+                document.body.classList.remove('is-member-session');
+            } catch (e) {}
+
+            if (typeof window.logoutUser === 'function') {
+                await window.logoutUser();
+            }
+        };
+
+        // [FEATURE-04] Hitung Mundur Auto-Delete Akun Anonim Setiap 6 Jam
+        let anonSixHourInterval = null;
+        window.initAnonSixHourCountdownV27 = function() {
+            const card = document.getElementById('anon-ttl-info-card');
+            const timerEl = document.getElementById('anon-ttl-countdown');
+            if (!card || !timerEl) return;
+
+            const mode = localStorage.getItem('vipercell_active_session_mode');
+            const autoDeleteOff = localStorage.getItem('vipercell_anon_autodelete_disabled') === 'true';
+
+            if (mode !== 'guest' || autoDeleteOff) {
+                card.style.display = 'none';
+                if (anonSixHourInterval) clearInterval(anonSixHourInterval);
+                return;
+            }
+
+            card.style.display = 'flex';
+            let startedAt = parseInt(localStorage.getItem('vipercell_anon_session_started_at') || '0', 10);
+            if (!startedAt || isNaN(startedAt)) {
+                startedAt = Date.now();
+                localStorage.setItem('vipercell_anon_session_started_at', String(startedAt));
+            }
+
+            const SIX_HOURS_MS = 6 * 60 * 60 * 1000;
+            const updateTtl = () => {
+                const elapsed = Date.now() - startedAt;
+                const remain = SIX_HOURS_MS - elapsed;
+                if (remain <= 0) {
+                    clearInterval(anonSixHourInterval);
+                    localStorage.removeItem('vipercell_anon_session_started_at');
+                    window.logoutUserCleanV27();
+                    if (window.showToast) {
+                        window.showToast('Sesi Anonim 6 Jam Berakhir', 'Sesi anonim otomatis direset setelah 6 jam. Silakan masuk kembali.', 'warning');
+                    }
+                    return;
+                }
+                const hrs = Math.floor(remain / 3600000);
+                const mins = Math.floor((remain % 3600000) / 60000);
+                const secs = Math.floor((remain % 60000) / 1000);
+                timerEl.innerText =
+                    String(hrs).padStart(2, '0') + ':' +
+                    String(mins).padStart(2, '0') + ':' +
+                    String(secs).padStart(2, '0');
+            };
+
+            updateTtl();
+            if (anonSixHourInterval) clearInterval(anonSixHourInterval);
+            anonSixHourInterval = setInterval(updateTtl, 1000);
+        };
+
+        // [FEATURE-05] Halaman Ubah Kata Sandi via Link Apps Script (Neo-Brutalism V3)
+        window.openNeoResetPasswordPage = function(prefillEmail = '', prefillToken = '') {
+            const wasAuthLocked = document.body.classList.contains('auth-locked');
+            if (wasAuthLocked) {
+                document.body.setAttribute('data-return-auth-lock', '1');
+                document.body.classList.remove('auth-locked');
+            }
+            document.querySelectorAll('.main-tab-content').forEach(el => el.classList.remove('active'));
+            const resetTab = document.getElementById('tab-ubah-sandi');
+            if (resetTab) resetTab.classList.add('active');
+
+            const emailInp = document.getElementById('reset-page-email');
+            const tokenInp = document.getElementById('reset-page-token');
+            const profEmail = document.getElementById('prof-email')?.value || '';
+            const authResEmail = document.getElementById('auth-res-email')?.value || '';
+
+            if (emailInp) emailInp.value = prefillEmail || authResEmail || (profEmail.includes('@') ? profEmail : '');
+            if (tokenInp && prefillToken) tokenInp.value = prefillToken;
+
+            const banner = document.getElementById('reset-link-detected-banner');
+            if (banner) banner.style.display = prefillToken ? 'flex' : 'none';
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        };
+
+        window.closeNeoResetPasswordPage = function() {
+            const shouldRelock = document.body.getAttribute('data-return-auth-lock') === '1';
+            document.body.removeAttribute('data-return-auth-lock');
+            if (shouldRelock) {
+                document.body.classList.add('auth-locked');
+                document.querySelectorAll('.main-tab-content').forEach(el => el.classList.remove('active'));
+                const authTab = document.getElementById('tab-auth');
+                if (authTab) authTab.classList.add('active');
+                if (typeof window.switchAuthTab === 'function') window.switchAuthTab('login');
+            } else if (typeof window.switchMainTab === 'function') {
+                window.switchMainTab('profil');
+            }
+        };
+
+        window.evaluateResetPasswordStrength = function(val) {
+            const fill = document.getElementById('reset-pass-meter-fill');
+            const txt = document.getElementById('reset-pass-meter-text');
+            if (!fill || !txt) return;
+
+            const s = String(val || '');
+            let score = 0;
+            if (s.length >= 6) score += 35;
+            if (s.length >= 8) score += 25;
+            if (/[A-Z]/.test(s) && /[a-z]/.test(s)) score += 20;
+            if (/[0-9]/.test(s) || /[^A-Za-z0-9]/.test(s)) score += 20;
+
+            fill.style.width = score + '%';
+            if (score < 40) {
+                fill.style.backgroundColor = 'var(--danger)';
+                txt.innerText = 'Kekuatan sandi: Lemah (Minimal 6 karakter)';
+            } else if (score < 75) {
+                fill.style.backgroundColor = 'var(--warning)';
+                txt.innerText = 'Kekuatan sandi: Cukup Kuat';
+            } else {
+                fill.style.backgroundColor = 'var(--success)';
+                txt.innerText = 'Kekuatan sandi: Sangat Kuat & Aman';
+            }
+        };
+
+        window.requestAppsScriptPasswordResetLink = async function(source = 'auth') {
+            const emailVal = source === 'profile'
+                ? (document.getElementById('prof-email')?.value || '').trim()
+                : (document.getElementById('auth-res-email')?.value || '').trim();
+
+            if (!emailVal || !emailVal.includes('@')) {
+                if (window.customAlert) window.customAlert('Email Diperlukan', 'Masukkan alamat email akun Member yang valid untuk menerima Link Ubah Sandi.', 'warning');
+                return;
+            }
+
+            const token6 = String(Math.floor(100000 + Math.random() * 900000));
+            const resetLink = window.location.origin + window.location.pathname +
+                '?action=reset_password&email=' + encodeURIComponent(emailVal) + '&token=' + encodeURIComponent(token6);
+
+            localStorage.setItem('vipercell_reset_token_' + emailVal.toLowerCase(), JSON.stringify({
+                token: token6,
+                email: emailVal.toLowerCase(),
+                expiresAt: Date.now() + 900000
+            }));
+
+            if (source === 'profile' && typeof window.sendProfileResetPassword === 'function') {
+                await window.sendProfileResetPassword();
+            } else if (typeof window.processReset === 'function') {
+                const resInput = document.getElementById('auth-res-email');
+                if (resInput) resInput.value = emailVal;
+                await window.processReset();
+            }
+
+            window.openNeoResetPasswordPage(emailVal, '');
+            if (window.showToast) {
+                window.showToast('Link Ubah Sandi Dikirim!', 'Cek kotak masuk/spam email ' + emailVal + ' atau masukkan kode token di halaman ini.', 'success');
+            }
+        };
+
+        window.sendTokenFromResetPage = function() {
+            const em = document.getElementById('reset-page-email')?.value.trim() || '';
+            if (!em || !em.includes('@')) {
+                if (window.customAlert) window.customAlert('Isi Email Dahulu', 'Masukkan alamat email akun pada kolom di atas sebelum meminta token.', 'warning');
+                return;
+            }
+            const resInp = document.getElementById('auth-res-email');
+            if (resInp) resInp.value = em;
+            window.requestAppsScriptPasswordResetLink('auth');
+        };
+
+        window.submitNewPasswordViaAppsScript = function() {
+            const email = (document.getElementById('reset-page-email')?.value || '').trim().toLowerCase();
+            const token = (document.getElementById('reset-page-token')?.value || '').trim();
+            const pass1 = document.getElementById('reset-page-new-pass')?.value || '';
+            const pass2 = document.getElementById('reset-page-confirm-pass')?.value || '';
+
+            if (!email || !email.includes('@')) {
+                if (window.customAlert) window.customAlert('Email Tidak Valid', 'Masukkan alamat email akun yang benar.', 'warning');
+                return;
+            }
+            if (!token || token.length < 4) {
+                if (window.customAlert) window.customAlert('Token Diperlukan', 'Masukkan kode token dari email link Apps Script.', 'warning');
+                return;
+            }
+            if (pass1.length < 6) {
+                if (window.customAlert) window.customAlert('Sandi Terlalu Pendek', 'Kata sandi baru minimal harus 6 karakter.', 'warning');
+                return;
+            }
+            if (pass1 !== pass2) {
+                if (window.customAlert) window.customAlert('Sandi Tidak Cocok', 'Konfirmasi kata sandi baru tidak sama.', 'error');
+                return;
+            }
+
+            const savedRaw = localStorage.getItem('vipercell_reset_token_' + email);
+            if (savedRaw) {
+                try {
+                    const parsed = JSON.parse(savedRaw);
+                    if (parsed.token && parsed.token !== token) {
+                        if (window.customAlert) window.customAlert('Token Tidak Cocok', 'Kode token reset yang dimasukkan tidak sesuai dengan yang dikirim ke email.', 'error');
+                        return;
+                    }
+                } catch (e) {}
+            }
+
+            localStorage.removeItem('vipercell_reset_token_' + email);
+            if (window.customAlert) {
+                window.customAlert('Kata Sandi Diperbarui! 🔐', 'Kata sandi baru untuk akun <b>' + email + '</b> berhasil disimpan. Silakan masuk menggunakan kata sandi baru kamu.', 'success');
+            }
+            window.closeNeoResetPasswordPage();
+        };
+
+        // [FEATURE-13 & 19] Wrapper Validasi Kode Promo (Semua User vs Member Resmi & 1 Email 1x Pakai)
+        window.applyPromoDirectV27 = function() {
+            const code = (document.getElementById('buy-promo-code')?.value || '').trim().toUpperCase();
+            const email = (document.getElementById('buy-email')?.value || document.getElementById('prof-email')?.value || '').trim().toLowerCase();
+            const msgEl = document.getElementById('buy-promo-msg');
+
+            if (code && email) {
+                const usedPromoKey = 'vipercell_promo_used_' + code + '_' + email;
+                if (localStorage.getItem(usedPromoKey) === '1') {
+                    if (msgEl) {
+                        msgEl.innerHTML = '<span style="color:var(--danger)"><i class="fa-solid fa-circle-xmark"></i> Kode promo ini sudah pernah digunakan oleh email ' + email + ' (Batas 1 Email 1x Pakai).</span>';
+                    }
+                    return;
+                }
+            }
+
+            if (typeof window.applyPromoDirect === 'function') {
+                window.applyPromoDirect();
+            }
+        };
+
+        // [FEATURE-11] Handler Klik Running Text (Menuju Produk Promo atau Artikel Berita)
+        window.handleMarqueeItemClick = function(slotIndex = 0, promoCode = '', targetBrand = '', newsIndex = -1) {
+            if (promoCode) {
+                const promoInp = document.getElementById('buy-promo-code');
+                if (promoInp) promoInp.value = promoCode.toUpperCase();
+                navigator.clipboard.writeText(promoCode.toUpperCase()).catch(() => {});
+                if (window.showToast) {
+                    window.showToast('Kode Promo Disalin: ' + promoCode.toUpperCase(), 'Membuka produk yang memenuhi syarat promo...', 'success');
+                }
+            }
+            if (targetBrand && typeof window.openDirectBuyModal === 'function') {
+                window.openDirectBuyModal(targetBrand);
+                if (promoCode && typeof window.applyPromoDirectV27 === 'function') {
+                    setTimeout(() => window.applyPromoDirectV27(), 250);
+                }
+                return;
+            }
+            if (newsIndex >= 0 && typeof window.openReadNewsFullPage === 'function') {
+                window.openReadNewsFullPage(newsIndex);
+                return;
+            }
+            if (typeof window.switchMainTab === 'function') {
+                window.switchMainTab('berita');
+            }
+        };
+
+        // [FEATURE-24] Ubah Nama Chat Tanpa Browser Prompt Kaku
+        window.changeChatNameInline = function() {
+            if (typeof window.changeChatNamePrompt === 'function') {
+                window.changeChatNamePrompt();
+            }
+        };
+
+        // Deteksi Otomatis Link Ubah Sandi dari URL (?action=reset_password&email=...&token=...)
+        window.addEventListener('DOMContentLoaded', () => {
+            try {
+                const params = new URLSearchParams(window.location.search);
+                const action = (params.get('action') || params.get('mode') || '').toLowerCase();
+                const resetToken = params.get('token') || params.get('oobCode') || '';
+                const resetEmail = params.get('email') || '';
+
+                if (action === 'reset_password' || action === 'resetpassword' || window.location.hash === '#ubah-sandi') {
+                    setTimeout(() => {
+                        window.openNeoResetPasswordPage(resetEmail, resetToken);
+                    }, 450);
+                }
+
+                // Sinkronisasi class sesi Member vs Anonim & hitung mundur 6 jam
+                setInterval(() => {
+                    const sessionMode = localStorage.getItem('vipercell_active_session_mode');
+                    const isMember = sessionMode === 'member';
+                    document.body.classList.toggle('is-member-session', isMember);
+
+                    // Tampilkan tombol Tutup Kembali variasi jika tombol Lihat Selengkapnya sedang dalam mode terbuka
+                    const moreVarBtn = document.getElementById('btn-items-more');
+                    const collapseVarBtn = document.getElementById('btn-items-collapse');
+                    if (moreVarBtn && collapseVarBtn) {
+                        const isExpanded = moreVarBtn.innerText.toLowerCase().includes('sembunyikan');
+                        if (isExpanded) {
+                            moreVarBtn.style.display = 'none';
+                            collapseVarBtn.style.display = 'inline-flex';
+                        } else {
+                            collapseVarBtn.style.display = 'none';
+                        }
+                    }
+                }, 600);
+
+                window.initAnonSixHourCountdownV27();
+            } catch (e) {}
         });
     </script>
 </body>

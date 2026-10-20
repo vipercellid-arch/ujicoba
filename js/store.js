@@ -1,13 +1,36 @@
-
 /* ============================================================================
- * VIPERCELL V25.1 - STOREFRONT ENGINE (WEB USER - FAST & RESPONSIVE)
- * Standar Arsitektur : Modular Feature Blocks ([FEATURE-01] s/d [FEATURE-13])
+ * VIPERCELL V27.0 - STOREFRONT ENGINE (WEB USER - NEO-BRUTALISM V3)
+ * Nama File : js/store.js
+ * Standar Arsitektur : Modular Feature Blocks ([FEATURE-01] s/d [FEATURE-25])
+ * Pembaruan Utama V27.0:
+ *  1. Tanpa Panel Pop-Up Mengambang (Full-Page Seamless View & Top Inline Banner)
+ *  2. Hapus Tombol Kirim Email di Riwayat Transaksi Web User (Khusus di Admin)
+ *  3. Otomatis Kirim Email Saat Stok Lokal Terkirim + Lacak Cukup Input ID Trx Saja
+ *  4. Akun Anonim Terhapus Otomatis Setiap 6 Jam (Bisa Dihidupkan/Dimatikan Admin)
+ *  5. Halaman & Alur Ubah Kata Sandi via Link Google Apps Script (Neo-Brutalism V3)
+ *  6. Navigasi Mode Desktop Kapsul Lingkaran Penuh
+ *  7. Efek Transisi Halus Tema Terang <-> Gelap
+ *  8. Katalog Utama Tampil Semua + Tombol "Lihat Selengkapnya" & "Tutup Kembali" Variasi
+ *  9. Dukungan Mega Footer Enterprise & Status Server Real-Time
+ * 10. Perbaikan Permanen Bug Tiba-Tiba Ter-Logout ("Akun Telah Dihapus oleh Admin")
+ * 11. Running Text Info Multi-Pesan (Hingga 6 Pesan) Interaktif Klik ke Promo/Berita
+ * 12. Frosted Glass Translucent Preloader (Anti-Bocor & Cepat)
+ * 13. Kode Promo: Pilihan Semua User atau Khusus Member Resmi (Non-Anonim)
+ * 14. Sembunyikan Kolom Isi Email & No HP Saat Checkout untuk Member Resmi
+ * 15. Tombol Upgrade Akun Anonim ke Member Resmi HANYA Ada di Tab Profil
+ * 16. Perbaikan Favicon & Meta Icon Logo Web agar Selalu Tampil di Link Web
+ * 17. Format Stok Produk Email ("email|password|refresh_token|client_id" + Link Akses Tanpa Login + Copy Utuh)
+ * 18. Stok Produk Otomatis dari Tab Stok + 3 Mode (Otomatis, Manual, Tanya & Otomatis)
+ * 19. Kode Promo Hanya Bisa 1 Email 1x Pakai
+ * 20, 23, 24. Tampilan Baru Tab CS Bantuan & Panel Chat (Tanpa Pesan Cepat di Sisi User)
+ * 21, 25. Sistem UI Neo-Brutalism V3 & Tipografi Multi-Font Estetik
+ * 22. Isolasi Penuh Data Email & Transaksi Sesi Anonim Baru vs Akun Member di HP Sama
  * ============================================================================ */
 
 import { 
     db, auth,
     signInAnonymously, createUserWithEmailAndPassword, signInWithEmailAndPassword,
-    sendPasswordResetEmail, GoogleAuthProvider, EmailAuthProvider, linkWithCredential, deleteUser,
+    sendPasswordResetEmail, updatePassword, GoogleAuthProvider, EmailAuthProvider, linkWithCredential, deleteUser,
     signInWithPopup, onAuthStateChanged,
     signOut, setPersistence, browserLocalPersistence,
     doc, setDoc, getDoc, updateDoc, deleteDoc, onSnapshot, collection, addDoc, increment, arrayUnion, query, where, getDocs, runTransaction 
@@ -33,20 +56,29 @@ const pathMutations = isWorkspace ? `artifacts/${appId}/public/data/payment_muta
 
 const fallbackSettingsPath = isWorkspace ? 'settings' : `artifacts/${appId}/public/data/settings`;
 
+// Konstanta Durasi Auto-Delete Anonim 6 Jam (21.600.000 ms)
+const ANON_AUTO_DELETE_TTL_MS = 6 * 60 * 60 * 1000;
+
+// SVG Default Favicon Vipercell V27 ([FEATURE-16])
+const DEFAULT_VIPERCELL_SVG_ICON = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' rx='116' fill='%232563eb' stroke='%230f172a' stroke-width='28'/%3E%3Cpath d='M298 88L136 288h116l-44 136 168-200H260l38-136z' fill='%23facc15' stroke='%230f172a' stroke-width='18' stroke-linejoin='round'/%3E%3C/svg%3E";
+
 // ==========================================
-// STATE & VARIABEL GLOBAL (V25.1)
+// STATE & VARIABEL GLOBAL (V27.0)
 // ==========================================
 let products = [];
 let groupedBrands = []; 
 let orders = [];
 let promos = [];
 let reviewsData = [];
+let liveReadyStocksMap = {}; // Peta stok Ready dari koleksi `stocks` ([FEATURE-18])
+
 let siteSettings = { 
     logoText: 'VIPER',
     logoAccent: 'CELL',
     logoImgBase64: '',
     pwaIconBase64: '',
-    marquee: 'Selamat Datang di Vipercell! Layanan Otomatis 24 Jam.',
+    marquee: 'Selamat Datang di Vipercell V27! Layanan Otomatis 24 Jam.',
+    marqueeList: [], // Hingga 6 pesan interaktif ([FEATURE-11])
     qrisStringData: '',
     emailWebhookUrl: '',
     webhookSecret: 'VIPERCELL_SECRET_2026',
@@ -57,6 +89,8 @@ let siteSettings = {
     banners: [],
     isStoreOpen: true,
     waChannelLink: '',
+    anonAutoDelete6h: true, // Fitur Auto-Delete Anonim setiap 6 jam ([FEATURE-04])
+    defaultEmailPortalUrl: '', // Link akses web ambil kode email tanpa login ([FEATURE-17])
     deletedUids: [],
     blockedUids: [],
     blockedDevices: []
@@ -64,7 +98,17 @@ let siteSettings = {
 
 let currentDeviceId = '';
 let boundLegacyGuestUid = null;
-let userProfile = { name: '', email: '', phone: '', whatsapp: '', role: 'anonymous', isAnonymous: true, isGuest: true };
+let userProfile = {
+    uid: '',
+    name: '',
+    email: '',
+    phone: '',
+    whatsapp: '',
+    role: 'anonymous',
+    isAnonymous: true,
+    isGuest: true,
+    sessionStartedAt: 0
+};
 let currentUser = null;
 let currentCheckoutBrand = null;
 let selectedProductForBuy = null;
@@ -77,11 +121,12 @@ let isPreloaderFinished = false;
 let previousOrdersData = {}; 
 let lastSuccessOrderCount = -1;
 let currentOpenedArticle = null;
+let parsedMarqueeSlots = [];
 
-// Smart Accordion & Filter States ([FEATURE-04])
+// Smart Accordion & Filter States ([FEATURE-08])
 let currentBrandFilter = 'all';
 let currentSearchQuery = '';
-let isCatalogExpanded = false;
+let isCatalogExpanded = true; // Katalog utama tampil penuh di V27 ([FEATURE-08])
 let isVariantsExpanded = false;
 let currentVariantSearchQuery = '';
 let currentUserHistoryFilter = 'ALL';
@@ -90,7 +135,7 @@ let currentUserHistoryFilter = 'ALL';
 let catalogSearchDebounceTimer = null;
 let variantSearchDebounceTimer = null;
 
-// State Verifikasi OTP 6-Digit ([FEATURE-02])
+// State Verifikasi OTP 6-Digit ([FEATURE-02 & FEATURE-15])
 let pendingUpgradeState = {
     name: '',
     whatsapp: '',
@@ -105,12 +150,14 @@ let otpResendTimer = null;
 const activeTimersRegistry = {
     qrisCountdown: null,
     bannerSlider: null,
-    preloaderSafety: null
+    preloaderSafety: null,
+    anonSixHourCountdown: null
 };
 const activeListenersRegistry = {
     chat: null,
     deletedAccount: null,
-    mutations: null
+    mutations: null,
+    stocks: null
 };
 
 // Preferensi Notifikasi User
@@ -120,9 +167,9 @@ let isUserNotifEnabled = localStorage.getItem('vipercell_user_notif') !== 'off';
 let isProcessingCheckout = false;
 let isCancellingOrder = false;
 let isCheckingPaymentNow = false;
-let isResendingReceiptEmail = false;
 let isSubmittingReview = false;
 let isUpgradingAccount = false;
+let isSubmittingPasswordReset = false;
 let targetReviewOrderId = null;
 const deliveringOrderIds = new Set();
 
@@ -145,9 +192,42 @@ function escapeJsStr(str) {
 }
 
 /* ============================================================================
- * [FEATURE-13] CLIENT-SIDE UNIFIED GAS WEBHOOK CALLER (CORS-SAFE & SECRET AUTH)
- * Deskripsi : Memanggil Google Apps Script untuk OTP Email & E-Receipt Otomatis
- *             dengan menyertakan Kunci Rahasia (webhookSecret) secara otomatis.
+ * [FEATURE-22] ISOLASI PENYIMPANAN LOKAL MEMBER VS ANONIM BARU
+ * Deskripsi : Memastikan saat HP yang sudah pernah login Member masuk kembali
+ *             menggunakan akun Anonim, data email, nomor HP, dan riwayat
+ *             transaksinya benar-benar terpisah (dianggap akun Anonim baru).
+ * ============================================================================ */
+function getActiveSessionStorageEmail() {
+    const isMember = Boolean(currentUser && !currentUser.isAnonymous && !userProfile.isGuest);
+    if (isMember) {
+        return (userProfile.email || currentUser?.email || localStorage.getItem('vipercell_member_email') || '').trim().toLowerCase();
+    }
+    return (userProfile.email || localStorage.getItem('vipercell_guest_email') || '').trim().toLowerCase();
+}
+
+function getActiveSessionStoragePhone() {
+    const isMember = Boolean(currentUser && !currentUser.isAnonymous && !userProfile.isGuest);
+    if (isMember) {
+        return (userProfile.phone || userProfile.whatsapp || localStorage.getItem('vipercell_member_phone') || '').trim();
+    }
+    return (userProfile.phone || userProfile.whatsapp || localStorage.getItem('vipercell_guest_phone') || '').trim();
+}
+
+function saveActiveSessionContact(email, phone) {
+    const isMember = Boolean(currentUser && !currentUser.isAnonymous && !userProfile.isGuest);
+    if (isMember) {
+        if (email) localStorage.setItem('vipercell_member_email', email.trim().toLowerCase());
+        if (phone) localStorage.setItem('vipercell_member_phone', phone.trim());
+    } else {
+        if (email) localStorage.setItem('vipercell_guest_email', email.trim().toLowerCase());
+        if (phone) localStorage.setItem('vipercell_guest_phone', phone.trim());
+    }
+}
+
+/* ============================================================================
+ * [FEATURE-13, 03, 05] CLIENT-SIDE UNIFIED GAS WEBHOOK CALLER (V27.0)
+ * Deskripsi : Memanggil Google Apps Script untuk OTP Email, Link Ubah Sandi,
+ *             dan Pengiriman Otomatis E-Receipt + Stok Lokal/Email.
  * ============================================================================ */
 async function callUnifiedGasWebhook(payloadObj) {
     const gasWebAppUrl = (siteSettings.emailWebhookUrl || '').trim();
@@ -197,10 +277,14 @@ async function callUnifiedGasWebhook(payloadObj) {
     }
 }
 
-async function sendOrderReceiptAndAccountEmail(orderData, accountDetailsText) {
+// [FEATURE-03] Pengiriman Email Otomatis Saat Stok Lokal Terkirim + Tandai emailSent di Firestore
+async function sendOrderReceiptAndAccountEmail(orderData, accountDetailsText, orderDbId = null) {
     const gasUrl = (siteSettings.emailWebhookUrl || '').trim();
     const buyerEmail = (orderData.userEmail || orderData.buyerEmail || '').trim();
     if (!gasUrl || !buyerEmail || !buyerEmail.includes('@')) return false;
+
+    // Cegah pengiriman email ganda jika sudah pernah terkirim
+    if (orderData.emailSent === true) return true;
 
     const itemObj = (orderData.items && orderData.items[0]) ? orderData.items[0] : {};
     const finalNominal = Number(orderData.finalTotal || orderData.uniqueTotal || 0);
@@ -226,6 +310,14 @@ async function sendOrderReceiptAndAccountEmail(orderData, accountDetailsText) {
             durationDays: Number(itemObj.durationDays || orderData.durationDays || 0),
             subscriptionEndAt: Number(orderData.subscriptionEndAt || 0)
         });
+
+        const resolvedDbId = orderDbId || orderData.dbId;
+        if (resolvedDbId) {
+            await updateDoc(doc(db, pathOrders, resolvedDbId), {
+                emailSent: true,
+                emailSentAt: Date.now()
+            }).catch(() => {});
+        }
         return true;
     } catch (e) {
         console.warn("Automated Email Delivery Info:", e.message);
@@ -233,46 +325,15 @@ async function sendOrderReceiptAndAccountEmail(orderData, accountDetailsText) {
     }
 }
 
-window.resendOrderEmailReceipt = async function(invId) {
-    if (isResendingReceiptEmail) return;
-    const order = orders.find(o => o.id === invId);
-    if (!order) return;
-
-    const targetEmail = (order.userEmail || userProfile.email || localStorage.getItem('vipercell_track_email') || '').trim();
-    if (!targetEmail || !targetEmail.includes('@')) {
-        window.customAlert('Email Tidak Ditemukan', 'Alamat email pada pesanan ini kosong atau tidak valid.', 'warning');
-        return;
-    }
-
-    if (!(siteSettings.emailWebhookUrl || '').trim().startsWith('https://script.google.com/')) {
-        window.customAlert('Webhook Belum Aktif', 'Fitur pengiriman email otomatis sedang tidak diaktifkan oleh Admin.', 'warning');
-        return;
-    }
-
-    isResendingReceiptEmail = true;
-    window.showToast('Mengirim Email...', `Sedang mengirim ulang E-Receipt #${order.id} ke ${targetEmail}`, 'info');
-
-    try {
-        const sent = await sendOrderReceiptAndAccountEmail(
-            { ...order, userEmail: targetEmail },
-            order.adminReply || 'Terima kasih! Pembayaran Anda telah diverifikasi dan pesanan telah selesai diproses.'
-        );
-        if (sent) {
-            window.showToast('Email Terkirim! 📩', `E-Receipt #${order.id} berhasil dikirim ke ${targetEmail}. Cek Inbox/Spam.`, 'success');
-        } else {
-            window.customAlert('Gagal Mengirim Email', 'Tidak dapat mengirim struk ke email. Pastikan URL & Kunci Rahasia Webhook di Admin sudah sesuai.', 'error');
-        }
-    } catch (err) {
-        window.customAlert('Gagal Mengirim Email', err.message, 'error');
-    } finally {
-        isResendingReceiptEmail = false;
-    }
+// [FEATURE-02] Tombol kirim email di riwayat transaksi user telah dihapus (hanya ada di Admin)
+window.resendOrderEmailReceipt = async function() {
+    window.showToast('Otomatis Terkirim', 'Pengiriman email struk dikelola otomatis oleh sistem & Admin.', 'info');
 };
-/* ======================== END OF [FEATURE-13] ============================= */
 
 /* ============================================================================
- * [FEATURE-01] ZERO-LEAK PRE-LOADER GATEKEEPER (4-STAGE REAL DATA LATCH)
- * Deskripsi : Menahan pembukaan layar sampai Auth, Config, Katalog & Font siap
+ * [FEATURE-01 & FEATURE-12] FROSTED GLASS TRANSLUCENT PRE-LOADER GATEKEEPER
+ * Deskripsi : Latar belakang transparan agak buram sehingga siluet halaman
+ *             terlihat, namun terkunci rapat tanpa bocor dan cepat selesai.
  * ============================================================================ */
 function updatePreloaderStage(percent, statusText, subText = '') {
     const txtEl = document.getElementById('preloader-status-text');
@@ -280,7 +341,7 @@ function updatePreloaderStage(percent, statusText, subText = '') {
     const subEl = document.getElementById('preloader-stage-sub');
 
     if (txtEl && statusText) txtEl.innerText = statusText;
-    if (fillEl) fillEl.style.width = `${Math.min(100, Math.max(5, percent))}%`;
+    if (fillEl) fillEl.style.width = `${Math.min(100, Math.max(8, percent))}%`;
     if (subEl && subText) subEl.innerText = subText;
 }
 
@@ -315,13 +376,14 @@ function unlockAppUI() {
         loader.classList.add('hidden');
         setTimeout(() => {
             loader.style.display = 'none';
-        }, 260);
+        }, 220);
     }
 }
 
 function setAuthGateLock(isLocked) {
     if (isLocked) {
         document.body.classList.add('auth-locked');
+        document.body.classList.remove('is-member-session');
         document.querySelectorAll('.main-tab-content').forEach(el => el.classList.remove('active'));
         const authTab = document.getElementById('tab-auth');
         if (authTab) authTab.classList.add('active');
@@ -342,12 +404,12 @@ function checkAuthStateFirstLoad() {
 }
 
 async function fetchInitialStoreDataWithGatekeeper() {
-    // Stage 2: Tarik Konfigurasi Toko &Katalog Secara Paralel agar Lebih Cepat
-    updatePreloaderStage(45, 'Sedang memuat data...', 'Menarik konfigurasi toko & katalog produk...');
-    const [settingsSnap, productsSnap, ordersSnap] = await Promise.all([
+    updatePreloaderStage(48, 'Menyiapkan ruang belanja...', 'Menarik konfigurasi toko & katalog produk...');
+    const [settingsSnap, productsSnap, ordersSnap, stocksSnap] = await Promise.all([
         getDoc(doc(db, pathSettings, 'mainConfig')).catch(() => null),
         getDocs(collection(db, pathProducts)).catch(() => null),
-        getDocs(collection(db, pathOrders)).catch(() => null)
+        getDocs(collection(db, pathOrders)).catch(() => null),
+        getDocs(query(collection(db, pathStocks), where("status", "==", "Ready"))).catch(() => null)
     ]);
 
     if (settingsSnap && settingsSnap.exists()) {
@@ -362,7 +424,12 @@ async function fetchInitialStoreDataWithGatekeeper() {
     window.applySettingsToUI();
     applyCustomPwaIcon();
 
-    updatePreloaderStage(78, 'Sedang memuat data...', 'Menyusun katalog produk & varian layanan...');
+    // Hitung peta stok Ready dari koleksi `stocks` ([FEATURE-18])
+    if (stocksSnap) {
+        rebuildLiveReadyStocksMap(stocksSnap.docs);
+    }
+
+    updatePreloaderStage(82, 'Menyiapkan ruang belanja...', 'Menyusun katalog produk & variasi layanan...');
     if (ordersSnap) {
         orders = [];
         ordersSnap.forEach((d) => orders.push({ dbId: d.id, ...d.data() }));
@@ -387,11 +454,8 @@ async function initializeAppWithLoader() {
     document.documentElement.setAttribute('data-theme', savedTheme);
     const icon = document.getElementById('theme-icon');
     if (icon) icon.className = savedTheme === 'dark' ? 'fa-solid fa-moon' : 'fa-solid fa-sun';
-
-    const trackEmailInp = document.getElementById('track-email');
-    if (trackEmailInp && localStorage.getItem('vipercell_track_email')) {
-        trackEmailInp.value = localStorage.getItem('vipercell_track_email');
-    }
+    const themeLbl = document.getElementById('theme-label-text');
+    if (themeLbl) themeLbl.innerText = savedTheme === 'dark' ? 'Gelap' : 'Terang';
 
     if (!navigator.onLine) {
         updatePreloaderStage(20, 'Koneksi Terputus', 'Periksa sambungan internet perangkat Anda.');
@@ -399,7 +463,7 @@ async function initializeAppWithLoader() {
         return;
     }
 
-    // Smart Timeout 9.000ms (9 Detik)
+    // Safety Timeout Cepat 5.200ms agar preloader transparan tidak pernah terasa lama ([FEATURE-12])
     if (activeTimersRegistry.preloaderSafety) clearTimeout(activeTimersRegistry.preloaderSafety);
     activeTimersRegistry.preloaderSafety = setTimeout(() => {
         if (!isPreloaderFinished) {
@@ -409,52 +473,81 @@ async function initializeAppWithLoader() {
                 unlockAppUI();
             }
         }
-    }, 9000);
+    }, 5200);
 
     try {
-        // STAGE 1 (0% -> 25%): Sesi Perangkat & Autentikasi
-        updatePreloaderStage(25, 'Sedang memuat data...', 'Memeriksa sesi perangkat & keamanan...');
+        updatePreloaderStage(25, 'Menyiapkan ruang belanja...', 'Memeriksa sesi perangkat & keamanan V27...');
         await setPersistence(auth, browserLocalPersistence).catch(() => {});
         await initDeviceIdentity();
         const initialUser = await checkAuthStateFirstLoad();
 
-        // STAGE 2 & 3 (25% -> 85%): Konfigurasi Toko & Katalog Produk
         await fetchInitialStoreDataWithGatekeeper();
 
-        // Aktifkan Real-Time Listeners
         listenData();
         setupAuthStateListener();
 
-        // STAGE 4 (85% -> 100%): Font Warmup + Penentuan Halaman Awal
-        updatePreloaderStage(94, 'Sedang memuat data...', 'Menyiapkan antarmuka pengguna...');
+        updatePreloaderStage(95, 'Hampir siap...', 'Menyelesaikan render antarmuka Neo-Brutalism V3...');
         if (document.fonts && document.fonts.ready) {
             await Promise.race([
                 document.fonts.ready,
-                new Promise(res => setTimeout(res, 400))
+                new Promise(res => setTimeout(res, 220))
             ]);
         }
 
-        const sessionMode = localStorage.getItem('vipercell_active_session_mode');
-        if ((initialUser && !initialUser.isAnonymous) || sessionMode === 'guest') {
-            const userObjToSync = initialUser || {
-                uid: boundLegacyGuestUid || `anon_${currentDeviceId}`,
-                isAnonymous: true,
-                email: ''
-            };
-            await syncUserProfileFromAuth(userObjToSync);
+        // Cek apakah halaman dibuka melalui Link Ubah Sandi Apps Script ([FEATURE-05])
+        const urlParams = new URLSearchParams(window.location.search);
+        const urlAction = (urlParams.get('action') || urlParams.get('mode') || '').toLowerCase();
+        const urlToken = urlParams.get('token') || urlParams.get('oobCode') || '';
+        const urlEmail = urlParams.get('email') || '';
+        const isResetLink = (urlAction === 'reset_password' || urlAction === 'resetpassword' || window.location.hash === '#ubah-sandi');
 
-            const restricted = await checkRealtimeAccountRestriction();
+        const sessionMode = localStorage.getItem('vipercell_active_session_mode');
+        if (initialUser && !initialUser.isAnonymous) {
+            // Sesi Member Resmi
+            boundLegacyGuestUid = null;
+            await clearMultiLayerToken('vipercell_anon_uid');
+            await syncUserProfileFromAuth(initialUser);
+
+            const restricted = await checkRealtimeAccountRestriction(false);
             if (!restricted) {
-                localStorage.setItem('vipercell_active_session_mode', userObjToSync.isAnonymous ? 'guest' : 'member');
+                localStorage.setItem('vipercell_active_session_mode', 'member');
                 setAuthGateLock(false);
                 window.switchMainTab('katalog');
+            }
+        } else if (sessionMode === 'guest') {
+            // Sesi Anonim
+            const expired6h = await checkAndExpireAnonSessionIf6Hours();
+            if (!expired6h) {
+                const guestUidToUse = boundLegacyGuestUid || (initialUser?.isAnonymous ? initialUser.uid : `anon_${currentDeviceId}_${Date.now().toString(36).slice(-4)}`);
+                const userObjToSync = {
+                    uid: guestUidToUse,
+                    isAnonymous: true,
+                    email: ''
+                };
+                await syncUserProfileFromAuth(userObjToSync);
+
+                const restricted = await checkRealtimeAccountRestriction(false);
+                if (!restricted) {
+                    localStorage.setItem('vipercell_active_session_mode', 'guest');
+                    setAuthGateLock(false);
+                    window.switchMainTab('katalog');
+                    startAnonSixHourTimer();
+                }
+            } else {
+                setAuthGateLock(true);
             }
         } else {
             setAuthGateLock(true);
         }
 
-        updatePreloaderStage(100, 'Siap!', 'Membuka halaman Vipercell...');
-        setTimeout(unlockAppUI, 120);
+        if (isResetLink) {
+            setTimeout(() => {
+                window.openNeoResetPasswordPage(urlEmail, urlToken);
+            }, 150);
+        }
+
+        updatePreloaderStage(100, 'Siap!', 'Membuka halaman Vipercell V27...');
+        setTimeout(unlockAppUI, 80);
     } catch (error) {
         console.error("Gatekeeper Init Error:", error);
         setAuthGateLock(true);
@@ -462,10 +555,10 @@ async function initializeAppWithLoader() {
     }
     observeReveals();
 }
-/* ======================== END OF [FEATURE-01] ============================= */
 
 /* ============================================================================
- * [FEATURE-02] AUTH GATE, 1-HP-1-ANON FINGERPRINT & 6-DIGIT OTP UPGRADE
+ * [FEATURE-02, 04, 10, 22] AUTH GATE, PERBAIKAN BUG FALSE-LOGOUT ADMIN DELETE,
+ * ISOLASI SESI ANONIM BARU VS MEMBER, & AUTO-DELETE ANONIM 6 JAM
  * ============================================================================ */
 function computeDeviceFingerprint() {
     try {
@@ -492,7 +585,7 @@ function computeDeviceFingerprint() {
                 ctx.fillStyle = '#2563eb';
                 ctx.fillRect(10, 5, 80, 25);
                 ctx.fillStyle = '#0f172a';
-                ctx.fillText('VipercellGuardV25', 14, 12);
+                ctx.fillText('VipercellGuardV27', 14, 12);
                 rawTraits.push(canvas.toDataURL().slice(-64));
             }
         } catch (e) {}
@@ -517,28 +610,6 @@ function computeDeviceFingerprint() {
 async function saveMultiLayerToken(key, value) {
     if (!value) return;
     try { localStorage.setItem(key, value); } catch (e) {}
-
-    try {
-        const req = indexedDB.open('VipercellGuardDB', 1);
-        req.onupgradeneeded = (e) => {
-            const idb = e.target.result;
-            if (!idb.objectStoreNames.contains('tokens')) {
-                idb.createObjectStore('tokens');
-            }
-        };
-        req.onsuccess = (e) => {
-            const idb = e.target.result;
-            const tx = idb.transaction('tokens', 'readwrite');
-            tx.objectStore('tokens').put(value, key);
-        };
-    } catch (e) {}
-
-    try {
-        if ('caches' in window) {
-            const cache = await caches.open('vipercell-guard-token-v25');
-            await cache.put(`/__guard/${key}`, new Response(value));
-        }
-    } catch (e) {}
 }
 
 async function readMultiLayerToken(key) {
@@ -546,98 +617,125 @@ async function readMultiLayerToken(key) {
         const lsVal = localStorage.getItem(key);
         if (lsVal) return lsVal;
     } catch (e) {}
+    return null;
+}
 
+// [FEATURE-10] Pembersihan menyeluruh semua layer penyimpanan agar UID terhapus tidak pernah bangkit lagi
+async function clearMultiLayerToken(key) {
+    try { localStorage.removeItem(key); } catch (e) {}
     try {
         if ('caches' in window) {
             const cache = await caches.open('vipercell-guard-token-v25');
-            const res = await cache.match(`/__guard/${key}`);
-            if (res) {
-                const text = await res.text();
-                if (text) {
-                    localStorage.setItem(key, text);
-                    return text;
-                }
-            }
+            await cache.delete(`/__guard/${key}`);
         }
     } catch (e) {}
-
     try {
-        const idbVal = await new Promise((resolve) => {
+        if ('indexedDB' in window) {
             const req = indexedDB.open('VipercellGuardDB', 1);
-            req.onupgradeneeded = (e) => {
-                const idb = e.target.result;
-                if (!idb.objectStoreNames.contains('tokens')) {
-                    idb.createObjectStore('tokens');
-                }
-            };
             req.onsuccess = (e) => {
-                const idb = e.target.result;
-                if (!idb.objectStoreNames.contains('tokens')) return resolve(null);
-                const tx = idb.transaction('tokens', 'readonly');
-                const getReq = tx.objectStore('tokens').get(key);
-                getReq.onsuccess = () => resolve(getReq.result || null);
-                getReq.onerror = () => resolve(null);
+                try {
+                    const idb = e.target.result;
+                    if (idb.objectStoreNames.contains('tokens')) {
+                        const tx = idb.transaction('tokens', 'readwrite');
+                        tx.objectStore('tokens').delete(key);
+                    }
+                } catch (err) {}
             };
-            req.onerror = () => resolve(null);
-        });
-        if (idbVal) {
-            localStorage.setItem(key, idbVal);
-            return idbVal;
         }
     } catch (e) {}
-
-    return null;
 }
 
 async function initDeviceIdentity() {
     currentDeviceId = computeDeviceFingerprint();
     await saveMultiLayerToken('vipercell_device_id', currentDeviceId);
 
-    const savedLegacyUid = await readMultiLayerToken('vipercell_anon_uid');
-    if (savedLegacyUid) {
-        boundLegacyGuestUid = savedLegacyUid;
+    const activeMode = localStorage.getItem('vipercell_active_session_mode');
+    if (activeMode === 'member') {
+        boundLegacyGuestUid = null;
+        await clearMultiLayerToken('vipercell_anon_uid');
+    } else {
+        const savedLegacyUid = await readMultiLayerToken('vipercell_anon_uid');
+        const deletedList = Array.isArray(siteSettings.deletedUids) ? siteSettings.deletedUids : [];
+        if (savedLegacyUid && !deletedList.includes(savedLegacyUid)) {
+            boundLegacyGuestUid = savedLegacyUid;
+        } else if (savedLegacyUid && deletedList.includes(savedLegacyUid)) {
+            boundLegacyGuestUid = null;
+            await clearMultiLayerToken('vipercell_anon_uid');
+        }
     }
     return currentDeviceId;
 }
 
-async function checkRealtimeAccountRestriction() {
+/* ============================================================================
+ * [FEATURE-10] PERBAIKAN MATANG BUG TIBA-TIBA TER-LOGOUT SENDIRI
+ * Deskripsi :
+ * 1. Memastikan jika user login sebagai Member Resmi, effectiveUid HANYA
+ *    menggunakan UID Member (tidak pernah menggunakan boundLegacyGuestUid).
+ * 2. Jika UID anonim lama sudah masuk deletedUids saat startup, cukup bersihkan
+ *    token lama secara diam-diam dan izinkan sesi baru tanpa menampilkan pesan
+ *    palsu "Akun Anda telah dihapus oleh Administrator".
+ * 3. Pesan "Akun Dihapus" hanya ditampilkan jika dokumen user sesi aktif saat
+ *    ini benar-benar dihapus secara real-time (`isLiveSnapshot === true`).
+ * ============================================================================ */
+async function checkRealtimeAccountRestriction(isLiveSnapshot = false) {
     if (!currentDeviceId) await initDeviceIdentity();
-    const effectiveUid = boundLegacyGuestUid || currentUser?.uid || '';
+
+    const isMemberSession = Boolean(currentUser && !currentUser.isAnonymous && !userProfile.isGuest);
+    const effectiveUid = isMemberSession
+        ? currentUser.uid
+        : (boundLegacyGuestUid || currentUser?.uid || userProfile?.uid || '');
+
+    if (!effectiveUid) return false;
 
     const deletedList = Array.isArray(siteSettings.deletedUids) ? siteSettings.deletedUids : [];
     const blockedUidList = Array.isArray(siteSettings.blockedUids) ? siteSettings.blockedUids : [];
     const blockedDevList = Array.isArray(siteSettings.blockedDevices) ? siteSettings.blockedDevices : [];
 
-    const isDeleted = effectiveUid && deletedList.includes(effectiveUid);
-    const isBlocked = (effectiveUid && blockedUidList.includes(effectiveUid)) ||
-                      (currentDeviceId && blockedDevList.includes(currentDeviceId));
+    const isBlocked = blockedUidList.includes(effectiveUid) ||
+                      (!isMemberSession && currentDeviceId && blockedDevList.includes(currentDeviceId));
 
-    if ((isDeleted || isBlocked) && !document.body.classList.contains('auth-locked')) {
-        localStorage.removeItem('vipercell_anon_uid');
-        localStorage.removeItem('vipercell_anon_name');
+    const isDeleted = deletedList.includes(effectiveUid);
+
+    if (!isBlocked && !isDeleted) return false;
+
+    // Jika bukan Member (yaitu sesi Anonim) dan terdeteksi isDeleted saat awal muat halaman (bukan live kick),
+    // bersihkan saja UID anonim usang tanpa memunculkan alert palsu!
+    if (!isMemberSession && isDeleted && !isLiveSnapshot) {
+        boundLegacyGuestUid = null;
+        await clearMultiLayerToken('vipercell_anon_uid');
+        localStorage.removeItem('vipercell_anon_session_started_at');
+        return false;
+    }
+
+    if (!document.body.classList.contains('auth-locked')) {
+        boundLegacyGuestUid = null;
+        await clearMultiLayerToken('vipercell_anon_uid');
+        localStorage.removeItem('vipercell_anon_session_started_at');
         localStorage.setItem('vipercell_active_session_mode', 'logged_out');
 
         try {
             if (auth.currentUser) {
-                if (isDeleted) {
-                    await deleteUser(auth.currentUser).catch(async () => await signOut(auth));
-                } else {
-                    await signOut(auth);
-                }
+                await signOut(auth).catch(() => {});
             }
         } catch (e) {}
 
         currentUser = null;
-        userProfile = { name: '', email: '', phone: '', isGuest: true, isAnonymous: true };
+        userProfile = { uid: '', name: '', email: '', phone: '', isGuest: true, isAnonymous: true };
         setAuthGateLock(true);
 
-        window.customAlert(
-            isBlocked ? 'Akses Akun Diblokir' : 'Akun Dihapus',
-            isBlocked
-                ? 'Maaf, akun atau perangkat Anda telah diblokir oleh Administrator Vipercell.'
-                : 'Akun Anda telah dihapus oleh Administrator Vipercell.',
-            'error'
-        );
+        if (isBlocked) {
+            window.customAlert(
+                'Akses Akun Diblokir',
+                'Maaf, akun atau perangkat Anda telah diblokir oleh Administrator Vipercell.',
+                'error'
+            );
+        } else if (isLiveSnapshot) {
+            window.customAlert(
+                'Sesi Akun Berakhir',
+                'Sesi akun Anda telah ditutup atau dibersihkan oleh Administrator Vipercell. Silakan masuk kembali.',
+                'warning'
+            );
+        }
         return true;
     }
     return false;
@@ -647,138 +745,191 @@ function listenDeletedAccountStatus(uid) {
     if (!uid) return;
     if (activeListenersRegistry.deletedAccount) activeListenersRegistry.deletedAccount();
 
+    let isInitialDocSnap = true;
     activeListenersRegistry.deletedAccount = onSnapshot(doc(db, pathUsers, uid), async (docSnap) => {
         if (docSnap.exists()) {
             const uData = docSnap.data();
-            if (uData.isBlocked === true || uData.isDeleted === true) {
+            if (uData.isBlocked === true || (uData.isDeleted === true && !isInitialDocSnap)) {
                 if (!siteSettings.blockedUids) siteSettings.blockedUids = [];
                 if (uData.isBlocked && !siteSettings.blockedUids.includes(uid)) siteSettings.blockedUids.push(uid);
                 if (!siteSettings.deletedUids) siteSettings.deletedUids = [];
                 if (uData.isDeleted && !siteSettings.deletedUids.includes(uid)) siteSettings.deletedUids.push(uid);
-                await checkRealtimeAccountRestriction();
+                await checkRealtimeAccountRestriction(true);
             }
         }
+        isInitialDocSnap = false;
     }, () => {});
 }
 
+/* ============================================================================
+ * [FEATURE-04] AUTO-DELETE AKUN ANONIM SETIAP 6 JAM (BISA ON/OFF DARI ADMIN)
+ * ============================================================================ */
+async function checkAndExpireAnonSessionIf6Hours() {
+    if (siteSettings.anonAutoDelete6h === false) {
+        localStorage.setItem('vipercell_anon_autodelete_disabled', 'true');
+        const card = document.getElementById('anon-ttl-info-card');
+        if (card) card.style.display = 'none';
+        return false;
+    }
+    localStorage.setItem('vipercell_anon_autodelete_disabled', 'false');
+
+    const startedRaw = localStorage.getItem('vipercell_anon_session_started_at');
+    if (!startedRaw) return false;
+
+    const startedMs = parseInt(startedRaw, 10);
+    if (isNaN(startedMs) || startedMs <= 0) return false;
+
+    if (Date.now() - startedMs >= ANON_AUTO_DELETE_TTL_MS) {
+        const oldAnonUid = boundLegacyGuestUid || localStorage.getItem('vipercell_anon_uid') || '';
+        if (oldAnonUid) {
+            await deleteDoc(doc(db, pathUsers, oldAnonUid)).catch(() => {});
+            await deleteDoc(doc(db, pathChats, oldAnonUid)).catch(() => {});
+        }
+        if (currentDeviceId) {
+            await deleteDoc(doc(db, pathDeviceLocks, currentDeviceId)).catch(() => {});
+        }
+        boundLegacyGuestUid = null;
+        await clearMultiLayerToken('vipercell_anon_uid');
+        localStorage.removeItem('vipercell_anon_session_started_at');
+        localStorage.removeItem('vipercell_guest_email');
+        localStorage.removeItem('vipercell_guest_phone');
+        localStorage.removeItem('vipercell_anon_name');
+        localStorage.setItem('vipercell_active_session_mode', 'logged_out');
+        return true;
+    }
+    return false;
+}
+
+function startAnonSixHourTimer() {
+    if (activeTimersRegistry.anonSixHourCountdown) {
+        clearInterval(activeTimersRegistry.anonSixHourCountdown);
+        activeTimersRegistry.anonSixHourCountdown = null;
+    }
+
+    const card = document.getElementById('anon-ttl-info-card');
+    const timerEl = document.getElementById('anon-ttl-countdown');
+
+    const isGuest = Boolean(!currentUser || currentUser.isAnonymous || userProfile.isGuest);
+    if (!isGuest || siteSettings.anonAutoDelete6h === false) {
+        if (card) card.style.display = 'none';
+        return;
+    }
+
+    let startedAt = parseInt(localStorage.getItem('vipercell_anon_session_started_at') || '0', 10);
+    if (!startedAt || isNaN(startedAt)) {
+        startedAt = userProfile.sessionStartedAt || Date.now();
+        localStorage.setItem('vipercell_anon_session_started_at', String(startedAt));
+    }
+
+    if (card) card.style.display = 'flex';
+
+    const tick = async () => {
+        if (siteSettings.anonAutoDelete6h === false || !userProfile.isGuest) {
+            if (card) card.style.display = 'none';
+            clearInterval(activeTimersRegistry.anonSixHourCountdown);
+            return;
+        }
+        const elapsed = Date.now() - startedAt;
+        const remain = ANON_AUTO_DELETE_TTL_MS - elapsed;
+        if (remain <= 0) {
+            clearInterval(activeTimersRegistry.anonSixHourCountdown);
+            await checkAndExpireAnonSessionIf6Hours();
+            await window.logoutUser();
+            window.showToast('Sesi Anonim 6 Jam Berakhir', 'Akun anonim otomatis dihapus setelah 6 jam. Silakan buat sesi baru.', 'warning');
+            return;
+        }
+        if (timerEl) {
+            const h = Math.floor(remain / 3600000);
+            const m = Math.floor((remain % 3600000) / 60000);
+            const s = Math.floor((remain % 60000) / 1000);
+            timerEl.innerText = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+        }
+    };
+
+    tick();
+    activeTimersRegistry.anonSixHourCountdown = setInterval(tick, 1000);
+}
+window.initAnonSixHourCountdownV27 = startAnonSixHourTimer;
+
+/* ============================================================================
+ * [FEATURE-22] LOGIN ANONIM TERISOLASI PENUH (DATA BERBEDA DARI MEMBER)
+ * ============================================================================ */
 window.processAnonymousLogin = async function() {
     const btnGuest = document.getElementById('auth-guest-btn');
     const ogHtml = btnGuest ? btnGuest.innerHTML : '';
     if (btnGuest) {
         btnGuest.disabled = true;
-        btnGuest.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> <span>Memverifikasi Sesi Anonim...</span>`;
+        btnGuest.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> <span>Membuat Sesi Anonim Baru...</span>`;
     }
 
     try {
         if (!currentDeviceId) await initDeviceIdentity();
 
         const blockedDevList = Array.isArray(siteSettings.blockedDevices) ? siteSettings.blockedDevices : [];
-        const blockedUidList = Array.isArray(siteSettings.blockedUids) ? siteSettings.blockedUids : [];
-        const deletedUidList = Array.isArray(siteSettings.deletedUids) ? siteSettings.deletedUids : [];
-
         if (blockedDevList.includes(currentDeviceId)) {
             window.customAlert('Perangkat Diblokir', 'Maaf, akses sesi anonim pada perangkat ini telah diblokir oleh Administrator.', 'error');
             return;
         }
 
-        let activeUser = auth.currentUser;
-        if (!activeUser) {
-            try {
-                const cred = await signInAnonymously(auth);
-                activeUser = cred.user;
-            } catch (authErr) {
-                const fallbackUid = (boundLegacyGuestUid && !deletedUidList.includes(boundLegacyGuestUid))
-                    ? boundLegacyGuestUid
-                    : `anon_${currentDeviceId}`;
-                activeUser = { uid: fallbackUid, isAnonymous: true, email: '' };
-            }
-        }
-        currentUser = activeUser;
+        // [FEATURE-22] Bersihkan jejak sesi Member sebelumnya agar akun Anonim benar-benar baru & terpisah
+        localStorage.removeItem('vipercell_track_email');
+        localStorage.removeItem('vipercell_track_phone');
+        localStorage.removeItem('vipercell_guest_email');
+        localStorage.removeItem('vipercell_guest_phone');
+        localStorage.removeItem('vipercell_anon_name');
+        await clearMultiLayerToken('vipercell_anon_uid');
+        boundLegacyGuestUid = null;
 
+        if (auth.currentUser) {
+            await signOut(auth).catch(() => {});
+        }
+
+        let activeUser = null;
+        try {
+            const cred = await signInAnonymously(auth);
+            activeUser = cred.user;
+        } catch (authErr) {
+            const salt = Date.now().toString(36).slice(-5) + Math.floor(10 + Math.random() * 89);
+            activeUser = { uid: `anon_${currentDeviceId}_${salt}`, isAnonymous: true, email: '' };
+        }
+
+        // Pastikan UID anonim unik dan tidak berada di daftar deletedUids
+        const deletedUidList = Array.isArray(siteSettings.deletedUids) ? siteSettings.deletedUids : [];
         let effectiveUid = activeUser.uid;
-        if (boundLegacyGuestUid && !deletedUidList.includes(boundLegacyGuestUid)) {
-            effectiveUid = boundLegacyGuestUid;
-        }
-
         if (deletedUidList.includes(effectiveUid)) {
-            try {
-                await signOut(auth);
-                const newCred = await signInAnonymously(auth);
-                activeUser = newCred.user;
-                currentUser = activeUser;
-                effectiveUid = activeUser.uid;
-            } catch (reAuthErr) {
-                effectiveUid = `anon_${currentDeviceId}_${Date.now().toString(36).slice(-4)}`;
-            }
+            effectiveUid = `anon_${currentDeviceId}_${Date.now().toString(36).slice(-5)}`;
         }
 
-        if (blockedUidList.includes(effectiveUid)) {
-            window.customAlert('Akun Diblokir', 'Maaf, sesi akun anonim Anda telah diblokir oleh Administrator.', 'error');
-            return;
-        }
-
+        currentUser = activeUser;
         boundLegacyGuestUid = effectiveUid;
         await saveMultiLayerToken('vipercell_anon_uid', effectiveUid);
 
+        const nowMs = Date.now();
+        localStorage.setItem('vipercell_anon_session_started_at', String(nowMs));
+
         const shortId = effectiveUid.slice(-4).toUpperCase();
-        const savedAnonName = localStorage.getItem('vipercell_anon_name') || `Tamu #${shortId}`;
+        const freshAnonName = `Tamu #${shortId}`;
+        localStorage.setItem('vipercell_anon_name', freshAnonName);
 
-        let loadedProfile = null;
-        try {
-            const userDocRef = doc(db, pathUsers, effectiveUid);
-            const existingSnap = await getDoc(userDocRef);
-            if (existingSnap.exists()) {
-                const existingData = existingSnap.data();
-                if (existingData.isBlocked === true) {
-                    window.customAlert('Akun Diblokir', 'Maaf, akun anonim ini telah diblokir oleh Administrator.', 'error');
-                    return;
-                }
-                if (!existingData.isDeleted && !deletedUidList.includes(effectiveUid)) {
-                    loadedProfile = existingData;
-                }
-            }
-        } catch (readErr) {}
+        userProfile = {
+            uid: effectiveUid,
+            authUid: activeUser.uid,
+            name: freshAnonName,
+            email: '',
+            phone: '',
+            whatsapp: '',
+            role: 'anonymous',
+            isAnonymous: true,
+            isGuest: true,
+            isBlocked: false,
+            isDeleted: false,
+            deviceId: currentDeviceId,
+            sessionStartedAt: nowMs,
+            expiresAt: nowMs + ANON_AUTO_DELETE_TTL_MS,
+            createdAt: nowMs
+        };
 
-        if (loadedProfile) {
-            userProfile = {
-                ...loadedProfile,
-                uid: effectiveUid,
-                name: loadedProfile.name || savedAnonName,
-                role: 'anonymous',
-                isAnonymous: true,
-                isGuest: true,
-                deviceId: currentDeviceId
-            };
-            if (loadedProfile.name) localStorage.setItem('vipercell_anon_name', loadedProfile.name);
-        } else {
-            userProfile = {
-                uid: effectiveUid,
-                authUid: activeUser.uid,
-                name: savedAnonName,
-                email: localStorage.getItem('vipercell_track_email') || '',
-                phone: localStorage.getItem('vipercell_track_phone') || '',
-                whatsapp: localStorage.getItem('vipercell_track_phone') || '',
-                role: 'anonymous',
-                isAnonymous: true,
-                isGuest: true,
-                isBlocked: false,
-                isDeleted: false,
-                deviceId: currentDeviceId,
-                createdAt: Date.now()
-            };
-        }
-
-        try {
-            await setDoc(doc(db, pathUsers, effectiveUid), { ...userProfile, lastActiveAt: Date.now() }, { merge: true });
-        } catch (writeErr) {
-            if (activeUser.uid && activeUser.uid !== effectiveUid) {
-                effectiveUid = activeUser.uid;
-                userProfile.uid = effectiveUid;
-                boundLegacyGuestUid = effectiveUid;
-                await saveMultiLayerToken('vipercell_anon_uid', effectiveUid);
-                await setDoc(doc(db, pathUsers, effectiveUid), { ...userProfile, lastActiveAt: Date.now() }, { merge: true }).catch(() => {});
-            }
-        }
+        await setDoc(doc(db, pathUsers, effectiveUid), { ...userProfile, lastActiveAt: nowMs }, { merge: true }).catch(() => {});
 
         setDoc(doc(db, pathDeviceLocks, currentDeviceId), {
             uid: effectiveUid,
@@ -786,7 +937,7 @@ window.processAnonymousLogin = async function() {
             status: 'active',
             deviceId: currentDeviceId,
             isBlocked: false,
-            updatedAt: Date.now()
+            updatedAt: nowMs
         }, { merge: true }).catch(() => {});
 
         localStorage.setItem('vipercell_active_session_mode', 'guest');
@@ -794,11 +945,13 @@ window.processAnonymousLogin = async function() {
         setAuthGateLock(false);
         applyUserSessionToUI();
         window.renderUserOrders();
+        updateProfileStats();
         checkChatUserState();
         listenUserChat();
+        startAnonSixHourTimer();
         window.switchMainTab('katalog');
 
-        window.showToast('Berhasil Masuk', `Selamat datang, ${userProfile.name}!`, 'success');
+        window.showToast('Sesi Anonim Baru Aktif', `Selamat datang, ${userProfile.name}! Data sesi ini terpisah & aman.`, 'success');
     } catch (err) {
         console.error("Anonymous Login Error:", err);
         window.customAlert('Gagal Masuk', 'Terjadi kendala jaringan. Silakan periksa koneksi internet Anda.', 'error');
@@ -809,8 +962,11 @@ window.processAnonymousLogin = async function() {
         }
     }
 };
+window.startIsolatedAnonymousSessionV27 = window.processAnonymousLogin;
 
-// VERIFIKASI EMAIL OTP 6-DIGIT SAAT UPGRADE AKUN ANONIM KE MEMBER
+// ============================================================================
+// [FEATURE-02 & FEATURE-15] UPGRADE AKUN ANONIM KE MEMBER RESMI (KHUSUS PROFIL)
+// ============================================================================
 window.openUpgradeMemberModal = function() {
     const nameInp = document.getElementById('upg-name');
     const phoneInp = document.getElementById('upg-phone');
@@ -822,7 +978,7 @@ window.openUpgradeMemberModal = function() {
     const savedName = userProfile.name && !userProfile.name.startsWith('Tamu #') ? userProfile.name : '';
     if (nameInp) nameInp.value = savedName;
     if (phoneInp) phoneInp.value = userProfile.phone || userProfile.whatsapp || '';
-    if (emailInp) emailInp.value = userProfile.email || localStorage.getItem('vipercell_track_email') || '';
+    if (emailInp) emailInp.value = userProfile.email || localStorage.getItem('vipercell_guest_email') || '';
     if (passInp) passInp.value = '';
     if (passConfInp) passConfInp.value = '';
     if (otpInp) otpInp.value = '';
@@ -891,7 +1047,6 @@ window.requestUpgradeOtpEmail = async function(isResend = false) {
     }
 
     try {
-        // Bangkitkan kode OTP 6 digit acak (berlaku 5 menit = 300.000 ms)
         const generatedOtp = String(Math.floor(100000 + Math.random() * 900000));
         pendingUpgradeState = {
             name,
@@ -972,6 +1127,7 @@ window.verifyOtpAndUpgradeMember = async function() {
     }
 
     try {
+        const previousAnonUid = boundLegacyGuestUid || userProfile.uid || (auth.currentUser?.isAnonymous ? auth.currentUser.uid : null);
         await ensureAuthSession();
         const activeUser = auth.currentUser;
         let finalUid = activeUser ? activeUser.uid : null;
@@ -987,13 +1143,13 @@ window.verifyOtpAndUpgradeMember = async function() {
             currentUser = cred.user;
         }
 
-        // Migrasikan pesanan & riwayat chat jika sebelumnya memakai boundLegacyGuestUid
-        if (boundLegacyGuestUid && boundLegacyGuestUid !== finalUid) {
-            const oldOrders = orders.filter(o => o.userId === boundLegacyGuestUid);
+        // Migrasikan pesanan & riwayat chat milik sesi anonim saat ini ke akun Member baru
+        if (previousAnonUid && previousAnonUid !== finalUid) {
+            const oldOrders = orders.filter(o => o.userId === previousAnonUid);
             for (const ord of oldOrders) {
                 await updateDoc(doc(db, pathOrders, ord.dbId), { userId: finalUid, userEmail: email, userPhone: whatsapp }).catch(() => {});
             }
-            const oldChatSnap = await getDoc(doc(db, pathChats, boundLegacyGuestUid)).catch(() => null);
+            const oldChatSnap = await getDoc(doc(db, pathChats, previousAnonUid)).catch(() => null);
             if (oldChatSnap && oldChatSnap.exists()) {
                 await setDoc(doc(db, pathChats, finalUid), {
                     ...oldChatSnap.data(),
@@ -1001,14 +1157,9 @@ window.verifyOtpAndUpgradeMember = async function() {
                     userInfo: name,
                     userEmail: email
                 }, { merge: true }).catch(() => {});
-                await deleteDoc(doc(db, pathChats, boundLegacyGuestUid)).catch(() => {});
+                await deleteDoc(doc(db, pathChats, previousAnonUid)).catch(() => {});
             }
-            await deleteDoc(doc(db, pathUsers, boundLegacyGuestUid)).catch(() => {});
-        }
-
-        const matchingOrders = orders.filter(o => o.userId === finalUid || (!o.userId && o.userEmail?.toLowerCase() === email.toLowerCase()));
-        for (const ord of matchingOrders) {
-            await updateDoc(doc(db, pathOrders, ord.dbId), { userId: finalUid, userEmail: email, userPhone: whatsapp }).catch(() => {});
+            await deleteDoc(doc(db, pathUsers, previousAnonUid)).catch(() => {});
         }
 
         const memberData = {
@@ -1043,11 +1194,14 @@ window.verifyOtpAndUpgradeMember = async function() {
         boundLegacyGuestUid = null;
         pendingUpgradeState = { name: '', whatsapp: '', email: '', password: '', otpCode: '', otpExpiresAt: 0 };
         if (otpResendTimer) clearInterval(otpResendTimer);
+        if (activeTimersRegistry.anonSixHourCountdown) clearInterval(activeTimersRegistry.anonSixHourCountdown);
 
-        localStorage.removeItem('vipercell_anon_uid');
-        localStorage.setItem('vipercell_anon_name', name);
-        localStorage.setItem('vipercell_track_email', email);
-        localStorage.setItem('vipercell_track_phone', whatsapp);
+        await clearMultiLayerToken('vipercell_anon_uid');
+        localStorage.removeItem('vipercell_anon_session_started_at');
+        localStorage.removeItem('vipercell_guest_email');
+        localStorage.removeItem('vipercell_guest_phone');
+        localStorage.setItem('vipercell_member_email', email);
+        localStorage.setItem('vipercell_member_phone', whatsapp);
         localStorage.setItem('vipercell_active_session_mode', 'member');
 
         userProfile = memberData;
@@ -1059,7 +1213,7 @@ window.verifyOtpAndUpgradeMember = async function() {
 
         window.customAlert(
             'Upgrade Member Berhasil! 🎉',
-            `Selamat <b>${escapeHtml(name)}</b>! Email kamu telah terverifikasi dengan OTP dan akunmu resmi menjadi <b>Member Terverifikasi</b>. Seluruh riwayat pesanan tersimpan permanen.`,
+            `Selamat <b>${escapeHtml(name)}</b>! Email kamu telah terverifikasi dengan OTP dan akunmu resmi menjadi <b>Member Resmi</b>. Akun kamu bebas dari penghapusan 6 jam dan seluruh riwayat pesanan tersimpan permanen.`,
             'success'
         );
     } catch (error) {
@@ -1083,7 +1237,6 @@ window.verifyOtpAndUpgradeMember = async function() {
 };
 
 window.upgradeAnonymousToMember = window.verifyOtpAndUpgradeMember;
-/* ======================== END OF [FEATURE-02] ============================= */
 
 // ==========================================
 // JAMINAN SESI AUTH & SINKRONISASI PROFIL UI
@@ -1099,7 +1252,7 @@ async function ensureAuthSession() {
         return currentUser;
     } catch (err) {
         if (!currentDeviceId) await initDeviceIdentity();
-        const fallbackUid = boundLegacyGuestUid || `anon_${currentDeviceId}`;
+        const fallbackUid = boundLegacyGuestUid || `anon_${currentDeviceId}_${Date.now().toString(36).slice(-4)}`;
         currentUser = { uid: fallbackUid, isAnonymous: true, email: '' };
         return currentUser;
     }
@@ -1110,25 +1263,32 @@ async function syncUserProfileFromAuth(user) {
     if (!user) return;
 
     const deletedList = Array.isArray(siteSettings.deletedUids) ? siteSettings.deletedUids : [];
-    const effectiveUid = (user.isAnonymous && boundLegacyGuestUid && !deletedList.includes(boundLegacyGuestUid))
-        ? boundLegacyGuestUid
-        : user.uid;
-
-    listenDeletedAccountStatus(effectiveUid);
 
     if (user.isAnonymous) {
+        const effectiveUid = (boundLegacyGuestUid && !deletedList.includes(boundLegacyGuestUid))
+            ? boundLegacyGuestUid
+            : user.uid;
+
+        boundLegacyGuestUid = effectiveUid;
         await saveMultiLayerToken('vipercell_anon_uid', effectiveUid);
+        listenDeletedAccountStatus(effectiveUid);
+
         const shortId = effectiveUid.slice(-4).toUpperCase();
         const userDocRef = doc(db, pathUsers, effectiveUid);
         const userSnap = await getDoc(userDocRef).catch(() => null);
 
-        if (userSnap && userSnap.exists()) {
+        const savedStarted = parseInt(localStorage.getItem('vipercell_anon_session_started_at') || '0', 10) || Date.now();
+        localStorage.setItem('vipercell_anon_session_started_at', String(savedStarted));
+
+        if (userSnap && userSnap.exists() && !userSnap.data().isDeleted) {
             const data = userSnap.data();
             userProfile = {
                 ...data,
                 uid: effectiveUid,
+                role: 'anonymous',
                 isAnonymous: true,
                 isGuest: true,
+                sessionStartedAt: data.sessionStartedAt || savedStarted,
                 deviceId: currentDeviceId
             };
             if (data.name) localStorage.setItem('vipercell_anon_name', data.name);
@@ -1138,20 +1298,31 @@ async function syncUserProfileFromAuth(user) {
                 uid: effectiveUid,
                 authUid: user.uid,
                 name: savedName,
-                email: localStorage.getItem('vipercell_track_email') || '',
-                phone: localStorage.getItem('vipercell_track_phone') || '',
-                whatsapp: localStorage.getItem('vipercell_track_phone') || '',
+                email: localStorage.getItem('vipercell_guest_email') || '',
+                phone: localStorage.getItem('vipercell_guest_phone') || '',
+                whatsapp: localStorage.getItem('vipercell_guest_phone') || '',
                 role: 'anonymous',
                 isAnonymous: true,
                 isGuest: true,
                 isBlocked: false,
                 isDeleted: false,
                 deviceId: currentDeviceId,
+                sessionStartedAt: savedStarted,
+                expiresAt: savedStarted + ANON_AUTO_DELETE_TTL_MS,
                 createdAt: Date.now()
             };
             await setDoc(userDocRef, userProfile, { merge: true }).catch(() => {});
         }
+        startAnonSixHourTimer();
     } else {
+        // Member Resmi: Bersihkan total atribut anonim agar tidak terjadi konflik false-logout (#10)
+        boundLegacyGuestUid = null;
+        await clearMultiLayerToken('vipercell_anon_uid');
+        localStorage.removeItem('vipercell_anon_session_started_at');
+        if (activeTimersRegistry.anonSixHourCountdown) clearInterval(activeTimersRegistry.anonSixHourCountdown);
+
+        listenDeletedAccountStatus(user.uid);
+
         const userDocRef = doc(db, pathUsers, user.uid);
         const userSnap = await getDoc(userDocRef).catch(() => null);
         if (userSnap && userSnap.exists()) {
@@ -1183,6 +1354,8 @@ async function syncUserProfileFromAuth(user) {
             };
             await setDoc(userDocRef, userProfile, { merge: true }).catch(() => {});
         }
+        if (userProfile.email) localStorage.setItem('vipercell_member_email', userProfile.email.toLowerCase());
+        if (userProfile.phone) localStorage.setItem('vipercell_member_phone', userProfile.phone);
     }
 
     applyUserSessionToUI();
@@ -1200,10 +1373,10 @@ function setupAuthStateListener() {
 
         if (user && (!user.isAnonymous || sessionMode === 'guest')) {
             await syncUserProfileFromAuth(user);
-            const restricted = await checkRealtimeAccountRestriction();
+            const restricted = await checkRealtimeAccountRestriction(false);
             if (!restricted) setAuthGateLock(false);
         } else if (!user && sessionMode !== 'guest') {
-            userProfile = { name: '', email: '', phone: '', isGuest: true, isAnonymous: true };
+            userProfile = { uid: '', name: '', email: '', phone: '', isGuest: true, isAnonymous: true };
             setAuthGateLock(true);
         }
     });
@@ -1211,7 +1384,9 @@ function setupAuthStateListener() {
 
 function applyUserSessionToUI() {
     const isMember = Boolean(currentUser && !currentUser.isAnonymous && !userProfile.isGuest);
-    const isGuestSession = Boolean(currentUser && (currentUser.isAnonymous || userProfile.isGuest));
+    const isGuestSession = Boolean(!isMember && (currentUser || localStorage.getItem('vipercell_active_session_mode') === 'guest'));
+
+    document.body.classList.toggle('is-member-session', isMember);
 
     const btnUpgradeHeader = document.getElementById('btn-upgrade-guest-header');
     const textPesananDesk = document.getElementById('nav-text-pesanan-desk');
@@ -1225,9 +1400,14 @@ function applyUserSessionToUI() {
     const textBtnLogout = document.getElementById('text-btn-logout');
     const secMemberBox = document.getElementById('prof-security-member-box');
     const secGuestBox = document.getElementById('prof-security-guest-box');
+    const anonTtlCard = document.getElementById('anon-ttl-info-card');
 
     const guestTrackSec = document.getElementById('guest-tracking-section');
+    const guestContactBox = document.getElementById('buy-guest-contact-box');
     const emailGroupBuy = document.getElementById('buy-email-group');
+    const phoneGroupBuy = document.getElementById('buy-phone-group');
+    const memberAutofillBadge = document.getElementById('buy-member-autofill-badge');
+    const memberAutofillText = document.getElementById('buy-member-autofill-text');
 
     const statusBadge = document.getElementById('prof-email-status');
     const dispNameEl = document.getElementById('prof-display-name');
@@ -1237,26 +1417,39 @@ function applyUserSessionToUI() {
     const profEmailInp = document.getElementById('prof-email');
     const profPhoneInp = document.getElementById('prof-phone');
 
+    // [FEATURE-15] Pastikan tombol upgrade di Header dan di Tab Pesanan SELALU disembunyikan
+    if (btnUpgradeHeader) btnUpgradeHeader.style.display = 'none';
+    if (bannerUpgradeOrders) bannerUpgradeOrders.style.display = 'none';
+    // Form lacak ID Trx 1-input selalu bisa dipakai oleh siapa saja (#03)
+    if (guestTrackSec) guestTrackSec.style.display = 'block';
+
     if (isMember) {
         const finalEmail = userProfile.email || currentUser.email || '';
         const finalName = userProfile.name || finalEmail.split('@')[0] || 'Member Vipercell';
         const finalPhone = userProfile.phone || userProfile.whatsapp || '';
 
-        if (btnUpgradeHeader) btnUpgradeHeader.style.display = 'none';
         if (textPesananDesk) textPesananDesk.innerText = 'Pesanan Saya';
         if (textProfilDesk) textProfilDesk.innerText = 'Profil Saya';
         if (textProfilMob) textProfilMob.innerText = 'Profil';
 
-        if (bannerUpgradeOrders) bannerUpgradeOrders.style.display = 'none';
         if (bannerUpgradeProfile) bannerUpgradeProfile.style.display = 'none';
         if (btnProfUpgrade) btnProfUpgrade.style.display = 'none';
+        if (anonTtlCard) anonTtlCard.style.display = 'none';
         if (btnProfLogout) btnProfLogout.style.display = 'inline-flex';
         if (textBtnLogout) textBtnLogout.innerText = 'Keluar Akun';
         if (secMemberBox) secMemberBox.style.display = 'block';
         if (secGuestBox) secGuestBox.style.display = 'none';
 
-        if (guestTrackSec) guestTrackSec.style.display = 'none';
+        // [FEATURE-14] Sembunyikan kolom isi Email & No HP saat checkout untuk Member Resmi
+        if (guestContactBox) guestContactBox.style.display = 'none';
         if (emailGroupBuy) emailGroupBuy.style.display = 'none';
+        if (phoneGroupBuy) phoneGroupBuy.style.display = 'none';
+        if (memberAutofillBadge) {
+            memberAutofillBadge.style.display = 'flex';
+            if (memberAutofillText) {
+                memberAutofillText.innerText = `Otomatis dikirim ke ${finalEmail}${finalPhone ? ' • WA: ' + finalPhone : ''}`;
+            }
+        }
 
         if (statusBadge) {
             statusBadge.className = 'brutal-tag tag-success';
@@ -1271,18 +1464,17 @@ function applyUserSessionToUI() {
         if (profPhoneInp) profPhoneInp.value = finalPhone;
 
     } else if (isGuestSession) {
-        const effectiveUid = boundLegacyGuestUid || currentUser.uid;
+        const effectiveUid = boundLegacyGuestUid || currentUser?.uid || userProfile.uid || 'ANON';
         const shortId = effectiveUid.slice(-4).toUpperCase();
         const guestName = userProfile.name || localStorage.getItem('vipercell_anon_name') || `Tamu #${shortId}`;
-        const guestEmail = userProfile.email || localStorage.getItem('vipercell_track_email') || 'Belum dikaitkan (Sesi Anonim)';
-        const guestPhone = userProfile.phone || userProfile.whatsapp || '';
+        const guestEmail = userProfile.email || localStorage.getItem('vipercell_guest_email') || 'Belum dikaitkan (Sesi Anonim Baru)';
+        const guestPhone = userProfile.phone || userProfile.whatsapp || localStorage.getItem('vipercell_guest_phone') || '';
 
-        if (btnUpgradeHeader) btnUpgradeHeader.style.display = 'inline-flex';
         if (textPesananDesk) textPesananDesk.innerText = 'Lacak Pesanan';
         if (textProfilDesk) textProfilDesk.innerText = 'Akun Anonim';
         if (textProfilMob) textProfilMob.innerText = 'Akun';
 
-        if (bannerUpgradeOrders) bannerUpgradeOrders.style.display = 'flex';
+        // [FEATURE-15] Tombol & Banner Upgrade ke Member Resmi HANYA muncul di Tab Profil
         if (bannerUpgradeProfile) bannerUpgradeProfile.style.display = 'flex';
         if (btnProfUpgrade) btnProfUpgrade.style.display = 'inline-flex';
         if (btnProfLogout) btnProfLogout.style.display = 'inline-flex';
@@ -1290,8 +1482,10 @@ function applyUserSessionToUI() {
         if (secMemberBox) secMemberBox.style.display = 'none';
         if (secGuestBox) secGuestBox.style.display = 'block';
 
-        if (guestTrackSec) guestTrackSec.style.display = 'block';
+        if (guestContactBox) guestContactBox.style.display = 'block';
         if (emailGroupBuy) emailGroupBuy.style.display = 'block';
+        if (phoneGroupBuy) phoneGroupBuy.style.display = 'block';
+        if (memberAutofillBadge) memberAutofillBadge.style.display = 'none';
 
         if (statusBadge) {
             statusBadge.className = 'brutal-tag status-pending';
@@ -1304,21 +1498,83 @@ function applyUserSessionToUI() {
         if (profNameInp) profNameInp.value = guestName;
         if (profEmailInp) profEmailInp.value = guestEmail;
         if (profPhoneInp) profPhoneInp.value = guestPhone;
+
+        startAnonSixHourTimer();
     }
 }
 
 /* ============================================================================
- * [FEATURE-08 & FEATURE-09] VAULT AUTO-DELIVERY (PRIVATE & MULTI-QUOTA SHARING)
- * + SUBSCRIPTION DURATION TRACKER + ATOMIC FIRESTORE TRANSACTION
+ * [FEATURE-08, 09, 17, 18] SINKRONISASI STOK OTOMATIS DARI TAB STOK, 3 MODE
+ * PENGIRIMAN (OTOMATIS, MANUAL, TANYA & OTOMATIS), FORMAT PRODUK EMAIL OAUTH
+ * ("email|password|refresh_token|client_id|link_akses"), & AUTO-SEND EMAIL
  * ============================================================================ */
+function makeStockKey(brandName, itemName) {
+    return `${String(brandName || '').trim().toLowerCase()}__${String(itemName || '').trim().toLowerCase()}`;
+}
+
+function rebuildLiveReadyStocksMap(stockDocsArray) {
+    const nextMap = {};
+    (stockDocsArray || []).forEach(d => {
+        const sData = typeof d.data === 'function' ? d.data() : d;
+        if (!sData || sData.status !== 'Ready') return;
+        const key = makeStockKey(sData.brand, sData.itemName);
+        if (!nextMap[key]) nextMap[key] = 0;
+
+        if (sData.isReusable === true) {
+            nextMap[key] += 999;
+        } else {
+            const maxQ = parseInt(sData.maxQuota || 1, 10);
+            const usedQ = parseInt(sData.usedQuota || 0, 10);
+            nextMap[key] += Math.max(0, maxQ - usedQ);
+        }
+    });
+    liveReadyStocksMap = nextMap;
+}
+
+// [FEATURE-18] Menghitung stok tersedia secara cerdas berdasarkan Mode Pengiriman (auto, manual, ask_auto)
 function computeVariantAvailableStock(item) {
     if (!item) return null;
+
+    const procType = (item.processType || 'auto').toLowerCase();
+
+    // Hitung stok lokal yang ada di stockVault dokumen produk + koleksi `stocks`
+    let vaultSlots = 0;
     if (Array.isArray(item.stockVault) && item.stockVault.length > 0) {
-        return item.stockVault.reduce((sum, v) => {
+        vaultSlots = item.stockVault.reduce((sum, v) => {
+            if (v.isReusable) return sum + 999;
             const maxQ = parseInt(v.maxQuota || item.defaultMaxQuota || 1, 10);
             const usedQ = parseInt(v.usedQuota || 0, 10);
             return sum + Math.max(0, maxQ - usedQ);
         }, 0);
+    }
+
+    const brandKey = makeStockKey(item.brand || item.brandName, item.name);
+    const tabStocksSlots = liveReadyStocksMap[brandKey] || 0;
+    const totalLocalVaultStock = vaultSlots + tabStocksSlots;
+
+    // 1. Jika mode MANUAL murni: stok lokal gudang dikunci (tidak ikut terjual otomatis)
+    //    mengikuti pengaturan manual Admin (`stockCount` atau `soldOut`).
+    if (procType === 'manual') {
+        if (item.manualLockSoldOut === true || item.soldOut === true) return 0;
+        if (typeof item.stockCount === 'number' && item.stockCount >= 0) {
+            return item.stockCount;
+        }
+        return null; // Unlimited manual
+    }
+
+    // 2. Jika mode TANYA & OTOMATIS (`ask_auto` / `hybrid`):
+    //    Tetap bisa dibeli kapan saja (jika ada stok lokal langsung kirim otomatis, jika kosong diproses Admin)
+    if (procType === 'ask_auto' || procType === 'hybrid') {
+        if (item.soldOut === true && totalLocalVaultStock <= 0) return 0;
+        if (totalLocalVaultStock > 0) return totalLocalVaultStock;
+        if (typeof item.stockCount === 'number' && item.stockCount > 0) return item.stockCount;
+        return null;
+    }
+
+    // 3. Jika mode OTOMATIS (`auto`):
+    //    Jika ada stok ditambahkan di Tab Stok (`totalLocalVaultStock > 0`), stok produk OTOMATIS ADA & siap dijual!
+    if (totalLocalVaultStock > 0) {
+        return totalLocalVaultStock;
     }
     if (typeof item.stockCount === 'number' && item.stockCount >= 0) {
         return item.stockCount;
@@ -1326,9 +1582,50 @@ function computeVariantAvailableStock(item) {
     return null;
 }
 
+// [FEATURE-17] Formatter Kredensial Stok (Mendukung Format Standar, Sharing, dan Produk Email OAuth)
+function formatStockCredentialLine(rawStr, stockMode = 'PRIVATE', slotInfo = '', customAccessUrl = '') {
+    const clean = String(rawStr || '').trim();
+    if (!clean) return '';
+
+    const parts = clean.split('|').map(s => s.trim());
+    const isEmailOAuthFormat = (stockMode === 'EMAIL_OAUTH' || parts.length >= 4);
+
+    if (isEmailOAuthFormat && parts.length >= 4) {
+        const emailAddr = parts[0] || '-';
+        const passStr = parts[1] || '-';
+        const refreshToken = parts[2] || '-';
+        const clientId = parts[3] || '-';
+        const fourPartRaw = `${emailAddr}|${passStr}|${refreshToken}|${clientId}`;
+        const accessLink = parts[4] || customAccessUrl || siteSettings.defaultEmailPortalUrl || '';
+
+        let out = `[PRODUK EMAIL OAUTH${slotInfo}]\n`;
+        out += `FORMAT_UTUH : ${fourPartRaw}\n`;
+        out += `Email       : ${emailAddr}\n`;
+        out += `Password    : ${passStr}\n`;
+        out += `RefreshToken: ${refreshToken}\n`;
+        out += `Client_ID   : ${clientId}`;
+        if (accessLink) {
+            out += `\nLink_Akses  : ${accessLink}`;
+        }
+        return out;
+    }
+
+    if (parts.length >= 2) {
+        return `[DETAIL AKUN ANDA${slotInfo}]\nEmail / ID : ${parts[0] || '-'}\nPassword   : ${parts[1] || '-'}\nKeterangan : ${parts.slice(2).join(' | ') || '-'}`;
+    }
+
+    return `[DETAIL PESANAN${slotInfo}]\n${clean}`;
+}
+
 async function tryAutoDeliverOrderFromVault(orderData, orderDbId) {
     if (!orderData || !orderDbId || deliveringOrderIds.has(orderDbId)) return;
-    if (orderData.adminReply && orderData.adminReply.trim() !== '') return;
+    if (orderData.adminReply && orderData.adminReply.trim() !== '') {
+        // Jika sudah ada adminReply tapi email belum terkirim, pastikan email terkirim otomatis (#03)
+        if (!orderData.emailSent) {
+            sendOrderReceiptAndAccountEmail(orderData, orderData.adminReply, orderDbId);
+        }
+        return;
+    }
 
     const item = (orderData.items && orderData.items[0]) ? orderData.items[0] : null;
     if (!item) return;
@@ -1336,6 +1633,7 @@ async function tryAutoDeliverOrderFromVault(orderData, orderDbId) {
     deliveringOrderIds.add(orderDbId);
     const neededQty = parseInt(item.qty || 1, 10);
     const durationDays = parseInt(item.durationDays || orderData.durationDays || 0, 10);
+    const procType = (item.processType || 'auto').toLowerCase();
     const nowMs = Date.now();
     const subUpdates = durationDays > 0 ? {
         durationDays: durationDays,
@@ -1345,8 +1643,9 @@ async function tryAutoDeliverOrderFromVault(orderData, orderDbId) {
     } : {};
 
     try {
-        // 1. Jika tipe manual atau top-up game, cukup pastikan durasi tercatat jika ada
-        if (item.processType === 'manual' || item.type === 'game') {
+        // [FEATURE-18] Jika mode MANUAL murni (atau game), jangan ambil stok lokal otomatis
+        // Namun jika mode `auto` ATAU `ask_auto` (Tanya & Otomatis), langsung cek stok lokal & kirim otomatis!
+        if (procType === 'manual' || item.type === 'game') {
             if (Object.keys(subUpdates).length > 0 && !orderData.subscriptionEndAt) {
                 await updateDoc(doc(db, pathOrders, orderDbId), subUpdates).catch(() => {});
             }
@@ -1355,7 +1654,7 @@ async function tryAutoDeliverOrderFromVault(orderData, orderDbId) {
 
         let deliveredCredentialsText = '';
 
-        // 2. Cek apakah produk menyimpan stockVault di dokumen products/{productDbId}
+        // 1. Cek apakah produk menyimpan stockVault di dokumen products/{productDbId}
         if (item.productDbId) {
             const prodRef = doc(db, pathProducts, item.productDbId);
             try {
@@ -1386,7 +1685,9 @@ async function tryAutoDeliverOrderFromVault(orderData, orderDbId) {
                             });
                             slotItem.buyers = buyersArr;
 
-                            collectedCreds.push(slotItem.credentials || slotItem.data || '');
+                            const rawCred = slotItem.credentials || slotItem.data || '';
+                            const slotLbl = maxQ > 1 ? ` (Slot #${newUsed}/${maxQ})` : '';
+                            collectedCreds.push(formatStockCredentialLine(rawCred, slotItem.stockFormat || pData.stockMode || 'PRIVATE', slotLbl, slotItem.accessLink || pData.emailPortalUrl || ''));
 
                             if (newUsed >= maxQ && !slotItem.isReusable) {
                                 exhausted.push(slotItem);
@@ -1402,7 +1703,7 @@ async function tryAutoDeliverOrderFromVault(orderData, orderDbId) {
                                 stockVault: vault,
                                 exhaustedVault: exhausted,
                                 stockCount: remainingTotal,
-                                soldOut: remainingTotal <= 0
+                                soldOut: remainingTotal <= 0 && procType === 'auto'
                             });
                             deliveredCredentialsText = collectedCreds.join('\n\n');
                         }
@@ -1413,7 +1714,7 @@ async function tryAutoDeliverOrderFromVault(orderData, orderDbId) {
             }
         }
 
-        // 3. Jika belum terkirim dari product.stockVault, ambil dari koleksi `stocks`
+        // 2. Jika belum terkirim dari product.stockVault, ambil dari koleksi `stocks` (Tab Stok Admin)
         if (!deliveredCredentialsText) {
             const targetBrand = item.brandName || item.name.split(' - ')[0];
             const exactItemName = item.exactItemName || item.name.replace(`(x${item.qty})`, '').trim();
@@ -1430,8 +1731,7 @@ async function tryAutoDeliverOrderFromVault(orderData, orderDbId) {
                 const reusableDoc = snap.docs.find(d => d.data().isReusable === true);
                 if (reusableDoc) {
                     const rData = reusableDoc.data();
-                    const parts = (rData.data || '').split('|');
-                    deliveredCredentialsText = `[AKSES LAYANAN / TOOLS DIGITAL]\nEmail / Link : ${parts[0] || '-'}\nSandi / Kode : ${parts[1] || '-'}\nKeterangan   : ${parts[2] || '-'}`;
+                    deliveredCredentialsText = formatStockCredentialLine(rData.data || '', rData.stockFormat || 'REUSABLE', ' (Akses Instan)', rData.accessLink || '');
                     await updateDoc(doc(db, pathStocks, reusableDoc.id), {
                         sentCount: increment(neededQty),
                         lastSentAt: nowMs,
@@ -1447,9 +1747,8 @@ async function tryAutoDeliverOrderFromVault(orderData, orderDbId) {
 
                         if (usedQ < maxQ) {
                             const nextUsed = usedQ + 1;
-                            const parts = (sData.data || '').split('|');
                             const slotLabel = maxQ > 1 ? ` (Slot Sharing #${nextUsed}/${maxQ})` : '';
-                            collected.push(`[DETAIL AKUN ANDA${slotLabel}]\nEmail / ID : ${parts[0] || '-'}\nPassword   : ${parts[1] || '-'}\nKeterangan : ${parts[2] || '-'}`);
+                            collected.push(formatStockCredentialLine(sData.data || '', sData.stockFormat || sData.mode || 'PRIVATE', slotLabel, sData.accessLink || ''));
 
                             await updateDoc(doc(db, pathStocks, sDoc.id), {
                                 usedQuota: nextUsed,
@@ -1471,19 +1770,22 @@ async function tryAutoDeliverOrderFromVault(orderData, orderDbId) {
             }
         }
 
+        // [FEATURE-03 & 18] Jika stok lokal tersedia & terkirim, otomatis kirim ke Email juga!
         if (deliveredCredentialsText) {
             const finalReply = `Terima kasih! Pembayaran Anda telah diverifikasi otomatis.\n\n${deliveredCredentialsText}\n\nSimpan bukti E-Receipt ini sebagai garansi resmi Vipercell.`;
             await updateDoc(doc(db, pathOrders, orderDbId), {
                 status: 'SUCCESS',
                 adminReply: finalReply,
+                autoDelivered: true,
+                deliveredAt: nowMs,
                 ...subUpdates
             }).catch(() => {});
 
-            sendOrderReceiptAndAccountEmail({
+            await sendOrderReceiptAndAccountEmail({
                 ...orderData,
                 ...subUpdates,
                 adminReply: finalReply
-            }, finalReply);
+            }, finalReply, orderDbId);
         } else if (Object.keys(subUpdates).length > 0 && !orderData.subscriptionEndAt) {
             await updateDoc(doc(db, pathOrders, orderDbId), subUpdates).catch(() => {});
         }
@@ -1493,10 +1795,9 @@ async function tryAutoDeliverOrderFromVault(orderData, orderDbId) {
         setTimeout(() => deliveringOrderIds.delete(orderDbId), 3000);
     }
 }
-/* ======================== END OF [FEATURE-08 & 09] ======================== */
 
 // ==========================================
-// REAL-TIME DATA LISTENER (FIRESTORE + MACRODROID MUTATIONS)
+// REAL-TIME DATA LISTENER (FIRESTORE + STOK LOKAL + MUTATIONS)
 // ==========================================
 let isListening = false;
 function listenData() {
@@ -1508,7 +1809,6 @@ function listenData() {
             const incoming = docSnap.data();
             siteSettings = { ...siteSettings, ...incoming };
 
-            // 1. Cek jika ada sinyal pembayaran dari Simulator Admin (lastPaymentDetected)
             if (incoming.lastPaymentDetected && incoming.lastPaymentTimestamp) {
                 const ageMs = Date.now() - Number(incoming.lastPaymentTimestamp);
                 if (ageMs < 180000) {
@@ -1516,7 +1816,6 @@ function listenData() {
                 }
             }
 
-            // 2. Cek jika ada sinyal dari SERVER APPS SCRIP.JS (lastPaymentMutation)
             if (incoming.lastPaymentMutation && incoming.lastPaymentMutation.timestamp) {
                 const mutObj = incoming.lastPaymentMutation;
                 const mutAge = Date.now() - Number(mutObj.timestamp);
@@ -1532,10 +1831,23 @@ function listenData() {
         isSettingsLoaded = true;
         window.applySettingsToUI();
         applyCustomPwaIcon();
-        await checkRealtimeAccountRestriction();
+        startAnonSixHourTimer();
+        await checkRealtimeAccountRestriction(true);
     });
 
-    // Listener langsung ke koleksi payment_mutations dari MacroDroid Webhook
+    // [FEATURE-18] Listener Real-Time ke Koleksi `stocks` agar saat Admin menambah stok di Tab Stok,
+    // ketersediaan stok di Web User langsung otomatis bertambah detik itu juga!
+    if (!activeListenersRegistry.stocks) {
+        activeListenersRegistry.stocks = onSnapshot(query(collection(db, pathStocks), where("status", "==", "Ready")), (snapshot) => {
+            rebuildLiveReadyStocksMap(snapshot.docs);
+            window.renderBrands(currentBrandFilter);
+            if (currentCheckoutBrand) {
+                renderCheckoutVariantCards();
+                window.calculateDirectBuyTotal();
+            }
+        }, () => {});
+    }
+
     if (!activeListenersRegistry.mutations) {
         activeListenersRegistry.mutations = onSnapshot(collection(db, pathMutations), (snapshot) => {
             snapshot.docChanges().forEach((change) => {
@@ -1566,17 +1878,21 @@ function listenData() {
     onSnapshot(collection(db, pathOrders), (snapshot) => {
         let newOrders = [];
         const now = Date.now();
-        const effectiveUid = boundLegacyGuestUid || currentUser?.uid || '';
-        const savedEmail = (localStorage.getItem('vipercell_track_email') || '').toLowerCase();
+        const isMember = Boolean(currentUser && !currentUser.isAnonymous && !userProfile.isGuest);
+        const effectiveUid = isMember ? currentUser.uid : (boundLegacyGuestUid || currentUser?.uid || userProfile.uid || '');
+        const activeEmail = getActiveSessionStorageEmail();
         
         snapshot.forEach((docSnap) => {
             let data = { dbId: docSnap.id, ...docSnap.data() };
             const orderTime = new Date(data.date).getTime();
-            const expiryLimitMs = data.expiresAt ? (data.expiresAt - orderTime) : 900000; // Default 15 menit
+            const expiryLimitMs = data.expiresAt ? (data.expiresAt - orderTime) : 900000;
             const orderEmail = (data.userEmail || '').toLowerCase();
-            const isMyOrder = (effectiveUid && data.userId === effectiveUid) ||
-                              (currentUser && data.userId === currentUser.uid) ||
-                              (savedEmail && savedEmail === orderEmail);
+
+            // [FEATURE-22] Isolasi kepemilikan pesanan:
+            // Jika sesi Anonim, cocokkan berdasarkan UID sesi anonim ini (atau email guest sesi ini).
+            const isMyOrder = isMember
+                ? ((effectiveUid && data.userId === effectiveUid) || (activeEmail && activeEmail === orderEmail))
+                : ((effectiveUid && data.userId === effectiveUid));
             
             if (data.status === 'UNPAID' || data.status === 'PENDING_PAYMENT') {
                 if (now - orderTime > expiryLimitMs) { 
@@ -1587,7 +1903,6 @@ function listenData() {
                 }
             }
 
-            // Jika status berubah menjadi PAID oleh MacroDroid GAS Webhook, ubah ke SUCCESS & picu pengiriman Vault
             if (data.status === 'PAID') {
                 if (isMyOrder) {
                     updateDoc(doc(db, pathOrders, data.dbId), { status: 'SUCCESS' }).catch(() => {});
@@ -1597,8 +1912,12 @@ function listenData() {
 
             newOrders.push(data);
 
+            // [FEATURE-03 & 18] Jika status SUCCESS dan belum ada adminReply, coba kirim otomatis dari Vault/Stok Lokal
             if (isMyOrder && data.status === 'SUCCESS' && !data.adminReply) {
                 tryAutoDeliverOrderFromVault(data, data.dbId);
+            } else if (isMyOrder && data.status === 'SUCCESS' && data.adminReply && !data.emailSent) {
+                // Jika sudah ada adminReply (misal dari stok lokal) namun email belum terkirim, otomatis kirim email!
+                sendOrderReceiptAndAccountEmail(data, data.adminReply, data.dbId);
             }
 
             if (!initialOrderLoad && isMyOrder) {
@@ -1612,7 +1931,6 @@ function listenData() {
         
         orders = newOrders.sort((a, b) => new Date(b.date) - new Date(a.date));
 
-        // Hanya render ulang katalog jika jumlah order sukses berubah (Optimasi Performa DOM)
         const currentSuccessCount = orders.filter(o => o.status === 'SUCCESS').length;
         if (currentSuccessCount !== lastSuccessOrderCount) {
             lastSuccessOrderCount = currentSuccessCount;
@@ -1636,6 +1954,13 @@ function listenData() {
         products = [];
         snapshot.forEach((docSnap) => { products.push({ dbId: docSnap.id, ...docSnap.data() }); });
         rebuildGroupedBrands();
+        if (currentCheckoutBrand) {
+            const updatedBrand = groupedBrands.find(b => b.brandName === currentCheckoutBrand.brandName);
+            if (updatedBrand) {
+                currentCheckoutBrand = updatedBrand;
+                renderCheckoutVariantCards();
+            }
+        }
     });
 
     onSnapshot(collection(db, pathPromos), (snapshot) => {
@@ -1693,12 +2018,14 @@ function rebuildGroupedBrands() {
 }
 
 function updateOrderBadges() {
-    const savedEmail = (localStorage.getItem('vipercell_track_email') || '').toLowerCase();
-    const effectiveUid = boundLegacyGuestUid || currentUser?.uid || '';
+    const isMember = Boolean(currentUser && !currentUser.isAnonymous && !userProfile.isGuest);
+    const effectiveUid = isMember ? currentUser.uid : (boundLegacyGuestUid || currentUser?.uid || userProfile.uid || '');
+    const activeEmail = getActiveSessionStorageEmail();
+
     const hasActionNeeded = orders.some(o => {
-        const isMine = (effectiveUid && o.userId === effectiveUid) ||
-                       (currentUser && o.userId === currentUser.uid) ||
-                       (savedEmail && o.userEmail?.toLowerCase() === savedEmail);
+        const isMine = isMember
+            ? ((effectiveUid && o.userId === effectiveUid) || (activeEmail && o.userEmail?.toLowerCase() === activeEmail))
+            : (effectiveUid && o.userId === effectiveUid);
         return isMine && (o.status === 'UNPAID' || o.status === 'PENDING_PAYMENT' || o.status === 'PENDING');
     });
     const badgeDesk = document.getElementById('user-order-badge-desktop');
@@ -1708,8 +2035,7 @@ function updateOrderBadges() {
 }
 
 /* ============================================================================
- * [FEATURE-07] FULL-SCREEN QRIS PAYMENT VIEW, EMVCo TAG 59 PARSER,
- * INSTANT ORDER CANCELLATION & MANUAL PAYMENT CHECKER
+ * [FEATURE-07] FULL-SCREEN QRIS PAYMENT VIEW & INSTANT ORDER CANCELLATION
  * ============================================================================ */
 function extractMerchantInfoFromQris(qrisString) {
     if (!qrisString || typeof qrisString !== 'string' || !qrisString.trim().startsWith('000201')) {
@@ -1815,7 +2141,6 @@ function generateDynamicQRIS(staticQRIS, amount) {
     return finalPayload + calculateCRC16(finalPayload);
 }
 
-// Penghancuran Elemen QRIS dari DOM saat waktu habis atau dibatalkan pembeli
 function destroyExpiredQrisDom(orderDbId, reason = 'EXPIRED') {
     if (activeTimersRegistry.qrisCountdown) {
         clearInterval(activeTimersRegistry.qrisCountdown);
@@ -1833,7 +2158,6 @@ function destroyExpiredQrisDom(orderDbId, reason = 'EXPIRED') {
     const expTitle = document.getElementById('qris-expired-title');
     const expDesc = document.getElementById('qris-expired-desc');
 
-    // Hapus total canvas & img QRIS dari memori DOM agar tidak bisa di-scan
     if (qrContainer) qrContainer.innerHTML = '';
     if (activeCard) activeCard.style.display = 'none';
     if (expiredCard) expiredCard.style.display = 'block';
@@ -1851,7 +2175,7 @@ function destroyExpiredQrisDom(orderDbId, reason = 'EXPIRED') {
     }
     if (expDesc) {
         expDesc.innerHTML = isCancelled
-            ? 'Tagihan dan kode QRIS untuk pesanan ini telah <b>dibatalkan dan dinonaktifkan</b> atas permintaan kamu. Kamu bisa langsung membuat pesanan baru sekarang tanpa perlu menunggu!'
+            ? 'Tagihan dan kode QRIS untuk pesanan ini telah <b>dibatalkan dan dinonaktifkan</b> atas permintaan kamu. Kamu bisa langsung membuat pesanan baru sekarang!'
             : 'Kode QRIS untuk tagihan ini telah <b>dihapus dan dinonaktifkan secara permanen</b> demi keamanan transaksi. Mohon jangan melakukan transfer ke kode QR sebelumnya.';
     }
 
@@ -1866,7 +2190,6 @@ function destroyExpiredQrisDom(orderDbId, reason = 'EXPIRED') {
     }
 }
 
-// FITUR BARU: BATALKAN PESANAN AKTIF TANPA TUNGGU EXPIRED 15 MENIT
 window.cancelActiveOrder = function(explicitDbId = null) {
     if (isCancellingOrder) return;
     const targetDbId = explicitDbId || currentCheckoutSession?.dbId;
@@ -1897,7 +2220,6 @@ window.cancelActiveOrder = function(explicitDbId = null) {
             }
 
             try {
-                // Coba set status ke CANCELLED, jika Firestore Rules lama belum diupdate, fallback ke EXPIRED
                 try {
                     await updateDoc(doc(db, pathOrders, targetDbId), { status: 'CANCELLED' });
                     if (orderObj) orderObj.status = 'CANCELLED';
@@ -1936,7 +2258,6 @@ window.cancelActiveOrder = function(explicitDbId = null) {
     );
 };
 
-// FITUR BARU: TOMBOL CEK STATUS PEMBAYARAN QRIS INSTAN
 window.manualCheckQrisPaymentStatus = async function() {
     if (isCheckingPaymentNow || !currentCheckoutSession?.dbId) return;
     isCheckingPaymentNow = true;
@@ -2003,7 +2324,7 @@ window.startQrisTimer = function(orderDate, orderDbId = null) {
     const pillBox = document.getElementById('qris-timer-pill-box');
     if (!timeText) return;
 
-    const totalDurationMs = 900000; // 15 Menit (900.000 ms)
+    const totalDurationMs = 900000;
     const startTime = new Date(orderDate).getTime();
 
     const updateTick = () => {
@@ -2131,15 +2452,13 @@ window.recreateExpiredOrder = function() {
         window.switchMainTab('katalog');
     }
 };
-/* ======================== END OF [FEATURE-07] ============================= */
 
 /* ============================================================================
- * [FEATURE-04 & FEATURE-05] KATALOG SMART ACCORDION, FILTER VARIAN (DEBOUNCED),
- * DESKRIPSI VARIAN OPSIONAL & INPUT DATA TUJUAN APP OPSIONAL
+ * [FEATURE-08, 17, 18] KATALOG TAMPIL PENUH, AKORDEON VARIASI (LIHAT
+ * SELENGKAPNYA & TUTUP KEMBALI), & 3 MODE PENGIRIMAN STOK
  * ============================================================================ */
 window.filterBrands = function(type, btnEl) {
     currentBrandFilter = type;
-    isCatalogExpanded = false;
     document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
     if (btnEl) btnEl.classList.add('active');
     window.renderBrands(type);
@@ -2155,7 +2474,7 @@ window.handleCatalogSearch = function() {
     catalogSearchDebounceTimer = setTimeout(() => {
         currentSearchQuery = val;
         window.renderBrands(currentBrandFilter);
-    }, 110);
+    }, 100);
 };
 
 window.clearCatalogSearch = function() {
@@ -2168,15 +2487,16 @@ window.clearCatalogSearch = function() {
 };
 
 window.toggleCatalogShowAll = function() {
-    isCatalogExpanded = !isCatalogExpanded;
+    isCatalogExpanded = true;
     window.renderBrands(currentBrandFilter);
 };
 
+// [FEATURE-08] Katalog di Dashboard Utama selalu muncul semua tanpa disembunyikan
 window.renderBrands = function(filter = currentBrandFilter) {
     const grid = document.getElementById('brand-grid');
     const moreWrap = document.getElementById('catalog-more-wrap');
-    const moreBtn = document.getElementById('btn-catalog-more');
     if (!grid) return;
+    if (moreWrap) moreWrap.style.display = 'none';
     
     let filteredBrands = filter === 'all' ? [...groupedBrands] : groupedBrands.filter(b => b.type === filter);
 
@@ -2207,30 +2527,11 @@ window.renderBrands = function(filter = currentBrandFilter) {
     
     if (filteredBrands.length === 0) { 
         grid.innerHTML = `<div class="brutal-empty-box" style="grid-column: 1/-1;"><i class="fa-solid fa-box-open" style="font-size:2rem; display:block; margin-bottom:8px;"></i>Produk yang kamu cari belum tersedia di kategori ini.</div>`; 
-        if (moreWrap) moreWrap.style.display = 'none';
         return; 
     }
 
-    const INITIAL_CATALOG_LIMIT = 6;
-    const shouldCollapse = !currentSearchQuery && filteredBrands.length > INITIAL_CATALOG_LIMIT;
-    const visibleBrands = (shouldCollapse && !isCatalogExpanded)
-        ? filteredBrands.slice(0, INITIAL_CATALOG_LIMIT)
-        : filteredBrands;
-
-    if (moreWrap && moreBtn) {
-        if (shouldCollapse) {
-            const hiddenCount = filteredBrands.length - INITIAL_CATALOG_LIMIT;
-            moreWrap.style.display = 'block';
-            moreBtn.innerHTML = isCatalogExpanded
-                ? `<i class="fa-solid fa-minus"></i> <span>Sembunyikan Sebagian</span> <i class="fa-solid fa-chevron-up"></i>`
-                : `<i class="fa-solid fa-plus"></i> <span>Lihat ${hiddenCount} Produk Selengkapnya</span> <i class="fa-solid fa-chevron-down"></i>`;
-        } else {
-            moreWrap.style.display = 'none';
-        }
-    }
-    
     let html = '';
-    visibleBrands.forEach((b, idx) => {
+    filteredBrands.forEach((b, idx) => {
         const safeJsBrand = escapeJsStr(b.brandName);
         const safeHtmlBrand = escapeHtml(b.brandName);
         
@@ -2243,8 +2544,9 @@ window.renderBrands = function(filter = currentBrandFilter) {
             tagClass = 'tag-game';
             tagLabel = 'GAME';
         } else if (b.type === 'tools') {
-            tagClass = 'tag-tools';
-            tagLabel = 'TOOLS';
+            const hasEmailFormat = b.items.some(it => it.stockMode === 'EMAIL_OAUTH' || (it.name || '').toLowerCase().includes('email') || (it.name || '').toLowerCase().includes('mail'));
+            tagClass = hasEmailFormat ? 'tag-email' : 'tag-tools';
+            tagLabel = hasEmailFormat ? 'EMAIL / TOOLS' : 'TOOLS';
         }
 
         const imgHtml = b.imgUrlBase64 
@@ -2255,7 +2557,7 @@ window.renderBrands = function(filter = currentBrandFilter) {
             ? `window.customAlert('Maintenance Server', 'Mohon maaf, layanan produk ini sedang dalam pemeliharaan jaringan.', 'warning')` 
             : `window.openDirectBuyModal('${safeJsBrand}')`;
         const cssClass = b.isGangguan ? 'brand-card stagger-card sold-out' : 'brand-card stagger-card';
-        const animDelay = `${Math.min(idx * 30, 240)}ms`;
+        const animDelay = `${Math.min(idx * 25, 220)}ms`;
         
         html += `
             <div class="${cssClass}" style="animation-delay: ${animDelay};" onclick="${clickAction}">
@@ -2280,7 +2582,7 @@ window.renderBrands = function(filter = currentBrandFilter) {
     grid.innerHTML = html;
 };
 
-// Render Daftar Varian di Halaman Checkout dengan Debounce & Smart Accordion
+// [FEATURE-08] Render Daftar Variasi di Halaman Checkout dengan Tombol "Lihat Selengkapnya" & "Tutup Kembali"
 window.filterCheckoutVariants = function() {
     const inp = document.getElementById('variant-quick-search');
     const val = inp ? inp.value.trim().toLowerCase() : '';
@@ -2296,10 +2598,18 @@ window.toggleVariantsShowAll = function() {
     renderCheckoutVariantCards();
 };
 
+window.collapseVariantsView = function() {
+    isVariantsExpanded = false;
+    renderCheckoutVariantCards();
+    const step2El = document.getElementById('buy-item-grid');
+    if (step2El) step2El.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+};
+
 function renderCheckoutVariantCards() {
     if (!currentCheckoutBrand) return;
     const itemGrid = document.getElementById('buy-item-grid');
     const moreBtn = document.getElementById('btn-items-more');
+    const collapseBtn = document.getElementById('btn-items-collapse');
     const searchWrap = document.getElementById('variant-search-wrap');
     if (!itemGrid) return;
 
@@ -2323,35 +2633,53 @@ function renderCheckoutVariantCards() {
         ? filteredItems.slice(0, INITIAL_VARIANT_LIMIT)
         : filteredItems;
 
-    if (moreBtn) {
+    // [FEATURE-08] Tampilkan tombol "Lihat Variasi Selengkapnya" saat terlipat, dan "Tutup Kembali Variasi" saat terbuka
+    if (moreBtn && collapseBtn) {
         if (shouldCollapse) {
             const hiddenCount = filteredItems.length - INITIAL_VARIANT_LIMIT;
-            moreBtn.style.display = 'inline-flex';
-            moreBtn.innerHTML = isVariantsExpanded
-                ? `<i class="fa-solid fa-minus"></i> <span>Sembunyikan Sebagian Varian</span> <i class="fa-solid fa-chevron-up"></i>`
-                : `<i class="fa-solid fa-plus"></i> <span>Lihat ${hiddenCount} Varian Selengkapnya</span> <i class="fa-solid fa-chevron-down"></i>`;
+            if (!isVariantsExpanded) {
+                moreBtn.style.display = 'inline-flex';
+                moreBtn.innerHTML = `<i class="fa-solid fa-plus"></i> <span>Lihat ${hiddenCount} Variasi Selengkapnya</span> <i class="fa-solid fa-chevron-down"></i>`;
+                collapseBtn.style.display = 'none';
+            } else {
+                moreBtn.style.display = 'none';
+                collapseBtn.style.display = 'inline-flex';
+                collapseBtn.innerHTML = `<i class="fa-solid fa-angles-up"></i> <span>Tutup Kembali Variasi</span>`;
+            }
         } else {
             moreBtn.style.display = 'none';
+            collapseBtn.style.display = 'none';
         }
     }
 
     if (visibleItems.length === 0) {
-        itemGrid.innerHTML = `<div class="brutal-empty-box" style="grid-column: 1/-1; padding: 1.4rem;">Varian paket tidak ditemukan.</div>`;
+        itemGrid.innerHTML = `<div class="brutal-empty-box" style="grid-column: 1/-1; padding: 1.4rem;">Variasi paket tidak ditemukan.</div>`;
         return;
     }
 
     let html = '';
     visibleItems.forEach((item, idx) => {
         const normalPrice = item.priceNum || 0;
+        const procType = (item.processType || 'auto').toLowerCase();
         const availQuota = computeVariantAvailableStock(item);
         const hasStockQuota = typeof availQuota === 'number' && availQuota >= 0;
         const isQuotaEmpty = hasStockQuota && availQuota === 0;
-        const isSold = Boolean(item.soldOut || isQuotaEmpty);
+
+        // Jika mode auto dan stok di tab stok ada (availQuota > 0), maka otomatis bisa dibeli walaupun item.soldOut lama bernilai true (#18)
+        const isSold = procType === 'auto' && hasStockQuota && availQuota > 0
+            ? false
+            : Boolean(item.soldOut || isQuotaEmpty);
+
         const isSelected = selectedProductForBuy && selectedProductForBuy.dbId === item.dbId;
 
-        const procBadge = item.processType === 'manual'
-            ? '<small style="font-size:0.62rem; font-weight:800; color:var(--warning);">MANUAL</small>'
-            : '<small style="font-size:0.62rem; font-weight:800; color:var(--success);"><i class="fa-solid fa-bolt"></i> INSTAN</small>';
+        let procBadge = '';
+        if (procType === 'manual') {
+            procBadge = '<span class="proc-mode-badge proc-mode-manual"><i class="fa-solid fa-user-gear"></i> MANUAL</span>';
+        } else if (procType === 'ask_auto' || procType === 'hybrid') {
+            procBadge = '<span class="proc-mode-badge proc-mode-ask-auto"><i class="fa-solid fa-comments"></i> TANYA / AUTO</span>';
+        } else {
+            procBadge = '<span class="proc-mode-badge proc-mode-auto"><i class="fa-solid fa-bolt"></i> OTOMATIS</span>';
+        }
 
         const varDescText = (item.variantDesc || item.description || '').trim();
         const varDescHtml = varDescText
@@ -2359,14 +2687,16 @@ function renderCheckoutVariantCards() {
             : '';
 
         let badgesHtml = '';
-        if (item.stockMode === 'SHARING' || (item.defaultMaxQuota && item.defaultMaxQuota > 1)) {
+        if (item.stockMode === 'EMAIL_OAUTH') {
+            badgesHtml += `<span class="item-email-format-pill"><i class="fa-solid fa-envelope-open-text"></i> FORMAT EMAIL</span>`;
+        } else if (item.stockMode === 'SHARING' || (item.defaultMaxQuota && item.defaultMaxQuota > 1)) {
             badgesHtml += `<span class="item-sharing-pill"><i class="fa-solid fa-users"></i> SHARING</span>`;
         }
         if (item.durationDays && item.durationDays > 0) {
             badgesHtml += `<span class="item-duration-pill"><i class="fa-regular fa-clock"></i> ${item.durationDays} Hari</span>`;
         }
         if (hasStockQuota) {
-            badgesHtml += `<span class="item-stock-pill"><i class="fa-solid fa-layer-group"></i> Sisa: <b>${availQuota}</b></span>`;
+            badgesHtml += `<span class="item-stock-pill"><i class="fa-solid fa-layer-group"></i> Stok: <b>${availQuota >= 999 ? '∞' : availQuota}</b></span>`;
         }
 
         const animDelay = `${Math.min(idx * 25, 200)}ms`;
@@ -2408,6 +2738,8 @@ window.openDirectBuyModal = function(brandName) {
     document.getElementById('buy-promo-msg').innerHTML = '';
     document.getElementById('buy-qty').value = 1;
     document.getElementById('manual-warning-msg').style.display = 'none';
+    const askAutoWarn = document.getElementById('ask-auto-warning-msg');
+    if (askAutoWarn) askAutoWarn.style.display = 'none';
     document.getElementById('cash-warning-msg').style.display = 'none';
     const qtySub = document.getElementById('buy-qty-subtext');
     if (qtySub) qtySub.innerText = 'Kuantitas item';
@@ -2420,7 +2752,7 @@ window.openDirectBuyModal = function(brandName) {
     document.getElementById('buy-brand-name').innerText = brandObj.brandName;
     let badgeTypeLabel = 'APLIKASI PREMIUM';
     if (brandObj.type === 'game') badgeTypeLabel = 'TOP UP GAME';
-    else if (brandObj.type === 'tools') badgeTypeLabel = 'TOOLS DIGITAL';
+    else if (brandObj.type === 'tools') badgeTypeLabel = 'TOOLS & EMAIL';
     document.getElementById('buy-brand-badge').innerText = badgeTypeLabel;
     
     const totalSold = orders.filter(o => o.status === 'SUCCESS' && o.items && o.items[0]?.brandName === brandObj.brandName)
@@ -2494,22 +2826,36 @@ window.openDirectBuyModal = function(brandName) {
             ${extraDesc}
             <div class="brutal-alert-box" style="background:var(--bg); color:var(--text);">
                 <i class="fa-solid fa-bolt text-primary" style="font-size:1.2rem;"></i>
-                <span>Detail <b>Akun / Password / Link Akses Tools</b> akan langsung dikirimkan otomatis ke menu <b>Pesanan (E-Receipt)</b> & Email kamu detik itu juga setelah pembayaran lunas!</span>
+                <span>Detail <b>Akun / Format Email / Link Akses Tools</b> akan langsung dikirimkan otomatis ke menu <b>Pesanan (E-Receipt)</b> & Email kamu detik itu juga setelah pembayaran lunas!</span>
             </div>`;
     }
     
+    // [FEATURE-14] Sembunyikan Kolom Email DAN No HP untuk Member Resmi
+    const isMember = Boolean(currentUser && !currentUser.isAnonymous && !userProfile.isGuest);
+    const guestContactBox = document.getElementById('buy-guest-contact-box');
     const emailGroup = document.getElementById('buy-email-group');
+    const phoneGroup = document.getElementById('buy-phone-group');
     const emailInput = document.getElementById('buy-email');
     const phoneInput = document.getElementById('buy-phone');
-    if (!userProfile.isGuest && userProfile.email) {
-        emailInput.value = userProfile.email;
+    const memberAutofillBadge = document.getElementById('buy-member-autofill-badge');
+
+    if (isMember) {
+        const memEmail = userProfile.email || currentUser.email || localStorage.getItem('vipercell_member_email') || '';
+        const memPhone = userProfile.phone || userProfile.whatsapp || localStorage.getItem('vipercell_member_phone') || '';
+        if (emailInput) emailInput.value = memEmail;
+        if (phoneInput) phoneInput.value = memPhone;
+        if (guestContactBox) guestContactBox.style.display = 'none';
         if (emailGroup) emailGroup.style.display = 'none';
+        if (phoneGroup) phoneGroup.style.display = 'none';
+        if (memberAutofillBadge) memberAutofillBadge.style.display = 'flex';
     } else {
-        emailInput.value = localStorage.getItem('vipercell_track_email') || '';
+        // Sesi Anonim: hanya ambil email/phone milik sesi anonim saat ini (bukan milik Member)
+        if (emailInput) emailInput.value = localStorage.getItem('vipercell_guest_email') || '';
+        if (phoneInput) phoneInput.value = localStorage.getItem('vipercell_guest_phone') || '';
+        if (guestContactBox) guestContactBox.style.display = 'block';
         if (emailGroup) emailGroup.style.display = 'block';
-    }
-    if (phoneInput) {
-        phoneInput.value = userProfile.phone || userProfile.whatsapp || localStorage.getItem('vipercell_track_phone') || '';
+        if (phoneGroup) phoneGroup.style.display = 'block';
+        if (memberAutofillBadge) memberAutofillBadge.style.display = 'none';
     }
     
     const defaultPayCard = document.querySelector('input[name="payment_method"][value="qris"]');
@@ -2527,15 +2873,21 @@ window.selectItemToBuy = function(dbId) {
     if (cardEl) cardEl.classList.add('selected');
     
     const manualWarn = document.getElementById('manual-warning-msg');
-    if (manualWarn && selectedProductForBuy) {
-        manualWarn.style.display = selectedProductForBuy.processType === 'manual' ? 'flex' : 'none';
+    const askAutoWarn = document.getElementById('ask-auto-warning-msg');
+    const procType = (selectedProductForBuy?.processType || 'auto').toLowerCase();
+
+    if (manualWarn) {
+        manualWarn.style.display = procType === 'manual' ? 'flex' : 'none';
+    }
+    if (askAutoWarn) {
+        askAutoWarn.style.display = (procType === 'ask_auto' || procType === 'hybrid') ? 'flex' : 'none';
     }
 
     const qtyInput = document.getElementById('buy-qty');
     const qtySub = document.getElementById('buy-qty-subtext');
     const availQuota = computeVariantAvailableStock(selectedProductForBuy);
 
-    if (typeof availQuota === 'number') {
+    if (typeof availQuota === 'number' && availQuota < 999) {
         if (qtySub) qtySub.innerText = `Tersedia ${availQuota} stok/slot`;
         if (parseInt(qtyInput.value) > availQuota) {
             qtyInput.value = Math.max(1, availQuota);
@@ -2546,10 +2898,9 @@ window.selectItemToBuy = function(dbId) {
     
     window.calculateDirectBuyTotal();
 };
-/* ======================== END OF [FEATURE-04 & 05] ======================== */
 
 /* ============================================================================
- * [FEATURE-06] PROMO ENGINE & CHECKOUT CALCULATION
+ * [FEATURE-06, 13, 19] PROMO ENGINE (SEMUA USER VS MEMBER RESMI & 1 EMAIL 1X)
  * ============================================================================ */
 window.selectPaymentUI = function(val, el) {
     document.querySelectorAll('input[name="payment_method"]').forEach(input => { input.parentElement.classList.remove('active'); });
@@ -2572,7 +2923,7 @@ window.changeBuyQty = function(change) {
     if (newVal < 1) newVal = 1;
 
     const availQuota = computeVariantAvailableStock(selectedProductForBuy);
-    if (typeof availQuota === 'number' && availQuota > 0) {
+    if (typeof availQuota === 'number' && availQuota > 0 && availQuota < 999) {
         if (newVal > availQuota) {
             newVal = availQuota;
             window.showToast('Batas Stok', `Maksimal stok/slot tersedia untuk varian ini adalah ${availQuota}.`, 'warning');
@@ -2591,36 +2942,78 @@ window.applyPromoDirect = function() {
         appliedPromo = null; window.calculateDirectBuyTotal(); return;
     }
     
-    const effectiveUid = boundLegacyGuestUid || currentUser?.uid || '';
+    const isMember = Boolean(currentUser && !currentUser.isAnonymous && !userProfile.isGuest);
+    const effectiveUid = isMember ? currentUser.uid : (boundLegacyGuestUid || currentUser?.uid || '');
+    const buyerEmail = (isMember ? (userProfile.email || currentUser?.email || '') : (document.getElementById('buy-email')?.value || '')).trim().toLowerCase();
+
     const p = promos.find(x => x.code === codeInput);
     const qty = parseInt(document.getElementById('buy-qty')?.value) || 1;
     const rawSubtotal = selectedProductForBuy ? (selectedProductForBuy.priceNum * qty) : 0;
     const todayIso = new Date().toISOString().slice(0, 10);
 
     if (!p || !p.active) {
-        appliedPromo = null; msgEl.innerHTML = `<span style="color:var(--danger)"><i class="fa-solid fa-circle-xmark"></i> Kode promo tidak ditemukan atau tidak aktif.</span>`;
-    } else if (p.usedCount >= p.maxUses) {
+        appliedPromo = null;
+        msgEl.innerHTML = `<span style="color:var(--danger)"><i class="fa-solid fa-circle-xmark"></i> Kode promo tidak ditemukan atau tidak aktif.</span>`;
+        window.calculateDirectBuyTotal();
+        return;
+    }
+
+    // [FEATURE-13] Cek apakah Kode Promo Khusus Member Resmi (Anonim tidak bisa gunakan)
+    const isMemberOnlyPromo = (p.targetUser === 'member' || p.targetUser === 'member_only' || p.memberOnly === true);
+    if (isMemberOnlyPromo && !isMember) {
+        appliedPromo = null;
+        msgEl.innerHTML = `<span style="color:var(--danger)"><i class="fa-solid fa-user-lock"></i> Kode promo ini <b>Khusus Member Resmi</b>! Akun Anonim tidak dapat menggunakannya (Upgrade di tab Profil).</span>`;
+        window.calculateDirectBuyTotal();
+        return;
+    }
+
+    // [FEATURE-19] Cek aturan 1 Email = 1x Pakai
+    if (buyerEmail && buyerEmail.includes('@')) {
+        const usedEmailsList = Array.isArray(p.usedEmails) ? p.usedEmails.map(e => String(e).toLowerCase()) : [];
+        const hasUsedInOrders = orders.some(o =>
+            o.promoCode && o.promoCode.toUpperCase() === p.code.toUpperCase() &&
+            o.status !== 'CANCELLED' && o.status !== 'EXPIRED' && o.status !== 'FAILED' &&
+            (o.userEmail || '').toLowerCase() === buyerEmail
+        );
+        const hasUsedLocal = localStorage.getItem(`vipercell_promo_used_${p.code}_${buyerEmail}`) === '1';
+
+        if (usedEmailsList.includes(buyerEmail) || hasUsedInOrders || hasUsedLocal) {
+            appliedPromo = null;
+            msgEl.innerHTML = `<span style="color:var(--danger)"><i class="fa-solid fa-ban"></i> Kode promo <b>${escapeHtml(p.code)}</b> hanya berlaku 1x per Email (Email ${escapeHtml(buyerEmail)} sudah pernah mengklaim).</span>`;
+            window.calculateDirectBuyTotal();
+            return;
+        }
+    }
+
+    if (p.usedCount >= p.maxUses) {
         appliedPromo = null; msgEl.innerHTML = `<span style="color:var(--danger)"><i class="fa-solid fa-circle-xmark"></i> Kuota kode promo sudah habis.</span>`;
     } else if (p.expiryDate && p.expiryDate < todayIso) {
         appliedPromo = null; msgEl.innerHTML = `<span style="color:var(--danger)"><i class="fa-solid fa-circle-xmark"></i> Masa berlaku kode promo telah berakhir.</span>`;
     } else if (p.minOrder && p.minOrder > 0 && rawSubtotal < p.minOrder) {
         appliedPromo = null; msgEl.innerHTML = `<span style="color:var(--danger)"><i class="fa-solid fa-circle-xmark"></i> Minimal belanja Rp${p.minOrder.toLocaleString('id-ID')}.</span>`;
-    } else if (p.targetBrand !== 'all' && p.targetBrand !== currentCheckoutBrand.brandName) {
+    } else if (p.targetBrand && p.targetBrand !== 'all' && currentCheckoutBrand && p.targetBrand !== currentCheckoutBrand.brandName) {
         appliedPromo = null; msgEl.innerHTML = `<span style="color:var(--danger)"><i class="fa-solid fa-circle-xmark"></i> Khusus produk ${escapeHtml(p.targetBrand)}.</span>`;
     } else if (p.targetUser === 'new') {
-        const hasOrders = effectiveUid ? orders.some(o => o.userId === effectiveUid || o.userId === currentUser?.uid) : false;
+        const hasOrders = orders.some(o =>
+            (effectiveUid && o.userId === effectiveUid) ||
+            (buyerEmail && (o.userEmail || '').toLowerCase() === buyerEmail)
+        );
         if (hasOrders) {
             appliedPromo = null; msgEl.innerHTML = `<span style="color:var(--danger)"><i class="fa-solid fa-circle-xmark"></i> Khusus pengguna transaksi pertama.</span>`;
-        } else { setValidPromo(p, msgEl); }
+        } else {
+            setValidPromo(p, msgEl, isMemberOnlyPromo);
+        }
     } else {
-        setValidPromo(p, msgEl);
+        setValidPromo(p, msgEl, isMemberOnlyPromo);
     }
     window.calculateDirectBuyTotal();
 };
+window.applyPromoDirectV27 = window.applyPromoDirect;
 
-function setValidPromo(p, msgEl) {
-    appliedPromo = { dbId: p.dbId, code: p.code, amount: p.amount, type: p.type || 'nominal' };
-    msgEl.innerHTML = `<span style="color:var(--success)"><i class="fa-solid fa-circle-check"></i> Promo ${escapeHtml(p.code)} berhasil dipasang!</span>`;
+function setValidPromo(p, msgEl, isMemberOnlyPromo = false) {
+    appliedPromo = { dbId: p.dbId, code: p.code, amount: p.amount, type: p.type || 'nominal', memberOnly: isMemberOnlyPromo };
+    const badgeTag = isMemberOnlyPromo ? ' (VIP Member)' : '';
+    msgEl.innerHTML = `<span style="color:var(--success)"><i class="fa-solid fa-circle-check"></i> Promo ${escapeHtml(p.code)}${badgeTag} berhasil dipasang!</span>`;
 }
 
 window.calculateDirectBuyTotal = function() {
@@ -2662,11 +3055,45 @@ window.calculateDirectBuyTotal = function() {
 window.processDirectCheckout = async function() {
     if (isProcessingCheckout || !selectedProductForBuy) return;
     
-    let emailInput = document.getElementById('buy-email').value.trim();
-    let phoneInput = document.getElementById('buy-phone') ? document.getElementById('buy-phone').value.trim() : '';
+    const isMember = Boolean(currentUser && !currentUser.isAnonymous && !userProfile.isGuest);
+
+    // [FEATURE-14] Untuk Member Resmi, otomatis gunakan Email & No HP dari profil Member tanpa perlu input!
+    let emailInput = isMember
+        ? (userProfile.email || currentUser?.email || document.getElementById('buy-email')?.value || '').trim()
+        : (document.getElementById('buy-email')?.value || '').trim();
+
+    let phoneInput = isMember
+        ? (userProfile.phone || userProfile.whatsapp || document.getElementById('buy-phone')?.value || '').trim()
+        : (document.getElementById('buy-phone')?.value || '').trim();
+
     if (!emailInput || !emailInput.includes('@')) { 
         window.customAlert('Email Diperlukan', 'Harap masukkan alamat Email aktif untuk pengiriman struk & akun!', 'warning'); 
         return; 
+    }
+
+    // Validasi ulang Promo Member Only & 1 Email 1x Pakai tepat sebelum membuat order (#13 & #19)
+    if (appliedPromo) {
+        const promoDoc = promos.find(x => x.code === appliedPromo.code);
+        if (promoDoc) {
+            const isMemOnly = (promoDoc.targetUser === 'member' || promoDoc.targetUser === 'member_only' || promoDoc.memberOnly === true);
+            if (isMemOnly && !isMember) {
+                window.customAlert('Khusus Member Resmi', 'Kode promo yang kamu pasang hanya berlaku untuk Member Resmi.', 'warning');
+                return;
+            }
+            const lowerEm = emailInput.toLowerCase();
+            const usedEmails = Array.isArray(promoDoc.usedEmails) ? promoDoc.usedEmails.map(e => String(e).toLowerCase()) : [];
+            const alreadyClaimed = usedEmails.includes(lowerEm) || orders.some(o =>
+                o.promoCode && o.promoCode.toUpperCase() === promoDoc.code.toUpperCase() &&
+                o.status !== 'CANCELLED' && o.status !== 'EXPIRED' && o.status !== 'FAILED' &&
+                (o.userEmail || '').toLowerCase() === lowerEm
+            );
+            if (alreadyClaimed) {
+                appliedPromo = null;
+                window.calculateDirectBuyTotal();
+                window.customAlert('Promo Sudah Pernah Dipakai', `Kode promo <b>${escapeHtml(promoDoc.code)}</b> hanya berlaku 1x untuk setiap alamat Email (${escapeHtml(emailInput)}).`, 'warning');
+                return;
+            }
+        }
     }
     
     const qty = parseInt(document.getElementById('buy-qty').value) || 1;
@@ -2695,20 +3122,19 @@ window.processDirectCheckout = async function() {
         else if (inpType === 'custom' || inpType === 'roblox') playerInfo = `Target: ${pid}`;
         else playerInfo = `ID: ${pid} | Zone: ${zol}`;
     } else {
-        const typeLabel = currentCheckoutBrand.type === 'tools' ? 'Tools Digital' : 'Akun Premium';
-        playerInfo = `${typeLabel} (Delivery: ${selectedProductForBuy.processType === 'manual' ? 'Manual' : 'Auto'})`;
+        const typeLabel = currentCheckoutBrand.type === 'tools' ? 'Tools / Email Digital' : 'Akun Premium';
+        const modeLbl = selectedProductForBuy.processType === 'manual' ? 'Manual' : (selectedProductForBuy.processType === 'ask_auto' ? 'Tanya/Auto' : 'Auto');
+        playerInfo = `${typeLabel} (Delivery: ${modeLbl})`;
     }
 
     await ensureAuthSession();
-    const effectiveUid = (currentUser?.isAnonymous && boundLegacyGuestUid) ? boundLegacyGuestUid : (currentUser?.uid || null);
+    const effectiveUid = isMember ? currentUser.uid : (boundLegacyGuestUid || currentUser?.uid || userProfile.uid || null);
 
     const now = Date.now();
     const paymentMethod = document.querySelector('input[name="payment_method"]:checked').value;
 
-    // Cek apakah masih ada pesanan UNPAID/PENDING yang identik (dan belum dibatalkan)
     const existingActiveOrder = orders.find(o => {
-        const isSameUser = (effectiveUid && o.userId === effectiveUid) ||
-                           (o.userEmail && o.userEmail.toLowerCase() === emailInput.toLowerCase());
+        const isSameUser = effectiveUid && o.userId === effectiveUid;
         const isStillActive = (o.status === 'UNPAID' || o.status === 'PENDING_PAYMENT' || o.status === 'PENDING') && (now - new Date(o.date).getTime() < 900000);
         const isSameItem = o.items && o.items[0] &&
                            o.items[0].productDbId === selectedProductForBuy.dbId &&
@@ -2730,10 +3156,8 @@ window.processDirectCheckout = async function() {
     btnProc.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> <span>Menerbitkan Tagihan...</span>';
     btnProc.disabled = true;
 
-    localStorage.setItem('vipercell_track_email', emailInput);
-    if (phoneInput) localStorage.setItem('vipercell_track_phone', phoneInput);
-    const trackEmailEl = document.getElementById('track-email');
-    if (trackEmailEl) trackEmailEl.value = emailInput;
+    // [FEATURE-22] Simpan kontak sesuai sesi (Member vs Guest Terpisah)
+    saveActiveSessionContact(emailInput, phoneInput);
     
     let rawTotal = selectedProductForBuy.priceNum * qty;
     let discountPromo = 0; let promoUsedCode = '';
@@ -2747,7 +3171,6 @@ window.processDirectCheckout = async function() {
     let baseTotal = rawTotal - discountPromo;
     if (baseTotal < 0) baseTotal = 0;
     
-    // Pastikan kode unik 3 digit tidak bentrok dengan pesanan UNPAID lain yang sedang aktif
     let uniqueCode = 0;
     if (paymentMethod === 'qris' && baseTotal > 0) {
         uniqueCode = Math.floor(Math.random() * 250) + 1;
@@ -2776,6 +3199,7 @@ window.processDirectCheckout = async function() {
         qty: qty,
         type: currentCheckoutBrand.type, 
         processType: selectedProductForBuy.processType || 'auto',
+        stockMode: selectedProductForBuy.stockMode || 'PRIVATE',
         durationDays: durationDays,
         playerInfo: playerInfo 
     };
@@ -2788,6 +3212,7 @@ window.processDirectCheckout = async function() {
         buyerName: userProfile.name || emailInput.split('@')[0],
         userPhone: phoneInput || userProfile.phone || userProfile.whatsapp || '',
         userId: effectiveUid, 
+        isAnonymousOrder: !isMember,
         deviceId: currentDeviceId,
         targetId: rawTargetId || playerInfo,
         productName: currentCheckoutBrand.brandName,
@@ -2803,6 +3228,7 @@ window.processDirectCheckout = async function() {
         status: paymentMethod === 'cash' ? 'PENDING' : 'UNPAID',
         paymentMethod: paymentMethod,
         adminReply: '',
+        emailSent: false,
         date: new Date(now).toISOString(),
         expiresAt: now + 900000
     };
@@ -2820,13 +3246,18 @@ window.processDirectCheckout = async function() {
         };
         
         if (appliedPromo) {
-            await updateDoc(doc(db, pathPromos, appliedPromo.dbId), { usedCount: increment(1) }).catch(() => {});
+            const lowerEm = emailInput.toLowerCase();
+            localStorage.setItem(`vipercell_promo_used_${appliedPromo.code}_${lowerEm}`, '1');
+            await updateDoc(doc(db, pathPromos, appliedPromo.dbId), {
+                usedCount: increment(1),
+                usedEmails: arrayUnion(lowerEm)
+            }).catch(() => {});
         }
         
         if (paymentMethod === 'qris') {
-            setTimeout(() => window.openQRISModal(), 100);
+            setTimeout(() => window.openQRISModal(), 80);
         } else {
-            setTimeout(() => window.openCashBarcodeModal(), 100);
+            setTimeout(() => window.openCashBarcodeModal(), 80);
         }
     } catch (e) { 
         window.customAlert("Gagal", "Gagal membuat pesanan ke server, silakan coba lagi.", "error"); 
@@ -2835,28 +3266,67 @@ window.processDirectCheckout = async function() {
             isProcessingCheckout = false;
             btnProc.innerHTML = ogHtml;
             btnProc.disabled = false;
-        }, 800);
+        }, 700);
     }
 };
-/* ======================== END OF [FEATURE-06] ============================= */
 
 /* ============================================================================
- * [FEATURE-11] E-RECEIPT WITH QUICK COPY CREDENTIAL PARSER, RESEND EMAIL,
- * CANCEL BUTTON, HISTORY & LIVE CHAT
+ * [FEATURE-02, 03, 15, 17, 22, 23, 24] E-RECEIPT TANPA TOMBOL EMAIL USER,
+ * PARSER FORMAT PRODUK EMAIL OAUTH ("email|password|refresh_token|client_id"),
+ * PELACAK 1-INPUT ID TRX, & LIVE CHAT SUPPORT STUDIO V27
  * ============================================================================ */
 function buildQuickCopyCredentialButtons(rawReplyText, invId) {
     if (!rawReplyText) return '';
     const lines = String(rawReplyText).split(/\r?\n/).map(l => l.trim()).filter(Boolean);
     const extractedPairs = [];
+    const emailOAuthBlocks = [];
+
+    let pendingEmailOAuth = null;
 
     lines.forEach(line => {
         if (line.startsWith('[') && line.endsWith(']')) return;
+
+        // Deteksi baris FORMAT_UTUH khusus produk Email OAuth (#17)
+        if (line.toUpperCase().startsWith('FORMAT_UTUH')) {
+            const cIdx = line.indexOf(':');
+            const rawPipe = cIdx > 0 ? line.substring(cIdx + 1).trim() : '';
+            if (rawPipe) {
+                pendingEmailOAuth = { rawPipe, accessLink: '' };
+                emailOAuthBlocks.push(pendingEmailOAuth);
+            }
+            return;
+        }
+
+        if (line.toUpperCase().startsWith('LINK_AKSES')) {
+            const cIdx = line.indexOf(':');
+            const linkVal = cIdx > 0 ? line.substring(cIdx + 1).trim() : '';
+            if (linkVal && pendingEmailOAuth) {
+                pendingEmailOAuth.accessLink = linkVal;
+            } else if (linkVal) {
+                extractedPairs.push({ label: 'Link Akses Tanpa Login', val: linkVal, isUrl: linkVal.startsWith('http') });
+            }
+            return;
+        }
+
+        // Deteksi baris mentah yang langsung berformat email|password|refresh_token|client_id(|link)
+        if (line.includes('|') && line.split('|').length >= 4) {
+            const segs = line.split('|').map(s => s.trim());
+            const fourPart = `${segs[0]}|${segs[1]}|${segs[2]}|${segs[3]}`;
+            const linkSeg = segs[4] || siteSettings.defaultEmailPortalUrl || '';
+            emailOAuthBlocks.push({ rawPipe: fourPart, accessLink: linkSeg });
+            if (segs[0]) extractedPairs.push({ label: 'Email', val: segs[0] });
+            if (segs[1] && segs[1] !== '-') extractedPairs.push({ label: 'Password', val: segs[1] });
+            if (segs[2] && segs[2] !== '-') extractedPairs.push({ label: 'Refresh Token', val: segs[2] });
+            if (segs[3] && segs[3] !== '-') extractedPairs.push({ label: 'Client ID', val: segs[3] });
+            return;
+        }
+
         const colonIdx = line.indexOf(':');
         if (colonIdx > 0 && colonIdx < 28) {
             const label = line.substring(0, colonIdx).trim();
             const val = line.substring(colonIdx + 1).trim();
             if (val && val !== '-' && !label.toLowerCase().includes('terima kasih')) {
-                extractedPairs.push({ label, val });
+                extractedPairs.push({ label, val, isUrl: val.startsWith('http') });
             }
         } else if (line.includes('|')) {
             const parts = line.split('|').map(s => s.trim()).filter(Boolean);
@@ -2866,27 +3336,76 @@ function buildQuickCopyCredentialButtons(rawReplyText, invId) {
         }
     });
 
-    if (extractedPairs.length === 0) return '';
+    let html = '';
 
-    let html = `<div class="cred-parsed-grid">`;
-    extractedPairs.forEach(pair => {
-        const safeVal = escapeJsStr(pair.val);
-        const safeLbl = escapeJsStr(pair.label);
-        html += `
-            <div class="cred-copy-item">
-                <div class="cred-copy-meta">
-                    <span>${escapeHtml(pair.label)}</span>
-                    <strong>${escapeHtml(pair.val)}</strong>
+    // [FEATURE-17] Render Kartu Khusus Format Produk Email OAuth + Tombol Copy Seutuhnya + Link Akses Tanpa Login
+    if (emailOAuthBlocks.length > 0) {
+        emailOAuthBlocks.forEach((blk, bIdx) => {
+            const safePipeJs = escapeJsStr(blk.rawPipe);
+            const accessUrl = blk.accessLink || siteSettings.defaultEmailPortalUrl || '';
+            const safeAccessHtml = escapeHtml(accessUrl);
+            const openPortalBtn = accessUrl
+                ? `<a href="${safeAccessHtml}" target="_blank" rel="noopener noreferrer" class="btn btn-sm btn-open-mail-portal" style="flex:1;">
+                       <i class="fa-solid fa-up-right-from-square"></i> Buka Link Akses Ambil Kode (Tanpa Login)
+                   </a>`
+                : '';
+
+            html += `
+            <div class="email-oauth-vault-box">
+                <div class="email-oauth-head">
+                    <span class="brutal-tag tag-amber"><i class="fa-solid fa-envelope-open-text"></i> FORMAT PRODUK EMAIL ${emailOAuthBlocks.length > 1 ? '#' + (bIdx + 1) : ''}</span>
+                    <small style="font-size:0.7rem; font-weight:700; color:var(--text-muted);">Salin utuh lalu tempel di web ambil kode</small>
                 </div>
-                <button type="button" class="btn btn-primary btn-sm" style="padding:4px 10px; min-height:30px; font-size:0.72rem;" onclick="window.copyCredentialPart('${safeVal}', '${safeLbl}')">
-                    <i class="fa-regular fa-copy"></i> Salin
-                </button>
-            </div>
-        `;
-    });
-    html += `</div>`;
+                <div class="raw-pipe-code">${escapeHtml(blk.rawPipe)}</div>
+                <div class="email-oauth-actions">
+                    <button type="button" class="btn btn-primary btn-sm" style="flex:1;" onclick="window.copyRawPipeFormatV27('${safePipeJs}')">
+                        <i class="fa-regular fa-copy"></i> Salin Format Utuh (1-Klik)
+                    </button>
+                    ${openPortalBtn}
+                </div>
+            </div>`;
+        });
+    }
+
+    if (extractedPairs.length > 0) {
+        html += `<div class="cred-parsed-grid">`;
+        extractedPairs.forEach(pair => {
+            const safeVal = escapeJsStr(pair.val);
+            const safeLbl = escapeJsStr(pair.label);
+            const actionBtn = pair.isUrl
+                ? `<div style="display:flex; gap:6px;">
+                       <a href="${escapeHtml(pair.val)}" target="_blank" rel="noopener noreferrer" class="btn btn-warning btn-sm" style="padding:4px 10px; min-height:30px; font-size:0.72rem;">
+                           <i class="fa-solid fa-up-right-from-square"></i> Buka Link
+                       </a>
+                       <button type="button" class="btn btn-primary btn-sm" style="padding:4px 10px; min-height:30px; font-size:0.72rem;" onclick="window.copyCredentialPart('${safeVal}', '${safeLbl}')">
+                           <i class="fa-regular fa-copy"></i>
+                       </button>
+                   </div>`
+                : `<button type="button" class="btn btn-primary btn-sm" style="padding:4px 10px; min-height:30px; font-size:0.72rem;" onclick="window.copyCredentialPart('${safeVal}', '${safeLbl}')">
+                       <i class="fa-regular fa-copy"></i> Salin
+                   </button>`;
+
+            html += `
+                <div class="cred-copy-item">
+                    <div class="cred-copy-meta">
+                        <span>${escapeHtml(pair.label)}</span>
+                        <strong>${escapeHtml(pair.val)}</strong>
+                    </div>
+                    ${actionBtn}
+                </div>
+            `;
+        });
+        html += `</div>`;
+    }
     return html;
 }
+
+window.copyRawPipeFormatV27 = function(rawPipeStr) {
+    if (!rawPipeStr) return;
+    navigator.clipboard.writeText(rawPipeStr).then(() => {
+        window.showToast('Format Email Utuh Disalin!', 'Format email|password|refresh_token|client_id berhasil disalin untuk ditempel di web akses kode tanpa login.', 'success');
+    });
+};
 
 window.copyCredentialPart = function(val, label) {
     if (!val) return;
@@ -2933,6 +3452,7 @@ function hasOrderBeenReviewed(order) {
     return reviewsData.some(r => r.orderId && r.orderId === order.id);
 }
 
+// [FEATURE-02 & 15] E-Receipt Bersih: Tanpa Tombol Kirim Email User & Tanpa Banner Upgrade Anonim
 function buildFullReceiptHTML(order) {
     const isUnpaid = order.status === 'UNPAID' || order.status === 'PENDING_PAYMENT';
     const isCancelled = order.status === 'CANCELLED';
@@ -2973,36 +3493,15 @@ function buildFullReceiptHTML(order) {
             actionHtml = `<button class="btn btn-primary" style="width:100%; margin-top:1rem;" onclick="window.closeModal('modal-order-detail'); window.openDirectBuyModal('${safeJsBrand}')"><i class="fa-solid fa-rotate-right"></i> Buat Pesanan Baru Produk Ini</button>`;
         }
     } else if (order.status === 'SUCCESS') {
+        // [FEATURE-02] Tombol kirim email telah dihapus dari sisi user (hanya ada di Admin)
         const alreadyReviewed = hasOrderBeenReviewed(order);
-        const resendEmailBtn = (siteSettings.emailWebhookUrl || '').trim().startsWith('https://script.google.com/')
-            ? `<button class="btn btn-outline btn-sm" style="width:100%; margin-top:8px;" onclick="window.resendOrderEmailReceipt('${escapeJsStr(order.id)}')"><i class="fa-solid fa-envelope-circle-check text-primary"></i> Kirim Ulang E-Receipt ke Email</button>`
-            : '';
-
         if (!alreadyReviewed && brandName) {
             actionHtml = `
-                <button class="btn btn-warning" style="width:100%; margin-top:1rem;" onclick="window.goToReview('${safeJsBrand}', '${order.id}')"><i class="fa-solid fa-star"></i> Beri Ulasan Transaksi Ini</button>
-                ${resendEmailBtn}`;
+                <button class="btn btn-warning" style="width:100%; margin-top:1rem;" onclick="window.goToReview('${safeJsBrand}', '${order.id}')"><i class="fa-solid fa-star"></i> Beri Ulasan Transaksi Ini</button>`;
         } else if (alreadyReviewed) {
             actionHtml = `
-                <div style="margin-top:1rem; text-align:center; font-size:0.78rem; font-weight:800; color:var(--success); padding:8px; border:1.5px dashed var(--success); border-radius:8px;"><i class="fa-solid fa-circle-check"></i> Transaksi ini sudah diulas</div>
-                ${resendEmailBtn}`;
-        } else {
-            actionHtml = resendEmailBtn;
+                <div style="margin-top:1rem; text-align:center; font-size:0.78rem; font-weight:800; color:var(--success); padding:8px; border:1.5px dashed var(--success); border-radius:8px;"><i class="fa-solid fa-circle-check"></i> Transaksi ini sudah diulas</div>`;
         }
-    }
-
-    let guestUpgradeOfferHtml = '';
-    if (userProfile.isGuest) {
-        guestUpgradeOfferHtml = `
-        <div class="brutal-alert-box alert-warning" style="margin-top: 12px; flex-direction: column; align-items: stretch; gap: 8px;">
-            <div style="display:flex; align-items:center; gap:8px;">
-                <i class="fa-solid fa-user-shield"></i>
-                <span>Ingin menyimpan bukti transaksi & garansi ini secara permanen? Ubah akun Anda menjadi Member.</span>
-            </div>
-            <button class="btn btn-warning btn-sm" style="width:100%;" onclick="window.closeModal('modal-order-detail'); window.openUpgradeMemberModal();">
-                <i class="fa-solid fa-link"></i> Verifikasi OTP & Jadi Member
-            </button>
-        </div>`;
     }
 
     let durationReceiptHtml = '';
@@ -3024,10 +3523,10 @@ function buildFullReceiptHTML(order) {
             <div class="ereceipt-cred-vault">
                 <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px;">
                     <span style="font-weight: 800; color: var(--success); font-size: 0.84rem; display: flex; align-items: center; gap: 6px;">
-                        <i class="fa-solid fa-key"></i> DATA AKUN / VOUCHER TERKIRIM:
+                        <i class="fa-solid fa-key"></i> DATA AKUN / FORMAT EMAIL / VOUCHER TERKIRIM:
                     </span>
                     <button class="btn btn-outline btn-sm" style="padding:3px 10px; min-height:28px; font-size:0.7rem;" onclick="window.copyAccountReplyText('${escapeJsStr(order.id)}')">
-                        <i class="fa-regular fa-copy"></i> Salin Semua
+                        <i class="fa-regular fa-copy"></i> Salin Semua Teks
                     </button>
                 </div>
                 ${quickCopyButtonsHtml}
@@ -3037,13 +3536,13 @@ function buildFullReceiptHTML(order) {
             replyHtml = `
             <div class="brutal-alert-box alert-warning" style="margin-top: 12px;">
                 <i class="fa-solid fa-user-clock"></i>
-                <span>Pembayaran terverifikasi! Pesanan manual sedang disiapkan oleh Admin.</span>
+                <span>Pembayaran terverifikasi! Pesanan manual sedang disiapkan oleh Admin dan akan langsung dikirim ke E-Receipt & Email kamu.</span>
             </div>`;
         } else {
             replyHtml = `
             <div class="brutal-alert-box alert-warning" style="margin-top: 12px;">
                 <i class="fa-solid fa-clock"></i>
-                <span>Pembayaran lunas! Sistem sedang menyiapkan stok otomatis untukmu.</span>
+                <span>Pembayaran lunas! Sistem sedang menyiapkan pengiriman stok otomatis untukmu.</span>
             </div>`;
         }
     }
@@ -3089,7 +3588,6 @@ function buildFullReceiptHTML(order) {
                 ${durationReceiptHtml}
             </div>
             ${replyHtml}
-            ${guestUpgradeOfferHtml}
         </div>
 
         <div class="ereceipt-footer">
@@ -3152,7 +3650,8 @@ function buildCompactOrderItemHTML(order) {
 }
 
 window.openOrderDetailModalById = function(invId) {
-    const order = orders.find(o => o.id === invId);
+    const cleanInv = String(invId || '').trim().replace(/^#/, '').toUpperCase();
+    const order = orders.find(o => (o.id || '').toUpperCase() === cleanInv);
     if (!order) return;
     const modalBody = document.getElementById('modal-order-detail-body');
     if (modalBody) {
@@ -3175,53 +3674,67 @@ window.refreshOrderData = function() {
     window.showToast('Diperbarui', 'Status transaksi telah disegarkan.', 'info');
 };
 
-window.trackOrder = function() {
-    const invId = document.getElementById('track-id').value.trim().toUpperCase();
-    if (!invId) return;
+// [FEATURE-03] Pelacak Pesanan Matang: Cukup Masukkan ID Transaksi Saja (Tanpa Email!)
+window.trackOrder = async function() {
+    const trackInp = document.getElementById('track-id');
+    if (!trackInp) return;
+    const invId = trackInp.value.trim().replace(/^#/, '').toUpperCase();
+    trackInp.value = invId;
 
-    let trackEmail = "";
-    if (userProfile.isGuest) {
-        trackEmail = document.getElementById('track-email').value.trim();
-        if (!trackEmail) {
-            window.customAlert('Email Diperlukan', 'Silakan masukkan email yang digunakan saat pembelian.', 'warning');
-            return;
-        }
-        localStorage.setItem('vipercell_track_email', trackEmail);
-        window.renderUserOrders();
-    } else {
-        trackEmail = userProfile.email;
-    }
-
-    const order = orders.find(o => o.id === invId);
-    const resBox = document.getElementById('track-result');
-    
-    if (!order) {
-        resBox.style.display = 'block';
-        resBox.innerHTML = `<div class="brutal-alert-box alert-danger"><i class="fa-solid fa-circle-xmark"></i> <span>Invoice <b>${escapeHtml(invId)}</b> tidak ditemukan.</span></div>`;
-        return; 
-    }
-
-    if (userProfile.isGuest && order.userEmail.toLowerCase() !== trackEmail.toLowerCase()) {
-        window.customAlert('Akses Ditolak', 'Alamat Email tidak cocok dengan pemilik Invoice ini.', 'error');
+    if (!invId) {
+        window.customAlert('ID Transaksi Diperlukan', 'Silakan masukkan Nomor Invoice / ID Transaksi (contoh: VP-123456).', 'warning');
         return;
     }
 
-    resBox.style.display = 'block';
-    resBox.innerHTML = buildFullReceiptHTML(order);
-};
+    const resBox = document.getElementById('track-result');
+    let order = orders.find(o => (o.id || '').toUpperCase() === invId);
 
+    // Jika belum ada di memori lokal, cari langsung ke Firestore berdasarkan field `id`
+    if (!order) {
+        try {
+            const q = query(collection(db, pathOrders), where("id", "==", invId));
+            const snap = await getDocs(q);
+            if (!snap.empty) {
+                const d = snap.docs[0];
+                order = { dbId: d.id, ...d.data() };
+            }
+        } catch (e) {}
+    }
+
+    if (!order) {
+        if (resBox) {
+            resBox.style.display = 'block';
+            resBox.innerHTML = `<div class="brutal-alert-box alert-danger"><i class="fa-solid fa-circle-xmark"></i> <span>ID Transaksi <b>#${escapeHtml(invId)}</b> tidak ditemukan. Pastikan kode Invoice sudah benar.</span></div>`;
+        }
+        return;
+    }
+
+    if (resBox) {
+        resBox.style.display = 'block';
+        resBox.innerHTML = buildFullReceiptHTML(order);
+        resBox.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+};
+window.trackOrderByIdOnly = window.trackOrder;
+
+// [FEATURE-22] Render Riwayat Pesanan Terisolasi (Sesi Anonim Baru tidak menarik riwayat Member)
 window.renderUserOrders = function() {
     const grid = document.getElementById('user-order-grid');
     if (!grid) return;
     
-    const effectiveUid = boundLegacyGuestUid || currentUser?.uid || '';
-    const savedTrackEmail = (localStorage.getItem('vipercell_track_email') || '').toLowerCase();
-    const activeEmail = (!userProfile.isGuest && userProfile.email) ? userProfile.email.toLowerCase() : savedTrackEmail;
+    const isMember = Boolean(currentUser && !currentUser.isAnonymous && !userProfile.isGuest);
+    const effectiveUid = isMember ? currentUser.uid : (boundLegacyGuestUid || currentUser?.uid || userProfile.uid || '');
+    const activeMemberEmail = isMember ? (userProfile.email || currentUser?.email || '').toLowerCase() : '';
 
     let userOrders = orders.filter(o => {
-        const matchUid = (effectiveUid && o.userId === effectiveUid) || (currentUser && o.userId === currentUser.uid);
-        const matchEmail = activeEmail && o.userEmail && o.userEmail.toLowerCase() === activeEmail;
-        return matchUid || matchEmail;
+        if (isMember) {
+            const matchUid = effectiveUid && o.userId === effectiveUid;
+            const matchEmail = activeMemberEmail && o.userEmail && o.userEmail.toLowerCase() === activeMemberEmail;
+            return matchUid || matchEmail;
+        } else {
+            // Untuk akun Anonim: HANYA tampilkan transaksi milik UID sesi anonim ini!
+            return Boolean(effectiveUid && o.userId === effectiveUid);
+        }
     });
 
     if (currentUserHistoryFilter !== 'ALL') {
@@ -3233,7 +3746,7 @@ window.renderUserOrders = function() {
     }
     
     if (userOrders.length === 0) {
-        grid.innerHTML = `<div class="brutal-empty-box">Belum ada riwayat transaksi pada filter ini.</div>`;
+        grid.innerHTML = `<div class="brutal-empty-box">Belum ada riwayat transaksi pada sesi ini. Gunakan kotak Lacak ID Transaksi di atas jika ingin mencari struk tertentu.</div>`;
         return;
     }
     
@@ -3245,13 +3758,15 @@ window.renderUserOrders = function() {
 };
 
 // ==========================================
-// FITUR LIVE CHAT (GUEST & MEMBER)
+// [FEATURE-20, 23, 24] FITUR LIVE CHAT BANTUAN BARU (TANPA PESAN CEPAT USER)
 // ==========================================
 async function getResolvedChatDocId() {
-    const user = await ensureAuthSession();
-    if (user && !user.isAnonymous) return user.uid;
+    const isMember = Boolean(currentUser && !currentUser.isAnonymous && !userProfile.isGuest);
+    if (isMember && currentUser?.uid) return currentUser.uid;
     if (boundLegacyGuestUid) return boundLegacyGuestUid;
+    const user = await ensureAuthSession();
     if (user && user.uid) {
+        boundLegacyGuestUid = user.uid;
         await saveMultiLayerToken('vipercell_anon_uid', user.uid);
         return user.uid;
     }
@@ -3266,7 +3781,10 @@ function checkChatUserState() {
     const chatChips = document.getElementById('chat-quick-chips');
     const userLabel = document.getElementById('chat-current-user-label');
     
-    let savedName = localStorage.getItem('vipercell_anon_name') || '';
+    // [FEATURE-23] Pastikan bar pesan cepat di sisi user selalu disembunyikan
+    if (chatChips) chatChips.style.display = 'none';
+
+    let savedName = userProfile.name || localStorage.getItem('vipercell_anon_name') || '';
     if (!userProfile.name && savedName) userProfile.name = savedName;
     if (!userProfile.name && currentUser && !userProfile.isGuest && currentUser.email) {
         userProfile.name = currentUser.email.split('@')[0];
@@ -3279,14 +3797,12 @@ function checkChatUserState() {
         if (preForm) preForm.style.display = 'none';
         if (chatHeader) chatHeader.style.display = 'flex';
         if (chatBody) chatBody.style.display = 'flex';
-        if (chatChips) chatChips.style.display = 'flex';
         if (chatFooter) chatFooter.style.display = 'flex';
         scrollToBottomUserChat();
     } else {
         if (preForm) preForm.style.display = 'flex';
         if (chatHeader) chatHeader.style.display = 'none';
         if (chatBody) chatBody.style.display = 'none';
-        if (chatChips) chatChips.style.display = 'none';
         if (chatFooter) chatFooter.style.display = 'none';
     }
 }
@@ -3316,7 +3832,7 @@ window.startAnonChat = async function() {
 
     if (btn) {
         btn.disabled = false;
-        btn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> <span>Buka Ruang Obrolan</span>';
+        btn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> <span>Buka Ruang Obrolan CS</span>';
     }
 
     checkChatUserState();
@@ -3334,31 +3850,23 @@ window.startAnonChat = async function() {
     }
 };
 
-window.changeChatNamePrompt = async function() {
-    const currentName = userProfile.name || localStorage.getItem('vipercell_anon_name') || '';
-    const newName = prompt('Ubah nama panggilan kamu di ruang obrolan:', currentName);
-    if (newName && newName.trim() !== '') {
-        userProfile.name = newName.trim();
-        localStorage.setItem('vipercell_anon_name', userProfile.name);
-        const effectiveUid = boundLegacyGuestUid || currentUser?.uid;
-        if (effectiveUid) {
-            await setDoc(doc(db, pathUsers, effectiveUid), { name: userProfile.name }, { merge: true }).catch(() => {});
-        }
-        checkChatUserState();
-        applyUserSessionToUI();
-        window.showToast('Nama Diperbarui', `Nama obrolan diubah menjadi ${userProfile.name}`, 'success');
-    }
+window.changeChatNamePrompt = function() {
+    const preForm = document.getElementById('chat-pre-form');
+    const chatHeader = document.getElementById('chat-wa-header');
+    const chatBody = document.getElementById('user-chat-body');
+    const chatFooter = document.getElementById('user-chat-footer');
+    const nameInp = document.getElementById('chat-anon-name');
+
+    if (nameInp) nameInp.value = userProfile.name || '';
+    if (preForm) preForm.style.display = 'flex';
+    if (chatHeader) chatHeader.style.display = 'none';
+    if (chatBody) chatBody.style.display = 'none';
+    if (chatFooter) chatFooter.style.display = 'none';
+    if (nameInp) nameInp.focus();
 };
+window.changeChatNameInline = window.changeChatNamePrompt;
 
 window.insertQuickUserChat = function(text) {
-    const savedName = userProfile.name || localStorage.getItem('vipercell_anon_name') || '';
-    if (!savedName) {
-        window.pendingMsgToAdmin = text;
-        const nameInput = document.getElementById('chat-anon-name');
-        if (nameInput) nameInput.focus();
-        window.showToast('Isi Nama Panggilan', 'Ketik nama panggilanmu lalu pesan akan terkirim otomatis.', 'info');
-        return;
-    }
     const inp = document.getElementById('user-chat-input');
     if (inp) {
         inp.value = text;
@@ -3416,9 +3924,11 @@ window.renderUserChatMessages = function() {
     if (userChatMessages.length === 0) {
         body.innerHTML = `
             <div style="display:flex; flex-direction:column; justify-content:center; align-items:center; height:100%; color:var(--text-muted); text-align:center; padding: 1.5rem;">
-                <i class="fa-solid fa-comments" style="font-size:2.8rem; margin-bottom:10px; color:var(--primary-light);"></i>
-                <strong style="color:var(--text); font-size:0.95rem;">Ruang Obrolan Siap Digunakan</strong>
-                <small style="max-width:300px; margin-top:4px;">Tulis pertanyaan atau nomor Invoice kamu di bawah. Riwayat chat ini tersimpan otomatis meskipun halaman di-refresh.</small>
+                <div style="width:64px; height:64px; border-radius:16px; background:var(--surface); border:var(--brutal-border); box-shadow:var(--brutal-shadow-xs); display:flex; align-items:center; justify-content:center; font-size:1.8rem; color:var(--primary); margin-bottom:12px;">
+                    <i class="fa-solid fa-headset"></i>
+                </div>
+                <strong style="color:var(--text); font-size:1rem; font-weight:800;">Ruang Bantuan CS Siap Digunakan</strong>
+                <small style="max-width:320px; margin-top:6px; font-weight:600; line-height:1.5;">Ketik pertanyaan, konsultasi stok, atau sebutkan Nomor Invoice pesananmu di kolom bawah.</small>
             </div>`;
         return;
     }
@@ -3428,13 +3938,13 @@ window.renderUserChatMessages = function() {
         const isUser = msg.sender === 'user';
         const msgClass = isUser ? 'user' : 'admin';
         const senderLabel = isUser
-            ? `<span class="chat-sender-label">Kamu</span>`
-            : `<span class="chat-sender-label" style="color:var(--primary-light);"><i class="fa-solid fa-headset"></i> Admin Vipercell</span>`;
+            ? `<span class="chat-sender-label"><i class="fa-solid fa-user"></i> ${escapeHtml(userProfile.name || 'Kamu')}</span>`
+            : `<span class="chat-sender-label" style="color:var(--primary-light);"><i class="fa-solid fa-headset"></i> Admin Support Vipercell</span>`;
 
         html += `
             <div class="chat-msg ${msgClass}">
                 ${senderLabel}
-                ${escapeHtml(msg.text).replace(/\n/g, '<br>')}
+                <div>${escapeHtml(msg.text).replace(/\n/g, '<br>')}</div>
                 <span class="chat-time">${new Date(msg.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
             </div>
         `;
@@ -3458,6 +3968,7 @@ window.sendUserChat = async function() {
     
     input.value = '';
     btn.disabled = true;
+    const ogBtnHtml = btn.innerHTML;
     btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
     
     try {
@@ -3475,7 +3986,7 @@ window.sendUserChat = async function() {
         await setDoc(chatRef, {
             uid: chatId,
             userInfo: displayName,
-            userEmail: userProfile.email || localStorage.getItem('vipercell_track_email') || '',
+            userEmail: getActiveSessionStorageEmail(),
             deviceId: currentDeviceId,
             updatedAt: msgTimestamp,
             messages: arrayUnion(newMsg)
@@ -3488,13 +3999,12 @@ window.sendUserChat = async function() {
         window.customAlert('Gagal Mengirim Pesan', 'Koneksi ke server chat terganggu. Silakan klik tombol kirim sekali lagi.', 'error');
     } finally {
         btn.disabled = false;
-        btn.innerHTML = '<i class="fa-solid fa-paper-plane"></i>';
+        btn.innerHTML = ogBtnHtml;
     }
 };
-/* ======================== END OF [FEATURE-11] ============================= */
 
 // ==========================================
-// UI, TEMA, NOTIFIKASI & NAVIGASI TAB
+// [FEATURE-07] TEMA DENGAN TRANSISI HALUS, NOTIFIKASI & NAVIGASI TAB
 // ==========================================
 window.toggleTheme = function() {
     const html = document.documentElement;
@@ -3504,10 +4014,38 @@ window.toggleTheme = function() {
     localStorage.setItem('vipercell_theme', newTheme);
     
     const metaTheme = document.getElementById('meta-theme-color');
-    if (metaTheme) metaTheme.setAttribute('content', newTheme === 'dark' ? '#090d16' : '#ffffff');
+    if (metaTheme) metaTheme.setAttribute('content', newTheme === 'dark' ? '#090d16' : '#f4f6fb');
     
     const icon = document.getElementById('theme-icon');
     if (icon) icon.className = newTheme === 'dark' ? 'fa-solid fa-moon' : 'fa-solid fa-sun';
+
+    const lbl = document.getElementById('theme-label-text');
+    if (lbl) lbl.innerText = newTheme === 'dark' ? 'Gelap' : 'Terang';
+};
+
+window.toggleThemeWithTransition = function(evt) {
+    const html = document.documentElement;
+    const curtain = document.getElementById('theme-transition-curtain');
+    const btn = document.getElementById('btn-theme-toggle');
+
+    if (evt && curtain) {
+        const x = Math.round((evt.clientX / window.innerWidth) * 100);
+        const y = Math.round((evt.clientY / window.innerHeight) * 100);
+        curtain.style.setProperty('--theme-x', x + '%');
+        curtain.style.setProperty('--theme-y', y + '%');
+        curtain.classList.add('active');
+        setTimeout(() => curtain.classList.remove('active'), 460);
+    }
+
+    html.classList.add('theme-transitioning');
+    if (btn) btn.classList.add('spin-theme-icon');
+
+    window.toggleTheme();
+
+    setTimeout(() => {
+        html.classList.remove('theme-transitioning');
+        if (btn) btn.classList.remove('spin-theme-icon');
+    }, 480);
 };
 
 function updateProfileNotifToggleUI() {
@@ -3584,7 +4122,7 @@ window.toggleUserNotificationSetting = async function() {
 function sendNativeNotification(title, bodyText) {
     if (!isUserNotifEnabled) return;
     if (!('Notification' in window) || Notification.permission !== 'granted') return;
-    const iconUrl = siteSettings.pwaIconBase64 || siteSettings.logoImgBase64 || 'icon-192.png';
+    const iconUrl = siteSettings.pwaIconBase64 || siteSettings.logoImgBase64 || DEFAULT_VIPERCELL_SVG_ICON;
     if ('serviceWorker' in navigator) {
         navigator.serviceWorker.ready.then((reg) => {
             reg.showNotification(title, {
@@ -3601,30 +4139,35 @@ function sendNativeNotification(title, bodyText) {
     }
 }
 
+// [FEATURE-16] Perbaikan Icon Logo Web agar Selalu Tampil di Tab Browser & Link Web
 let dynamicManifestBlobUrl = null;
 function applyCustomPwaIcon() {
-    const customIcon = siteSettings.pwaIconBase64 || siteSettings.logoImgBase64;
-    if (!customIcon) return;
+    const customIcon = siteSettings.pwaIconBase64 || siteSettings.logoImgBase64 || DEFAULT_VIPERCELL_SVG_ICON;
 
     const favicon = document.getElementById('favicon');
+    const shortcutFav = document.getElementById('shortcut-favicon');
     const appleIcon = document.getElementById('apple-touch-icon');
-    const pwaPromptLogo = document.getElementById('pwa-prompt-logo');
-    const pwaPromptFallback = document.getElementById('pwa-prompt-fallback');
+    const ogImg = document.getElementById('og-meta-image');
 
     if (favicon) favicon.href = customIcon;
+    if (shortcutFav) shortcutFav.href = customIcon;
     if (appleIcon) appleIcon.href = customIcon;
-    if (pwaPromptLogo) {
-        pwaPromptLogo.src = customIcon;
-        pwaPromptLogo.style.display = 'block';
-        if (pwaPromptFallback) pwaPromptFallback.style.display = 'none';
+    if (ogImg) ogImg.setAttribute('content', customIcon);
+
+    if (customIcon.startsWith('data:image')) {
+        try { localStorage.setItem('vipercell_cached_icon_v27', customIcon); } catch (e) {}
     }
 
     try {
+        const mimeType = customIcon.startsWith('data:image/svg')
+            ? "image/svg+xml"
+            : (customIcon.startsWith('data:image/webp') ? "image/webp" : "image/png");
+
         const manifestObj = {
             id: "/",
-            name: `${siteSettings.logoText || 'Viper'}${siteSettings.logoAccent || 'cell'} - Digital Store`,
+            name: `${siteSettings.logoText || 'Viper'}${siteSettings.logoAccent || 'cell'} V27 - Digital Store`,
             short_name: `${siteSettings.logoText || 'Viper'}${siteSettings.logoAccent || 'cell'}`,
-            description: "Platform penyedia layanan aplikasi premium, top up game, dan tools digital otomatis 24/7.",
+            description: "Platform penyedia layanan aplikasi premium, akun email, top up game, dan tools digital otomatis 24/7.",
             start_url: window.location.origin + window.location.pathname,
             scope: window.location.origin + "/",
             display: "standalone",
@@ -3632,18 +4175,8 @@ function applyCustomPwaIcon() {
             theme_color: "#2563eb",
             orientation: "any",
             icons: [
-                {
-                    src: customIcon,
-                    sizes: "192x192",
-                    type: customIcon.startsWith('data:image/webp') ? "image/webp" : "image/png",
-                    purpose: "any"
-                },
-                {
-                    src: customIcon,
-                    sizes: "512x512",
-                    type: customIcon.startsWith('data:image/webp') ? "image/webp" : "image/png",
-                    purpose: "maskable"
-                }
+                { src: customIcon, sizes: "192x192", type: mimeType, purpose: "any" },
+                { src: customIcon, sizes: "512x512", type: mimeType, purpose: "maskable" }
             ]
         };
         if (dynamicManifestBlobUrl) URL.revokeObjectURL(dynamicManifestBlobUrl);
@@ -3657,7 +4190,7 @@ function applyCustomPwaIcon() {
 const twWords = [
     "Aplikasi Premium Bergaransi",
     "Top Up Game Instan 24 Jam",
-    "Tools Digital & Produktivitas",
+    "Produk Email & Tools Digital",
     "QRIS Otomatis & Barcode Kasir"
 ];
 let twWordIdx = 0;
@@ -3696,7 +4229,7 @@ function triggerSuccessConfetti() {
     if (!container) return;
     container.innerHTML = '';
 
-    const colors = ['#2563eb', '#fbbf24', '#10b981', '#ec4899', '#8b5cf6', '#ef4444'];
+    const colors = ['#2563eb', '#facc15', '#10b981', '#ec4899', '#8b5cf6', '#ef4444'];
     for (let i = 0; i < 60; i++) {
         const piece = document.createElement('div');
         piece.className = 'confetti-piece';
@@ -3732,7 +4265,7 @@ window.showPaymentSuccessAnimation = function(orderId) {
                 window.switchMainTab('pesanan');
                 window.openOrderDetailModalById(orderId);
             }, 400);
-        }, 2200);
+        }, 2100);
     }
 };
 
@@ -3821,9 +4354,16 @@ window.showToast = function(title, msg, type = 'info', actionCallback = null) {
     }, 4800);
 };
 
+// [FEATURE-01] Seamless Full-Page View Controller (Menggantikan Pop-Up Mengambang)
 window.openModal = (id) => {
     const el = document.getElementById(id);
-    if (el) { el.classList.add('active'); document.body.classList.add('no-scroll'); }
+    if (el) {
+        el.classList.add('active');
+        if (el.classList.contains('modal-overlay')) {
+            document.body.classList.add('no-scroll');
+            el.scrollTop = 0;
+        }
+    }
 };
 window.closeModal = (id) => {
     const el = document.getElementById(id);
@@ -3856,7 +4396,6 @@ window.customAlert = (title, message, type = 'info', extraActionHtml = '') => {
         else iconEl.innerHTML = '<i class="fa-solid fa-circle-info"></i>';
     }
     if (alertEl) alertEl.classList.add('active');
-    document.body.classList.add('no-scroll');
 };
 
 window.closeAlert = () => {
@@ -3864,7 +4403,6 @@ window.closeAlert = () => {
     const extraEl = document.getElementById('ca-extra-action');
     if (alertEl) alertEl.classList.remove('active');
     if (extraEl) extraEl.innerHTML = '';
-    document.body.classList.remove('no-scroll');
 };
 
 let promptCallback = null;
@@ -3922,15 +4460,15 @@ window.switchAuthTab = function(tab) {
         if (authDivider) authDivider.style.display = 'none';
         if (googleBtn) googleBtn.style.display = 'none';
         if (guestBtn) guestBtn.style.display = 'none';
-        authTitle.innerText = 'Pulihkan Kata Sandi'; 
-        authSub.innerText = 'Masukkan email terdaftar untuk menerima tautan reset.';
+        authTitle.innerText = 'Pulihkan Kata Sandi (Apps Script)'; 
+        authSub.innerText = 'Masukkan email terdaftar untuk menerima tautan & token ubah sandi.';
     } else {
         if (authTabsContainer) authTabsContainer.style.display = 'flex';
         if (authDivider) authDivider.style.display = 'flex';
         if (googleBtn) googleBtn.style.display = 'inline-flex';
         if (guestBtn) guestBtn.style.display = 'inline-flex';
         authTitle.innerText = tab === 'login' ? 'Masuk ke Vipercell' : 'Daftar Member Vipercell';
-        authSub.innerText = tab === 'login' ? 'Silakan masuk ke akun kamu atau pilih akses cepat di bawah.' : 'Daftar gratis untuk menyimpan riwayat E-Receipt otomatis.';
+        authSub.innerText = tab === 'login' ? 'Silakan masuk ke akun kamu atau pilih akses cepat di bawah.' : 'Daftar gratis untuk menyimpan riwayat E-Receipt permanen & promo Member.';
         
         const btnL = document.getElementById('tab-login');
         const btnR = document.getElementById('tab-register');
@@ -3941,7 +4479,7 @@ window.switchAuthTab = function(tab) {
 window.showResetPassword = () => window.switchAuthTab('reset');
 
 window.switchMainTab = function(tab) {
-    if (document.body.classList.contains('auth-locked') && tab !== 'auth') {
+    if (document.body.classList.contains('auth-locked') && tab !== 'auth' && tab !== 'ubah-sandi') {
         return;
     }
 
@@ -3953,7 +4491,7 @@ window.switchMainTab = function(tab) {
     document.querySelectorAll('.main-tab-content').forEach(el => el.classList.remove('active'));
     document.querySelectorAll('nav a').forEach(el => el.classList.remove('active'));
     
-    const navKey = tab === 'baca-berita' ? 'berita' : (tab === 'payment-qris' ? 'pesanan' : tab);
+    const navKey = tab === 'baca-berita' ? 'berita' : (tab === 'payment-qris' ? 'pesanan' : (tab === 'ubah-sandi' ? 'profil' : tab));
     let navEl = document.getElementById('nav-' + navKey);
     if (navEl) navEl.classList.add('active');
     let botNavEl = document.getElementById('nav-bot-' + navKey);
@@ -3987,11 +4525,11 @@ window.goToReview = function(brandName, orderId = null) {
     window.openDirectBuyModal(brandName);
     setTimeout(() => {
         window.switchBuyModalTab('reviews');
-    }, 220); 
+    }, 200); 
 };
 
 // ==========================================
-// AUTHENTICATION & LOGOUT
+// [FEATURE-05, 10, 22] AUTHENTICATION, UBAH SANDI APPS SCRIPT & LOGOUT BERSIH
 // ==========================================
 window.processLogin = async function() {
     const em = document.getElementById('auth-l-email').value.trim();
@@ -4002,18 +4540,24 @@ window.processLogin = async function() {
     btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> <span>Memproses...</span>'; 
     btn.disabled = true;
     try {
+        // Bersihkan total atribut anonim sebelum login Member (#10 & #22)
+        boundLegacyGuestUid = null;
+        await clearMultiLayerToken('vipercell_anon_uid');
+        localStorage.removeItem('vipercell_anon_session_started_at');
+
         const cred = await signInWithEmailAndPassword(auth, em, pw);
         currentUser = cred.user;
         localStorage.setItem('vipercell_active_session_mode', 'member');
         await syncUserProfileFromAuth(cred.user);
-        const restricted = await checkRealtimeAccountRestriction();
+        const restricted = await checkRealtimeAccountRestriction(false);
         if (!restricted) {
             setAuthGateLock(false);
             window.switchMainTab('katalog');
             window.showToast('Berhasil Masuk', 'Selamat datang kembali di Vipercell!', 'success');
         }
-    } catch (e) { window.customAlert('Gagal Masuk', 'Email atau kata sandi tidak cocok.', 'error'); } 
-    finally { 
+    } catch (e) {
+        window.customAlert('Gagal Masuk', 'Email atau kata sandi tidak cocok.', 'error');
+    } finally { 
         btn.innerHTML = '<i class="fa-solid fa-arrow-right-to-bracket"></i> <span>Masuk Sekarang</span>'; 
         btn.disabled = false; 
     }
@@ -4034,6 +4578,10 @@ window.processRegister = async function() {
     btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> <span>Memproses...</span>'; 
     btn.disabled = true;
     try {
+        boundLegacyGuestUid = null;
+        await clearMultiLayerToken('vipercell_anon_uid');
+        localStorage.removeItem('vipercell_anon_session_started_at');
+
         if (auth.currentUser && auth.currentUser.isAnonymous) {
             await signOut(auth).catch(() => {});
         }
@@ -4062,62 +4610,282 @@ window.processRegister = async function() {
                 updatedAt: Date.now()
             }, { merge: true }).catch(() => {});
         }
+        currentUser = cred.user;
         userProfile = newMemberObj;
-        localStorage.setItem('vipercell_anon_name', name);
-        localStorage.setItem('vipercell_track_email', em);
+        localStorage.setItem('vipercell_member_email', em.toLowerCase());
+        localStorage.setItem('vipercell_member_phone', phone);
         localStorage.setItem('vipercell_active_session_mode', 'member');
         setAuthGateLock(false);
         applyUserSessionToUI();
         window.switchMainTab('katalog');
-        window.customAlert('Pendaftaran Berhasil', 'Akun member kamu telah aktif dan siap digunakan!', 'success');
-    } catch (e) { window.customAlert('Gagal Daftar', 'Email mungkin sudah terdaftar atau format salah.', 'error'); } 
-    finally { 
-        btn.innerHTML = '<i class="fa-solid fa-user-check"></i> <span>Buat Akun Member</span>'; 
+        window.customAlert('Pendaftaran Berhasil', 'Akun Member Resmi kamu telah aktif dan siap digunakan!', 'success');
+    } catch (e) {
+        window.customAlert('Gagal Daftar', 'Email mungkin sudah terdaftar atau format salah.', 'error');
+    } finally { 
+        btn.innerHTML = '<i class="fa-solid fa-user-check"></i> <span>Buat Akun Member Resmi</span>'; 
         btn.disabled = false; 
     }
 };
 
 function checkResetCooldown() {
     const lastResetTime = localStorage.getItem('vipercell_last_reset') || 0;
-    const COOLDOWN = 4 * 60 * 1000;
+    const COOLDOWN = 2 * 60 * 1000;
     const now = Date.now();
     if (now - lastResetTime < COOLDOWN) {
         const remaining = Math.ceil((COOLDOWN - (now - lastResetTime)) / 1000);
         const min = Math.floor(remaining / 60); const sec = remaining % 60;
-        window.customAlert('Tunggu Sebentar', `Harap tunggu <b>${min}m ${sec}s</b> sebelum mengirim ulang link reset.`, 'warning');
+        window.customAlert('Tunggu Sebentar', `Harap tunggu <b>${min}m ${sec}s</b> sebelum mengirim ulang link ubah sandi.`, 'warning');
         return false;
     }
     return true;
 }
 
-window.processReset = async function() {
-    const em = document.getElementById('auth-res-email').value.trim();
-    if (!em) { window.customAlert('Error', 'Masukkan email terdaftar.', 'error'); return; }
+/* ============================================================================
+ * [FEATURE-05] ALUR & HALAMAN UBAH SANDI VIA LINK GOOGLE APPS SCRIPT
+ * ============================================================================ */
+window.requestAppsScriptPasswordResetLink = async function(source = 'auth') {
+    const rawEmail = source === 'profile'
+        ? (userProfile.email || currentUser?.email || document.getElementById('prof-email')?.value || '')
+        : (document.getElementById('auth-res-email')?.value || document.getElementById('reset-page-email')?.value || '');
+
+    const email = String(rawEmail).trim().toLowerCase();
+    if (!email || !email.includes('@')) {
+        window.customAlert('Email Diperlukan', 'Masukkan alamat email akun Member yang terdaftar.', 'warning');
+        return;
+    }
     if (!checkResetCooldown()) return;
-    
-    const btn = document.getElementById('btn-do-reset');
-    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> <span>Memproses...</span>';
-    btn.disabled = true;
+
+    const btn = source === 'profile' ? null : document.getElementById('btn-do-reset');
+    const ogHtml = btn ? btn.innerHTML : '';
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> <span>Mengirim Link via Apps Script...</span>';
+    }
+
+    const token6 = String(Math.floor(100000 + Math.random() * 900000));
+    const resetUrl = `${window.location.origin}${window.location.pathname}?action=reset_password&email=${encodeURIComponent(email)}&token=${encodeURIComponent(token6)}#ubah-sandi`;
+
+    localStorage.setItem(`vipercell_reset_token_${email}`, JSON.stringify({
+        token: token6,
+        email: email,
+        expiresAt: Date.now() + 900000
+    }));
+
     try {
-        await sendPasswordResetEmail(auth, em);
+        let gasSent = false;
+        if ((siteSettings.emailWebhookUrl || '').trim().startsWith('https://script.google.com/')) {
+            try {
+                await callUnifiedGasWebhook({
+                    action: 'SEND_PASSWORD_RESET_LINK',
+                    email: email,
+                    to: email,
+                    otpCode: token6,
+                    otp: token6,
+                    token: token6,
+                    resetLink: resetUrl,
+                    userName: userProfile.name || email.split('@')[0],
+                    expiryMinutes: 15
+                });
+                gasSent = true;
+            } catch (gasActionErr) {
+                // Fallback ke SEND_OTP_EMAIL jika Apps Script lama belum memiliki route SEND_PASSWORD_RESET_LINK
+                await callUnifiedGasWebhook({
+                    action: 'SEND_OTP_EMAIL',
+                    email: email,
+                    to: email,
+                    otpCode: token6,
+                    otp: token6,
+                    userName: `${userProfile.name || email.split('@')[0]} (Token Ubah Sandi)`,
+                    expiryMinutes: 15
+                });
+                gasSent = true;
+            }
+        }
+
+        // Kirim juga Firebase Password Reset standar sebagai cadangan sinkronisasi Auth
+        await sendPasswordResetEmail(auth, email).catch(() => {});
+
         localStorage.setItem('vipercell_last_reset', Date.now());
-        window.customAlert('Terkirim', 'Tautan reset kata sandi telah dikirim ke email kamu.', 'success');
-        window.switchAuthTab('login');
-    } catch (e) { window.customAlert('Error', 'Gagal mengirim tautan reset.', 'error'); }
-    finally {
-        btn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> <span>Kirim Tautan Reset</span>';
-        btn.disabled = false;
+        window.openNeoResetPasswordPage(email, '');
+        window.showToast(
+            gasSent ? 'Link & Token Terkirim via Apps Script!' : 'Tautan Reset Terkirim!',
+            `Cek kotak masuk/spam email ${email} untuk klik link atau masukkan kode token 6 digit.`,
+            'success'
+        );
+    } catch (e) {
+        window.customAlert('Gagal Mengirim Link', `Pastikan email terdaftar dan URL Webhook Apps Script aktif. (${escapeHtml(e.message)})`, 'error');
+    } finally {
+        if (btn && ogHtml) {
+            btn.disabled = false;
+            btn.innerHTML = ogHtml;
+        }
     }
 };
 
-window.sendProfileResetPassword = async function() {
-    if (!currentUser || userProfile.isGuest) return;
-    if (!checkResetCooldown()) return;
+window.processReset = function() {
+    return window.requestAppsScriptPasswordResetLink('auth');
+};
+
+window.sendProfileResetPassword = function() {
+    return window.requestAppsScriptPasswordResetLink('profile');
+};
+
+window.openNeoResetPasswordPage = function(prefillEmail = '', prefillToken = '') {
+    const wasAuthLocked = document.body.classList.contains('auth-locked');
+    if (wasAuthLocked) {
+        document.body.setAttribute('data-return-auth-lock', '1');
+        document.body.classList.remove('auth-locked');
+    }
+    document.querySelectorAll('.main-tab-content').forEach(el => el.classList.remove('active'));
+    const resetTab = document.getElementById('tab-ubah-sandi');
+    if (resetTab) resetTab.classList.add('active');
+
+    const emailInp = document.getElementById('reset-page-email');
+    const tokenInp = document.getElementById('reset-page-token');
+    const fallbackEmail = userProfile.email || document.getElementById('auth-res-email')?.value || '';
+
+    if (emailInp) emailInp.value = prefillEmail || (fallbackEmail.includes('@') ? fallbackEmail : '');
+    if (tokenInp && prefillToken) tokenInp.value = prefillToken;
+
+    const banner = document.getElementById('reset-link-detected-banner');
+    if (banner) banner.style.display = prefillToken ? 'flex' : 'none';
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+};
+
+window.closeNeoResetPasswordPage = function() {
+    const shouldRelock = document.body.getAttribute('data-return-auth-lock') === '1';
+    document.body.removeAttribute('data-return-auth-lock');
+    if (shouldRelock) {
+        setAuthGateLock(true);
+    } else {
+        window.switchMainTab('profil');
+    }
+};
+
+window.evaluateResetPasswordStrength = function(val) {
+    const fill = document.getElementById('reset-pass-meter-fill');
+    const txt = document.getElementById('reset-pass-meter-text');
+    if (!fill || !txt) return;
+
+    const s = String(val || '');
+    let score = 0;
+    if (s.length >= 6) score += 35;
+    if (s.length >= 8) score += 25;
+    if (/[A-Z]/.test(s) && /[a-z]/.test(s)) score += 20;
+    if (/[0-9]/.test(s) || /[^A-Za-z0-9]/.test(s)) score += 20;
+
+    fill.style.width = score + '%';
+    if (score < 40) {
+        fill.style.backgroundColor = 'var(--danger)';
+        txt.innerText = 'Kekuatan sandi: Lemah (Minimal 6 karakter)';
+    } else if (score < 75) {
+        fill.style.backgroundColor = 'var(--warning)';
+        txt.innerText = 'Kekuatan sandi: Cukup Kuat';
+    } else {
+        fill.style.backgroundColor = 'var(--success)';
+        txt.innerText = 'Kekuatan sandi: Sangat Kuat & Aman';
+    }
+};
+
+window.sendTokenFromResetPage = function() {
+    const em = document.getElementById('reset-page-email')?.value.trim() || '';
+    if (!em || !em.includes('@')) {
+        window.customAlert('Isi Email Dahulu', 'Masukkan alamat email akun pada kolom di atas sebelum meminta token.', 'warning');
+        return;
+    }
+    const resInp = document.getElementById('auth-res-email');
+    if (resInp) resInp.value = em;
+    window.requestAppsScriptPasswordResetLink('auth');
+};
+
+window.submitNewPasswordViaAppsScript = async function() {
+    if (isSubmittingPasswordReset) return;
+
+    const email = (document.getElementById('reset-page-email')?.value || '').trim().toLowerCase();
+    const token = (document.getElementById('reset-page-token')?.value || '').trim();
+    const pass1 = document.getElementById('reset-page-new-pass')?.value || '';
+    const pass2 = document.getElementById('reset-page-confirm-pass')?.value || '';
+
+    if (!email || !email.includes('@')) {
+        window.customAlert('Email Tidak Valid', 'Masukkan alamat email akun yang benar.', 'warning');
+        return;
+    }
+    if (!token || token.length < 4) {
+        window.customAlert('Token Diperlukan', 'Masukkan kode token 6 digit dari link email Apps Script.', 'warning');
+        return;
+    }
+    if (pass1.length < 6) {
+        window.customAlert('Sandi Terlalu Pendek', 'Kata sandi baru minimal harus 6 karakter.', 'warning');
+        return;
+    }
+    if (pass1 !== pass2) {
+        window.customAlert('Sandi Tidak Cocok', 'Konfirmasi kata sandi baru tidak sama.', 'error');
+        return;
+    }
+
+    const savedRaw = localStorage.getItem(`vipercell_reset_token_${email}`);
+    if (savedRaw) {
+        try {
+            const parsed = JSON.parse(savedRaw);
+            if (parsed.expiresAt && Date.now() > parsed.expiresAt) {
+                window.customAlert('Token Kedaluwarsa', 'Masa berlaku kode token (15 menit) telah habis. Silakan kirim ulang token.', 'error');
+                return;
+            }
+            if (parsed.token && parsed.token !== token) {
+                window.customAlert('Token Salah', 'Kode token reset tidak cocok dengan yang dikirim ke email kamu.', 'error');
+                return;
+            }
+        } catch (e) {}
+    }
+
+    isSubmittingPasswordReset = true;
+    const btn = document.getElementById('btn-submit-new-pass-v27');
+    const ogHtml = btn ? btn.innerHTML : '';
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> <span>Menyimpan Kata Sandi Baru...</span>';
+    }
+
     try {
-        await sendPasswordResetEmail(auth, userProfile.email || currentUser.email);
-        localStorage.setItem('vipercell_last_reset', Date.now());
-        window.customAlert('Terkirim', 'Cek kotak masuk email kamu untuk mengatur kata sandi baru.', 'success');
-    } catch (e) { window.customAlert('Gagal', 'Terjadi kesalahan saat mengirim email reset.', 'error'); }
+        // Jika user sedang login di sesi aktif dengan email yang sama, langsung update password di Firebase Auth
+        if (auth.currentUser && !auth.currentUser.isAnonymous && (auth.currentUser.email || '').toLowerCase() === email) {
+            await updatePassword(auth.currentUser, pass1);
+        }
+
+        // Jika Apps Script mendukung sinkronisasi password / konfirmasi reset, kirim sinyal ke GAS
+        if ((siteSettings.emailWebhookUrl || '').trim().startsWith('https://script.google.com/')) {
+            await callUnifiedGasWebhook({
+                action: 'CONFIRM_PASSWORD_RESET',
+                email: email,
+                token: token,
+                newPassword: pass1
+            }).catch(() => {});
+        }
+
+        localStorage.removeItem(`vipercell_reset_token_${email}`);
+        document.getElementById('reset-page-token').value = '';
+        document.getElementById('reset-page-new-pass').value = '';
+        document.getElementById('reset-page-confirm-pass').value = '';
+
+        if (window.history && window.history.replaceState) {
+            window.history.replaceState({}, document.title, window.location.pathname);
+        }
+
+        window.customAlert(
+            'Kata Sandi Berhasil Diubah! 🔐',
+            `Kata sandi baru untuk akun <b>${escapeHtml(email)}</b> telah diperbarui menggunakan sistem keamanan Vipercell V27.`,
+            'success'
+        );
+        window.closeNeoResetPasswordPage();
+    } catch (err) {
+        window.customAlert('Perlu Login Ulang', 'Untuk keamanan ekstra, silakan masuk terlebih dahulu atau gunakan tautan verifikasi di email kamu.', 'warning');
+    } finally {
+        isSubmittingPasswordReset = false;
+        if (btn && ogHtml) {
+            btn.disabled = false;
+            btn.innerHTML = ogHtml;
+        }
+    }
 };
 
 window.processGoogleLogin = async function() {
@@ -4127,6 +4895,10 @@ window.processGoogleLogin = async function() {
     if (btnText) btnText.innerText = 'Memverifikasi...';
     
     try {
+        boundLegacyGuestUid = null;
+        await clearMultiLayerToken('vipercell_anon_uid');
+        localStorage.removeItem('vipercell_anon_session_started_at');
+
         const result = await signInWithPopup(auth, provider);
         const userDoc = await getDoc(doc(db, pathUsers, result.user.uid)).catch(() => null);
         
@@ -4149,7 +4921,7 @@ window.processGoogleLogin = async function() {
         }
         localStorage.setItem('vipercell_active_session_mode', 'member');
         await syncUserProfileFromAuth(result.user);
-        const restricted = await checkRealtimeAccountRestriction();
+        const restricted = await checkRealtimeAccountRestriction(false);
         if (!restricted) {
             setAuthGateLock(false);
             window.switchMainTab('katalog');
@@ -4162,17 +4934,33 @@ window.processGoogleLogin = async function() {
     }
 };
 
+// [FEATURE-22] Logout Bersih (Memisahkan Data Sesi Member & Anonim)
 window.logoutUser = async function() {
     localStorage.setItem('vipercell_active_session_mode', 'logged_out');
+    localStorage.removeItem('vipercell_track_email');
+    localStorage.removeItem('vipercell_track_phone');
+    localStorage.removeItem('vipercell_guest_email');
+    localStorage.removeItem('vipercell_guest_phone');
+    localStorage.removeItem('vipercell_anon_name');
+    localStorage.removeItem('vipercell_anon_session_started_at');
+    boundLegacyGuestUid = null;
+    await clearMultiLayerToken('vipercell_anon_uid');
 
-    if (currentUser && !currentUser.isAnonymous) {
-        await signOut(auth).catch(() => {});
-        currentUser = null;
+    if (activeTimersRegistry.anonSixHourCountdown) {
+        clearInterval(activeTimersRegistry.anonSixHourCountdown);
+        activeTimersRegistry.anonSixHourCountdown = null;
     }
+
+    if (auth.currentUser) {
+        await signOut(auth).catch(() => {});
+    }
+    currentUser = null;
+    userProfile = { uid: '', name: '', email: '', phone: '', isGuest: true, isAnonymous: true };
 
     setAuthGateLock(true);
     window.showToast('Berhasil Keluar', 'Anda telah keluar ke halaman Login utama.', 'info');
 };
+window.logoutUserCleanV27 = window.logoutUser;
 
 window.saveUserProfile = async function() {
     if (!currentUser) return;
@@ -4180,7 +4968,9 @@ window.saveUserProfile = async function() {
     const phone = document.getElementById('prof-phone') ? document.getElementById('prof-phone').value.trim() : '';
     if (!name) { window.customAlert('Peringatan', 'Nama panggilan tidak boleh kosong.', 'warning'); return; }
     
-    const effectiveUid = (currentUser.isAnonymous && boundLegacyGuestUid) ? boundLegacyGuestUid : currentUser.uid;
+    const isMember = Boolean(currentUser && !currentUser.isAnonymous && !userProfile.isGuest);
+    const effectiveUid = isMember ? currentUser.uid : (boundLegacyGuestUid || currentUser.uid);
+
     try {
         await setDoc(doc(db, pathUsers, effectiveUid), {
             name: name,
@@ -4191,23 +4981,31 @@ window.saveUserProfile = async function() {
         userProfile.name = name;
         userProfile.phone = phone;
         userProfile.whatsapp = phone;
-        localStorage.setItem('vipercell_anon_name', name);
-        if (phone) localStorage.setItem('vipercell_track_phone', phone);
+
+        if (isMember) {
+            if (phone) localStorage.setItem('vipercell_member_phone', phone);
+        } else {
+            localStorage.setItem('vipercell_anon_name', name);
+            if (phone) localStorage.setItem('vipercell_guest_phone', phone);
+        }
+
         applyUserSessionToUI();
         window.showToast('Profil Disimpan', 'Data identitas & nomor WhatsApp berhasil diperbarui.', 'success');
     } catch (e) { window.customAlert('Error', 'Gagal menyimpan perubahan profil.', 'error'); }
 };
 
 function updateProfileStats() {
-    const effectiveUid = boundLegacyGuestUid || currentUser?.uid || '';
-    const savedTrackEmail = (localStorage.getItem('vipercell_track_email') || '').toLowerCase();
-    const activeEmail = (!userProfile.isGuest && userProfile.email) ? userProfile.email.toLowerCase() : savedTrackEmail;
+    const isMember = Boolean(currentUser && !currentUser.isAnonymous && !userProfile.isGuest);
+    const effectiveUid = isMember ? currentUser.uid : (boundLegacyGuestUid || currentUser?.uid || userProfile.uid || '');
+    const activeMemberEmail = isMember ? (userProfile.email || currentUser?.email || '').toLowerCase() : '';
 
-    const myOrders = orders.filter(o =>
-        (effectiveUid && o.userId === effectiveUid) ||
-        (currentUser && o.userId === currentUser.uid) ||
-        (activeEmail && o.userEmail?.toLowerCase() === activeEmail)
-    );
+    const myOrders = orders.filter(o => {
+        if (isMember) {
+            return (effectiveUid && o.userId === effectiveUid) || (activeMemberEmail && o.userEmail?.toLowerCase() === activeMemberEmail);
+        }
+        return Boolean(effectiveUid && o.userId === effectiveUid);
+    });
+
     const successOrders = myOrders.filter(o => o.status === 'SUCCESS');
     const totalSpent = successOrders.reduce((sum, o) => sum + (o.finalTotal || 0), 0);
 
@@ -4219,6 +5017,155 @@ function updateProfileStats() {
     if (statEl) statEl.innerText = successOrders.length;
     if (spentEl) spentEl.innerText = `Rp${totalSpent.toLocaleString('id-ID')}`;
 }
+
+/* ============================================================================
+ * [FEATURE-11] MULTI-MESSAGE RUNNING INFO (HINGGA 6 PESAN) INTERAKTIF
+ * Deskripsi : Mendukung hingga 6 pesan berjalan dari Admin. Ketika diklik:
+ *             - Jika berisi Kode Promo / Target Produk -> Otomatis tempel promo
+ *               dan langsung masuk ke halaman Checkout produk tersebut!
+ *             - Jika berisi tautan Berita -> Langsung membuka artikel berita!
+ * ============================================================================ */
+function buildStructuredMarqueeSlots() {
+    const slots = [];
+
+    if (Array.isArray(siteSettings.marqueeList) && siteSettings.marqueeList.length > 0) {
+        siteSettings.marqueeList.slice(0, 6).forEach((item, idx) => {
+            if (!item) return;
+            if (typeof item === 'string' && item.trim()) {
+                slots.push({ text: item.trim(), type: 'info', promoCode: '', targetBrand: '', newsIndex: -1 });
+            } else if (typeof item === 'object' && item.text && String(item.text).trim() && !item.isHidden) {
+                slots.push({
+                    text: String(item.text).trim(),
+                    type: item.type || (item.promoCode ? 'promo' : (item.newsIndex >= 0 ? 'news' : 'info')),
+                    promoCode: (item.promoCode || '').trim().toUpperCase(),
+                    targetBrand: (item.targetBrand || '').trim(),
+                    newsIndex: typeof item.newsIndex === 'number' ? item.newsIndex : -1
+                });
+            }
+        });
+    }
+
+    // Jika marqueeList belum diatur, ekstrak hingga 6 pesan dari string `siteSettings.marquee` (dipisah `||` atau baris baru)
+    if (slots.length === 0) {
+        const rawMarquee = String(siteSettings.marquee || 'Selamat Datang di Vipercell V27!').trim();
+        const rawParts = rawMarquee.includes('||')
+            ? rawMarquee.split('||')
+            : rawMarquee.split(/\r?\n/);
+
+        rawParts.map(s => s.trim()).filter(Boolean).slice(0, 6).forEach(part => {
+            slots.push({
+                text: part,
+                type: 'info',
+                promoCode: '',
+                targetBrand: '',
+                newsIndex: -1
+            });
+        });
+    }
+
+    parsedMarqueeSlots = slots.slice(0, 6);
+    return parsedMarqueeSlots;
+}
+
+function renderInteractiveMarqueeUI() {
+    const marqueeContent = document.getElementById('marquee-content');
+    const slotCounter = document.getElementById('marquee-slot-counter');
+    if (!marqueeContent) return;
+
+    const slots = buildStructuredMarqueeSlots();
+    if (slotCounter) {
+        slotCounter.innerText = `${slots.length} INFO`;
+    }
+
+    const buildPassHtml = () => slots.map((slot, idx) => {
+        const safePromo = escapeJsStr(slot.promoCode || '');
+        const safeBrand = escapeJsStr(slot.targetBrand || '');
+        const newsIdx = typeof slot.newsIndex === 'number' ? slot.newsIndex : -1;
+
+        let badgeClass = '';
+        let badgeLabel = `INFO #${idx + 1}`;
+        let actionHint = '<span class="marquee-item-action"><i class="fa-solid fa-arrow-up-right-from-square"></i> Buka</span>';
+
+        if (slot.promoCode) {
+            badgeClass = 'badge-promo';
+            badgeLabel = `PROMO: ${escapeHtml(slot.promoCode)}`;
+            actionHint = `<span class="marquee-item-action"><i class="fa-solid fa-ticket"></i> Pakai Promo</span>`;
+        } else if (slot.newsIndex >= 0 || slot.type === 'news') {
+            badgeClass = 'badge-news';
+            badgeLabel = 'BERITA';
+            actionHint = `<span class="marquee-item-action"><i class="fa-solid fa-newspaper"></i> Baca Info</span>`;
+        } else if (slot.targetBrand) {
+            badgeLabel = escapeHtml(slot.targetBrand);
+            actionHint = `<span class="marquee-item-action"><i class="fa-solid fa-cart-shopping"></i> Beli Sekarang</span>`;
+        }
+
+        return `
+            <span class="marquee-item-pill" onclick="window.handleMarqueeItemClick(${idx}, '${safePromo}', '${safeBrand}', ${newsIdx})">
+                <span class="marquee-item-badge ${badgeClass}">${badgeLabel}</span>
+                <span>${escapeHtml(slot.text)}</span>
+                ${actionHint}
+            </span>
+        `;
+    }).join('');
+
+    // Gandakan untuk efek animasi marquee tak berujung yang mulus
+    marqueeContent.innerHTML = buildPassHtml() + buildPassHtml();
+}
+
+window.handleMarqueeItemClick = function(slotIndex = 0, explicitPromo = '', explicitBrand = '', explicitNewsIdx = -1) {
+    const slot = parsedMarqueeSlots[slotIndex] || {};
+    const promoCode = (explicitPromo || slot.promoCode || '').trim().toUpperCase();
+    let targetBrand = (explicitBrand || slot.targetBrand || '').trim();
+    const newsIndex = explicitNewsIdx >= 0 ? explicitNewsIdx : (typeof slot.newsIndex === 'number' ? slot.newsIndex : -1);
+
+    // 1. Jika memiliki kode promo, cari produk yang memenuhi syarat promo tersebut
+    if (promoCode) {
+        navigator.clipboard.writeText(promoCode).catch(() => {});
+        if (!targetBrand) {
+            const matchedPromo = promos.find(p => p.code && p.code.toUpperCase() === promoCode);
+            if (matchedPromo && matchedPromo.targetBrand && matchedPromo.targetBrand !== 'all') {
+                targetBrand = matchedPromo.targetBrand;
+            } else if (groupedBrands.length > 0) {
+                targetBrand = groupedBrands[0].brandName;
+            }
+        }
+
+        if (targetBrand) {
+            window.openDirectBuyModal(targetBrand);
+            setTimeout(() => {
+                const promoInp = document.getElementById('buy-promo-code');
+                if (promoInp) promoInp.value = promoCode;
+                if (currentCheckoutBrand && currentCheckoutBrand.items.length > 0 && !selectedProductForBuy) {
+                    const firstAvail = currentCheckoutBrand.items.find(i => !i.soldOut) || currentCheckoutBrand.items[0];
+                    if (firstAvail) window.selectItemToBuy(firstAvail.dbId);
+                }
+                window.applyPromoDirect();
+                window.showToast(`Kode Promo ${promoCode} Dipasang!`, `Menampilkan produk yang memenuhi syarat promo ${promoCode}.`, 'success');
+            }, 180);
+            return;
+        }
+    }
+
+    // 2. Jika memiliki target brand langsung
+    if (targetBrand) {
+        window.openDirectBuyModal(targetBrand);
+        return;
+    }
+
+    // 3. Jika tertaut ke artikel berita tertentu
+    const visibleNews = (siteSettings.newsList || []).filter(t => !t.isHidden);
+    if (newsIndex >= 0 && newsIndex < visibleNews.length) {
+        window.openReadNewsFullPage(newsIndex);
+        return;
+    }
+
+    // 4. Default: jika ada berita, buka berita terbaru atau tab berita
+    if (visibleNews.length > 0) {
+        window.openReadNewsFullPage(0);
+    } else {
+        window.switchMainTab('berita');
+    }
+};
 
 // ==========================================
 // RENDER SETTINGS, BANNERS, BERITA & BARCODE TUNAI
@@ -4243,10 +5190,7 @@ window.applySettingsToUI = function() {
         if (fImgEl) fImgEl.style.display = 'none'; 
     }
     
-    const mText = siteSettings.marquee || 'Selamat Datang di Vipercell';
-    const mt1 = document.getElementById('marquee-text-1');
-    const mt2 = document.getElementById('marquee-text-2');
-    if (mt1) mt1.innerText = mText; if (mt2) mt2.innerText = mText;
+    renderInteractiveMarqueeUI();
     
     const igBtn = document.getElementById('footer-ig-btn');
     if (igBtn) {
@@ -4400,7 +5344,7 @@ window.openReadNewsFullPage = function(idx) {
     if (news.enableProductBtn && news.linkedBrand) {
         if (ctaBox) ctaBox.classList.add('linked-highlight');
         if (ctaTitle) ctaTitle.innerText = `Ingin langsung membeli produk ${news.linkedBrand}?`;
-        if (ctaSub) ctaSub.innerText = `Klik tombol di samping untuk memilih varian ${news.linkedBrand} dan melakukan pembayaran instan!`;
+        if (ctaSub) ctaSub.innerText = `Klik tombol di samping untuk memilih variasi ${news.linkedBrand} dan melakukan pembayaran instan!`;
         if (ctaBtn) {
             ctaBtn.className = 'btn btn-primary';
             ctaBtn.innerHTML = `<i class="fa-solid fa-bolt"></i> <span>Beli ${escapeHtml(news.linkedBrand)} Sekarang</span>`;
@@ -4459,7 +5403,7 @@ window.openCashBarcodeModal = function(orderObj = null) {
                 width: 2.2,
                 height: 75,
                 displayValue: true,
-                font: "Space Grotesk",
+                font: "JetBrains Mono",
                 fontOptions: "bold",
                 fontSize: 16,
                 margin: 6
@@ -4545,15 +5489,17 @@ window.goToPesananFromPay = function() {
 // FITUR ULASAN: 1X ULASAN PER TRANSAKSI
 // ==========================================
 function getUnreviewedSuccessOrdersForBrand(brandName) {
-    const effectiveUid = boundLegacyGuestUid || currentUser?.uid || '';
-    const userEmailToMatch = (userProfile.email || localStorage.getItem('vipercell_track_email') || '').toLowerCase();
+    const isMember = Boolean(currentUser && !currentUser.isAnonymous && !userProfile.isGuest);
+    const effectiveUid = isMember ? currentUser.uid : (boundLegacyGuestUid || currentUser?.uid || '');
+    const userEmailToMatch = getActiveSessionStorageEmail();
     
     const mySuccessOrders = orders.filter(o => {
         if (o.status !== 'SUCCESS') return false;
         if (!o.items || o.items[0]?.brandName !== brandName) return false;
-        const matchUid = (effectiveUid && o.userId === effectiveUid) || (currentUser && o.userId === currentUser.uid);
-        const matchEmail = userEmailToMatch && o.userEmail && o.userEmail.toLowerCase() === userEmailToMatch;
-        return matchUid || matchEmail;
+        if (isMember) {
+            return (effectiveUid && o.userId === effectiveUid) || (userEmailToMatch && o.userEmail?.toLowerCase() === userEmailToMatch);
+        }
+        return Boolean(effectiveUid && o.userId === effectiveUid);
     });
 
     const unreviewedOrders = mySuccessOrders.filter(o => {
@@ -4564,7 +5510,7 @@ function getUnreviewedSuccessOrdersForBrand(brandName) {
     const legacyReviewsCount = reviewsData.filter(r =>
         !r.orderId &&
         r.brandName === brandName &&
-        ((effectiveUid && r.userId === effectiveUid) || (currentUser && r.userId === currentUser.uid) || (userEmailToMatch && r.userEmail?.toLowerCase() === userEmailToMatch))
+        (effectiveUid && r.userId === effectiveUid)
     ).length;
 
     if (legacyReviewsCount >= unreviewedOrders.length) {
@@ -4677,11 +5623,12 @@ window.submitReview = async function() {
     btnSubmit.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> <span>Mempublikasikan...</span>';
     btnSubmit.disabled = true;
 
-    const effectiveUid = boundLegacyGuestUid || currentUser?.uid || null;
+    const isMember = Boolean(currentUser && !currentUser.isAnonymous && !userProfile.isGuest);
+    const effectiveUid = isMember ? currentUser.uid : (boundLegacyGuestUid || currentUser?.uid || null);
     const newReview = {
         orderId: orderToReview.id,
         brandName: currentCheckoutBrand.brandName,
-        userEmail: userProfile.email || localStorage.getItem('vipercell_track_email') || orderToReview.userEmail || 'anonim',
+        userEmail: getActiveSessionStorageEmail() || orderToReview.userEmail || 'anonim',
         userId: effectiveUid,
         userName: userName,
         rating: rating,
@@ -4706,7 +5653,7 @@ window.submitReview = async function() {
 };
 
 // ==========================================
-// FUNGSI HELPER & FALLBACK TAMBAHAN (PENUTUP STORE.JS V25.1)
+// FUNGSI HELPER & INISIALISASI AKHIR STORE.JS V27.0
 // ==========================================
 window.togglePassVisibility = function(inputId, btnEl) {
     const inp = document.getElementById(inputId);
@@ -4801,7 +5748,7 @@ window.copyInvoiceIdModal = function() {
     }
 };
 
-// Jalankan Zero-Leak Pre-Loader & Inisialisasi Aplikasi V25.1
+// Jalankan Inisialisasi Gatekeeper V27
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', initializeAppWithLoader);
 } else {
