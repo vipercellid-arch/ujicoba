@@ -1,44 +1,21 @@
 /**
  * ============================================================================
- * VIPERCELL V27.0 — UNIFIED GOOGLE APPS SCRIPT SERVER (ALL-IN-ONE ENGINE)
- * ============================================================================
- * Nama File : SERVER APPS SCRIP.JS (V27.0 - Neo-Brutalism V3 Edition)
+ * VIPERCELL — GOOGLE APPS SCRIPT SERVER
+ * Nama File : SERVER_APPS_SCRIP.js
  *
- * 1 SCRIPT UNTUK 5 FUNGSI UTAMA VIPERCELL V27:
- *  1. [OTP EMAIL]              Mengirim Kode Verifikasi OTP 6-Digit untuk Upgrade
- *                              Akun Anonim ke Member Resmi (`action: "SEND_OTP_EMAIL"`).
- *  2. [LINK UBAH KATA SANDI]   Mengirim Email Link & Token 6-Digit Ubah Kata Sandi
- *                              berdesain Neo-Brutalism V3 (`action: "SEND_PASSWORD_RESET_LINK"`
- *                              & `action: "CONFIRM_PASSWORD_RESET"`) (#5).
- *  3. [DELIVERY & EMAIL OAUTH] Mengirim E-Receipt, Detail Akun/Voucher, & Kotak Khusus
- *                              Format Produk Email (`email|password|refresh_token|client_id`
- *                              + Tombol Link Akses Tanpa Login) otomatis saat stok lokal
- *                              terkirim atau saat Admin klik Selesaikan (`action: "SEND_ORDER_DELIVERY"`) (#3, #17).
- *  4. [REMINDER LANGGANAN]     Mengirim Email Pengingat Masa Aktif Langganan sebelum di-Kick
- *                              (`action: "SEND_EXPIRY_REMINDER"`).
- *  5. [MUTASI QRIS OTOMATIS]   Menerima Webhook dari MacroDroid / Notification Forwarder
- *                              dan meneruskannya ke Cloud Firestore agar pesanan QRIS
- *                              otomatis berubah menjadi LUNAS (SUCCESS) dalam 1 detik!
- *
- * CARA DEPLOY DI GOOGLE APPS SCRIPT (script.google.com):
- *  1. Hapus semua kode lama di `Code.gs`, lalu tempel (Paste) seluruh kode V27 ini.
- *  2. Klik tombol "Run" pada fungsi `setupAndAuthorize()` satu kali untuk memberikan
- *     izin pengiriman Gmail (`MailApp`) dan koneksi eksternal (`UrlFetchApp`).
- *  3. Klik "Deploy" -> "New deployment" (atau "Manage deployments" -> Edit versi baru):
- *     - Select type : Web app
- *     - Execute as  : Me (Email Admin Anda)
- *     - Who has access : Anyone (Siapa saja)  <-- WAJIB PILIH "Anyone"!
- *  4. Salin URL Web App (`https://script.google.com/macros/s/.../exec`), lalu tempelkan ke:
- *     - Pengaturan Web Admin Vipercell -> Kolom "URL Google Apps Script"
- *     - Aplikasi MacroDroid di HP -> Action "HTTP Request (POST)" (untuk mutasi QRIS)
+ * Fungsi Utama:
+ *  1. Mengirim Kode OTP 6-Digit untuk Upgrade Akun ke Member (`SEND_OTP_EMAIL`)
+ *  2. Mengirim Email Struk & Detail Pesanan dengan Proteksi Anti-Dobel (`SEND_ORDER_DELIVERY`)
+ *  3. Mengirim Email Pengingat Masa Aktif Langganan (`SEND_EXPIRY_REMINDER`)
+ *  4. Menerima Webhook Mutasi Pembayaran QRIS dari MacroDroid ke Firestore
  * ============================================================================
  */
 
 var CONFIG = {
   FIREBASE_PROJECT_ID: 'vipercell-fc50e',
   WEBHOOK_SECRET: 'VIPERCELL_SECRET_2026',
-  STORE_NAME: 'VIPERCELL OFFICIAL STORE',
-  STORE_TAGLINE: 'Pusat Aplikasi Premium, Produk Email OAuth, Top Up Game & Tools Digital 24/7',
+  STORE_NAME: 'VIPERCELL',
+  STORE_TAGLINE: 'Toko Aplikasi Premium, Top Up Game & Produk Digital',
   SUPPORT_WHATSAPP: '6285656321860',
   PRIMARY_COLOR: '#2563eb',
   ACCENT_YELLOW: '#facc15',
@@ -46,21 +23,21 @@ var CONFIG = {
 };
 
 /**
- * Jalankan fungsi ini 1x di Editor Apps Script untuk memunculkan dialog Otorisasi Google
+ * Jalankan fungsi ini 1x di Editor Apps Script untuk memberikan izin pengiriman email & akses jaringan
  */
 function setupAndAuthorize() {
   var remainingQuota = MailApp.getRemainingDailyQuota();
-  Logger.log('✅ Otorisasi Berhasil! Sisa kuota kirim email harian Anda: ' + remainingQuota);
+  Logger.log('Otorisasi berhasil. Sisa kuota email harian: ' + remainingQuota);
 }
 
 /**
- * Handler HTTP GET — Untuk mengecek apakah URL Web App GAS sudah aktif di browser
+ * Handler HTTP GET
  */
 function doGet(e) {
   return buildJsonResponse({
     ok: true,
     status: 'ok',
-    service: 'Vipercell V27.0 Unified Server (OTP + Password Reset Link + E-Receipt Email OAuth + QRIS Mutation)',
+    service: 'Vipercell Server',
     projectId: CONFIG.FIREBASE_PROJECT_ID,
     remainingEmailQuota: MailApp.getRemainingDailyQuota(),
     timestamp: new Date().toISOString()
@@ -68,7 +45,7 @@ function doGet(e) {
 }
 
 /**
- * Handler Utama HTTP POST — Menerima request dari Web User, Web Admin, atau MacroDroid
+ * Handler Utama HTTP POST
  */
 function doPost(e) {
   try {
@@ -77,18 +54,16 @@ function doPost(e) {
       return buildJsonResponse({ ok: false, status: 'error', error: 'EMPTY_OR_INVALID_PAYLOAD' });
     }
 
-    // Validasi Secret Key (Mendukung field `secret` atau `key`)
     var incomingSecret = String(payload.secret || payload.key || '').trim();
     if (CONFIG.WEBHOOK_SECRET && incomingSecret && incomingSecret !== CONFIG.WEBHOOK_SECRET) {
       return buildJsonResponse({
         ok: false,
         status: 'error',
         error: 'UNAUTHORIZED_SECRET',
-        message: 'Kunci rahasia (Webhook Secret) tidak cocok dengan WEBHOOK_SECRET di Google Apps Script.'
+        message: 'Webhook Secret tidak sesuai.'
       });
     }
 
-    // Deteksi jenis Action secara pintar
     var action = String(payload.action || payload.type || '').toUpperCase().trim();
 
     if (!action) {
@@ -103,7 +78,6 @@ function doPost(e) {
       }
     }
 
-    // ROUTING KE MASING-MASING HANDLER V27
     if (action === 'SEND_OTP_EMAIL' || action === 'OTP') {
       return handleSendOtpEmail(payload);
     }
@@ -124,7 +98,6 @@ function doPost(e) {
       return handleSendExpiryReminderEmail(payload);
     }
 
-    // Default: Tangani sebagai Webhook Mutasi Pembayaran QRIS (MacroDroid)
     return handleMacroDroidPaymentMutation(payload);
 
   } catch (err) {
@@ -137,12 +110,12 @@ function doPost(e) {
 }
 
 /* ============================================================================
- * 1. HANDLER PENGIRIMAN EMAIL KODE OTP 6-DIGIT (UPGRADE ANONIM -> MEMBER RESMI)
+ * 1. PENGIRIMAN EMAIL KODE OTP 6-DIGIT
  * ============================================================================ */
 function handleSendOtpEmail(data) {
   var targetEmail = String(data.email || data.to || data.buyerEmail || '').trim();
   var otpCode = String(data.otpCode || data.otp || '').trim();
-  var userName = String(data.userName || data.name || 'Pelanggan Vipercell').trim();
+  var userName = String(data.userName || data.name || 'Pelanggan').trim();
   var expiryMinutes = Number(data.expiryMinutes || 5);
 
   if (!targetEmail || targetEmail.indexOf('@') === -1) {
@@ -152,36 +125,31 @@ function handleSendOtpEmail(data) {
     return buildJsonResponse({ ok: false, status: 'error', error: 'KODE_OTP_KOSONG' });
   }
 
-  var subject = '[' + otpCode + '] Kode Verifikasi OTP Member Resmi — ' + CONFIG.STORE_NAME;
+  var subject = '[' + otpCode + '] Kode OTP — ' + CONFIG.STORE_NAME;
 
   var htmlBody = '' +
-    '<div style="font-family:\'Plus Jakarta Sans\',Arial,sans-serif; max-width:560px; margin:0 auto; background:#f4f6fb; padding:24px; border:3px solid #0f172a; border-radius:18px;">' +
-      '<div style="background:#2563eb; color:#ffffff; padding:20px; border:2.5px solid #0f172a; border-radius:14px; text-align:center; box-shadow:4px 4px 0px #0f172a;">' +
-        '<div style="display:inline-block; background:#facc15; color:#0f172a; font-weight:900; font-size:11px; padding:4px 10px; border-radius:6px; border:1.5px solid #0f172a; margin-bottom:6px;">VERIFIKASI KEAMANAN V27</div>' +
-        '<h2 style="margin:0; font-size:21px; font-weight:900; letter-spacing:0.5px;">' + escapeHtmlGas(CONFIG.STORE_NAME) + '</h2>' +
-        '<p style="margin:4px 0 0; font-size:12px; opacity:0.92;">Upgrade Sesi Anonim ke Member Resmi Permanen</p>' +
+    '<div style="font-family:\'Plus Jakarta Sans\',Arial,sans-serif; max-width:540px; margin:0 auto; background:#f4f6fb; padding:22px; border:2px solid #0f172a; border-radius:16px;">' +
+      '<div style="background:#2563eb; color:#ffffff; padding:18px; border:2px solid #0f172a; border-radius:12px; text-align:center;">' +
+        '<h2 style="margin:0; font-size:20px; font-weight:800;">' + escapeHtmlGas(CONFIG.STORE_NAME) + '</h2>' +
+        '<p style="margin:4px 0 0; font-size:12px; opacity:0.92;">Kode Verifikasi Akun</p>' +
       '</div>' +
 
-      '<div style="background:#ffffff; border:2.5px solid #0f172a; border-radius:14px; padding:22px; margin-top:16px; box-shadow:4px 4px 0px #0f172a; color:#0f172a;">' +
+      '<div style="background:#ffffff; border:2px solid #0f172a; border-radius:12px; padding:20px; margin-top:14px; color:#0f172a;">' +
         '<p style="margin:0 0 10px; font-size:14px;">Halo <b>' + escapeHtmlGas(userName) + '</b>,</p>' +
-        '<p style="margin:0 0 16px; font-size:13.5px; line-height:1.6; color:#334155;">' +
-          'Gunakan <b>6 digit kode OTP</b> di bawah ini pada halaman Web Vipercell untuk mengaktifkan status <b>Member Resmi</b> Anda:' +
+        '<p style="margin:0 0 14px; font-size:13.5px; line-height:1.55; color:#334155;">' +
+          'Gunakan 6 digit kode OTP berikut untuk memverifikasi akun kamu:' +
         '</p>' +
 
-        '<div style="background:#fef9c3; border:2.5px dashed #0f172a; border-radius:12px; padding:18px; text-align:center; margin:18px 0;">' +
-          '<span style="display:block; font-size:11px; font-weight:800; color:#475569; margin-bottom:6px; text-transform:uppercase;">KODE VERIFIKASI OTP ANDA</span>' +
-          '<div style="font-family:\'Courier New\',monospace; font-size:34px; font-weight:900; letter-spacing:8px; color:#0f172a;">' +
+        '<div style="background:#fef9c3; border:2px dashed #0f172a; border-radius:10px; padding:16px; text-align:center; margin:16px 0;">' +
+          '<span style="display:block; font-size:11px; font-weight:800; color:#475569; margin-bottom:4px;">KODE OTP</span>' +
+          '<div style="font-family:\'Courier New\',monospace; font-size:32px; font-weight:900; letter-spacing:7px; color:#0f172a;">' +
             escapeHtmlGas(otpCode) +
           '</div>' +
         '</div>' +
 
         '<p style="margin:0; font-size:12px; color:#64748b; text-align:center;">' +
-          '⏱️ Kode ini berlaku selama <b>' + expiryMinutes + ' menit</b>. Jangan bagikan kode ini kepada siapa pun.' +
+          'Kode berlaku selama <b>' + expiryMinutes + ' menit</b>. Jangan bagikan kode ini kepada siapa pun.' +
         '</p>' +
-      '</div>' +
-
-      '<div style="text-align:center; margin-top:16px; font-size:11px; color:#64748b; font-weight:700;">' +
-        '&copy; ' + new Date().getFullYear() + ' ' + escapeHtmlGas(CONFIG.STORE_NAME) + ' &bull; Sistem Otomatis 24/7' +
       '</div>' +
     '</div>';
 
@@ -197,63 +165,47 @@ function handleSendOtpEmail(data) {
     status: 'ok',
     action: 'SEND_OTP_EMAIL',
     recipient: targetEmail,
-    message: 'Kode OTP berhasil dikirim ke email ' + targetEmail
+    message: 'Kode OTP berhasil dikirim ke ' + targetEmail
   });
 }
 
 /* ============================================================================
- * 2. [FEATURE-05] HANDLER PENGIRIMAN LINK & TOKEN UBAH KATA SANDI (NEO-BRUTALISM V3)
+ * 2. PENGIRIMAN LINK UBAH KATA SANDI KE EMAIL AKUN (#8)
  * ============================================================================ */
 function handleSendPasswordResetLink(data) {
   var targetEmail = String(data.email || data.to || '').trim();
-  var token = String(data.token || data.otpCode || data.otp || '').trim();
   var resetLink = String(data.resetLink || '').trim();
-  var userName = String(data.userName || targetEmail.split('@')[0] || 'Member Vipercell').trim();
-  var expiryMinutes = Number(data.expiryMinutes || 15);
+  var userName = String(data.userName || targetEmail.split('@')[0] || 'Pelanggan').trim();
 
   if (!targetEmail || targetEmail.indexOf('@') === -1) {
     return buildJsonResponse({ ok: false, status: 'error', error: 'EMAIL_RESET_TIDAK_VALID' });
   }
-  if (!token) {
-    token = String(Math.floor(100000 + Math.random() * 900000));
-  }
 
-  var subject = '🔐 Link & Token Ubah Kata Sandi [' + token + '] — ' + CONFIG.STORE_NAME;
+  var subject = 'Ubah Kata Sandi Akun — ' + CONFIG.STORE_NAME;
 
   var ctaButtonHtml = resetLink
-    ? '<div style="text-align:center; margin:20px 0;">' +
-        '<a href="' + escapeHtmlGas(resetLink) + '" target="_blank" style="display:inline-block; background:#2563eb; color:#ffffff; text-decoration:none; font-weight:900; font-size:14px; padding:14px 24px; border-radius:10px; border:2.5px solid #0f172a; box-shadow:4px 4px 0px #0f172a;">' +
-          'BUKA HALAMAN UBAH KATA SANDI SEKARANG &rarr;' +
+    ? '<div style="text-align:center; margin:18px 0;">' +
+        '<a href="' + escapeHtmlGas(resetLink) + '" target="_blank" style="display:inline-block; background:#2563eb; color:#ffffff; text-decoration:none; font-weight:800; font-size:14px; padding:12px 22px; border-radius:10px; border:2px solid #0f172a;">' +
+          'Ubah Kata Sandi Sekarang' +
         '</a>' +
       '</div>'
     : '';
 
   var htmlBody = '' +
-    '<div style="font-family:\'Plus Jakarta Sans\',Arial,sans-serif; max-width:580px; margin:0 auto; background:#f4f6fb; padding:24px; border:3px solid #0f172a; border-radius:18px;">' +
-      '<div style="background:#0f172a; color:#ffffff; padding:20px; border:2.5px solid #0f172a; border-radius:14px; text-align:center; box-shadow:4px 4px 0px #2563eb;">' +
-        '<div style="display:inline-block; background:#facc15; color:#0f172a; font-weight:900; font-size:11px; padding:4px 10px; border-radius:6px; border:1.5px solid #0f172a; margin-bottom:6px;">PEMULIHAN SANDI NEO-BRUTALISM V27</div>' +
-        '<h2 style="margin:0; font-size:21px; font-weight:900;">ATUR ULANG KATA SANDI</h2>' +
+    '<div style="font-family:\'Plus Jakarta Sans\',Arial,sans-serif; max-width:540px; margin:0 auto; background:#f4f6fb; padding:22px; border:2px solid #0f172a; border-radius:16px;">' +
+      '<div style="background:#0f172a; color:#ffffff; padding:18px; border:2px solid #0f172a; border-radius:12px; text-align:center;">' +
+        '<h2 style="margin:0; font-size:19px; font-weight:800;">UBAH KATA SANDI</h2>' +
         '<p style="margin:4px 0 0; font-size:12px; opacity:0.9;">' + escapeHtmlGas(CONFIG.STORE_NAME) + '</p>' +
       '</div>' +
 
-      '<div style="background:#ffffff; border:2.5px solid #0f172a; border-radius:14px; padding:22px; margin-top:16px; box-shadow:4px 4px 0px #0f172a; color:#0f172a;">' +
+      '<div style="background:#ffffff; border:2px solid #0f172a; border-radius:12px; padding:20px; margin-top:14px; color:#0f172a;">' +
         '<p style="margin:0 0 10px; font-size:14px;">Halo <b>' + escapeHtmlGas(userName) + '</b>,</p>' +
-        '<p style="margin:0 0 14px; font-size:13.5px; line-height:1.6; color:#334155;">' +
-          'Kami menerima permintaan untuk mengatur ulang kata sandi akun Member <b>' + escapeHtmlGas(targetEmail) + '</b>. Klik tombol di bawah ini untuk langsung membuka halaman Ubah Kata Sandi:' +
+        '<p style="margin:0 0 14px; font-size:13.5px; line-height:1.55; color:#334155;">' +
+          'Silakan klik tombol di bawah untuk mengganti kata sandi akun <b>' + escapeHtmlGas(targetEmail) + '</b>:' +
         '</p>' +
-
         ctaButtonHtml +
-
-        '<div style="background:#fef3c7; border:2.5px dashed #0f172a; border-radius:12px; padding:16px; text-align:center; margin:16px 0;">' +
-          '<span style="display:block; font-size:11px; font-weight:800; color:#92400e; margin-bottom:4px; text-transform:uppercase;">KODE TOKEN RESET 6-DIGIT ANDA</span>' +
-          '<div style="font-family:\'Courier New\',monospace; font-size:30px; font-weight:900; letter-spacing:6px; color:#0f172a;">' +
-            escapeHtmlGas(token) +
-          '</div>' +
-          '<span style="display:block; font-size:11px; color:#78350f; margin-top:4px; font-weight:700;">Tempel kode token ini pada halaman Ubah Kata Sandi jika diminta</span>' +
-        '</div>' +
-
         '<p style="margin:0; font-size:12px; color:#64748b; text-align:center;">' +
-          '⏱️ Tautan & token ini berlaku selama <b>' + expiryMinutes + ' menit</b>. Abaikan email ini jika Anda tidak merasa meminta perubahan sandi.' +
+          'Abaikan pesan ini jika kamu tidak meminta perubahan kata sandi.' +
         '</p>' +
       '</div>' +
     '</div>';
@@ -270,7 +222,7 @@ function handleSendPasswordResetLink(data) {
     status: 'ok',
     action: 'SEND_PASSWORD_RESET_LINK',
     recipient: targetEmail,
-    message: 'Link & Token Ubah Kata Sandi berhasil dikirim ke ' + targetEmail
+    message: 'Link ubah kata sandi dikirim ke ' + targetEmail
   });
 }
 
@@ -280,13 +232,12 @@ function handleConfirmPasswordReset(data) {
     ok: true,
     status: 'ok',
     action: 'CONFIRM_PASSWORD_RESET',
-    email: targetEmail,
-    message: 'Konfirmasi perubahan kata sandi diterima oleh server GAS V27.'
+    email: targetEmail
   });
 }
 
 /* ============================================================================
- * 3. [FEATURE-03 & 17] HANDLER PENGIRIMAN E-RECEIPT & FORMAT PRODUK EMAIL OAUTH
+ * 3. PENGIRIMAN EMAIL STRUK & DETAIL PESANAN DENGAN ANTI-DOBEL SERVER (#12 & #18)
  * ============================================================================ */
 function handleSendOrderDeliveryEmail(data) {
   var targetEmail = String(data.buyerEmail || data.email || data.to || '').trim();
@@ -294,145 +245,157 @@ function handleSendOrderDeliveryEmail(data) {
     return buildJsonResponse({ ok: false, status: 'error', error: 'EMAIL_PEMBELI_TIDAK_VALID' });
   }
 
-  var orderId = String(data.orderId || data.invoice || data.invoiceId || 'VP-ORDER').trim();
-  var buyerName = String(data.buyerName || targetEmail.split('@')[0] || 'Pelanggan').trim();
-  var itemName = String(data.itemName || ((data.productName || 'Produk') + ' - ' + (data.variantName || ''))).trim();
-  var totalAmount = Number(data.totalAmount || data.uniqueTotal || 0);
-  var totalFormatted = data.totalFormatted || ('Rp ' + totalAmount.toLocaleString('id-ID'));
-  var targetId = String(data.targetId || '-').trim();
-  var accountDetails = String(data.accountDetails || 'Pesanan Anda telah selesai diproses.').trim();
-  var durationDays = Number(data.durationDays || 0);
-  var subscriptionEndAt = Number(data.subscriptionEndAt || 0);
+  var orderId = String(data.orderId || data.invoice || data.invoiceId || 'VP-ORDER').trim().toUpperCase();
+  var isTestOrder = (orderId.indexOf('VP-TEST') === 0);
 
-  // Deteksi apakah accountDetails mengandung Format Produk Email OAuth (FORMAT_UTUH / 4-pipe) (#17)
-  var rawPipeDetected = '';
-  var accessPortalLink = '';
-  var lines = accountDetails.split(/\r?\n/);
-  for (var i = 0; i < lines.length; i++) {
-    var ln = lines[i].trim();
-    if (ln.toUpperCase().indexOf('FORMAT_UTUH') === 0) {
-      var idxC = ln.indexOf(':');
-      if (idxC > -1) rawPipeDetected = ln.substring(idxC + 1).trim();
-    } else if (ln.toUpperCase().indexOf('LINK_AKSES') === 0) {
-      var idxL = ln.indexOf(':');
-      if (idxL > -1) accessPortalLink = ln.substring(idxL + 1).trim();
-    } else if (ln.indexOf('|') > -1 && ln.split('|').length >= 4 && !rawPipeDetected) {
-      var segs = ln.split('|');
-      rawPipeDetected = segs[0].trim() + '|' + segs[1].trim() + '|' + segs[2].trim() + '|' + segs[3].trim();
-      if (segs[4]) accessPortalLink = segs[4].trim();
+  // Proteksi Anti-Email Dobel di Server menggunakan LockService & CacheService (#12)
+  var lock = LockService.getScriptLock();
+  var hasLock = false;
+  try {
+    hasLock = lock.tryLock(10000);
+  } catch (lockErr) {}
+
+  try {
+    var cache = CacheService.getScriptCache();
+    var dedupKey = 'SENT_ORDER_' + orderId + '_' + targetEmail.toLowerCase();
+
+    if (!isTestOrder && cache) {
+      var alreadySent = cache.get(dedupKey);
+      if (alreadySent) {
+        return buildJsonResponse({
+          ok: true,
+          status: 'ok',
+          action: 'SEND_ORDER_DELIVERY',
+          orderId: orderId,
+          recipient: targetEmail,
+          deduplicated: true,
+          message: 'Email untuk pesanan #' + orderId + ' sudah terkirim sebelumnya.'
+        });
+      }
+      // Simpan penanda di cache selama 6 jam (21.600 detik) sebelum mengirim
+      cache.put(dedupKey, '1', 21600);
+    }
+
+    var buyerName = String(data.buyerName || targetEmail.split('@')[0] || 'Pelanggan').trim();
+    var itemName = String(data.itemName || ((data.productName || 'Produk') + ' - ' + (data.variantName || ''))).trim();
+    var totalAmount = Number(data.totalAmount || data.uniqueTotal || 0);
+    var totalFormatted = data.totalFormatted || ('Rp ' + totalAmount.toLocaleString('id-ID'));
+    var targetId = String(data.targetId || '-').trim();
+    var accountDetails = String(data.accountDetails || 'Pesanan selesai diproses.').trim();
+    var durationDays = Number(data.durationDays || 0);
+    var subscriptionEndAt = Number(data.subscriptionEndAt || 0);
+
+    // Deteksi format produk email (email|password|refresh_token|client_id) tanpa link default ambil kode (#18)
+    var rawPipeDetected = '';
+    var lines = accountDetails.split(/\r?\n/);
+    for (var i = 0; i < lines.length; i++) {
+      var ln = lines[i].trim();
+      if (ln.toUpperCase().indexOf('FORMAT_UTUH') === 0) {
+        var idxC = ln.indexOf(':');
+        if (idxC > -1) rawPipeDetected = ln.substring(idxC + 1).trim();
+      } else if (ln.indexOf('|') > -1 && ln.split('|').length >= 4 && !rawPipeDetected) {
+        var segs = ln.split('|');
+        rawPipeDetected = segs[0].trim() + '|' + segs[1].trim() + '|' + segs[2].trim() + '|' + segs[3].trim();
+      }
+    }
+
+    var emailOAuthHtml = '';
+    if (rawPipeDetected) {
+      emailOAuthHtml = '' +
+        '<div style="background:#f3e8ff; border:2px solid #0f172a; border-radius:10px; padding:14px; margin-bottom:14px;">' +
+          '<div style="font-size:11px; font-weight:800; color:#6b21a8; margin-bottom:5px;">' +
+            'FORMAT EMAIL UTUH:' +
+          '</div>' +
+          '<div style="font-family:\'Courier New\',monospace; font-size:12.5px; font-weight:800; color:#0f172a; background:#ffffff; padding:9px; border:1.5px solid #0f172a; border-radius:7px; word-break:break-all;">' +
+            escapeHtmlGas(rawPipeDetected) +
+          '</div>' +
+        '</div>';
+    }
+
+    var durationHtml = '';
+    if (durationDays > 0) {
+      var endDateStr = subscriptionEndAt > 0
+        ? new Date(subscriptionEndAt).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' })
+        : (durationDays + ' Hari');
+      durationHtml = '' +
+        '<tr>' +
+          '<td style="padding:6px 0; color:#64748b; font-size:13px;">Durasi</td>' +
+          '<td style="padding:6px 0; font-weight:800; color:#2563eb; font-size:13px; text-align:right;">' + durationDays + ' Hari (' + escapeHtmlGas(endDateStr) + ')</td>' +
+        '</tr>';
+    }
+
+    var subject = 'Rincian Pesanan #' + orderId + ' — ' + CONFIG.STORE_NAME;
+
+    var htmlBody = '' +
+      '<div style="font-family:\'Plus Jakarta Sans\',Arial,sans-serif; max-width:560px; margin:0 auto; background:#f4f6fb; padding:22px; border:2px solid #0f172a; border-radius:16px;">' +
+        '<div style="background:#10b981; color:#ffffff; padding:18px; border:2px solid #0f172a; border-radius:12px; text-align:center;">' +
+          '<h2 style="margin:0; font-size:20px; font-weight:800;">PESANAN SELESAI</h2>' +
+          '<p style="margin:4px 0 0; font-size:12.5px; font-weight:700;">Invoice #' + escapeHtmlGas(orderId) + '</p>' +
+        '</div>' +
+
+        '<div style="background:#ffffff; border:2px solid #0f172a; border-radius:12px; padding:20px; margin-top:14px; color:#0f172a;">' +
+          '<p style="margin:0 0 10px; font-size:14px;">Halo <b>' + escapeHtmlGas(buyerName) + '</b>,</p>' +
+          '<p style="margin:0 0 14px; font-size:13.5px; line-height:1.5; color:#334155;">' +
+            'Terima kasih telah berbelanja di <b>' + escapeHtmlGas(CONFIG.STORE_NAME) + '</b>. Berikut adalah rincian pesanan kamu:' +
+          '</p>' +
+
+          '<table style="width:100%; border-collapse:collapse; margin-bottom:14px; border-top:1.5px dashed #cbd5e1; border-bottom:1.5px dashed #cbd5e1;">' +
+            '<tr>' +
+              '<td style="padding:6px 0; color:#64748b; font-size:13px;">Nomor Invoice</td>' +
+              '<td style="padding:6px 0; font-weight:800; color:#0f172a; font-size:13px; text-align:right; font-family:monospace;">#' + escapeHtmlGas(orderId) + '</td>' +
+            '</tr>' +
+            '<tr>' +
+              '<td style="padding:6px 0; color:#64748b; font-size:13px;">Produk</td>' +
+              '<td style="padding:6px 0; font-weight:800; color:#0f172a; font-size:13px; text-align:right;">' + escapeHtmlGas(itemName) + '</td>' +
+            '</tr>' +
+            '<tr>' +
+              '<td style="padding:6px 0; color:#64748b; font-size:13px;">Tujuan</td>' +
+              '<td style="padding:6px 0; font-weight:700; color:#334155; font-size:13px; text-align:right;">' + escapeHtmlGas(targetId) + '</td>' +
+            '</tr>' +
+            durationHtml +
+            '<tr>' +
+              '<td style="padding:8px 0; color:#0f172a; font-weight:800; font-size:14px;">Total Bayar</td>' +
+              '<td style="padding:8px 0; font-weight:900; color:#10b981; font-size:15px; text-align:right;">' + escapeHtmlGas(totalFormatted) + '</td>' +
+            '</tr>' +
+          '</table>' +
+
+          emailOAuthHtml +
+
+          '<div style="background:#f8fafc; border:2px solid #0f172a; border-radius:10px; padding:14px; margin-bottom:12px;">' +
+            '<div style="font-size:11px; font-weight:800; color:#047857; margin-bottom:6px;">' +
+              'DETAIL PESANAN:' +
+            '</div>' +
+            '<pre style="margin:0; font-family:\'Courier New\',monospace; font-size:13px; font-weight:700; color:#0f172a; white-space:pre-wrap; word-break:break-word; line-height:1.5;">' +
+              escapeHtmlGas(accountDetails) +
+            '</pre>' +
+          '</div>' +
+        '</div>' +
+      '</div>';
+
+    MailApp.sendEmail({
+      to: targetEmail,
+      subject: subject,
+      htmlBody: htmlBody,
+      name: CONFIG.STORE_NAME
+    });
+
+    return buildJsonResponse({
+      ok: true,
+      status: 'ok',
+      action: 'SEND_ORDER_DELIVERY',
+      orderId: orderId,
+      recipient: targetEmail,
+      message: 'Rincian pesanan dikirim ke ' + targetEmail
+    });
+  } finally {
+    if (hasLock) {
+      try { lock.releaseLock(); } catch (e) {}
     }
   }
-
-  var emailOAuthHtml = '';
-  if (rawPipeDetected) {
-    var portalBtn = accessPortalLink
-      ? '<div style="margin-top:12px; text-align:center;">' +
-          '<a href="' + escapeHtmlGas(accessPortalLink) + '" target="_blank" style="display:inline-block; background:#facc15; color:#0f172a; text-decoration:none; font-weight:900; font-size:12.5px; padding:10px 18px; border-radius:8px; border:2px solid #0f172a; box-shadow:3px 3px 0px #0f172a;">' +
-            '🔗 BUKA LINK AKSES AMBIL KODE EMAIL (TANPA LOGIN)' +
-          '</a>' +
-        '</div>'
-      : '';
-
-    emailOAuthHtml = '' +
-      '<div style="background:#f3e8ff; border:2.5px solid #0f172a; border-radius:12px; padding:15px; margin-bottom:14px;">' +
-        '<div style="font-size:11px; font-weight:900; color:#6b21a8; text-transform:uppercase; margin-bottom:6px;">' +
-          '📧 FORMAT UTUH PRODUK EMAIL OAUTH (SALIN & TEMPEL DI WEB AKSES KODE):' +
-        '</div>' +
-        '<div style="font-family:\'Courier New\',monospace; font-size:12.5px; font-weight:800; color:#0f172a; background:#ffffff; padding:10px; border:1.5px solid #0f172a; border-radius:8px; word-break:break-all;">' +
-          escapeHtmlGas(rawPipeDetected) +
-        '</div>' +
-        portalBtn +
-      '</div>';
-  }
-
-  var durationHtml = '';
-  if (durationDays > 0) {
-    var endDateStr = subscriptionEndAt > 0
-      ? new Date(subscriptionEndAt).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' })
-      : (durationDays + ' Hari');
-    durationHtml = '' +
-      '<tr>' +
-        '<td style="padding:7px 0; color:#64748b; font-size:13px;">Durasi Langganan</td>' +
-        '<td style="padding:7px 0; font-weight:800; color:#2563eb; font-size:13px; text-align:right;">' + durationDays + ' Hari (Berakhir: ' + escapeHtmlGas(endDateStr) + ')</td>' +
-      '</tr>';
-  }
-
-  var subject = '✅ E-Receipt & Detail Pesanan #' + orderId + ' — ' + CONFIG.STORE_NAME;
-
-  var htmlBody = '' +
-    '<div style="font-family:\'Plus Jakarta Sans\',Arial,sans-serif; max-width:600px; margin:0 auto; background:#f4f6fb; padding:24px; border:3px solid #0f172a; border-radius:18px;">' +
-      '<div style="background:#10b981; color:#ffffff; padding:20px; border:2.5px solid #0f172a; border-radius:14px; text-align:center; box-shadow:4px 4px 0px #0f172a;">' +
-        '<div style="display:inline-block; background:#facc15; color:#0f172a; font-weight:900; font-size:11px; padding:4px 10px; border-radius:6px; border:1.5px solid #0f172a; margin-bottom:6px;">TRANSAKSI LUNAS & SELESAI</div>' +
-        '<h2 style="margin:0; font-size:21px; font-weight:900;">E-RECEIPT RESMI VIPERCELL</h2>' +
-        '<p style="margin:4px 0 0; font-size:12.5px; font-weight:700;">Nomor Invoice: #' + escapeHtmlGas(orderId) + '</p>' +
-      '</div>' +
-
-      '<div style="background:#ffffff; border:2.5px solid #0f172a; border-radius:14px; padding:22px; margin-top:16px; box-shadow:4px 4px 0px #0f172a; color:#0f172a;">' +
-        '<p style="margin:0 0 12px; font-size:14px;">Halo <b>' + escapeHtmlGas(buyerName) + '</b>,</p>' +
-        '<p style="margin:0 0 16px; font-size:13.5px; line-height:1.55; color:#334155;">' +
-          'Terima kasih telah berbelanja di <b>' + escapeHtmlGas(CONFIG.STORE_NAME) + '</b>. Berikut adalah rincian struk resmi beserta detail akun/layanan pesanan Anda:' +
-        '</p>' +
-
-        '<table style="width:100%; border-collapse:collapse; margin-bottom:16px; border-top:2px dashed #cbd5e1; border-bottom:2px dashed #cbd5e1; padding:10px 0;">' +
-          '<tr>' +
-            '<td style="padding:7px 0; color:#64748b; font-size:13px;">Nomor Invoice</td>' +
-            '<td style="padding:7px 0; font-weight:900; color:#0f172a; font-size:13px; text-align:right; font-family:monospace;">#' + escapeHtmlGas(orderId) + '</td>' +
-          '</tr>' +
-          '<tr>' +
-            '<td style="padding:7px 0; color:#64748b; font-size:13px;">Layanan / Produk</td>' +
-            '<td style="padding:7px 0; font-weight:800; color:#0f172a; font-size:13px; text-align:right;">' + escapeHtmlGas(itemName) + '</td>' +
-          '</tr>' +
-          '<tr>' +
-            '<td style="padding:7px 0; color:#64748b; font-size:13px;">Data Tujuan</td>' +
-            '<td style="padding:7px 0; font-weight:700; color:#334155; font-size:13px; text-align:right;">' + escapeHtmlGas(targetId) + '</td>' +
-          '</tr>' +
-          durationHtml +
-          '<tr>' +
-            '<td style="padding:8px 0; color:#0f172a; font-weight:900; font-size:14px;">Total Pembayaran</td>' +
-            '<td style="padding:8px 0; font-weight:900; color:#10b981; font-size:15px; text-align:right;">' + escapeHtmlGas(totalFormatted) + '</td>' +
-          '</tr>' +
-        '</table>' +
-
-        emailOAuthHtml +
-
-        '<div style="background:#f8fafc; border:2.5px solid #0f172a; border-radius:12px; padding:16px; margin-bottom:16px;">' +
-          '<div style="font-size:11.5px; font-weight:900; color:#047857; text-transform:uppercase; margin-bottom:8px;">' +
-            '🔑 DETAIL AKUN / VOUCHER / PESANAN ANDA:' +
-          '</div>' +
-          '<pre style="margin:0; font-family:\'Courier New\',monospace; font-size:13px; font-weight:700; color:#0f172a; white-space:pre-wrap; word-break:break-word; line-height:1.55;">' +
-            escapeHtmlGas(accountDetails) +
-          '</pre>' +
-        '</div>' +
-
-        '<div style="background:#eff6ff; border:1.5px solid #93c5fd; border-radius:10px; padding:12px; font-size:12px; color:#1e3a8a; line-height:1.5;">' +
-          '💡 <b>Garansi Resmi Vipercell:</b> Simpan email E-Receipt ini sebagai bukti garansi. Anda juga dapat melacak pesanan kapan saja di web cukup dengan memasukkan ID Transaksi <b>#' + escapeHtmlGas(orderId) + '</b>.' +
-        '</div>' +
-      '</div>' +
-
-      '<div style="text-align:center; margin-top:16px; font-size:11px; color:#64748b; font-weight:700;">' +
-        '&copy; ' + new Date().getFullYear() + ' ' + escapeHtmlGas(CONFIG.STORE_NAME) + ' &bull; ' + escapeHtmlGas(CONFIG.STORE_TAGLINE) +
-      '</div>' +
-    '</div>';
-
-  MailApp.sendEmail({
-    to: targetEmail,
-    subject: subject,
-    htmlBody: htmlBody,
-    name: CONFIG.STORE_NAME
-  });
-
-  return buildJsonResponse({
-    ok: true,
-    status: 'ok',
-    action: 'SEND_ORDER_DELIVERY',
-    orderId: orderId,
-    recipient: targetEmail,
-    message: 'E-Receipt & Detail Akun berhasil dikirim ke ' + targetEmail
-  });
 }
 
 /* ============================================================================
- * 4. HANDLER PENGIRIMAN EMAIL PENGINGAT DURASI LANGGANAN (SEBELUM KICK)
+ * 4. PENGIRIMAN EMAIL PENGINGAT DURASI LANGGANAN
  * ============================================================================ */
 function handleSendExpiryReminderEmail(data) {
   var targetEmail = String(data.buyerEmail || data.email || data.to || '').trim();
@@ -442,23 +405,23 @@ function handleSendExpiryReminderEmail(data) {
 
   var orderId = String(data.orderId || data.invoice || 'VP-ORDER').trim();
   var buyerName = String(data.buyerName || targetEmail.split('@')[0] || 'Pelanggan').trim();
-  var itemName = String(data.itemName || data.productName || 'Layanan Premium Vipercell').trim();
+  var itemName = String(data.itemName || data.productName || 'Layanan Vipercell').trim();
   var endAt = Number(data.subscriptionEndAt || Date.now());
   var endStr = new Date(endAt).toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' });
-  var noteText = String(data.accountDetails || ('Masa aktif paket ' + itemName + ' Anda berakhir pada ' + endStr + '.')).trim();
+  var noteText = String(data.accountDetails || ('Masa aktif paket ' + itemName + ' berakhir pada ' + endStr + '.')).trim();
 
-  var subject = '⏰ Pengingat Masa Aktif Langganan #' + orderId + ' — ' + CONFIG.STORE_NAME;
+  var subject = 'Pengingat Masa Aktif #' + orderId + ' — ' + CONFIG.STORE_NAME;
 
   var htmlBody = '' +
-    '<div style="font-family:\'Plus Jakarta Sans\',Arial,sans-serif; max-width:580px; margin:0 auto; background:#f4f6fb; padding:24px; border:3px solid #0f172a; border-radius:18px;">' +
-      '<div style="background:#f59e0b; color:#0f172a; padding:18px; border:2.5px solid #0f172a; border-radius:14px; text-align:center; box-shadow:4px 4px 0px #0f172a;">' +
-        '<h2 style="margin:0; font-size:20px; font-weight:900;">⏰ PENGINGAT PERPANJANGAN LANGGANAN</h2>' +
-        '<p style="margin:4px 0 0; font-size:12px; font-weight:800;">Invoice #' + escapeHtmlGas(orderId) + '</p>' +
+    '<div style="font-family:\'Plus Jakarta Sans\',Arial,sans-serif; max-width:540px; margin:0 auto; background:#f4f6fb; padding:22px; border:2px solid #0f172a; border-radius:16px;">' +
+      '<div style="background:#f59e0b; color:#0f172a; padding:16px; border:2px solid #0f172a; border-radius:12px; text-align:center;">' +
+        '<h2 style="margin:0; font-size:19px; font-weight:800;">PENGINGAT LANGGANAN</h2>' +
+        '<p style="margin:4px 0 0; font-size:12px; font-weight:700;">Invoice #' + escapeHtmlGas(orderId) + '</p>' +
       '</div>' +
-      '<div style="background:#ffffff; border:2.5px solid #0f172a; border-radius:14px; padding:20px; margin-top:16px; box-shadow:4px 4px 0px #0f172a; color:#0f172a;">' +
+      '<div style="background:#ffffff; border:2px solid #0f172a; border-radius:12px; padding:18px; margin-top:14px; color:#0f172a;">' +
         '<p style="font-size:14px;">Halo <b>' + escapeHtmlGas(buyerName) + '</b>,</p>' +
-        '<p style="font-size:13.5px; line-height:1.6;">' + escapeHtmlGas(noteText) + '</p>' +
-        '<p style="font-size:13px; color:#475569;">Silakan kunjungi kembali toko resmi <b>' + escapeHtmlGas(CONFIG.STORE_NAME) + '</b> untuk memperpanjang paket langganan Anda agar akses tetap aktif tanpa terputus.</p>' +
+        '<p style="font-size:13.5px; line-height:1.55;">' + escapeHtmlGas(noteText) + '</p>' +
+        '<p style="font-size:13px; color:#475569;">Silakan kunjungi kembali <b>' + escapeHtmlGas(CONFIG.STORE_NAME) + '</b> jika ingin memperpanjang layanan kamu.</p>' +
       '</div>' +
     '</div>';
 
@@ -479,7 +442,7 @@ function handleSendExpiryReminderEmail(data) {
 }
 
 /* ============================================================================
- * 5. HANDLER WEBHOOK MUTASI PEMBAYARAN QRIS OTOMATIS (MACRODROID -> FIRESTORE)
+ * 5. WEBHOOK MUTASI PEMBAYARAN QRIS (MACRODROID -> FIRESTORE)
  * ============================================================================ */
 function handleMacroDroidPaymentMutation(data) {
   var rawTitle = String(data.title || data.appName || data.app || '').trim();
@@ -499,7 +462,6 @@ function handleMacroDroidPaymentMutation(data) {
   var primaryAmount = candidateAmounts[0];
   var nowMs = Date.now();
 
-  // Simpan sinyal mutasi ke Firestore `settings/mainConfig` & koleksi `payment_mutations`
   var firestoreUpdated = pushPaymentSignalToFirestore(primaryAmount, candidateAmounts, combinedText, nowMs);
 
   return buildJsonResponse({
@@ -513,10 +475,6 @@ function handleMacroDroidPaymentMutation(data) {
   });
 }
 
-/**
- * Ekstraktor Nominal Rupiah Pintar dari Notifikasi Aplikasi Merchant / Bank
- * (GoPay Merchant, DANA Bisnis, SeaBank, BCA, BRI, Mandiri, ShopeePay, OVO, Qris.id, OrderKuota)
- */
 function extractCandidateAmountsFromNotification(text, explicitAmount) {
   var results = [];
   if (explicitAmount && !isNaN(Number(explicitAmount)) && Number(explicitAmount) >= 100) {
@@ -525,10 +483,8 @@ function extractCandidateAmountsFromNotification(text, explicitAmount) {
 
   if (!text) return results;
 
-  // Hilangkan desimal sen `,00` atau `.00` di akhir nominal
   var cleaned = String(text).replace(/[,\.]00\b/g, '');
 
-  // Cari pola Rp 15.123 / IDR 15,123 / sebesar 15.123
   var regexRp = /(?:rp|idr|sebesar|senilai|masuk|terima|pembayaran)\s*[:\.]?\s*([0-9]{1,3}(?:[.,][0-9]{3})+|[0-9]{4,8})/gi;
   var match;
   while ((match = regexRp.exec(cleaned)) !== null) {
@@ -539,7 +495,6 @@ function extractCandidateAmountsFromNotification(text, explicitAmount) {
     }
   }
 
-  // Fallback angka ribuan umum jika belum tertangkap
   if (results.length === 0) {
     var genericRegex = /\b([0-9]{1,3}(?:\.[0-9]{3})+|[0-9]{4,8})\b/g;
     var gMatch;
@@ -554,14 +509,10 @@ function extractCandidateAmountsFromNotification(text, explicitAmount) {
   return results;
 }
 
-/**
- * Mengirim sinyal pembayaran masuk ke Cloud Firestore REST API
- */
 function pushPaymentSignalToFirestore(primaryAmount, candidateAmounts, rawNotifText, timestampMs) {
   try {
     var baseUrl = 'https://firestore.googleapis.com/v1/projects/' + CONFIG.FIREBASE_PROJECT_ID + '/databases/(default)/documents';
 
-    // 1. Update dokumen `settings/mainConfig` (lastPaymentDetected & lastPaymentMutation)
     var settingsPatchUrl = baseUrl + '/settings/mainConfig?updateMask.fieldPaths=lastPaymentDetected&updateMask.fieldPaths=lastPaymentTimestamp&updateMask.fieldPaths=lastPaymentMutation';
 
     var arrayValues = [];
@@ -595,7 +546,6 @@ function pushPaymentSignalToFirestore(primaryAmount, candidateAmounts, rawNotifT
       muteHttpExceptions: true
     });
 
-    // 2. Tambahkan dokumen baru ke koleksi `payment_mutations`
     var mutationsUrl = baseUrl + '/payment_mutations';
     var mutBody = {
       fields: {
@@ -622,9 +572,6 @@ function pushPaymentSignalToFirestore(primaryAmount, candidateAmounts, rawNotifT
   }
 }
 
-/* ============================================================================
- * UTILITAS PARSER & JSON RESPONSE BUILDER
- * ============================================================================ */
 function parseIncomingPayload(e) {
   if (!e) return null;
   var data = {};
