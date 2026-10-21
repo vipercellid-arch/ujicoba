@@ -3779,7 +3779,7 @@ html[data-theme="dark"] .marquee-container.neo-brutal-marquee {
     box-shadow: 0 4px 0px #0f172a;
     padding: 0;
     margin-bottom: 1.35rem;
-    min-height: 48px;
+    min-height: 50px;
 }
 
 html[data-theme="dark"] .marquee-container.edge-to-edge-marquee {
@@ -3791,86 +3791,11 @@ html[data-theme="dark"] .marquee-container.edge-to-edge-marquee {
 .marquee-container.edge-to-edge-marquee .marquee-wrapper {
     width: 100%;
     overflow: hidden;
+    display: flex;
+    align-items: center;
 }
 
 .marquee-container.edge-to-edge-marquee .marquee-content {
-    display: inline-flex;
-    align-items: center;
-    white-space: nowrap;
-    will-change: transform;
-    transform: translate3d(0, 0, 0);
-    backface-visibility: hidden;
-    -webkit-font-smoothing: antialiased;
-    animation: neoMarqueeScroll var(--marquee-duration, 46s) linear infinite;
-}
-
-/* 2. Running Text Bawah (Super Smooth 60/120FPS & TIDAK BERHENTI Saat Disentuh/Di-Hover #3) */
-body.auth-locked .footer-divider-marquee-wrap {
-    display: none !important;
-}
-
-.footer-divider-marquee-wrap {
-    width: 100%;
-    margin-top: 2.4rem;
-    margin-bottom: 0;
-    position: relative;
-    z-index: 15;
-}
-
-.footer-black-marquee {
-    width: 100%;
-    background-color: #090d16;
-    color: #f8fafc;
-    border-top: 3px solid #0f172a;
-    border-bottom: 3px solid #0f172a;
-    box-shadow: 0 -3px 0px #0f172a;
-    overflow: hidden;
-    padding: 12px 0;
-    position: relative;
-    display: flex;
-    align-items: center;
-    contain: content;
-}
-
-html[data-theme="dark"] .footer-black-marquee {
-    background-color: #050811;
-    border-top-color: #334155;
-    border-bottom-color: #334155;
-    box-shadow: 0 -3px 0px #020617;
-}
-
-/* Efek Berkilau Beberapa Saat via GPU Overlay Ringan (Tanpa Repaint Teks agar Jalan 100% Smooth) */
-.footer-black-marquee::after {
-    content: "";
-    position: absolute;
-    top: 0;
-    bottom: 0;
-    left: 0;
-    width: 240px;
-    background: linear-gradient(
-        105deg,
-        transparent 0%,
-        rgba(255, 255, 255, 0.04) 35%,
-        rgba(250, 204, 21, 0.22) 50%,
-        rgba(255, 255, 255, 0.04) 65%,
-        transparent 100%
-    );
-    pointer-events: none;
-    will-change: transform;
-    transform: translate3d(-280px, 0, 0);
-    animation: footerPeriodicGleamSweep 6.5s cubic-bezier(0.4, 0, 0.2, 1) infinite;
-}
-
-@keyframes footerPeriodicGleamSweep {
-    0%, 68% {
-        transform: translate3d(-280px, 0, 0);
-    }
-    100% {
-        transform: translate3d(115vw, 0, 0);
-    }
-}
-
-.footer-marquee-track {
     display: inline-flex;
     align-items: center;
     white-space: nowrap;
@@ -3879,86 +3804,96 @@ html[data-theme="dark"] .footer-black-marquee {
     will-change: transform;
     transform: translate3d(0, 0, 0);
     backface-visibility: hidden;
-    perspective: 1000px;
     -webkit-font-smoothing: antialiased;
-    animation: footerSmoothMarqueeScroll var(--footer-marquee-duration, 38s) linear infinite !important;
+    animation: neoMarqueeScroll var(--marquee-duration, 44s) linear infinite;
+}
+
+/* 2. Running Text Bawah: Struktur & Kehalusan Identik dengan Atas, Tema Hitam Elegan & Tidak Berhenti Saat Disentuh (#2) */
+body.auth-locked .footer-divider-marquee-wrap {
+    display: none !important;
+}
+
+.footer-divider-marquee-wrap {
+    width: 100%;
+    margin-top: 2.5rem;
+    margin-bottom: 0;
+    position: relative;
+    z-index: 15;
+}
+
+.marquee-container.footer-dark-marquee,
+html[data-theme="dark"] .marquee-container.footer-dark-marquee {
+    background: #070a12 !important;
+    color: #f8fafc !important;
+    border-top: 3px solid #0f172a !important;
+    border-bottom: 3px solid #0f172a !important;
+    box-shadow: 0 -4px 0px #0f172a !important;
+    margin-bottom: 0 !important;
+    min-height: 52px;
+}
+
+html[data-theme="dark"] .marquee-container.footer-dark-marquee {
+    border-top-color: #334155 !important;
+    border-bottom-color: #334155 !important;
+    box-shadow: 0 -4px 0px #020617 !important;
+}
+
+.marquee-container.footer-dark-marquee .marquee-content {
+    animation: neoMarqueeScroll var(--footer-marquee-duration, 44s) linear infinite !important;
     animation-play-state: running !important;
 }
 
-/* Wajib TIDAK BERHENTI saat disentuh, di-hover, atau diklik (#3) */
-.footer-black-marquee:hover .footer-marquee-track,
-.footer-black-marquee:active .footer-marquee-track,
-.footer-black-marquee:focus .footer-marquee-track,
-.footer-marquee-track:hover,
-.footer-marquee-track:active {
+/* Pastikan Running Text Bawah TIDAK BERHENTI saat disentuh, di-hover, atau diklik */
+.marquee-container.footer-dark-marquee:hover .marquee-content,
+.marquee-container.footer-dark-marquee:active .marquee-content,
+.marquee-container.footer-dark-marquee:focus .marquee-content {
     animation-play-state: running !important;
 }
 
-@keyframes footerSmoothMarqueeScroll {
-    0% { transform: translate3d(0, 0, 0); }
-    100% { transform: translate3d(-50%, 0, 0); }
-}
-
-.footer-shimmer-item {
-    display: inline-flex;
-    align-items: center;
-    gap: 10px;
-    padding: 4px 16px;
-    margin: 0 4px;
-    border-radius: 999px;
-    cursor: pointer;
+.marquee-item-pill.footer-dark-pill {
+    background: #131c31;
+    color: #f8fafc;
+    border: 2px solid #475569;
+    box-shadow: 2px 2px 0px #000000;
     user-select: none;
     -webkit-user-select: none;
 }
 
-.footer-shimmer-badge {
-    display: inline-flex;
-    align-items: center;
-    padding: 2px 9px;
-    border-radius: 999px;
-    font-family: var(--font-heading);
-    font-size: 0.66rem;
-    font-weight: 900;
-    letter-spacing: 0.04em;
-    background: #2563eb;
-    color: #ffffff;
-    border: 1.5px solid #ffffff;
+.marquee-item-pill.footer-dark-pill:hover {
+    background: #1e293b;
+    border-color: #facc15;
+    transform: none;
 }
 
-.footer-shimmer-badge.badge-promo {
-    background: #facc15;
+.marquee-container.footer-dark-marquee .marquee-sep-star {
+    color: #facc15;
+    font-size: 0.9rem;
+    margin: 0 6px;
+}
+
+/* 3. Tombol Segarkan Katalog & Penyempurnaan UI Neo-Brutalism (#3 & #5) */
+.catalog-refresh-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 42px;
+    padding: 0 14px;
+    font-weight: 800;
+    background: var(--surface);
+    color: var(--text);
+    border: var(--brutal-border-thin);
+    box-shadow: var(--brutal-shadow-sm);
+    border-radius: 10px;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.catalog-refresh-btn:hover {
+    background: var(--secondary);
     color: #0f172a;
     border-color: #0f172a;
 }
 
-.footer-shimmer-badge.badge-news {
-    background: #10b981;
-    color: #ffffff;
-}
-
-.footer-shimmer-badge.badge-product {
-    background: #3b82f6;
-    color: #ffffff;
-}
-
-.footer-shimmer-text {
-    font-family: var(--font-heading);
-    font-size: 0.85rem;
-    font-weight: 800;
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
-    color: #f8fafc;
-}
-
-.footer-sep-dot {
-    display: inline-block;
-    color: #facc15;
-    font-size: 0.76rem;
-    margin: 0 8px;
-    user-select: none;
-}
-
-/* 3. Peningkatan Tampilan UI Neo-Brutalism Lebih Tajam, Responsif & Tanpa Lag (#4) */
 .brand-card,
 .item-card,
 .brutal-panel,

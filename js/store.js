@@ -408,7 +408,7 @@ function updateOpHoursBannerUI() {
     if (restricted) {
         const openStr = siteSettings.opOpenTime || '08:00';
         const closeStr = siteSettings.opCloseTime || '22:00';
-        textEl.innerText = `Saat ini di luar jam layanan Admin (${openStr} - ${closeStr}). Kamu tetap bisa membeli produk yang stoknya siap kirim.`;
+        textEl.innerText = `Saat ini di luar jam layanan Admin (${openStr} - ${closeStr}). Katalog tetap dapat diakses, namun pembuatan pesanan baru ditutup sementara hingga jam layanan dibuka kembali.`;
         bannerEl.style.display = 'flex';
     } else {
         bannerEl.style.display = 'none';
@@ -1577,13 +1577,7 @@ function computeVariantAvailableStock(item) {
     const totalLocalVaultStock = getVariantLocalVaultStockCount(item);
     const opRestricted = isLocalStockOnlyRestrictionActive();
 
-    // [FITUR #5] Saat di luar jam operasional toko, hanya produk yang memiliki stok lokal tersedia yang bisa dibeli
-    if (opRestricted) {
-        if (procType === 'manual' || item.type === 'game') {
-            return 0;
-        }
-        return totalLocalVaultStock > 0 ? totalLocalVaultStock : 0;
-    }
+    // Saat di luar jam operasional, katalog tetap menampilkan stok asli agar pelanggan bisa melihat-lihat katalog
 
     if (procType === 'manual') {
         if (item.manualLockSoldOut === true || item.soldOut === true) return 0;
@@ -1920,8 +1914,10 @@ function listenData() {
                 }
             }
 
-            // Jika status berubah menjadi PAID, ubah ke SUCCESS sesuai rules database firebase.js
-            if (data.status === 'PAID') {
+            // Jika status diubah dari UNPAID ke PAID oleh Server Apps Script di Firebase,
+            // langsung ubah status ke SUCCESS agar pesanan selesai & animasi pembayaran muncul!
+            const wasPaidFromGas = (data.status === 'PAID');
+            if (wasPaidFromGas) {
                 if (isMyOrder) {
                     updateDoc(doc(db, pathOrders, data.dbId), { status: 'SUCCESS' }).catch(() => {});
                 }
@@ -2502,6 +2498,47 @@ window.clearCatalogSearch = function() {
     window.renderBrands(currentBrandFilter);
 };
 
+window.refreshCatalogData = async function() {
+    const btn = document.getElementById('btn-refresh-catalog');
+    const icon = document.getElementById('icon-refresh-catalog');
+    if (btn) btn.disabled = true;
+    if (icon) icon.classList.add('fa-spin');
+
+    try {
+        const [productsSnap, stocksSnap, settingsSnap] = await Promise.all([
+            getDocs(collection(db, pathProducts)).catch(() => null),
+            getDocs(query(collection(db, pathStocks), where("status", "==", "Ready"))).catch(() => null),
+            getDoc(doc(db, pathSettings, 'mainConfig')).catch(() => null)
+        ]);
+
+        if (settingsSnap && settingsSnap.exists()) {
+            siteSettings = { ...siteSettings, ...settingsSnap.data() };
+            window.applySettingsToUI();
+        }
+        if (stocksSnap) {
+            rebuildLiveReadyStocksMap(stocksSnap.docs);
+        }
+        if (productsSnap) {
+            products = [];
+            productsSnap.forEach((docSnap) => {
+                products.push({ dbId: docSnap.id, ...docSnap.data() });
+            });
+        }
+        rebuildGroupedBrands();
+        updateOpHoursBannerUI();
+        window.renderBrands(currentBrandFilter);
+        window.showToast('Katalog Disegarkan', 'Data produk & stok terbaru berhasil dimuat.', 'success');
+    } catch (e) {
+        window.renderBrands(currentBrandFilter);
+        window.showToast('Diperbarui', 'Tampilan katalog telah disegarkan.', 'info');
+    } finally {
+        setTimeout(() => {
+            if (btn) btn.disabled = false;
+            if (icon) icon.classList.remove('fa-spin');
+        }, 350);
+    }
+};
+
 window.toggleCatalogShowAll = function() {
     isCatalogExpanded = true;
     window.renderBrands(currentBrandFilter);
@@ -2561,9 +2598,6 @@ window.renderBrands = function(filter = currentBrandFilter) {
         if (b.isGangguan) {
             tagClass = 'tag-maint';
             tagLabel = 'GANGGUAN';
-        } else if (opRestricted && !hasAnyPurchasableVariant) {
-            tagClass = 'tag-maint';
-            tagLabel = 'TUTUP JAM OPS';
         } else if (b.type === 'game') {
             tagClass = 'tag-game';
             tagLabel = 'GAME';
@@ -2579,11 +2613,9 @@ window.renderBrands = function(filter = currentBrandFilter) {
         let clickAction = `window.openDirectBuyModal('${safeJsBrand}')`;
         if (b.isGangguan) {
             clickAction = `window.customAlert('Maintenance', 'Layanan produk ini sedang dalam pemeliharaan.', 'warning')`;
-        } else if (opRestricted && !hasAnyPurchasableVariant) {
-            clickAction = `window.showToast('Di Luar Jam Operasional', 'Saat ini di luar jam operasional (${escapeJsStr(siteSettings.opOpenTime || '08:00')} - ${escapeJsStr(siteSettings.opCloseTime || '22:00')}). Stok siap kirim untuk produk ini sedang kosong.', 'warning')`;
         }
 
-        const cssClass = (b.isGangguan || (opRestricted && !hasAnyPurchasableVariant)) ? 'brand-card sold-out' : 'brand-card';
+        const cssClass = b.isGangguan ? 'brand-card sold-out' : 'brand-card';
         
         html += `
             <div class="${cssClass}" onclick="${clickAction}">
@@ -2691,18 +2723,11 @@ function renderCheckoutVariantCards() {
         const hasStockQuota = typeof availQuota === 'number' && availQuota >= 0;
         const isQuotaEmpty = hasStockQuota && availQuota === 0;
 
-        // Jika di luar jam operasional toko, variasi yang tidak memiliki stok lokal dikunci (#5)
-        const isLockedByOpHours = opRestricted && (availQuota === null || availQuota <= 0);
-        const isSold = isLockedByOpHours
-            ? true
-            : (procType === 'auto' && hasStockQuota && availQuota > 0 ? false : Boolean(item.soldOut || isQuotaEmpty));
-
+        const isSold = (procType === 'auto' && hasStockQuota && availQuota > 0) ? false : Boolean(item.soldOut || isQuotaEmpty);
         const isSelected = !isSold && selectedProductForBuy && selectedProductForBuy.dbId === item.dbId;
 
         let procBadge = '';
-        if (isLockedByOpHours) {
-            procBadge = '<span class="proc-mode-badge proc-mode-manual">DI LUAR JAM OPS</span>';
-        } else if (procType === 'manual') {
+        if (procType === 'manual') {
             procBadge = '<span class="proc-mode-badge proc-mode-manual">ADMIN</span>';
         } else if (procType === 'ask_auto' || procType === 'hybrid') {
             procBadge = '<span class="proc-mode-badge proc-mode-ask-auto">TANYA / AUTO</span>';
@@ -2723,9 +2748,7 @@ function renderCheckoutVariantCards() {
             badgesHtml += `<span class="item-stock-pill">Stok: <b>${availQuota >= 999 ? 'Tersedia' : availQuota}</b></span>`;
         }
 
-        const clickHandler = isSold
-            ? (isLockedByOpHours ? `window.showToast('Di Luar Jam Operasional', 'Varian ini membutuhkan pengiriman Admin dan baru dapat dibeli pada jam operasional (${escapeJsStr(siteSettings.opOpenTime || '08:00')} - ${escapeJsStr(siteSettings.opCloseTime || '22:00')}).', 'warning')` : '')
-            : `window.selectItemToBuy('${item.dbId}')`;
+        const clickHandler = isSold ? '' : `window.selectItemToBuy('${item.dbId}')`;
 
         html += `
             <div class="item-card ${isSold ? 'sold-out' : ''} ${isSelected ? 'selected' : ''}" id="buy-card-${item.dbId}" onclick="${clickHandler}">
@@ -2886,13 +2909,7 @@ window.selectItemToBuy = function(dbId) {
     const candidate = currentCheckoutBrand.items.find(i => i.dbId === dbId);
     if (!candidate) return;
 
-    const opRestricted = isLocalStockOnlyRestrictionActive();
     const availQuota = computeVariantAvailableStock(candidate);
-
-    if (opRestricted && (availQuota === null || availQuota <= 0)) {
-        window.showToast('Di Luar Jam Operasional', 'Saat ini di luar jam operasional. Hanya variasi yang stoknya siap kirim yang dapat dibeli saat ini.', 'warning');
-        return;
-    }
 
     selectedProductForBuy = candidate;
     document.querySelectorAll('.item-card').forEach(el => el.classList.remove('selected'));
@@ -3071,9 +3088,10 @@ window.calculateDirectBuyTotal = function() {
     }
 
     const opRestricted = isLocalStockOnlyRestrictionActive();
-    const availQuota = computeVariantAvailableStock(selectedProductForBuy);
-    if (opRestricted && (availQuota === null || availQuota <= 0)) {
-        btnProc.innerHTML = '<i class="fa-solid fa-clock"></i> <span>Di Luar Jam Operasional</span>';
+    if (opRestricted) {
+        const openStr = siteSettings.opOpenTime || '08:00';
+        const closeStr = siteSettings.opCloseTime || '22:00';
+        btnProc.innerHTML = `<i class="fa-regular fa-clock"></i> <span>Tutup Jam Layanan (${escapeHtml(openStr)} - ${escapeHtml(closeStr)})</span>`;
         btnProc.disabled = true;
         return;
     }
@@ -3092,8 +3110,10 @@ window.processDirectCheckout = async function() {
 
     const opRestricted = isLocalStockOnlyRestrictionActive();
     const availQuota = computeVariantAvailableStock(selectedProductForBuy);
-    if (opRestricted && (availQuota === null || availQuota <= 0)) {
-        window.customAlert('Di Luar Jam Operasional', `Saat ini di luar jam operasional (${siteSettings.opOpenTime || '08:00'} - ${siteSettings.opCloseTime || '22:00'}). Hanya produk yang stoknya siap kirim yang dapat dibeli saat ini.`, 'warning');
+    if (opRestricted) {
+        const openStr = siteSettings.opOpenTime || '08:00';
+        const closeStr = siteSettings.opCloseTime || '22:00';
+        window.customAlert('Di Luar Jam Layanan Admin', `Saat ini di luar jam layanan Admin (<b>${escapeHtml(openStr)} - ${escapeHtml(closeStr)}</b>). Katalog tetap dapat diakses, namun pembuatan pesanan baru ditutup sementara dan dapat dilakukan kembali saat jam layanan buka.`, 'warning');
         return;
     }
 
@@ -5084,36 +5104,36 @@ function renderFooterMarqueeUI() {
     if (!footerTrack) return;
 
     const slots = buildStructuredFooterMarqueeSlots();
-    const repeatFactor = slots.length > 0 && slots.length < 6 ? Math.ceil(6 / slots.length) : 1;
-    const totalCount = slots.length * repeatFactor;
-    const durationSec = Math.max(36, totalCount * 7);
+    const repeatFactor = slots.length > 0 && slots.length < 5 ? Math.ceil(6 / slots.length) : 1;
+    const expandedCount = slots.length * repeatFactor;
+    const durationSec = Math.max(48, expandedCount * 8.5);
     footerTrack.style.setProperty('--footer-marquee-duration', `${durationSec}s`);
 
-    const buildPass = () => slots.map((slot, idx) => {
+    const buildSinglePass = () => slots.map((slot, idx) => {
         const safePromo = escapeJsStr(slot.promoCode || '');
         const safeBrand = escapeJsStr(slot.targetBrand || '');
         const newsIdx = typeof slot.newsIndex === 'number' ? slot.newsIndex : -1;
 
         let badgeHtml = '';
         if (slot.promoCode) {
-            badgeHtml = `<span class="footer-shimmer-badge badge-promo">PROMO</span>`;
+            badgeHtml = `<span class="marquee-item-badge badge-promo">PROMO</span>`;
         } else if (slot.newsIndex >= 0 || slot.type === 'news') {
-            badgeHtml = `<span class="footer-shimmer-badge badge-news">BERITA</span>`;
+            badgeHtml = `<span class="marquee-item-badge badge-news">BERITA</span>`;
         } else if (slot.targetBrand) {
-            badgeHtml = `<span class="footer-shimmer-badge badge-product">${escapeHtml(slot.targetBrand)}</span>`;
+            badgeHtml = `<span class="marquee-item-badge badge-product">${escapeHtml(slot.targetBrand)}</span>`;
         }
 
         return `
-            <span class="footer-shimmer-item" onclick="window.handleFooterMarqueeItemClick(${idx}, '${safePromo}', '${safeBrand}', ${newsIdx})">
+            <span class="marquee-item-pill footer-dark-pill" onclick="window.handleFooterMarqueeItemClick(${idx}, '${safePromo}', '${safeBrand}', ${newsIdx})">
                 ${badgeHtml}
                 <span class="footer-shimmer-text">${escapeHtml(slot.text)}</span>
             </span>
-            <span class="footer-sep-dot" aria-hidden="true">•</span>
+            <span class="marquee-sep-star footer-dark-sep" aria-hidden="true">✦</span>
         `;
     }).join('');
 
-    const half = Array.from({ length: repeatFactor }, () => buildPass()).join('');
-    footerTrack.innerHTML = half + half;
+    const oneHalf = Array.from({ length: repeatFactor }, () => buildSinglePass()).join('');
+    footerTrack.innerHTML = oneHalf + oneHalf;
 }
 
 window.handleFooterMarqueeItemClick = function(slotIndex = 0, explicitPromo = '', explicitBrand = '', explicitNewsIdx = -1) {

@@ -1,8 +1,30 @@
 /* ============================================================================
- * VIPERCELL — PURE QRIS PAYMENT VALIDATOR ENGINE (GOOGLE APPS SCRIPT)
+ * VIPERCELL — SERVER VALIDASI PEMBAYARAN QRIS OTOMATIS v27.5
  * Nama File : SERVER_APPS_SCRIP.js
- * Fokus     : 100% Khusus Validasi Pembayaran QRIS Otomatis (MacroDroid JSON/POST/GET)
- *             Tanpa Fitur Pengiriman Email (Sangat Cepat, Ringan & Bebas Limit Kuota)
+ * Arsitektur: Direct Firebase Push (MacroDroid POST JSON -> Apps Script -> Firebase)
+ *             Web User & Web Admin TIDAK melakukan polling ke Apps Script!
+ *
+ * ============================================================================
+ * PANDUAN KONFIGURASI HTTP REQUEST DI APLIKASI MACRODROID:
+ * ----------------------------------------------------------------------------
+ * 1. Trigger (Pemicu) : Notification Received (Notifikasi Diterima)
+ *    - Pilih Aplikasi : GoPay Merchant / Dana Bisnis / ShopeePay / QRIS / Bank
+ * 2. Action (Tindakan): HTTP Request (Permintaan HTTP)
+ *    - Request Method : POST
+ *    - URL            : Paste URL Web App Google Apps Script Anda (akhiran /exec)
+ *    - Content Type   : application/json
+ *    - Body (Isi Teks): Salin dan tempel format JSON di bawah ini:
+ *
+ * {
+ *   "secret": "VIPERCELL_SECRET_2026",
+ *   "app": "{not_app_name}",
+ *   "title": "{not_title}",
+ *   "text": "{not_text}",
+ *   "big_text": "{not_big_text}"
+ * }
+ *
+ * (Catatan: Di pengaturan bawah HTTP Request MacroDroid, centang "Follow Redirects"
+ *  atau "Ikuti Pengalihan" jika opsi tersebut tersedia).
  * ============================================================================ */
 
 const VIPERCELL_CONFIG = {
@@ -15,31 +37,32 @@ const VIPERCELL_CONFIG = {
   ADMIN_EMAIL: 'vipercell.id@gmail.com',
   ADMIN_PASS: 'Melati@12',
 
-  // Kunci Rahasia Webhook (Kompatibel dengan pengaturan lama & baru)
+  // Kunci Rahasia Webhook
   WEBHOOK_SECRET: 'VIPERCELL_SECRET_2026',
   LEGACY_SECRET: 'KUNCI_RAHASIA_VIPERCELL',
 
   // Durasi cache pencegahan duplikat notifikasi (detik)
-  IDEMPOTENCY_TTL_SECONDS: 240
+  IDEMPOTENCY_TTL_SECONDS: 180
 };
 
 /**
- * Jalankan fungsi ini 1x di Editor Apps Script untuk memberikan izin akses jaringan ke Firebase
+ * Jalankan fungsi ini 1x di Editor Apps Script (Pilih "setupAndAuthorize" lalu klik "Jalankan / Run")
+ * untuk memberikan izin akses jaringan dari Apps Script ke Firebase.
  */
 function setupAndAuthorize() {
   var token = getValidFirebaseAdminToken();
-  Logger.log('Otorisasi Server Validasi QRIS Vipercell Berhasil! Token Admin: ' + (token ? 'AKTIF' : 'MODE REST PUBLIC'));
+  Logger.log('✅ Otorisasi Server Validasi QRIS Vipercell v27.5 Berhasil! Token Admin: ' + (token ? 'AKTIF' : 'PUBLIC REST'));
 }
 
 /**
- * Handler HTTP GET (Mendukung MacroDroid GET & Cek Status / Riwayat Mutasi)
+ * Handler HTTP GET (Untuk cek status server di browser atau MacroDroid GET)
  */
 function doGet(e) {
   return handleUnifiedWebhookRequest(e, 'GET');
 }
 
 /**
- * Handler HTTP POST (Mendukung MacroDroid POST JSON, Form-UrlEncoded, Raw Text & Web)
+ * Handler HTTP POST (Jalur Utama MacroDroid POST JSON)
  */
 function doPost(e) {
   return handleUnifiedWebhookRequest(e, 'POST');
@@ -61,36 +84,23 @@ function handleUnifiedWebhookRequest(e, method) {
 
     var action = String(payload.action || payload.route || payload.type || '').toUpperCase().trim();
 
-    // 1. Endpoint Ping / Cek Koneksi dari Panel Admin
+    // 1. Endpoint Ping / Tes Koneksi dari Tombol Tes di Panel Admin
     if (action === 'PING_TEST' || action === 'STATUS') {
-      var recentList = getStoredRecentMutations(1200000);
+      var tokenOk = Boolean(getValidFirebaseAdminToken());
       return buildJsonResponse({
         ok: true,
         status: 'ok',
-        version: 'V27.5-PURE-QRIS',
-        engine: 'VIPERCELL_QRIS_VALIDATOR_ENGINE',
+        version: 'V27.5-DIRECT-FIREBASE',
+        engine: 'VIPERCELL_QRIS_DIRECT_FIREBASE_ENGINE',
+        adminAuthReady: tokenOk,
         method: method,
         projectId: projectId,
-        lastMutation: recentList.length > 0 ? recentList[0] : null,
-        recentMutations: recentList.slice(0, 20),
         timestamp: new Date().toISOString(),
-        message: 'Server Validasi Pembayaran QRIS Aktif & Siap Menerima POST JSON MacroDroid!'
+        message: 'Server Validasi QRIS v27.5 Aktif & Terhubung Langsung ke Firebase!'
       });
     }
 
-    // 2. Endpoint Ambil Riwayat Mutasi Terbaru
-    if (action === 'CHECK_PAYMENT' || action === 'GET_RECENT_MUTATIONS') {
-      var recentMutations = getStoredRecentMutations(1200000);
-      return buildJsonResponse({
-        ok: true,
-        status: 'ok',
-        action: action,
-        recentMutations: recentMutations.slice(0, 20),
-        timestamp: Date.now()
-      });
-    }
-
-    // 3. Jika request GET tanpa parameter notifikasi/nominal, tampilkan status aktif
+    // 2. Jika dibuka lewat browser (GET) tanpa parameter notifikasi/nominal
     if (
       method === 'GET' &&
       !payload.amount &&
@@ -105,20 +115,18 @@ function handleUnifiedWebhookRequest(e, method) {
       !payload.message &&
       !payload.raw_body
     ) {
-      var listMut = getStoredRecentMutations(1200000);
       return buildJsonResponse({
         ok: true,
         status: 'ok',
-        version: 'V27.5-PURE-QRIS',
-        engine: 'VIPERCELL_QRIS_VALIDATOR_ENGINE',
+        version: 'V27.5-DIRECT-FIREBASE',
+        engine: 'VIPERCELL_QRIS_DIRECT_FIREBASE_ENGINE',
         projectId: projectId,
-        recentMutations: listMut.slice(0, 20),
         timestamp: Date.now(),
-        message: 'Server Validasi QRIS Vipercell Aktif.'
+        message: 'Server Validasi QRIS Vipercell v27.5 Aktif. Siap menerima POST JSON dari MacroDroid.'
       });
     }
 
-    // 4. Jalankan Mesin Utama Validasi Pembayaran QRIS dari MacroDroid
+    // 3. Eksekusi Validasi Pembayaran QRIS dari MacroDroid -> Langsung Ubah Status di Firebase
     return handleMacroDroidPaymentWebhook(payload, projectId, startMs);
 
   } catch (err) {
@@ -132,20 +140,19 @@ function handleUnifiedWebhookRequest(e, method) {
 }
 
 /* ============================================================================
- * 1. PARSER PAYLOAD MACRODROID ANTI-GAGAL (MENDUKUNG JSON NORMAL, JSON MULTILINE
- *    YANG RUSAK KARENA ENTER/KUTIP NOTIFIKASI ANDROID, FORM-URLENCODED & GET)
+ * 1. PARSER PAYLOAD MACRODROID ANTI-GAGAL
+ *    Sanggup membaca JSON standar, JSON dengan karakter Enter/baris baru dari
+ *    notifikasi Android ({not_text}, {not_big_text}), Form-UrlEncoded, maupun teks mentah.
  * ============================================================================ */
 function parseIncomingPayload(e) {
   var data = {};
 
-  // A. Ambil dari Query Parameters (GET maupun POST URL Params)
   if (e && e.parameter) {
     Object.keys(e.parameter).forEach(function(k) {
       data[k] = e.parameter[k];
     });
   }
 
-  // B. Ambil dari Body POST (JSON MacroDroid, Form-UrlEncoded, atau Teks Mentah)
   if (e && e.postData && e.postData.contents) {
     var rawContents = String(e.postData.contents).trim();
     data.raw_body = rawContents;
@@ -157,7 +164,6 @@ function parseIncomingPayload(e) {
           data[k] = parsedJson[k];
         });
       } else if (rawContents.indexOf('=') !== -1 && rawContents.indexOf('{') === -1) {
-        // Format application/x-www-form-urlencoded
         var pairs = rawContents.split('&');
         for (var i = 0; i < pairs.length; i++) {
           var eqPos = pairs[i].indexOf('=');
@@ -174,10 +180,6 @@ function parseIncomingPayload(e) {
   return data;
 }
 
-/**
- * Mengurai JSON dari MacroDroid meskipun teks notifikasi mengandung baris baru (Enter),
- * karakter kontrol, atau tanda kutip yang tidak di-escape oleh MacroDroid.
- */
 function tryParseMacroDroidJsonSafe(rawStr) {
   if (!rawStr) return null;
 
@@ -186,7 +188,7 @@ function tryParseMacroDroidJsonSafe(rawStr) {
     return JSON.parse(rawStr);
   } catch (e1) {}
 
-  // Percobaan 2: Bersihkan karakter newline/tab mentah di dalam string JSON MacroDroid
+  // Percobaan 2: Bersihkan karakter Enter/newline/tab di dalam string JSON MacroDroid
   try {
     var sanitized = rawStr
       .replace(/\r\n/g, ' ')
@@ -196,7 +198,7 @@ function tryParseMacroDroidJsonSafe(rawStr) {
     return JSON.parse(sanitized);
   } catch (e2) {}
 
-  // Percobaan 3: Ekstraksi field JSON dengan Regex apabila terdapat tanda kutip ganda di dalam isi notifikasi
+  // Percobaan 3: Ekstraksi Regex jika isi notifikasi mengandung tanda kutip ganda (")
   var extracted = {};
   var foundAny = false;
   var knownKeys = [
@@ -206,24 +208,20 @@ function tryParseMacroDroidJsonSafe(rawStr) {
     'text', 'not_text', 'notif_text', 'notification_text',
     'big_text', 'not_big_text', 'bigText', 'notification',
     'message', 'pesan', 'body', 'content', 'isi', 'subText', 'ticker',
-    'amount', 'nominal', 'total', 'uang', 'nilai', 'timestamp', 'forceTest', 'isSimulation'
+    'amount', 'nominal', 'total', 'uang', 'nilai'
   ];
 
   for (var i = 0; i < knownKeys.length; i++) {
     var k = knownKeys[i];
-    var reg = new RegExp('"' + k + '"\\s*:\\s*(?:"([^"]*)"|([0-9]+(?:\.[0-9]+)?)|true|false)', 'i');
+    var reg = new RegExp('"' + k + '"\\s*:\\s*(?:"([^"]*)"|([0-9]+(?:\\.[0-9]+)?)|true|false)', 'i');
     var m = reg.exec(rawStr);
     if (m) {
-      extracted[k] = m[1] !== undefined ? m[1] : (m[2] !== undefined ? m[2] : m[0].split(':')[1].trim());
+      extracted[k] = m[1] !== undefined ? m[1] : (m[2] !== undefined ? m[2] : '');
       foundAny = true;
     }
   }
 
-  // Simpan juga seluruh teks mentah tanpa simbol struktur JSON agar semua angka Rp tetap terbaca
-  var strippedText = rawStr
-    .replace(/[{}"\\]/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
+  var strippedText = rawStr.replace(/[{}"\\]/g, ' ').replace(/\s+/g, ' ').trim();
   if (strippedText) {
     extracted.raw_body = rawStr;
     if (!extracted.text) extracted.text = strippedText;
@@ -234,7 +232,7 @@ function tryParseMacroDroidJsonSafe(rawStr) {
 }
 
 /* ============================================================================
- * 2. MESIN UTAMA VALIDASI PEMBAYARAN MACRODROID & PELUNASAN OTOMATIS KE FIREBASE
+ * 2. MESIN UTAMA VALIDASI PEMBAYARAN QRIS -> LANGSUNG UBAH UNPAID KE PAID DI FIREBASE
  * ============================================================================ */
 function handleMacroDroidPaymentWebhook(payload, projectId, startMs) {
   var lock = LockService.getScriptLock();
@@ -261,7 +259,6 @@ function handleMacroDroidPaymentWebhook(payload, projectId, startMs) {
     var directAmount = payload.amount || payload.nominal || payload.total || payload.uang || payload.nilai || '';
 
     var combinedParts = [directAmount, title, text, bigText];
-    // Tambahkan nilai field lain jika pengguna memakai nama key kustom di JSON MacroDroid
     Object.keys(payload).forEach(function(k) {
       var lowK = k.toLowerCase();
       if (lowK !== 'secret' && lowK !== 'key' && lowK !== 'token' && lowK !== 'projectid' && lowK !== 'action') {
@@ -295,35 +292,6 @@ function handleMacroDroidPaymentWebhook(payload, projectId, startMs) {
     }
 
     var primaryAmount = candidateAmounts[0];
-
-    // Idempotency Guard (Cegah duplikat push identik dalam 60 detik)
-    var cache = CacheService.getScriptCache();
-    var timeBucket = Math.floor(Date.now() / (1000 * 60));
-    var signatureRaw = appName + '|' + primaryAmount + '|' + title + '|' + text + '|' + (payload.timestamp || timeBucket);
-    var signatureHash = computeMd5Hex(signatureRaw);
-    var cacheKey = 'VIPER_QRIS_' + signatureHash;
-
-    if (!payload.forceTest && cache && cache.get(cacheKey)) {
-      // Tetap jalankan pengecekan ke Firestore untuk memastikan tidak ada order yang terlewat
-      var retryMatches = findAndSettlePendingOrdersInFirestore(projectId, candidateAmounts, {
-        mutationId: 'MUT-RETRY-' + Date.now(),
-        amount: primaryAmount,
-        candidateAmounts: candidateAmounts,
-        appName: appName,
-        rawText: combinedRawText.substring(0, 400)
-      });
-      return buildJsonResponse({
-        ok: true,
-        status: 'ok',
-        duplicate: true,
-        detectedAmount: primaryAmount,
-        allCandidates: candidateAmounts,
-        matchedOrdersCount: retryMatches.length,
-        matchedOrders: retryMatches,
-        message: 'Notifikasi sudah tercatat dan diverifikasi.'
-      });
-    }
-
     var nowMs = Date.now();
     var nowIso = new Date(nowMs).toISOString();
     var mutationId = 'MUT-' + nowMs + '-' + Math.floor(100 + Math.random() * 900);
@@ -340,27 +308,19 @@ function handleMacroDroidPaymentWebhook(payload, projectId, startMs) {
       receivedAtIso: nowIso,
       matchedOrderId: '',
       status: 'UNMATCHED',
-      source: payload.isSimulation ? 'ADMIN_SIMULATOR' : 'MACRODROID_WEBHOOK'
+      source: 'MACRODROID_WEBHOOK'
     };
 
-    // Simpan ke memori cepat Apps Script
-    saveMutationToServerMemory(primaryAmount, candidateAmounts, combinedRawText, nowMs);
-
-    // CARI & LUNASKAN PESANAN UNPAID DI FIREBASE SECARA LANGSUNG (KOMPATIBEL PENUH DENGAN RULES FIREBASE)
-    var matchedOrders = findAndSettlePendingOrdersInFirestore(projectId, candidateAmounts, mutationDoc);
+    // LANGSUNG MASUK KE FIREBASE & UBAH STATUS ORDER DARI UNPAID -> PAID / SUCCESS
+    var matchedOrders = findAndSettleUnpaidOrdersByAmountInFirebase(projectId, candidateAmounts, mutationDoc, nowMs);
 
     if (matchedOrders.length > 0) {
       mutationDoc.matchedOrderId = matchedOrders.map(function(o) { return o.invoice || o.orderId; }).join(', ');
       mutationDoc.status = 'MATCHED';
-      if (cache) {
-        cache.put(cacheKey, 'PROCESSED', VIPERCELL_CONFIG.IDEMPOTENCY_TTL_SECONDS);
-      }
     }
 
-    // Ambil token Admin (jika tersedia) untuk mencatat ke payment_mutations & settings/mainConfig
+    // Catat juga sinyal mutasi ke settings/mainConfig & payment_mutations menggunakan Token Admin
     var adminToken = getValidFirebaseAdminToken();
-
-    // Tulis ke payment_mutations & settings/mainConfig (di Root dan Workspace)
     firestoreSetDocument(projectId, 'payment_mutations', mutationId, mutationDoc, adminToken);
     firestorePatchDocument(projectId, 'settings', 'mainConfig', {
       lastPaymentDetected: primaryAmount,
@@ -378,17 +338,16 @@ function handleMacroDroidPaymentWebhook(payload, projectId, startMs) {
     return buildJsonResponse({
       ok: true,
       status: 'ok',
-      duplicate: false,
       mutationId: mutationId,
       detectedAmount: primaryAmount,
       allCandidates: candidateAmounts,
       matchedOrdersCount: matchedOrders.length,
       matchedOrders: matchedOrders,
-      latencyMs: Date.now() - (startMs || nowMs),
+      latencyMs: Date.now() - startMs,
       timestamp: nowIso,
       message: matchedOrders.length > 0
-        ? 'Pembayaran cocok! Pesanan berhasil divalidasi otomatis di Firebase.'
-        : 'Mutasi tercatat dan siap dicocokkan.'
+        ? 'Pembayaran cocok! Status pesanan di Firebase berhasil diubah dari UNPAID ke PAID/SUCCESS.'
+        : 'Nominal Rp' + primaryAmount + ' tercatat di Firebase (belum ada tagihan UNPAID dengan nominal tersebut).'
     });
 
   } finally {
@@ -400,8 +359,6 @@ function handleMacroDroidPaymentWebhook(payload, projectId, startMs) {
 
 /* ============================================================================
  * 3. SMART MULTI-PATTERN CURRENCY EXTRACTOR
- *    Membuang tanggal & jam terlebih dahulu agar tidak salah membaca tanggal
- *    sebagai nominal uang, lalu mengekstrak angka Rp / ribuan.
  * ============================================================================ */
 function extractSmartCurrencyAmounts(rawText, directAmount) {
   var results = [];
@@ -422,14 +379,12 @@ function extractSmartCurrencyAmounts(rawText, directAmount) {
 
   var text = String(rawText);
 
-  // 1. Bersihkan pola Tanggal (contoh: 21/10/2026, 2026-10-21, 21-10-26)
+  // 1. Bersihkan pola Tanggal (21/10/2026, 2026-10-21) & Jam (08:25:10, 08.25 WIB/WIT/WITA)
   text = text.replace(/\b\d{1,4}[\/\-]\d{1,2}[\/\-]\d{1,4}\b/g, ' ');
-
-  // 2. Bersihkan pola Jam/Waktu (contoh: 08:25:10, 08:25, 08.25 WIB/WITA/WIT)
   text = text.replace(/\b\d{1,2}:\d{2}(:\d{2})?\b/g, ' ');
   text = text.replace(/\b\d{1,2}\.\d{2}\s*(WIB|WITA|WIT|AM|PM)\b/gi, ' ');
 
-  // 3. Prioritas Utama: Angka yang didahului kata kunci pembayaran / Rp / IDR
+  // 2. Prioritas Utama: Angka yang didahului Rp / IDR / kata kunci pembayaran
   var rpRegex = /(?:Rp\.?|IDR|sebesar|senilai|masuk|diterima|pembayaran|qris|total|nominal|\+)\s*[:\.]?\s*([0-9]{1,3}(?:[.,][0-9]{3})+(?:[.,][0-9]{1,2})?|[0-9]{3,8}(?:[.,][0-9]{1,2})?)/gi;
   var match;
   while ((match = rpRegex.exec(text)) !== null) {
@@ -437,12 +392,11 @@ function extractSmartCurrencyAmounts(rawText, directAmount) {
     if (parsed) addCandidate(parsed);
   }
 
-  // 4. Prioritas Kedua: Angka berformat ribuan (15.123 atau 15,123) atau angka murni 3-8 digit
+  // 3. Prioritas Kedua: Angka ribuan (15.123 atau 15,123) atau angka 3-8 digit
   var genericRegex = /\b([0-9]{1,3}(?:[.,][0-9]{3})+(?:[.,][0-9]{1,2})?|[0-9]{3,8})\b/g;
   while ((match = genericRegex.exec(text)) !== null) {
     var rawToken = match[1];
     var parsedGen = cleanCurrencyString(rawToken);
-    // Hindari angka tahun 2020-2035 jika berdiri sendiri tanpa tanda titik/koma
     if (parsedGen && (parsedGen < 2020 || parsedGen > 2035 || rawToken.indexOf('.') !== -1 || rawToken.indexOf(',') !== -1)) {
       addCandidate(parsedGen);
     }
@@ -454,7 +408,7 @@ function extractSmartCurrencyAmounts(rawText, directAmount) {
 function cleanCurrencyString(str) {
   if (!str) return null;
   var s = String(str).trim();
-  // Hapus sen desimal 2 digit di ujung (misal ,00 atau .00 atau ,-)
+  // Hapus sen desimal 2 digit di ujung (,00 atau .00 atau ,-)
   s = s.replace(/[.,]\d{2}$/, '').replace(/,-$/, '');
   var digitsOnly = s.replace(/[^0-9]/g, '');
   if (!digitsOnly) return null;
@@ -462,18 +416,17 @@ function cleanCurrencyString(str) {
 }
 
 /* ============================================================================
- * 4. FIRESTORE REST API AUTO-MATCHER (100% KOMPATIBEL DENGAN RULES FIREBASE)
- *    - Sesuai `rules database firebase.js`, update tanpa login Admin pada `/orders/{orderId}`
- *      WAJIB HANYA menyentuh field `status` (`?updateMask.fieldPaths=status`)
- *      dengan nilai `"SUCCESS"`!
- *    - Oleh karena itu, begitu nominal cocok, fungsi ini LANGSUNG mengirim PATCH
- *      `?updateMask.fieldPaths=status` -> `status: "SUCCESS"` sehingga 100% diterima
- *      oleh Firestore Rules dalam hitungan milidetik!
- *    - Selanjutnya, jika token Admin (`getValidFirebaseAdminToken()`) aktif dan
- *      stok tersedia di Gudang Stok (`stocks`), fungsi ini otomatis mengambil stok
- *      dan mengisi `adminReply`!
+ * 4. PENCARIAN LANGSUNG BERDASARKAN NOMINAL (`finalTotal` / `uniqueTotal`) &
+ *    PERUBAHAN STATUS ORDER DARI `UNPAID` -> `PAID` (DENGAN FALLBACK `SUCCESS`)
+ *
+ *    Kenapa jauh lebih akurat dibanding versi lama?
+ *    - Versi lama mencari `where status == 'UNPAID' limit 50`, sehingga jika ada
+ *      banyak tagihan lama yang tidak dibayar, tagihan baru tertutup di urutan >50!
+ *    - Versi v27.5 ini mencari LANGSUNG berdasarkan indeks nominal `finalTotal == nominal`
+ *      dan `uniqueTotal == nominal`, sehingga langsung menemukan dokumen order yang
+ *      tepat dalam hitungan milidetik berapapun jumlah total order di database!
  * ============================================================================ */
-function findAndSettlePendingOrdersInFirestore(projectId, candidateAmounts, mutationDoc) {
+function findAndSettleUnpaidOrdersByAmountInFirebase(projectId, candidateAmounts, mutationDoc, nowMs) {
   var matchedList = [];
   if (!projectId || !candidateAmounts || candidateAmounts.length === 0) return matchedList;
 
@@ -482,94 +435,89 @@ function findAndSettlePendingOrdersInFirestore(projectId, candidateAmounts, muta
   var adminToken = getValidFirebaseAdminToken();
 
   try {
-    // Ambil pesanan dari Root Path & Workspace Path
-    var queryUnpaid = {
-      structuredQuery: {
-        from: [{ collectionId: 'orders' }],
-        where: {
-          fieldFilter: {
-            field: { fieldPath: 'status' },
-            op: 'EQUAL',
-            value: { stringValue: 'UNPAID' }
-          }
-        },
-        limit: 50
-      }
-    };
-
-    var queryPendingPayment = {
-      structuredQuery: {
-        from: [{ collectionId: 'orders' }],
-        where: {
-          fieldFilter: {
-            field: { fieldPath: 'status' },
-            op: 'EQUAL',
-            value: { stringValue: 'PENDING_PAYMENT' }
-          }
-        },
-        limit: 50
-      }
-    };
-
-    var batchQueries = [
-      { url: baseUrl + ':runQuery', method: 'post', contentType: 'application/json', payload: JSON.stringify(queryUnpaid), muteHttpExceptions: true },
-      { url: wsParentUrl + ':runQuery', method: 'post', contentType: 'application/json', payload: JSON.stringify(queryUnpaid), muteHttpExceptions: true },
-      { url: baseUrl + ':runQuery', method: 'post', contentType: 'application/json', payload: JSON.stringify(queryPendingPayment), muteHttpExceptions: true },
-      { url: wsParentUrl + ':runQuery', method: 'post', contentType: 'application/json', payload: JSON.stringify(queryPendingPayment), muteHttpExceptions: true }
-    ];
-
-    var qResponses = UrlFetchApp.fetchAll(batchQueries);
     var candidateDocs = [];
     var seenDocNames = {};
 
-    for (var q = 0; q < qResponses.length; q++) {
-      var res = qResponses[q];
-      if (res && res.getResponseCode() === 200) {
-        var rows = JSON.parse(res.getContentText() || '[]');
-        if (Array.isArray(rows)) {
-          for (var r = 0; r < rows.length; r++) {
-            var docObj = rows[r] && rows[r].document;
-            if (docObj && docObj.name && docObj.fields && !seenDocNames[docObj.name]) {
-              seenDocNames[docObj.name] = true;
-              candidateDocs.push({
-                doc: docObj,
-                isWorkspace: (q === 1 || q === 3)
-              });
-            }
-          }
+    function collectFromQueryResponse(res, isWs) {
+      if (!res || res.getResponseCode() !== 200) return;
+      var rows = JSON.parse(res.getContentText() || '[]');
+      if (!Array.isArray(rows)) return;
+      for (var r = 0; r < rows.length; r++) {
+        var docObj = rows[r] && rows[r].document;
+        if (docObj && docObj.name && docObj.fields && !seenDocNames[docObj.name]) {
+          seenDocNames[docObj.name] = true;
+          candidateDocs.push({ doc: docObj, isWorkspace: isWs });
         }
       }
     }
 
-    // Fallback: Jika query terfilter tidak mengembalikan hasil, baca daftar dokumen terbaru dari koleksi orders
+    // 1. Query Spesifik Berdasarkan Nominal (finalTotal & uniqueTotal) — Bebas Tertutup Order Lama!
+    var targetAmounts = candidateAmounts.slice(0, 5);
+    for (var a = 0; a < targetAmounts.length; a++) {
+      var amtVal = targetAmounts[a];
+      var qFinalTotal = {
+        structuredQuery: {
+          from: [{ collectionId: 'orders' }],
+          where: {
+            fieldFilter: {
+              field: { fieldPath: 'finalTotal' },
+              op: 'EQUAL',
+              value: { integerValue: String(amtVal) }
+            }
+          },
+          limit: 25
+        }
+      };
+
+      var qUniqueTotal = {
+        structuredQuery: {
+          from: [{ collectionId: 'orders' }],
+          where: {
+            fieldFilter: {
+              field: { fieldPath: 'uniqueTotal' },
+              op: 'EQUAL',
+              value: { integerValue: String(amtVal) }
+            }
+          },
+          limit: 25
+        }
+      };
+
+      var resRootFinal = fetchFirestoreSmart(baseUrl + ':runQuery', 'post', qFinalTotal, adminToken);
+      collectFromQueryResponse(resRootFinal, false);
+
+      var resWsFinal = fetchFirestoreSmart(wsParentUrl + ':runQuery', 'post', qFinalTotal, adminToken);
+      collectFromQueryResponse(resWsFinal, true);
+
+      if (candidateDocs.length === 0) {
+        var resRootUnique = fetchFirestoreSmart(baseUrl + ':runQuery', 'post', qUniqueTotal, adminToken);
+        collectFromQueryResponse(resRootUnique, false);
+
+        var resWsUnique = fetchFirestoreSmart(wsParentUrl + ':runQuery', 'post', qUniqueTotal, adminToken);
+        collectFromQueryResponse(resWsUnique, true);
+      }
+    }
+
+    // 2. Cadangan Tambahan: Query status == UNPAID (limit 150) jika nominal disimpan sebagai tipe lain
     if (candidateDocs.length === 0) {
-      var listResps = UrlFetchApp.fetchAll([
-        { url: baseUrl + '/orders?pageSize=40', method: 'get', muteHttpExceptions: true },
-        { url: wsParentUrl + '/orders?pageSize=40', method: 'get', muteHttpExceptions: true }
-      ]);
-      for (var l = 0; l < listResps.length; l++) {
-        if (listResps[l] && listResps[l].getResponseCode() === 200) {
-          var listJson = JSON.parse(listResps[l].getContentText() || '{}');
-          var docsArr = listJson.documents || [];
-          for (var d = 0; d < docsArr.length; d++) {
-            var dItem = docsArr[d];
-            if (dItem && dItem.name && dItem.fields && !seenDocNames[dItem.name]) {
-              var unwrapped = unwrapFirestoreFields(dItem.fields);
-              if (unwrapped.status === 'UNPAID' || unwrapped.status === 'PENDING_PAYMENT' || (unwrapped.status === 'PENDING' && !unwrapped.paymentVerified)) {
-                seenDocNames[dItem.name] = true;
-                candidateDocs.push({
-                  doc: dItem,
-                  isWorkspace: (l === 1)
-                });
-              }
+      var qUnpaid = {
+        structuredQuery: {
+          from: [{ collectionId: 'orders' }],
+          where: {
+            fieldFilter: {
+              field: { fieldPath: 'status' },
+              op: 'EQUAL',
+              value: { stringValue: 'UNPAID' }
             }
-          }
+          },
+          limit: 150
         }
-      }
+      };
+      collectFromQueryResponse(fetchFirestoreSmart(baseUrl + ':runQuery', 'post', qUnpaid, adminToken), false);
+      collectFromQueryResponse(fetchFirestoreSmart(wsParentUrl + ':runQuery', 'post', qUnpaid, adminToken), true);
     }
 
-    var nowMs = Date.now();
-
+    // 3. Periksa setiap kandidat order dan ubah status dari UNPAID -> PAID (atau SUCCESS)
     for (var i = 0; i < candidateDocs.length; i++) {
       var entry = candidateDocs[i];
       var rowDoc = entry.doc;
@@ -577,64 +525,74 @@ function findAndSettlePendingOrdersInFirestore(projectId, candidateAmounts, muta
       var docId = docName.split('/').pop();
       var fields = unwrapFirestoreFields(rowDoc.fields);
 
+      var currentStatus = String(fields.status || '').toUpperCase();
+      // Hanya proses order yang masih menunggu pembayaran (UNPAID / PENDING_PAYMENT)
+      if (currentStatus !== 'UNPAID' && currentStatus !== 'PENDING_PAYMENT') {
+        continue;
+      }
+
       var finalTotal = Math.round(Number(fields.finalTotal || 0));
       var uniqueTotal = Math.round(Number(fields.uniqueTotal || fields.totalPrice || fields.totalAmount || fields.amount || 0));
       var expiresAt = Number(fields.expiresAt || fields.qrisExpiresAt || 0);
 
-      // Toleransi 5 menit jika pelanggan transfer mendekati batas waktu
-      var isExpired = expiresAt > 0 && (nowMs > expiresAt + 300000);
-
+      // Toleransi 10 menit jika pelanggan transfer mendekati batas waktu
+      var isExpired = expiresAt > 0 && (nowMs > expiresAt + 600000);
       var isAmountMatched = !isExpired && (
         (finalTotal > 0 && candidateAmounts.indexOf(finalTotal) !== -1) ||
         (uniqueTotal > 0 && candidateAmounts.indexOf(uniqueTotal) !== -1)
       );
 
       if (isAmountMatched) {
-        // =========================================================================
-        // LANGKAH 1 (UTAMA & PASTI DITERIMA RULES FIREBASE):
-        // Update HANYA field `status` menjadi `"SUCCESS"` (?updateMask.fieldPaths=status)
-        // Sesuai `rules database firebase.js`:
-        //   request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status'])
-        //   && resource.data.status != "SUCCESS"
-        //   && request.resource.data.status == "SUCCESS"
-        // =========================================================================
-        var directRuleUrl = 'https://firestore.googleapis.com/v1/' + docName + '?updateMask.fieldPaths=status';
-        var directRulePayload = {
-          fields: {
-            status: { stringValue: 'SUCCESS' }
+        var appliedStatus = '';
+        var patchedOk = false;
+
+        // =====================================================================
+        // JALUR A (PRIORITAS UTAMA SESUAI PERMINTAAN):
+        // Ubah status di Firebase dari `UNPAID` menjadi `PAID` dengan Token Admin
+        // sehingga Web User & Web Admin langsung menangkap status `PAID` dan
+        // mengubahnya menjadi `SUCCESS` (atau `PENDING` jika produk manual)!
+        // =====================================================================
+        if (adminToken) {
+          var paidUrl = 'https://firestore.googleapis.com/v1/' + docName +
+            '?updateMask.fieldPaths=status&updateMask.fieldPaths=paymentVerified&updateMask.fieldPaths=paidAt';
+          var paidBody = {
+            fields: {
+              status: { stringValue: 'PAID' },
+              paymentVerified: { booleanValue: true },
+              paidAt: { integerValue: String(nowMs) }
+            }
+          };
+          var paidRes = fetchFirestoreSmart(paidUrl, 'patch', paidBody, adminToken);
+          if (paidRes && paidRes.getResponseCode() >= 200 && paidRes.getResponseCode() < 300) {
+            patchedOk = true;
+            appliedStatus = 'PAID';
           }
-        };
-
-        var directRes = UrlFetchApp.fetch(directRuleUrl, {
-          method: 'patch',
-          contentType: 'application/json',
-          payload: JSON.stringify(directRulePayload),
-          muteHttpExceptions: true
-        });
-
-        var patchedOk = (directRes.getResponseCode() >= 200 && directRes.getResponseCode() < 300);
-
-        // Jika butuh token Admin, coba ulangi dengan Authorization Bearer
-        if (!patchedOk && adminToken) {
-          var authRes = UrlFetchApp.fetch(directRuleUrl, {
-            method: 'patch',
-            headers: { 'Authorization': 'Bearer ' + adminToken },
-            contentType: 'application/json',
-            payload: JSON.stringify(directRulePayload),
-            muteHttpExceptions: true
-          });
-          patchedOk = (authRes.getResponseCode() >= 200 && authRes.getResponseCode() < 300);
         }
 
-        // =========================================================================
-        // LANGKAH 2 (OPSIONAL DENGAN TOKEN ADMIN):
-        // Jika token Admin aktif, cek apakah ada stok Ready di Gudang Stok (`stocks`)
-        // untuk langsung dikirim otomatis ke `adminReply`.
-        // =========================================================================
-        var autoDeliveredStock = false;
-        if (patchedOk && adminToken) {
-          var parentQueryUrl = entry.isWorkspace ? wsParentUrl : baseUrl;
-          autoDeliveredStock = tryDeliverStockWithAdminToken(rowDoc, fields, parentQueryUrl, adminToken, nowMs);
+        // =====================================================================
+        // JALUR B (FALLBACK OTOMATIS TANPA TOKEN SESUAI rules database firebase.js):
+        // Jika Jalur A ditolak oleh Firestore Rules (karena rules publik hanya
+        // mengizinkan perubahan 1 field `status` bernilai `SUCCESS`), langsung
+        // ubah `status` menjadi `SUCCESS` agar 100% pasti tembus!
+        // =====================================================================
+        if (!patchedOk) {
+          var ruleUrl = 'https://firestore.googleapis.com/v1/' + docName + '?updateMask.fieldPaths=status';
+          var ruleBody = {
+            fields: {
+              status: { stringValue: 'SUCCESS' }
+            }
+          };
+          var ruleRes = fetchFirestoreSmart(ruleUrl, 'patch', ruleBody, null);
+          if (ruleRes && ruleRes.getResponseCode() >= 200 && ruleRes.getResponseCode() < 300) {
+            patchedOk = true;
+            appliedStatus = 'SUCCESS';
+          } else if (adminToken) {
+            var ruleResAuth = fetchFirestoreSmart(ruleUrl, 'patch', ruleBody, adminToken);
+            if (ruleResAuth && ruleResAuth.getResponseCode() >= 200 && ruleResAuth.getResponseCode() < 300) {
+              patchedOk = true;
+              appliedStatus = 'SUCCESS';
+            }
+          }
         }
 
         if (patchedOk) {
@@ -644,8 +602,7 @@ function findAndSettlePendingOrdersInFirestore(projectId, candidateAmounts, muta
             uniqueTotal: finalTotal || uniqueTotal,
             productName: fields.productName || '',
             variantName: fields.variantName || '',
-            newStatus: 'SUCCESS',
-            autoDelivered: autoDeliveredStock
+            newStatus: appliedStatus
           });
         }
       }
@@ -657,196 +614,28 @@ function findAndSettlePendingOrdersInFirestore(projectId, candidateAmounts, muta
   return matchedList;
 }
 
-/**
- * Mengambil stok `Ready` dari koleksi `stocks` menggunakan Token Admin dan mengisi `adminReply`
- */
-function tryDeliverStockWithAdminToken(orderDoc, unwrappedOrder, parentQueryUrl, adminToken, timestampMs) {
-  try {
-    var orderId = unwrappedOrder.id || unwrappedOrder.orderId || orderDoc.name.split('/').pop();
-    var durationDays = Number(unwrappedOrder.durationDays || 0);
-    var itemBrand = unwrappedOrder.productName || '';
-    var itemVariant = unwrappedOrder.variantName || '';
-    var itemType = 'app';
-    var itemProcessType = 'auto';
-    var itemQty = 1;
-
-    if (Array.isArray(unwrappedOrder.items) && unwrappedOrder.items.length > 0) {
-      var firstItem = unwrappedOrder.items[0] || {};
-      itemBrand = firstItem.brandName || itemBrand;
-      itemVariant = firstItem.exactItemName || itemVariant;
-      itemType = String(firstItem.type || 'app').toLowerCase();
-      itemProcessType = String(firstItem.processType || 'auto').toLowerCase();
-      itemQty = Math.max(1, Number(firstItem.qty || 1));
-      if (!durationDays && firstItem.durationDays) durationDays = Number(firstItem.durationDays);
-    }
-
-    if (itemType === 'game' || itemProcessType === 'manual' || !itemBrand) {
-      return false;
-    }
-
-    var stockQuery = {
-      structuredQuery: {
-        from: [{ collectionId: 'stocks' }],
-        where: {
-          fieldFilter: {
-            field: { fieldPath: 'status' },
-            op: 'EQUAL',
-            value: { stringValue: 'Ready' }
-          }
-        },
-        limit: 100
-      }
-    };
-
-    var sResp = UrlFetchApp.fetch(parentQueryUrl + ':runQuery', {
-      method: 'post',
-      headers: { 'Authorization': 'Bearer ' + adminToken },
-      contentType: 'application/json',
-      payload: JSON.stringify(stockQuery),
-      muteHttpExceptions: true
-    });
-
-    if (sResp.getResponseCode() !== 200) return false;
-
-    var rows = JSON.parse(sResp.getContentText() || '[]');
-    var matchingStocks = [];
-    var normBrand = String(itemBrand).trim().toLowerCase();
-    var normVar = String(itemVariant).trim().toLowerCase();
-
-    for (var i = 0; i < rows.length; i++) {
-      var sDoc = rows[i] && rows[i].document;
-      if (!sDoc || !sDoc.fields) continue;
-      var sf = unwrapFirestoreFields(sDoc.fields);
-      if (String(sf.brand || '').trim().toLowerCase() === normBrand &&
-          (!normVar || String(sf.itemName || '').trim().toLowerCase() === normVar)) {
-        matchingStocks.push({ doc: sDoc, data: sf });
-      }
-    }
-
-    if (matchingStocks.length === 0) return false;
-
-    var deliveredText = '';
-
-    // 1. Cek stok Reusable
-    for (var r = 0; r < matchingStocks.length; r++) {
-      if (matchingStocks[r].data.isReusable === true) {
-        var rItem = matchingStocks[r];
-        deliveredText = formatStockCredentialGas(rItem.data.data, rItem.data.stockFormat || 'REUSABLE', '');
-        var rPatchUrl = 'https://firestore.googleapis.com/v1/' + rItem.doc.name + '?updateMask.fieldPaths=sentCount&updateMask.fieldPaths=lastSentAt&updateMask.fieldPaths=lastOrderId';
-        UrlFetchApp.fetch(rPatchUrl, {
-          method: 'patch',
-          headers: { 'Authorization': 'Bearer ' + adminToken },
-          contentType: 'application/json',
-          payload: JSON.stringify({
-            fields: wrapFirestoreFields({
-              sentCount: Number(rItem.data.sentCount || 0) + itemQty,
-              lastSentAt: timestampMs,
-              lastOrderId: orderId
-            })
-          }),
-          muteHttpExceptions: true
-        });
-        break;
-      }
-    }
-
-    // 2. Cek stok Private / Sharing / Produk Email
-    if (!deliveredText) {
-      var collected = [];
-      for (var s = 0; s < matchingStocks.length; s++) {
-        if (collected.length >= itemQty) break;
-        var st = matchingStocks[s];
-        var maxQ = Math.max(1, Number(st.data.maxQuota || 1));
-        var usedQ = Number(st.data.usedQuota || 0);
-        if (usedQ < maxQ) {
-          var nextUsed = usedQ + 1;
-          var nextStatus = nextUsed >= maxQ ? 'Used' : 'Ready';
-          var slotLbl = maxQ > 1 ? (' (Slot #' + nextUsed + '/' + maxQ + ')') : '';
-          collected.push(formatStockCredentialGas(st.data.data, st.data.stockFormat || st.data.mode || 'PRIVATE', slotLbl));
-
-          var stPatchUrl = 'https://firestore.googleapis.com/v1/' + st.doc.name + '?updateMask.fieldPaths=usedQuota&updateMask.fieldPaths=status&updateMask.fieldPaths=usedAt&updateMask.fieldPaths=orderId';
-          UrlFetchApp.fetch(stPatchUrl, {
-            method: 'patch',
-            headers: { 'Authorization': 'Bearer ' + adminToken },
-            contentType: 'application/json',
-            payload: JSON.stringify({
-              fields: wrapFirestoreFields({
-                usedQuota: nextUsed,
-                status: nextStatus,
-                usedAt: timestampMs,
-                orderId: orderId
-              })
-            }),
-            muteHttpExceptions: true
-          });
-        }
-      }
-      if (collected.length > 0) {
-        deliveredText = collected.join('\n\n');
-      }
-    }
-
-    if (!deliveredText) return false;
-
-    var finalReply = 'Terima kasih telah berbelanja di Vipercell.\n\n' + deliveredText;
-    var orderPatchData = {
-      status: 'SUCCESS',
-      paymentVerified: true,
-      paidAt: timestampMs,
-      adminReply: finalReply,
-      autoDelivered: true,
-      deliveredAt: timestampMs
-    };
-    if (durationDays > 0) {
-      orderPatchData.durationDays = durationDays;
-      orderPatchData.subscriptionStartAt = timestampMs;
-      orderPatchData.subscriptionEndAt = timestampMs + (durationDays * 86400000);
-      orderPatchData.subscriptionStatus = 'ACTIVE';
-    }
-
-    var orderKeys = Object.keys(orderPatchData);
-    var orderMask = orderKeys.map(function(k) { return 'updateMask.fieldPaths=' + encodeURIComponent(k); }).join('&');
-    var orderPatchUrl = 'https://firestore.googleapis.com/v1/' + orderDoc.name + '?' + orderMask;
-
-    var pRes = UrlFetchApp.fetch(orderPatchUrl, {
-      method: 'patch',
-      headers: { 'Authorization': 'Bearer ' + adminToken },
-      contentType: 'application/json',
-      payload: JSON.stringify({ fields: wrapFirestoreFields(orderPatchData) }),
-      muteHttpExceptions: true
-    });
-
-    return pRes.getResponseCode() >= 200 && pRes.getResponseCode() < 300;
-  } catch (err) {
-    return false;
-  }
-}
-
-function formatStockCredentialGas(rawStr, stockMode, slotInfo) {
-  var clean = String(rawStr || '').trim();
-  if (!clean) return '';
-  var parts = clean.split('|').map(function(s) { return s.trim(); });
-  if ((stockMode === 'EMAIL_OAUTH' || parts.length >= 4) && parts.length >= 4) {
-    var fourPart = parts[0] + '|' + parts[1] + '|' + parts[2] + '|' + parts[3];
-    return '[PRODUK EMAIL' + (slotInfo || '') + ']\n' +
-      'FORMAT_UTUH : ' + fourPart + '\n' +
-      'Email       : ' + (parts[0] || '-') + '\n' +
-      'Password    : ' + (parts[1] || '-') + '\n' +
-      'RefreshToken: ' + (parts[2] || '-') + '\n' +
-      'Client_ID   : ' + (parts[3] || '-');
-  }
-  if (parts.length >= 2) {
-    return '[DETAIL AKUN' + (slotInfo || '') + ']\n' +
-      'Email / ID : ' + (parts[0] || '-') + '\n' +
-      'Password   : ' + (parts[1] || '-') + '\n' +
-      'Keterangan : ' + (parts.slice(2).join(' | ') || '-');
-  }
-  return '[DETAIL PESANAN' + (slotInfo || '') + ']\n' + clean;
-}
-
 /* ============================================================================
- * 5. SMART FIREBASE ADMIN AUTH TOKEN (DARI bot_info.js) & HELPERS FIRESTORE
+ * 5. HELPER JARINGAN & TOKEN ADMIN FIREBASE
  * ============================================================================ */
+function fetchFirestoreSmart(url, method, bodyObj, authToken) {
+  try {
+    var options = {
+      method: method || 'get',
+      contentType: 'application/json',
+      muteHttpExceptions: true
+    };
+    if (bodyObj) {
+      options.payload = typeof bodyObj === 'string' ? bodyObj : JSON.stringify(bodyObj);
+    }
+    if (authToken) {
+      options.headers = { 'Authorization': 'Bearer ' + authToken };
+    }
+    return UrlFetchApp.fetch(url, options);
+  } catch (e) {
+    return null;
+  }
+}
+
 function getValidFirebaseAdminToken() {
   try {
     var props = PropertiesService.getScriptProperties();
@@ -881,57 +670,12 @@ function getValidFirebaseAdminToken() {
   return null;
 }
 
-function saveMutationToServerMemory(primaryAmount, candidateAmounts, rawText, timestampMs) {
-  var record = {
-    id: 'MUT_' + timestampMs + '_' + primaryAmount,
-    amount: Number(primaryAmount),
-    candidateAmounts: candidateAmounts,
-    rawText: String(rawText || '').slice(0, 280),
-    timestamp: Number(timestampMs)
-  };
-  try {
-    var list = getStoredRecentMutations(1800000);
-    list.unshift(record);
-    if (list.length > 35) list = list.slice(0, 35);
-    var serialized = JSON.stringify(list);
-    var cache = CacheService.getScriptCache();
-    if (cache) cache.put('RECENT_QRIS_MUTATIONS_V275', serialized, 1800);
-  } catch (e) {}
-  return record;
-}
-
-function getStoredRecentMutations(maxAgeMs) {
-  var now = Date.now();
-  var limitAge = maxAgeMs || 1200000;
-  try {
-    var cache = CacheService.getScriptCache();
-    var rawJson = cache ? (cache.get('RECENT_QRIS_MUTATIONS_V275') || '') : '';
-    if (!rawJson) return [];
-    var parsed = JSON.parse(rawJson);
-    if (!Array.isArray(parsed)) return [];
-    return parsed.filter(function(item) {
-      return item && item.timestamp && (now - Number(item.timestamp) <= limitAge);
-    });
-  } catch (e) {
-    return [];
-  }
-}
-
 function firestoreSetDocument(projectId, collection, docId, dataObj, authToken) {
   try {
     var url = 'https://firestore.googleapis.com/v1/projects/' + encodeURIComponent(projectId) +
               '/databases/(default)/documents/' + encodeURIComponent(collection) + '/' + encodeURIComponent(docId);
-    var params = {
-      method: 'patch',
-      contentType: 'application/json',
-      payload: JSON.stringify({ fields: wrapFirestoreFields(dataObj) }),
-      muteHttpExceptions: true
-    };
-    if (authToken) {
-      params.headers = { 'Authorization': 'Bearer ' + authToken };
-    }
-    var res = UrlFetchApp.fetch(url, params);
-    return res.getResponseCode() >= 200 && res.getResponseCode() < 300;
+    var res = fetchFirestoreSmart(url, 'patch', { fields: wrapFirestoreFields(dataObj) }, authToken);
+    return res && res.getResponseCode() >= 200 && res.getResponseCode() < 300;
   } catch (e) {
     return false;
   }
@@ -942,24 +686,13 @@ function firestorePatchDocument(projectId, collection, docId, dataObj, authToken
     var keys = Object.keys(dataObj);
     var maskParams = keys.map(function(k) { return 'updateMask.fieldPaths=' + encodeURIComponent(k); }).join('&');
     var baseDocUrl = 'https://firestore.googleapis.com/v1/projects/' + encodeURIComponent(projectId) + '/databases/(default)/documents';
-    var urls = [
-      baseDocUrl + '/' + encodeURIComponent(collection) + '/' + encodeURIComponent(docId) + '?' + maskParams,
-      baseDocUrl + '/artifacts/' + encodeURIComponent(VIPERCELL_CONFIG.WORKSPACE_APP_ID) + '/public/data/' + encodeURIComponent(collection) + '/' + encodeURIComponent(docId) + '?' + maskParams
-    ];
-    var payloadStr = JSON.stringify({ fields: wrapFirestoreFields(dataObj) });
-    var reqs = urls.map(function(u) {
-      var r = {
-        url: u,
-        method: 'patch',
-        contentType: 'application/json',
-        payload: payloadStr,
-        muteHttpExceptions: true
-      };
-      if (authToken) r.headers = { 'Authorization': 'Bearer ' + authToken };
-      return r;
-    });
-    var resps = UrlFetchApp.fetchAll(reqs);
-    return resps[0].getResponseCode() === 200 || resps[1].getResponseCode() === 200;
+    var rootUrl = baseDocUrl + '/' + encodeURIComponent(collection) + '/' + encodeURIComponent(docId) + '?' + maskParams;
+    var wsUrl = baseDocUrl + '/artifacts/' + encodeURIComponent(VIPERCELL_CONFIG.WORKSPACE_APP_ID) + '/public/data/' + encodeURIComponent(collection) + '/' + encodeURIComponent(docId) + '?' + maskParams;
+
+    var body = { fields: wrapFirestoreFields(dataObj) };
+    var r1 = fetchFirestoreSmart(rootUrl, 'patch', body, authToken);
+    var r2 = fetchFirestoreSmart(wsUrl, 'patch', body, authToken);
+    return (r1 && r1.getResponseCode() === 200) || (r2 && r2.getResponseCode() === 200);
   } catch (e) {
     return false;
   }
@@ -1005,14 +738,6 @@ function unwrapFirestoreFields(fieldsObj) {
     } else result[k] = null;
   });
   return result;
-}
-
-function computeMd5Hex(input) {
-  var rawHash = Utilities.computeDigest(Utilities.DigestAlgorithm.MD5, input, Utilities.Charset.UTF_8);
-  return rawHash.map(function(b) {
-    var v = (b < 0 ? b + 256 : b).toString(16);
-    return v.length === 1 ? '0' + v : v;
-  }).join('');
 }
 
 function getScriptProp(key) {

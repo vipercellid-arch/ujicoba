@@ -186,7 +186,7 @@
             <!-- Banner Jam Operasional -->
             <div id="operational-hours-banner" class="brutal-alert-box alert-warning" style="display:none; margin-bottom: 1.1rem;">
                 <i class="fa-regular fa-clock"></i>
-                <span id="operational-hours-text">Saat ini di luar jam layanan Admin. Kamu tetap bisa membeli produk yang stoknya siap kirim.</span>
+                <span id="operational-hours-text">Saat ini sedang di luar jam layanan Admin. Kamu tetap dapat melihat katalog produk, namun pemesanan baru dibuka kembali pada jam layanan.</span>
             </div>
             
             <!-- Banner Slider -->
@@ -214,6 +214,9 @@
                             <option value="price_asc">Harga Termurah</option>
                             <option value="name_asc">Nama (A - Z)</option>
                         </select>
+                        <button type="button" id="btn-refresh-catalog" class="btn btn-outline btn-sm catalog-refresh-btn" onclick="window.refreshCatalogData()" title="Segarkan Katalog">
+                            <i class="fa-solid fa-rotate-right" id="icon-refresh-catalog"></i> <span>Segarkan</span>
+                        </button>
                     </div>
                 </div>
 
@@ -1053,13 +1056,15 @@
             </div>
         </div>
 
-        <!-- RUNNING TEXT BAWAH (PEMISAH ISI & FOOTER DI SEMUA TAB — HITAM ELEGAN, SMOOTH & EFEK BERKILAU BERKALA) -->
+        <!-- RUNNING TEXT BAWAH (TAMPILAN & KEHALUSAN SAMA DENGAN RUNNING TEXT ATAS, TEMA HITAM ELEGAN DI SEMUA TAB #2) -->
         <div class="footer-divider-marquee-wrap" id="footer-marquee-section">
-            <div class="footer-black-marquee" id="footer-marquee-bar">
-                <div class="footer-marquee-track" id="footer-marquee-content">
-                    <span class="footer-shimmer-item" onclick="window.handleFooterMarqueeItemClick(0)">
-                        <span class="footer-shimmer-text">TERIMA KASIH TELAH BERBELANJA DI VIPERCELL — LAYANAN PRODUK DIGITAL, APLIKASI PREMIUM &amp; TOP UP GAME</span>
-                    </span>
+            <div class="marquee-container neo-brutal-marquee edge-to-edge-marquee footer-dark-marquee" id="footer-marquee-bar">
+                <div class="marquee-wrapper">
+                    <div class="marquee-content" id="footer-marquee-content">
+                        <span class="marquee-item-pill footer-dark-pill" onclick="window.handleFooterMarqueeItemClick(0)">
+                            <span>TERIMA KASIH TELAH BERBELANJA DI VIPERCELL — LAYANAN PRODUK DIGITAL, APLIKASI PREMIUM &amp; TOP UP GAME</span>
+                        </span>
+                    </div>
                 </div>
             </div>
         </div>
