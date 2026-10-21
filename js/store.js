@@ -262,7 +262,7 @@ function initWaterRippleBackground() {
 
     window.addEventListener('pointermove', (e) => {
         const now = performance.now();
-        if (now - waterRippleEngine.lastMoveTime > 55) {
+        if (now - waterRippleEngine.lastMoveTime > 95) {
             waterRippleEngine.lastMoveTime = now;
             spawnRipple(e.clientX, e.clientY, false);
         }
@@ -433,46 +433,64 @@ function updateOpHoursBannerUI() {
 // WEBHOOK CALLER & ANTI-DUPLIKAT EMAIL
 // ==========================================
 async function callUnifiedGasWebhook(payloadObj) {
-    const gasWebAppUrl = (siteSettings.emailWebhookUrl || '').trim();
-    if (!gasWebAppUrl || !gasWebAppUrl.startsWith('https://script.google.com/')) {
+    const rawUrls = (siteSettings.emailWebhookUrl || '').trim();
+    const urlList = rawUrls
+        .split(",")
+        .map(u => u.trim())
+        .filter(u => u.startsWith('https://script.google.com/'));
+
+    if (urlList.length === 0) {
         throw new Error('WEBHOOK_NOT_CONFIGURED');
     }
 
     const activeSecret = (siteSettings.webhookSecret || 'VIPERCELL_SECRET_2026').trim();
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 18000);
+    let lastError = null;
 
-    try {
-        const response = await fetch(gasWebAppUrl, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'text/plain;charset=utf-8'
-            },
-            body: JSON.stringify({
-                projectId: 'vipercell-fc50e',
-                secret: activeSecret,
-                key: activeSecret,
-                ...payloadObj
-            }),
-            redirect: 'follow',
-            signal: controller.signal
-        });
+    // Rotasi otomatis ke semua URL Apps Script yang terdaftar agar pengiriman email tanpa batas kuota harian (#5)
+    for (let i = 0; i < urlList.length; i++) {
+        const targetUrl = urlList[i];
+        const backupUrls = urlList.filter((_, idx) => idx !== i);
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 16000);
 
-        const rawText = await response.text();
-        let result = null;
         try {
-            result = JSON.parse(rawText);
-        } catch (parseErr) {
-            throw new Error('Respons server email tidak valid.');
-        }
+            const response = await fetch(targetUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'text/plain;charset=utf-8'
+                },
+                body: JSON.stringify({
+                    projectId: 'vipercell-fc50e',
+                    secret: activeSecret,
+                    key: activeSecret,
+                    backupWebhookUrls: backupUrls,
+                    ...payloadObj
+                }),
+                redirect: 'follow',
+                signal: controller.signal
+            });
 
-        if (!result || (result.ok === false && result.status !== 'ok')) {
+            const rawText = await response.text();
+            let result = null;
+            try {
+                result = JSON.parse(rawText);
+            } catch (parseErr) {
+                throw new Error('Respons server email tidak valid.');
+            }
+
+            if (result && (result.ok === true || result.status === 'ok')) {
+                clearTimeout(timeoutId);
+                return result;
+            }
             throw new Error((result && result.message) || (result && result.error) || 'Gagal menghubungi server email.');
+        } catch (err) {
+            lastError = err;
+        } finally {
+            clearTimeout(timeoutId);
         }
-        return result;
-    } finally {
-        clearTimeout(timeoutId);
     }
+
+    throw lastError || new Error('Gagal menghubungi seluruh server email.');
 }
 
 async function sendOrderReceiptAndAccountEmail(orderData, accountDetailsText, orderDbId = null) {
@@ -802,15 +820,20 @@ async function initializeAppWithLoader() {
         return;
     }
 
-    // Hidrasi instan dari cache lokal agar First Contentful Paint & LCP sangat cepat (< 0.6s) (#5)
+    // Hidrasi instan dari cache lokal: jika cache tersedia, buka UI dalam 80ms tanpa menunggu jaringan (#4)
     hydrateStoreFromFastCache();
+    if (products.length > 0 && hasSavedSession) {
+        setTimeout(() => {
+            if (!isPreloaderFinished) unlockAppUI();
+        }, 80);
+    }
 
     if (activeTimersRegistry.preloaderSafety) clearTimeout(activeTimersRegistry.preloaderSafety);
     activeTimersRegistry.preloaderSafety = setTimeout(() => {
         if (!isPreloaderFinished) {
             unlockAppUI();
         }
-    }, 950);
+    }, 600);
 
     try {
         updatePreloaderStage(40, 'Memuat toko...', '');
@@ -827,7 +850,6 @@ async function initializeAppWithLoader() {
         listenData();
         setupAuthStateListener();
         startOpHoursWatcher();
-        startFastQrisWebhookPolling();
 
         const sessionMode = localStorage.getItem('vipercell_active_session_mode');
         if (initialUser && !initialUser.isAnonymous && sessionMode !== 'logged_out') {
@@ -2023,25 +2045,6 @@ function listenData() {
         if (docSnap.exists()) {
             const incoming = docSnap.data();
             siteSettings = { ...siteSettings, ...incoming };
-
-            if (incoming.lastPaymentDetected && incoming.lastPaymentTimestamp) {
-                const ageMs = Date.now() - Number(incoming.lastPaymentTimestamp);
-                if (ageMs < 180000) {
-                    checkClientPendingOrdersAgainstAmount(Number(incoming.lastPaymentDetected));
-                }
-            }
-
-            if (incoming.lastPaymentMutation && incoming.lastPaymentMutation.timestamp) {
-                const mutObj = incoming.lastPaymentMutation;
-                const mutAge = Date.now() - Number(mutObj.timestamp);
-                if (mutAge < 180000) {
-                    if (Array.isArray(mutObj.candidateAmounts) && mutObj.candidateAmounts.length > 0) {
-                        mutObj.candidateAmounts.forEach(amt => checkClientPendingOrdersAgainstAmount(Number(amt)));
-                    } else if (mutObj.amount) {
-                        checkClientPendingOrdersAgainstAmount(Number(mutObj.amount));
-                    }
-                }
-            }
         }
         isSettingsLoaded = true;
         window.applySettingsToUI();
@@ -2064,25 +2067,6 @@ function listenData() {
                 renderCheckoutVariantCards();
                 window.calculateDirectBuyTotal();
             }
-        }, () => {});
-    }
-
-    if (!activeListenersRegistry.mutations) {
-        activeListenersRegistry.mutations = onSnapshot(collection(db, pathMutations), (snapshot) => {
-            snapshot.docChanges().forEach((change) => {
-                if (change.type === 'added') {
-                    const mut = change.doc.data();
-                    const mutTime = Number(mut.receivedAt || mut.createdAt || mut.timestamp || 0);
-                    const mutAge = Date.now() - mutTime;
-                    if (mutAge < 180000) {
-                        if (Array.isArray(mut.candidateAmounts) && mut.candidateAmounts.length > 0) {
-                            mutObjListMatch(mut.candidateAmounts);
-                        } else if (mut.amount) {
-                            checkClientPendingOrdersAgainstAmount(Number(mut.amount));
-                        }
-                    }
-                }
-            });
         }, () => {});
     }
 
@@ -2200,112 +2184,8 @@ function listenData() {
     });
 }
 
-function mutObjListMatch(candidateAmounts) {
-    (candidateAmounts || []).forEach(amt => checkClientPendingOrdersAgainstAmount(Number(amt)));
-}
-
-// Saat nominal mutasi QRIS cocok dengan tagihan UNPAID (#1 & #4):
-// Cek apakah produk punya stok lokal. Jika ada -> langsung kirim & SUCCESS. Jika tidak ada -> PENDING (Menunggu Dikirim Admin).
-async function checkClientPendingOrdersAgainstAmount(detectedAmount, rawNotifText = '') {
-    const numAmt = Math.round(Number(detectedAmount) || 0);
-    const matchingUnpaid = orders.find(o => {
-        if (o.status !== 'UNPAID' && o.status !== 'PENDING_PAYMENT') return false;
-        const fTotal = Math.round(Number(o.finalTotal) || 0);
-        const uTotal = Math.round(Number(o.uniqueTotal) || 0);
-        if (numAmt > 0 && (fTotal === numAmt || uTotal === numAmt)) return true;
-        if (rawNotifText && fTotal > 0) {
-            const dotStr = fTotal.toLocaleString('id-ID');
-            const commaStr = dotStr.replace(/\./g, ',');
-            if (rawNotifText.includes(dotStr) || rawNotifText.includes(commaStr) || rawNotifText.includes(String(fTotal))) {
-                return true;
-            }
-        }
-        return false;
-    });
-    if (matchingUnpaid) {
-        const delivered = await tryAutoDeliverOrderFromVault(matchingUnpaid, matchingUnpaid.dbId);
-        const activeTab = document.querySelector('.main-tab-content.active');
-        if (activeTab && activeTab.id === 'tab-payment-qris' && currentCheckoutSession?.id === matchingUnpaid.id) {
-            window.showPaymentSuccessAnimation(matchingUnpaid.id, delivered ? 'SUCCESS' : 'PENDING');
-        }
-        return true;
-    }
-    return false;
-}
-
-// Engine Polling Cepat ke Google Apps Script untuk Verifikasi QRIS Otomatis Anti-Gagal (#4)
-async function pollGasWebhookForPaymentVerification() {
-    if (isPollingGasPayment) return false;
-    const gasUrl = (siteSettings.emailWebhookUrl || '').trim();
-    if (!gasUrl || !gasUrl.startsWith('https://script.google.com/')) return false;
-
-    const now = Date.now();
-    const myUnpaidQrisOrders = orders.filter(o =>
-        (o.status === 'UNPAID' || o.status === 'PENDING_PAYMENT') &&
-        (o.paymentMethod || 'qris') === 'qris' &&
-        (now - new Date(o.date).getTime() < 900000)
-    );
-
-    if (myUnpaidQrisOrders.length === 0 && (!currentCheckoutSession || currentCheckoutSession.method !== 'qris')) {
-        return false;
-    }
-
-    const targetOrder = (currentCheckoutSession && myUnpaidQrisOrders.find(o => o.dbId === currentCheckoutSession.dbId))
-        || myUnpaidQrisOrders[0];
-
-    if (!targetOrder) return false;
-
-    isPollingGasPayment = true;
-    try {
-        const targetAmt = Math.round(Number(targetOrder.finalTotal || targetOrder.uniqueTotal || 0));
-        const orderStartMs = new Date(targetOrder.date).getTime();
-        const sep = gasUrl.includes('?') ? '&' : '?';
-        const checkUrl = `${gasUrl}${sep}action=CHECK_PAYMENT&amount=${targetAmt}&since=${orderStartMs}&t=${now}`;
-
-        const resp = await fetch(checkUrl, {
-            method: 'GET',
-            redirect: 'follow',
-            cache: 'no-store'
-        });
-        const raw = await resp.text();
-        let data = null;
-        try { data = JSON.parse(raw); } catch (e) {}
-
-        if (data && data.ok) {
-            if (data.matched && data.matchedMutation) {
-                await checkClientPendingOrdersAgainstAmount(targetAmt, data.matchedMutation.rawText || '');
-                return true;
-            }
-            if (Array.isArray(data.recentMutations)) {
-                for (const mut of data.recentMutations) {
-                    if (!mut) continue;
-                    const mutTime = Number(mut.timestamp || 0);
-                    if (mutTime > 0 && mutTime < (orderStartMs - 90000)) continue;
-
-                    const cands = Array.isArray(mut.candidateAmounts) ? mut.candidateAmounts : [mut.amount];
-                    for (const cAmt of cands) {
-                        const hit = await checkClientPendingOrdersAgainstAmount(Number(cAmt), mut.rawText || '');
-                        if (hit) return true;
-                    }
-                }
-            }
-        }
-    } catch (e) {
-        // Silent ignore on network jitter
-    } finally {
-        isPollingGasPayment = false;
-    }
-    return false;
-}
-
-function startFastQrisWebhookPolling() {
-    if (fastQrisWebhookPollInterval) clearInterval(fastQrisWebhookPollInterval);
-    fastQrisWebhookPollInterval = setInterval(() => {
-        if (!document.hidden) {
-            pollGasWebhookForPaymentVerification();
-        }
-    }, 2800);
-}
+// [PEMBARUAN v27.4 #1] Verifikasi pembayaran QRIS dilakukan 100% langsung oleh Google Apps Script ke Firebase!
+// Web User TIDAK melakukan polling ke Apps Script dan hanya mendengarkan perubahan status dokumen order dari Firebase.
 
 function rebuildGroupedBrands() {
     groupedBrands = [];
@@ -2571,15 +2451,9 @@ window.manualCheckQrisPaymentStatus = async function() {
     }
 
     try {
-        // Cek langsung ke Google Apps Script Memory + Firestore secara paralel (#4)
-        const gasMatched = await pollGasWebhookForPaymentVerification();
-        if (gasMatched) return;
-
+        // Hanya membaca status pesanan dari Firebase yang diubah secara langsung oleh Server Apps Script (#1)
         const orderRef = doc(db, pathOrders, currentCheckoutSession.dbId);
-        const [orderSnap, settingsSnap] = await Promise.all([
-            getDoc(orderRef).catch(() => null),
-            getDoc(doc(db, pathSettings, 'mainConfig')).catch(() => null)
-        ]);
+        const orderSnap = await getDoc(orderRef).catch(() => null);
 
         if (orderSnap && orderSnap.exists()) {
             const oData = { dbId: orderSnap.id, ...orderSnap.data() };
@@ -2598,23 +2472,7 @@ window.manualCheckQrisPaymentStatus = async function() {
             }
         }
 
-        if (settingsSnap && settingsSnap.exists()) {
-            const sData = settingsSnap.data();
-            const targetNominal = Number(currentCheckoutSession.finalTotal || 0);
-            const mutObj = sData.lastPaymentMutation;
-
-            if (mutObj && mutObj.timestamp && (Date.now() - Number(mutObj.timestamp) < 600000)) {
-                const candidates = Array.isArray(mutObj.candidateAmounts) ? mutObj.candidateAmounts.map(Number) : [Number(mutObj.amount || 0)];
-                if (candidates.includes(targetNominal)) {
-                    const orderObj = orders.find(o => o.dbId === currentCheckoutSession.dbId) || { id: currentCheckoutSession.id, dbId: currentCheckoutSession.dbId };
-                    const delivered = await tryAutoDeliverOrderFromVault(orderObj, currentCheckoutSession.dbId);
-                    window.showPaymentSuccessAnimation(currentCheckoutSession.id, delivered ? 'SUCCESS' : 'PENDING');
-                    return;
-                }
-            }
-        }
-
-        window.showToast('Menunggu Pembayaran', `Pastikan transfer sesuai nominal Rp${(currentCheckoutSession.finalTotal || 0).toLocaleString('id-ID')}.`, 'info');
+        window.showToast('Menunggu Pembayaran', `Server otomatis memverifikasi begitu transfer Rp${(currentCheckoutSession.finalTotal || 0).toLocaleString('id-ID')} masuk.`, 'info');
     } catch (err) {
         window.showToast('Gagal Mengecek', 'Periksa koneksi internet kamu.', 'warning');
     } finally {
@@ -4195,8 +4053,8 @@ window.submitProductSuggestion = async function() {
             createdAt: nowMs
         };
 
-        // Multi-Layer Write: tulis ke product_suggestions, dengan fallback ke koleksi chats & settings/mainConfig
-        // agar 100% berhasil meskipun Firestore Rules membatasi koleksi baru (#1)
+        // Simpan khusus ke koleksi Saran Produk (product_suggestions) & daftar saran di settings/mainConfig
+        // TANPA menulis ke koleksi chats agar tidak pernah masuk ke tab Chat Bantuan Admin (#3)
         let savedSuccess = false;
 
         try {
@@ -4205,16 +4063,6 @@ window.submitProductSuggestion = async function() {
         } catch (primaryErr) {
             console.warn("Primary suggestion write fallback:", primaryErr);
         }
-
-        try {
-            await setDoc(doc(db, pathChats, suggestionId), {
-                ...suggestionPayload,
-                uid: suggestionId,
-                userInfo: `[SARAN PRODUK] ${senderName || 'Pelanggan'}`,
-                updatedAt: nowMs
-            }, { merge: true });
-            savedSuccess = true;
-        } catch (chatFallbackErr) {}
 
         try {
             await setDoc(doc(db, pathSettings, 'mainConfig'), {
@@ -5372,6 +5220,49 @@ function buildStructuredMarqueeSlots() {
     return parsedMarqueeSlots;
 }
 
+let parsedFooterMarqueeSlots = [];
+
+function buildStructuredFooterMarqueeSlots() {
+    const slots = [];
+
+    if (Array.isArray(siteSettings.footerMarqueeList) && siteSettings.footerMarqueeList.length > 0) {
+        siteSettings.footerMarqueeList.slice(0, 20).forEach((item) => {
+            if (!item) return;
+            if (typeof item === 'string' && item.trim()) {
+                slots.push({ text: item.trim(), type: 'info', promoCode: '', targetBrand: '', newsIndex: -1 });
+            } else if (typeof item === 'object' && item.text && String(item.text).trim() && !item.isHidden) {
+                slots.push({
+                    text: String(item.text).trim(),
+                    type: item.type || (item.promoCode ? 'promo' : (item.newsIndex >= 0 ? 'news' : 'info')),
+                    promoCode: (item.promoCode || '').trim().toUpperCase(),
+                    targetBrand: (item.targetBrand || '').trim(),
+                    newsIndex: typeof item.newsIndex === 'number' ? item.newsIndex : -1
+                });
+            }
+        });
+    }
+
+    if (slots.length === 0) {
+        const rawFooter = String(
+            siteSettings.footerMarquee ||
+            'TERIMA KASIH TELAH BERBELANJA DI VIPERCELL — LAYANAN APLIKASI PREMIUM, TOP UP GAME & PRODUK DIGITAL || TRANSAKSI OTOMATIS & BERGARANSI — HUBUNGI CS BANTUAN JIKA BUTUH PANDUAN'
+        ).trim();
+        const parts = rawFooter.includes('||') ? rawFooter.split('||') : rawFooter.split(/\r?\n/);
+        parts.map(s => s.trim()).filter(Boolean).slice(0, 20).forEach(part => {
+            slots.push({
+                text: part,
+                type: 'info',
+                promoCode: '',
+                targetBrand: '',
+                newsIndex: -1
+            });
+        });
+    }
+
+    parsedFooterMarqueeSlots = slots.slice(0, 20);
+    return parsedFooterMarqueeSlots;
+}
+
 function renderInteractiveMarqueeUI() {
     const marqueeContent = document.getElementById('marquee-content');
     if (!marqueeContent) return;
@@ -5380,7 +5271,7 @@ function renderInteractiveMarqueeUI() {
 
     const repeatFactor = slots.length > 0 && slots.length < 5 ? Math.ceil(6 / slots.length) : 1;
     const expandedCount = slots.length * repeatFactor;
-    const durationSec = Math.max(26, expandedCount * 5.5);
+    const durationSec = Math.max(48, expandedCount * 8.5);
     marqueeContent.style.setProperty('--marquee-duration', `${durationSec}s`);
 
     const buildSinglePass = () => slots.map((slot, idx) => {
@@ -5416,40 +5307,52 @@ function renderFooterMarqueeUI() {
     const footerTrack = document.getElementById('footer-marquee-content');
     if (!footerTrack) return;
 
-    const rawFooter = String(
-        siteSettings.footerMarquee ||
-        'TERIMA KASIH TELAH BERBELANJA DI VIPERCELL — LAYANAN APLIKASI PREMIUM, TOP UP GAME & PRODUK DIGITAL || TRANSAKSI OTOMATIS & BERGARANSI — HUBUNGI CS BANTUAN JIKA BUTUH PANDUAN'
-    ).trim();
-
-    let items = [];
-    if (Array.isArray(siteSettings.footerMarqueeList) && siteSettings.footerMarqueeList.length > 0) {
-        items = siteSettings.footerMarqueeList
-            .map(it => (typeof it === 'string' ? it.trim() : String(it?.text || '').trim()))
-            .filter(Boolean);
-    }
-    if (items.length === 0) {
-        const parts = rawFooter.includes('||') ? rawFooter.split('||') : rawFooter.split(/\r?\n/);
-        items = parts.map(s => s.trim()).filter(Boolean);
-    }
-    if (items.length === 0) {
-        items = ['TERIMA KASIH TELAH BERBELANJA DI VIPERCELL'];
-    }
-
-    const repeatFactor = items.length < 4 ? Math.ceil(5 / items.length) : 1;
-    const totalCount = items.length * repeatFactor;
-    const durationSec = Math.max(28, totalCount * 7);
+    const slots = buildStructuredFooterMarqueeSlots();
+    const repeatFactor = slots.length > 0 && slots.length < 4 ? Math.ceil(5 / slots.length) : 1;
+    const totalCount = slots.length * repeatFactor;
+    // Kecepatan jauh lebih tenang dan sangat smooth (#2)
+    const durationSec = Math.max(76, totalCount * 15);
     footerTrack.style.setProperty('--footer-marquee-duration', `${durationSec}s`);
 
-    const buildPass = () => items.map(txt => `
-        <span class="footer-bead-item" onclick="window.switchMainTab('katalog')">
-            <span class="bead-ornament" aria-hidden="true">•◦✦◦•</span>
-            <span class="footer-glow-text">${escapeHtml(txt)}</span>
-        </span>
-    `).join('');
+    const buildPass = () => slots.map((slot, idx) => {
+        const safePromo = escapeJsStr(slot.promoCode || '');
+        const safeBrand = escapeJsStr(slot.targetBrand || '');
+        const newsIdx = typeof slot.newsIndex === 'number' ? slot.newsIndex : -1;
+
+        let badgeHtml = '';
+        if (slot.promoCode) {
+            badgeHtml = `<span class="footer-shimmer-badge badge-promo">PROMO</span>`;
+        } else if (slot.newsIndex >= 0 || slot.type === 'news') {
+            badgeHtml = `<span class="footer-shimmer-badge badge-news">BERITA</span>`;
+        } else if (slot.targetBrand) {
+            badgeHtml = `<span class="footer-shimmer-badge badge-product">${escapeHtml(slot.targetBrand)}</span>`;
+        }
+
+        return `
+            <span class="footer-shimmer-item" onclick="window.handleFooterMarqueeItemClick(${idx}, '${safePromo}', '${safeBrand}', ${newsIdx})">
+                ${badgeHtml}
+                <span class="footer-shimmer-text">${escapeHtml(slot.text)}</span>
+            </span>
+            <span class="footer-sep-dot" aria-hidden="true">•</span>
+        `;
+    }).join('');
 
     const half = Array.from({ length: repeatFactor }, () => buildPass()).join('');
     footerTrack.innerHTML = half + half;
 }
+
+window.handleFooterMarqueeItemClick = function(slotIndex = 0, explicitPromo = '', explicitBrand = '', explicitNewsIdx = -1) {
+    const slot = parsedFooterMarqueeSlots[slotIndex] || {};
+    const promoCode = (explicitPromo || slot.promoCode || '').trim().toUpperCase();
+    const targetBrand = (explicitBrand || slot.targetBrand || '').trim();
+    const newsIndex = explicitNewsIdx >= 0 ? explicitNewsIdx : (typeof slot.newsIndex === 'number' ? slot.newsIndex : -1);
+
+    if (promoCode || targetBrand || newsIndex >= 0 || slot.type === 'news') {
+        window.handleMarqueeItemClick(slotIndex, promoCode, targetBrand, newsIndex);
+    } else {
+        window.switchMainTab('katalog');
+    }
+};
 
 window.handleMarqueeItemClick = function(slotIndex = 0, explicitPromo = '', explicitBrand = '', explicitNewsIdx = -1) {
     const slot = parsedMarqueeSlots[slotIndex] || {};

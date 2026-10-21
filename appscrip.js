@@ -1,22 +1,28 @@
 /**
  * ============================================================================
- * VIPERCELL — GOOGLE APPS SCRIPT SERVER v27.3 (HYBRID ULTRA-FAST QRIS ENGINE)
+ * VIPERCELL — GOOGLE APPS SCRIPT SERVER v27.4
+ * (DIRECT FIREBASE QRIS VERIFICATION + AUTO STOCK DELIVERY + UNLIMITED EMAIL ENGINE)
  * Nama File : SERVER_APPS_SCRIP.js
  *
- * Pembaruan Utama v27.3:
- *  1. Hybrid Push + Pull Payment Verification Engine:
- *     - Menyimpan setiap mutasi QRIS dari MacroDroid ke Memori Cepat Server
- *       (`CacheService` + `PropertiesService`) SEkaligus mendorong ke Firestore
- *       (Root Path & Workspace Path) secara paralel (`UrlFetchApp.fetchAll`).
- *     - Menyediakan endpoint `CHECK_PAYMENT` & `GET_RECENT_MUTATIONS` pada
- *       `doGet` dan `doPost` agar Web User & Web Admin dapat mendeteksi
- *       pembayaran dalam < 2 detik meskipun Firestore REST API terhalang Rules!
- *  2. Proteksi Opsi Kirim Struk Email (`emailReceiptEnabled`):
- *     - Jika pembeli mematikan opsi notifikasi & kirim struk email di profil,
- *       server otomatis menolak pengiriman email struk pesanan.
- *  3. Cadangan Penyimpanan Saran Produk (`SAVE_PRODUCT_SUGGESTION`).
- *  4. Template Email HTML Neo-Brutalism Matang (`SEND_ORDER_DELIVERY`,
- *     `SEND_OTP_EMAIL`, `SEND_EXPIRY_REMINDER`, `SEND_PASSWORD_RESET_LINK`).
+ * Pembaruan Utama v27.4:
+ *  1. Direct Firebase QRIS Verification & Auto Stock Delivery (Server-Driven 100%):
+ *     - Saat MacroDroid mengirim notifikasi pembayaran QRIS, Apps Script LANGSUNG
+ *       mencari pesanan berstatus `UNPAID` di Firebase (`orders`) yang cocok
+ *       dengan nominal pembayaran (tanpa bergantung pada pengecekan Web User!).
+ *     - Jika produk pada pesanan memiliki stok `Ready` di Gudang Stok (`stocks`),
+ *       Apps Script langsung mengambil stok, mengubah status pesanan di Firebase
+ *       menjadi `SUCCESS`, mengisi `adminReply`, dan mengirim email struk otomatis.
+ *     - Jika produk manual/game atau stok kosong, Apps Script langsung mengubah
+ *       status pesanan di Firebase menjadi `PENDING` (`paymentVerified: true`).
+ *     - Memperbaiki bug query Firestore (`allDescendants: true` dihapus agar tidak
+ *       terkena blokir indeks `FAILED_PRECONDITION` HTTP 400) serta mendukung
+ *       OAuth Token otomatis (`ScriptApp.getOAuthToken()`) jika diperlukan.
+ *  2. Unlimited Daily Email Notification Engine (Tanpa Batas Kuota Harian):
+ *     - Sistem Multi-Layer Email Sender (`sendUnlimitedEmailGas`) yang otomatis
+ *       beralih dari `MailApp` -> `GmailApp` -> Daftar URL Apps Script Cadangan
+ *       (`BACKUP_GAS_WEBHOOK_URLS`) -> Relay SMTP/API Eksternal sehingga pengiriman
+ *       notifikasi & struk ke email berjalan terus tanpa batas kuota harian.
+ *  3. Proteksi Opsi Kirim Struk Email (`emailReceiptEnabled`) & Template Neo-Brutalism.
  * ============================================================================
  */
 
@@ -27,6 +33,10 @@ var CONFIG = {
   STORE_NAME: 'VIPERCELL',
   STORE_TAGLINE: 'Toko Aplikasi Premium, Top Up Game & Produk Digital',
   SUPPORT_WHATSAPP: '6285656321860',
+  // Daftar URL Google Apps Script Cadangan (Multi-Akun Google) agar Kuota Email Tanpa Batas:
+  // Anda juga dapat memisahkan beberapa URL dengan tanda koma (,) langsung di Pengaturan Toko Admin.
+  BACKUP_GAS_WEBHOOK_URLS: [],
+  EXTERNAL_EMAIL_RELAY_URL: '',
   PRIMARY_COLOR: '#2563eb',
   ACCENT_YELLOW: '#facc15',
   ACCENT_GREEN: '#10b981',
@@ -40,19 +50,147 @@ var CONFIG = {
  * Jalankan fungsi ini 1x di Editor Apps Script untuk memberikan izin pengiriman email & akses jaringan
  */
 function setupAndAuthorize() {
-  var remainingQuota = MailApp.getRemainingDailyQuota();
-  Logger.log('Otorisasi berhasil. Sisa kuota email harian: ' + remainingQuota);
+  var remainingQuota = 0;
+  try {
+    remainingQuota = MailApp.getRemainingDailyQuota();
+  } catch (e) {}
+  Logger.log('Otorisasi v27.4 berhasil. Sisa kuota MailApp akun ini: ' + remainingQuota);
 }
 
 /**
- * Handler HTTP GET — Mendukung Pengecekan Status Pembayaran Instan oleh Web User & Admin
+ * PENGIRIM EMAIL TANPA BATAS KUOTA HARIAN (MULTI-ENGINE & MULTI-RELAY FAILOVER) (#5)
+ * Urutan Pengiriman:
+ *  1. MailApp (Kuota standar Google Apps Script)
+ *  2. GmailApp (Fallback langsung ke layanan Gmail API akun aktif)
+ *  3. Rotasi ke URL Apps Script Cadangan (Multi-Akun Google di BACKUP_GAS_WEBHOOK_URLS / payload.backupWebhookUrls)
+ *  4. Relay Email API Eksternal (EXTERNAL_EMAIL_RELAY_URL jika disiapkan)
+ */
+function sendUnlimitedEmailGas(emailOptions, originalPayload) {
+  var to = String(emailOptions.to || '').trim();
+  var subject = String(emailOptions.subject || CONFIG.STORE_NAME).trim();
+  var htmlBody = String(emailOptions.htmlBody || '').trim();
+  var senderName = String(emailOptions.name || CONFIG.STORE_NAME).trim();
+
+  var errors = [];
+
+  // Lapis 1: Coba kirim via MailApp
+  try {
+    var quota = MailApp.getRemainingDailyQuota();
+    if (quota > 0) {
+      MailApp.sendEmail({
+        to: to,
+        subject: subject,
+        htmlBody: htmlBody,
+        name: senderName
+      });
+      return { sent: true, engine: 'MailApp', remainingQuota: quota - 1 };
+    } else {
+      errors.push('MailApp quota exhausted (0)');
+    }
+  } catch (mailErr) {
+    errors.push('MailApp: ' + String(mailErr.message || mailErr));
+  }
+
+  // Lapis 2: Fallback ke GmailApp
+  try {
+    if (typeof GmailApp !== 'undefined' && GmailApp.sendEmail) {
+      GmailApp.sendEmail(to, subject, 'Silakan buka email ini dengan tampilan HTML.', {
+        htmlBody: htmlBody,
+        name: senderName
+      });
+      return { sent: true, engine: 'GmailApp', remainingQuota: 'unlimited-fallback' };
+    }
+  } catch (gmailErr) {
+    errors.push('GmailApp: ' + String(gmailErr.message || gmailErr));
+  }
+
+  // Lapis 3: Rotasi ke Daftar URL Apps Script Cadangan (Multi-Akun)
+  var relayUrls = [];
+  if (Array.isArray(CONFIG.BACKUP_GAS_WEBHOOK_URLS)) {
+    for (var i = 0; i < CONFIG.BACKUP_GAS_WEBHOOK_URLS.length; i++) {
+      if (CONFIG.BACKUP_GAS_WEBHOOK_URLS[i]) relayUrls.push(String(CONFIG.BACKUP_GAS_WEBHOOK_URLS[i]).trim());
+    }
+  }
+  if (originalPayload && Array.isArray(originalPayload.backupWebhookUrls)) {
+    for (var j = 0; j < originalPayload.backupWebhookUrls.length; j++) {
+      var bUrl = String(originalPayload.backupWebhookUrls[j] || '').trim();
+      if (bUrl && relayUrls.indexOf(bUrl) === -1) relayUrls.push(bUrl);
+    }
+  }
+
+  if (relayUrls.length > 0 && !(originalPayload && originalPayload._isRelayHop)) {
+    for (var r = 0; r < relayUrls.length; r++) {
+      var targetRelayUrl = relayUrls[r];
+      if (!targetRelayUrl || targetRelayUrl.indexOf('https://script.google.com/') !== 0) continue;
+      try {
+        var relayPayload = {};
+        if (originalPayload) {
+          for (var k in originalPayload) relayPayload[k] = originalPayload[k];
+        }
+        relayPayload._isRelayHop = true;
+        relayPayload.action = 'DIRECT_RAW_EMAIL_RELAY';
+        relayPayload.to = to;
+        relayPayload.subject = subject;
+        relayPayload.htmlBody = htmlBody;
+        relayPayload.senderName = senderName;
+        relayPayload.secret = CONFIG.WEBHOOK_SECRET;
+
+        var resp = UrlFetchApp.fetch(targetRelayUrl, {
+          method: 'post',
+          contentType: 'application/json',
+          payload: JSON.stringify(relayPayload),
+          followRedirects: true,
+          muteHttpExceptions: true
+        });
+        if (resp.getResponseCode() === 200) {
+          var rJson = JSON.parse(resp.getContentText() || '{}');
+          if (rJson && (rJson.ok === true || rJson.status === 'ok')) {
+            return { sent: true, engine: 'BackupGasRelay#' + (r + 1) };
+          }
+        }
+      } catch (relayErr) {
+        errors.push('Relay#' + (r + 1) + ': ' + String(relayErr.message || relayErr));
+      }
+    }
+  }
+
+  // Lapis 4: External Email Relay URL (Jika dikonfigurasi)
+  var extUrl = String(CONFIG.EXTERNAL_EMAIL_RELAY_URL || (originalPayload && originalPayload.externalEmailRelayUrl) || '').trim();
+  if (extUrl && extUrl.indexOf('http') === 0) {
+    try {
+      var extResp = UrlFetchApp.fetch(extUrl, {
+        method: 'post',
+        contentType: 'application/json',
+        payload: JSON.stringify({
+          to: to,
+          subject: subject,
+          htmlBody: htmlBody,
+          name: senderName,
+          secret: CONFIG.WEBHOOK_SECRET
+        }),
+        followRedirects: true,
+        muteHttpExceptions: true
+      });
+      if (extResp.getResponseCode() >= 200 && extResp.getResponseCode() < 300) {
+        return { sent: true, engine: 'ExternalRelay' };
+      }
+    } catch (extErr) {
+      errors.push('ExternalRelay: ' + String(extErr.message || extErr));
+    }
+  }
+
+  throw new Error('Gagal mengirim email pada semua jalur: ' + errors.join(' | '));
+}
+
+/**
+ * Handler HTTP GET
  */
 function doGet(e) {
   try {
     var params = (e && e.parameter) ? e.parameter : {};
     var action = String(params.action || params.type || '').toUpperCase().trim();
 
-    // Jika MacroDroid dikonfigurasi mengirim via HTTP GET (query parameter text/notification/amount)
+    // Jika MacroDroid dikonfigurasi mengirim via HTTP GET
     if (
       action === 'MACRODROID_PAYMENT_WEBHOOK' ||
       action === 'PAYMENT_WEBHOOK' ||
@@ -60,36 +198,27 @@ function doGet(e) {
       params.notification ||
       params.notif_text ||
       params.text ||
-      params.bigText
+      params.bigText ||
+      params.amount ||
+      params.nominal
     ) {
-      return handleMacroDroidPaymentMutation(params, Date.now());
+      if (action !== 'CHECK_PAYMENT' && action !== 'GET_RECENT_MUTATIONS') {
+        return handleMacroDroidPaymentMutation(params, Date.now());
+      }
     }
 
-    var recentMutations = getStoredRecentMutations(1200000); // 20 menit terakhir
-    var targetAmount = Number(params.amount || params.nominal || params.total || 0);
-    var sinceMs = Number(params.since || 0);
-
-    if (action === 'CHECK_PAYMENT' || targetAmount > 0) {
-      var matchedMut = findMatchingMutationForAmount(recentMutations, targetAmount, sinceMs);
-      return buildJsonResponse({
-        ok: true,
-        status: 'ok',
-        action: 'CHECK_PAYMENT',
-        matched: Boolean(matchedMut),
-        amountChecked: targetAmount,
-        matchedMutation: matchedMut || null,
-        recentMutations: recentMutations.slice(0, 15),
-        timestamp: Date.now()
-      });
-    }
+    var recentMutations = getStoredRecentMutations(1200000);
+    var quotaLeft = 100;
+    try { quotaLeft = MailApp.getRemainingDailyQuota(); } catch (qErr) {}
 
     return buildJsonResponse({
       ok: true,
       status: 'ok',
-      version: 'v27.3',
-      service: 'Vipercell Hybrid Fast Payment & Email Server',
+      version: 'v27.4',
+      service: 'Vipercell Direct Firebase QRIS Verification & Unlimited Email Server',
       projectId: CONFIG.FIREBASE_PROJECT_ID,
-      remainingEmailQuota: MailApp.getRemainingDailyQuota(),
+      remainingEmailQuota: quotaLeft,
+      unlimitedMultiRelayActive: true,
       lastMutation: recentMutations.length > 0 ? recentMutations[0] : null,
       recentMutations: recentMutations.slice(0, 20),
       timestamp: Date.now()
@@ -116,7 +245,6 @@ function doPost(e) {
 
     var action = String(payload.action || payload.type || '').toUpperCase().trim();
 
-    // Deteksi otomatis jenis aksi jika parameter action tidak dikirim
     if (!action) {
       if (payload.otpCode || payload.otp) {
         action = 'SEND_OTP_EMAIL';
@@ -131,7 +259,6 @@ function doPost(e) {
       }
     }
 
-    // Untuk aksi selain mutasi pembayaran, cek secret jika dikirim
     var incomingSecret = String(payload.secret || payload.key || '').trim();
     if (
       action !== 'MACRODROID_PAYMENT_WEBHOOK' &&
@@ -151,26 +278,37 @@ function doPost(e) {
       });
     }
 
-    // 1. Cek Pembayaran / Ambil Mutasi Terbaru dari Web User & Web Admin
+    // Relay Email Langsung Antar-Apps Script (Untuk Fitur Tanpa Batas Kuota Harian #5)
+    if (action === 'DIRECT_RAW_EMAIL_RELAY') {
+      var relayResult = sendUnlimitedEmailGas({
+        to: payload.to,
+        subject: payload.subject,
+        htmlBody: payload.htmlBody,
+        name: payload.senderName || CONFIG.STORE_NAME
+      }, payload);
+      return buildJsonResponse({
+        ok: true,
+        status: 'ok',
+        action: 'DIRECT_RAW_EMAIL_RELAY',
+        engine: relayResult.engine
+      });
+    }
+
+    // 1. Jalur Utama Mutasi Pembayaran QRIS dari MacroDroid -> Langsung Ubah Status UNPAID di Firebase!
+    if (action === 'MACRODROID_PAYMENT_WEBHOOK' || action === 'PAYMENT_WEBHOOK' || action === 'QRIS_MUTATION') {
+      return handleMacroDroidPaymentMutation(payload, startMs);
+    }
+
+    // 2. Endpoint Riwayat Mutasi untuk Panel Admin
     if (action === 'CHECK_PAYMENT' || action === 'GET_RECENT_MUTATIONS') {
       var recentList = getStoredRecentMutations(1200000);
-      var checkAmt = Number(payload.amount || payload.nominal || payload.total || 0);
-      var sinceTime = Number(payload.since || 0);
-      var foundMatch = checkAmt > 0 ? findMatchingMutationForAmount(recentList, checkAmt, sinceTime) : null;
       return buildJsonResponse({
         ok: true,
         status: 'ok',
         action: action,
-        matched: Boolean(foundMatch),
-        matchedMutation: foundMatch || null,
         recentMutations: recentList.slice(0, 20),
         timestamp: Date.now()
       });
-    }
-
-    // 2. Jalur Cepat Mutasi Pembayaran QRIS dari MacroDroid
-    if (action === 'MACRODROID_PAYMENT_WEBHOOK' || action === 'PAYMENT_WEBHOOK' || action === 'QRIS_MUTATION') {
-      return handleMacroDroidPaymentMutation(payload, startMs);
     }
 
     // 3. Simpan Saran Produk Cadangan
@@ -214,7 +352,7 @@ function doPost(e) {
 }
 
 /* ============================================================================
- * 1. ENGINE VERIFIKASI PEMBAYARAN QRIS SANGAT CEPAT (HYBRID MEMORY + FIRESTORE)
+ * 1. ENGINE VERIFIKASI PEMBAYARAN QRIS LANGSUNG KE FIREBASE (SERVER-DRIVEN 100%)
  * ============================================================================ */
 function handleMacroDroidPaymentMutation(data, startMs) {
   var nowMs = Date.now();
@@ -222,7 +360,6 @@ function handleMacroDroidPaymentMutation(data, startMs) {
     data.title || data.appName || data.app || data.package || data.notif_title || ''
   ).trim();
 
-  // Gabungkan seluruh field yang mungkin dikirim oleh MacroDroid
   var textParts = [
     data.text,
     data.notification,
@@ -246,7 +383,6 @@ function handleMacroDroidPaymentMutation(data, startMs) {
     }
   }
 
-  // Jika masih kosong, rangkum seluruh nilai string dari objek payload
   if (!rawTextJoined.trim()) {
     for (var k in data) {
       if (k !== 'secret' && k !== 'key' && k !== 'action' && data[k]) {
@@ -256,7 +392,6 @@ function handleMacroDroidPaymentMutation(data, startMs) {
   }
 
   var combinedText = (rawTitle + ' ' + rawTextJoined).trim();
-
   var explicitAmt = data.amount || data.nominal || data.total || data.uang || data.nilai || '';
   var candidateAmounts = extractCandidateAmountsFromNotification(combinedText, explicitAmt);
 
@@ -271,215 +406,92 @@ function handleMacroDroidPaymentMutation(data, startMs) {
 
   var primaryAmount = candidateAmounts[0];
 
-  // Proteksi anti-spam notifikasi ganda dalam 4 detik yang sama
+  // Kunci Eksklusif agar 2 notifikasi serentak tidak memproses order yang sama dua kali
+  var lock = LockService.getScriptLock();
+  var hasLock = false;
   try {
-    var cache = CacheService.getScriptCache();
-    if (cache) {
-      var sigHash = 'DEDUP_' + primaryAmount + '_' + String(combinedText).replace(/\s+/g, '').slice(0, 36);
-      if (cache.get(sigHash)) {
-        return buildJsonResponse({
-          ok: true,
-          status: 'ok',
-          action: 'MACRODROID_PAYMENT_WEBHOOK',
-          deduplicated: true,
-          detectedAmount: primaryAmount,
-          candidateAmounts: candidateAmounts,
-          latencyMs: Date.now() - (startMs || nowMs)
-        });
-      }
-      cache.put(sigHash, '1', 4);
+    hasLock = lock.tryLock(6000);
+  } catch (e) {}
+
+  try {
+    var mutationRecord = saveMutationToServerMemory(primaryAmount, candidateAmounts, combinedText, nowMs);
+
+    // LANGSUNG CARI & UBAH STATUS ORDER UNPAID DI FIREBASE TANPA MENUNGGU WEB USER!
+    var syncResult = verifyAndProcessUnpaidOrderDirectlyInFirebase(primaryAmount, candidateAmounts, combinedText, nowMs);
+
+    return buildJsonResponse({
+      ok: true,
+      status: 'ok',
+      version: 'v27.4',
+      action: 'MACRODROID_PAYMENT_WEBHOOK',
+      mutationId: mutationRecord.id,
+      detectedAmount: primaryAmount,
+      candidateAmounts: candidateAmounts,
+      matchedOrderIds: syncResult.matchedOrderIds,
+      processedStatuses: syncResult.processedStatuses,
+      firestoreSynced: syncResult.synced,
+      firestoreHttpCodes: syncResult.httpCodes,
+      latencyMs: Date.now() - (startMs || nowMs),
+      timestamp: nowMs
+    });
+  } finally {
+    if (hasLock) {
+      try { lock.releaseLock(); } catch (e) {}
     }
-  } catch (cErr) {}
-
-  // SIMPAN LANGSUNG KE MEMORI SERVER APPS SCRIPT (100% BEBAS BLOKIR FIRESTORE RULES)
-  var mutationRecord = saveMutationToServerMemory(primaryAmount, candidateAmounts, combinedText, nowMs);
-
-  // DORONG PARALEL KE FIRESTORE (ROOT PATH & WORKSPACE PATH)
-  var syncResult = pushFastPaymentSignalAndVerifyOrder(primaryAmount, candidateAmounts, combinedText, nowMs);
-
-  return buildJsonResponse({
-    ok: true,
-    status: 'ok',
-    action: 'MACRODROID_PAYMENT_WEBHOOK',
-    mutationId: mutationRecord.id,
-    detectedAmount: primaryAmount,
-    candidateAmounts: candidateAmounts,
-    matchedOrderIds: syncResult.matchedOrderIds,
-    firestoreSynced: syncResult.synced,
-    firestoreHttpCodes: syncResult.httpCodes,
-    latencyMs: Date.now() - (startMs || nowMs),
-    timestamp: nowMs
-  });
+  }
 }
 
 /**
- * Menyimpan mutasi pembayaran ke CacheService & PropertiesService agar Web User / Admin
- * dapat menarik data pembayaran secara real-time meskipun Firestore REST API diblokir Rules
+ * Helper Eksekusi Request Firestore dengan Fallback OAuth Token Otomatis
  */
-function saveMutationToServerMemory(primaryAmount, candidateAmounts, rawText, timestampMs) {
-  var record = {
-    id: 'MUT_' + timestampMs + '_' + primaryAmount,
-    amount: Number(primaryAmount),
-    candidateAmounts: candidateAmounts,
-    rawText: String(rawText || '').slice(0, 280),
-    timestamp: Number(timestampMs)
-  };
+function executeFirestoreRequestsSmart(requestsArray) {
+  if (!requestsArray || requestsArray.length === 0) return [];
+  var responses = UrlFetchApp.fetchAll(requestsArray);
 
-  try {
-    var list = getStoredRecentMutations(1800000); // Simpan riwayat 30 menit terakhir
-    list.unshift(record);
-    if (list.length > 40) {
-      list = list.slice(0, 40);
+  var needOAuthRetry = false;
+  for (var i = 0; i < responses.length; i++) {
+    var code = responses[i].getResponseCode();
+    if (code === 401 || code === 403) {
+      needOAuthRetry = true;
+      break;
     }
-    var serialized = JSON.stringify(list);
-
-    var cache = CacheService.getScriptCache();
-    if (cache) {
-      cache.put('RECENT_QRIS_MUTATIONS_V273', serialized, 1800);
-    }
-    var props = PropertiesService.getScriptProperties();
-    if (props) {
-      props.setProperty('RECENT_QRIS_MUTATIONS_V273', serialized);
-    }
-  } catch (err) {
-    Logger.log('Save Mutation Memory Error: ' + err);
   }
-  return record;
-}
 
-function getStoredRecentMutations(maxAgeMs) {
-  var now = Date.now();
-  var limitAge = maxAgeMs || 1200000;
-  var rawJson = '';
-
-  try {
-    var cache = CacheService.getScriptCache();
-    if (cache) {
-      rawJson = cache.get('RECENT_QRIS_MUTATIONS_V273') || '';
-    }
-    if (!rawJson) {
-      var props = PropertiesService.getScriptProperties();
-      if (props) {
-        rawJson = props.getProperty('RECENT_QRIS_MUTATIONS_V273') || '';
-      }
-    }
-    if (!rawJson) return [];
-
-    var parsed = JSON.parse(rawJson);
-    if (!Array.isArray(parsed)) return [];
-
-    var valid = [];
-    for (var i = 0; i < parsed.length; i++) {
-      var item = parsed[i];
-      if (item && item.timestamp && (now - Number(item.timestamp) <= limitAge)) {
-        valid.push(item);
-      }
-    }
-    return valid;
-  } catch (e) {
-    return [];
-  }
-}
-
-function findMatchingMutationForAmount(mutationsList, targetAmount, sinceMs) {
-  var amt = Math.round(Number(targetAmount) || 0);
-  if (amt <= 0 || !Array.isArray(mutationsList)) return null;
-
-  var amtPlain = String(amt);
-  var amtDot = amt.toLocaleString('id-ID'); // contoh: 15.123
-  var amtComma = amtDot.replace(/\./g, ','); // contoh: 15,123
-
-  for (var i = 0; i < mutationsList.length; i++) {
-    var m = mutationsList[i];
-    if (!m) continue;
-    if (sinceMs > 0 && Number(m.timestamp) < (sinceMs - 90000)) {
-      continue;
-    }
-
-    if (Number(m.amount) === amt) {
-      return m;
-    }
-    if (Array.isArray(m.candidateAmounts)) {
-      for (var c = 0; c < m.candidateAmounts.length; c++) {
-        if (Number(m.candidateAmounts[c]) === amt) {
-          return m;
+  if (needOAuthRetry) {
+    try {
+      var token = ScriptApp.getOAuthToken();
+      if (token) {
+        var authedRequests = [];
+        for (var j = 0; j < requestsArray.length; j++) {
+          var reqCopy = {};
+          for (var k in requestsArray[j]) reqCopy[k] = requestsArray[j][k];
+          reqCopy.headers = reqCopy.headers || {};
+          reqCopy.headers['Authorization'] = 'Bearer ' + token;
+          authedRequests.push(reqCopy);
         }
+        responses = UrlFetchApp.fetchAll(authedRequests);
       }
-    }
-    var raw = String(m.rawText || '');
-    if (raw && (raw.indexOf(amtDot) !== -1 || raw.indexOf(amtComma) !== -1 || raw.indexOf(amtPlain) !== -1)) {
-      return m;
-    }
+    } catch (authErr) {}
   }
-  return null;
+  return responses;
 }
 
 /**
- * Ekstraktor Nominal QRIS Sangat Akurat
- * Mendukung GoPay Merchant, DANA Bisnis, OVO, ShopeePay, SeaBank, BCA, BRI, Mandiri, BNI, Jago, Nobu, Soundbox, dll.
+ * LANGSUNG MENGUBAH STATUS UNPAID DI FIREBASE (`orders`) DAN MENGIRIM STOK OTOMATIS JIKA ADA (#1)
+ * - Memperbaiki bug v27.3: TIDAK lagi memakai `allDescendants: true` yang menyebabkan error 400 `FAILED_PRECONDITION`.
+ * - Mengecek di Root Path (`/documents:runQuery`) dan Workspace Path (`/documents/artifacts/{appId}/public/data:runQuery`).
+ * - Jika order cocok dan produk memiliki stok `Ready` di koleksi `stocks`:
+ *   -> Ambil stok, update `stocks` menjadi `Used` (atau tambah `usedQuota`),
+ *   -> Update `orders` langsung menjadi `status: 'SUCCESS'`, `paymentVerified: true`, `adminReply: ...`, `autoDelivered: true`,
+ *   -> Langsung kirim email struk & akun ke pembeli (jika `emailReceiptEnabled !== false`).
+ * - Jika order cocok namun produk manual/game atau stok kosong:
+ *   -> Update `orders` langsung menjadi `status: 'PENDING'`, `paymentVerified: true`, `paidAt: timestampMs`.
  */
-function extractCandidateAmountsFromNotification(text, explicitAmount) {
-  var results = [];
-
-  function addAmount(val) {
-    var num = Math.round(Number(val));
-    if (!isNaN(num) && num >= 100 && num <= 100000000 && results.indexOf(num) === -1) {
-      results.push(num);
-    }
-  }
-
-  if (explicitAmount !== undefined && explicitAmount !== null && String(explicitAmount).trim() !== '') {
-    var cleanExplicit = String(explicitAmount)
-      .replace(/[,\.]00\b/g, '')
-      .replace(/,-/g, '')
-      .replace(/[^0-9]/g, '');
-    if (cleanExplicit) addAmount(parseInt(cleanExplicit, 10));
-  }
-
-  if (!text) return results;
-
-  // Bersihkan akhiran desimal sen seperti ,00 atau .00 atau ,-
-  var cleaned = String(text)
-    .replace(/(\d)[,\.]00(?!\d)/g, '$1')
-    .replace(/(\d)[,\.]0(?!\d)/g, '$1')
-    .replace(/,-/g, '');
-
-  // 1. Prioritas Utama: Pola mata uang / kata kunci pembayaran masuk
-  var regexRp = /(?:rp\.?|idr|sebesar|senilai|masuk|terima|diterima|pembayaran|kredit|qris|total|nominal|\+)\s*[:\.]?\s*([0-9]{1,3}(?:[.,][0-9]{3})+|[0-9]{3,8})\b/gi;
-  var match;
-  while ((match = regexRp.exec(cleaned)) !== null) {
-    var numStr = match[1].replace(/[^0-9]/g, '');
-    var val = parseInt(numStr, 10);
-    if (!isNaN(val) && val >= 100) {
-      addAmount(val);
-    }
-  }
-
-  // 2. Cadangan: Angka ribuan bertitik/koma (contoh: 15.234 atau 25,108) atau angka 3-8 digit
-  var genericRegex = /\b([0-9]{1,3}(?:[.,][0-9]{3})+|[0-9]{3,8})\b/g;
-  var gMatch;
-  while ((gMatch = genericRegex.exec(cleaned)) !== null) {
-    var rawToken = gMatch[1];
-    var gNum = parseInt(rawToken.replace(/[^0-9]/g, ''), 10);
-    if (gNum >= 2020 && gNum <= 2035 && rawToken.indexOf('.') === -1 && rawToken.indexOf(',') === -1) {
-      continue;
-    }
-    if (!isNaN(gNum) && gNum >= 500 && gNum <= 50000000) {
-      addAmount(gNum);
-    }
-  }
-
-  return results;
-}
-
-/**
- * Mendorong sinyal pembayaran ke Firestore secara PARALEL (mendukung Root Path & Workspace Path)
- * sekaligus langsung menandai dokumen order `UNPAID` yang cocok menjadi `PAID` (`paymentVerified: true`)
- */
-function pushFastPaymentSignalAndVerifyOrder(primaryAmount, candidateAmounts, rawNotifText, timestampMs) {
+function verifyAndProcessUnpaidOrderDirectlyInFirebase(primaryAmount, candidateAmounts, rawNotifText, timestampMs) {
   var baseUrl = 'https://firestore.googleapis.com/v1/projects/' + CONFIG.FIREBASE_PROJECT_ID + '/databases/(default)/documents';
-  var wsPrefix = baseUrl + '/artifacts/' + CONFIG.WORKSPACE_APP_ID + '/public/data';
+  var wsParentUrl = baseUrl + '/artifacts/' + CONFIG.WORKSPACE_APP_ID + '/public/data';
   var matchedOrderIds = [];
+  var processedStatuses = [];
   var httpCodes = [];
 
   try {
@@ -487,10 +499,9 @@ function pushFastPaymentSignalAndVerifyOrder(primaryAmount, candidateAmounts, ra
     for (var i = 0; i < candidateAmounts.length; i++) {
       arrayValues.push({ integerValue: String(candidateAmounts[i]) });
     }
-
     var safeRawText = String(rawNotifText || '').slice(0, 280);
 
-    var patchBody = {
+    var patchSettingsBody = {
       fields: {
         lastPaymentDetected: { integerValue: String(primaryAmount) },
         lastPaymentTimestamp: { integerValue: String(timestampMs) },
@@ -518,9 +529,10 @@ function pushFastPaymentSignalAndVerifyOrder(primaryAmount, candidateAmounts, ra
 
     var maskParams = '?updateMask.fieldPaths=lastPaymentDetected&updateMask.fieldPaths=lastPaymentTimestamp&updateMask.fieldPaths=lastPaymentMutation';
 
-    var queryBody = {
+    // Query TANPA allDescendants: true agar 100% bebas error FAILED_PRECONDITION index!
+    var singleCollectionQueryBody = {
       structuredQuery: {
-        from: [{ collectionId: 'orders', allDescendants: true }],
+        from: [{ collectionId: 'orders' }],
         where: {
           fieldFilter: {
             field: { fieldPath: 'status' },
@@ -528,101 +540,563 @@ function pushFastPaymentSignalAndVerifyOrder(primaryAmount, candidateAmounts, ra
             value: { stringValue: 'UNPAID' }
           }
         },
-        limit: 40
+        limit: 50
       }
     };
 
-    var requests = [
-      // 1. Root settings/mainConfig
+    var initialRequests = [
+      // 0: Query Root orders (status == UNPAID)
+      {
+        url: baseUrl + ':runQuery',
+        method: 'post',
+        contentType: 'application/json',
+        payload: JSON.stringify(singleCollectionQueryBody),
+        muteHttpExceptions: true
+      },
+      // 1: Query Workspace orders (status == UNPAID)
+      {
+        url: wsParentUrl + ':runQuery',
+        method: 'post',
+        contentType: 'application/json',
+        payload: JSON.stringify(singleCollectionQueryBody),
+        muteHttpExceptions: true
+      },
+      // 2: Update Root settings/mainConfig
       {
         url: baseUrl + '/settings/mainConfig' + maskParams,
         method: 'patch',
         contentType: 'application/json',
-        payload: JSON.stringify(patchBody),
+        payload: JSON.stringify(patchSettingsBody),
         muteHttpExceptions: true
       },
-      // 2. Workspace settings/mainConfig
+      // 3: Update Workspace settings/mainConfig
       {
-        url: wsPrefix + '/settings/mainConfig' + maskParams,
+        url: wsParentUrl + '/settings/mainConfig' + maskParams,
         method: 'patch',
         contentType: 'application/json',
-        payload: JSON.stringify(patchBody),
+        payload: JSON.stringify(patchSettingsBody),
         muteHttpExceptions: true
       },
-      // 3. Root payment_mutations
+      // 4: Catat log ke payment_mutations
       {
         url: baseUrl + '/payment_mutations',
         method: 'post',
         contentType: 'application/json',
         payload: JSON.stringify(mutBody),
         muteHttpExceptions: true
-      },
-      // 4. Query semua koleksi orders (termasuk subkoleksi/workspace) yang berstatus UNPAID
-      {
-        url: baseUrl + ':runQuery',
-        method: 'post',
-        contentType: 'application/json',
-        payload: JSON.stringify(queryBody),
-        muteHttpExceptions: true
       }
     ];
 
-    var responses = UrlFetchApp.fetchAll(requests);
+    var responses = executeFirestoreRequestsSmart(initialRequests);
     for (var c = 0; c < responses.length; c++) {
       httpCodes.push(responses[c].getResponseCode());
     }
 
-    var queryResp = responses[3];
-    if (queryResp && queryResp.getResponseCode() === 200) {
-      var rows = JSON.parse(queryResp.getContentText() || '[]');
-      var orderPatchRequests = [];
+    // Gabungkan hasil dokumen order UNPAID dari Root Path & Workspace Path
+    var candidateDocs = [];
+    for (var qIdx = 0; qIdx <= 1; qIdx++) {
+      var qResp = responses[qIdx];
+      if (qResp && qResp.getResponseCode() === 200) {
+        var rows = JSON.parse(qResp.getContentText() || '[]');
+        for (var r = 0; r < rows.length; r++) {
+          if (rows[r] && rows[r].document && rows[r].document.fields) {
+            candidateDocs.push({
+              doc: rows[r].document,
+              isWorkspace: (qIdx === 1)
+            });
+          }
+        }
+      }
+    }
 
-      for (var r = 0; r < rows.length; r++) {
-        var docObj = rows[r] && rows[r].document;
-        if (!docObj || !docObj.fields) continue;
+    // Fallback: Jika query terfilter kosong, ambil daftar dokumen terbaru dari koleksi orders secara langsung
+    if (candidateDocs.length === 0) {
+      var listResps = executeFirestoreRequestsSmart([
+        { url: baseUrl + '/orders?pageSize=35', method: 'get', muteHttpExceptions: true },
+        { url: wsParentUrl + '/orders?pageSize=35', method: 'get', muteHttpExceptions: true }
+      ]);
+      for (var lIdx = 0; lIdx <= 1; lIdx++) {
+        var lResp = listResps[lIdx];
+        if (lResp && lResp.getResponseCode() === 200) {
+          var listData = JSON.parse(lResp.getContentText() || '{}');
+          var docsArr = listData.documents || [];
+          for (var d = 0; d < docsArr.length; d++) {
+            var docItem = docsArr[d];
+            var stVal = extractFirestoreString(docItem.fields && docItem.fields.status);
+            if (stVal === 'UNPAID' || stVal === 'PENDING_PAYMENT') {
+              candidateDocs.push({
+                doc: docItem,
+                isWorkspace: (lIdx === 1)
+              });
+            }
+          }
+        }
+      }
+    }
 
-        var f = docObj.fields;
-        var finalTotal = extractFirestoreInt(f.finalTotal);
-        var uniqueTotal = extractFirestoreInt(f.uniqueTotal);
-        var orderIdStr = f.id && f.id.stringValue ? f.id.stringValue : '';
+    // Cocokkan nominal pembayaran dengan pesanan UNPAID
+    for (var m = 0; m < candidateDocs.length; m++) {
+      var entry = candidateDocs[m];
+      var docObj = entry.doc;
+      var f = docObj.fields || {};
 
-        var isAmountMatch = (
-          (finalTotal > 0 && candidateAmounts.indexOf(finalTotal) !== -1) ||
-          (uniqueTotal > 0 && candidateAmounts.indexOf(uniqueTotal) !== -1)
-        );
+      var finalTotal = extractFirestoreInt(f.finalTotal);
+      var uniqueTotal = extractFirestoreInt(f.uniqueTotal);
+      var orderIdStr = extractFirestoreString(f.id) || docObj.name.split('/').pop();
 
-        if (isAmountMatch) {
-          matchedOrderIds.push(orderIdStr || docObj.name.split('/').pop());
-          var docPatchUrl = 'https://firestore.googleapis.com/v1/' + docObj.name +
-            '?updateMask.fieldPaths=status&updateMask.fieldPaths=paymentVerified&updateMask.fieldPaths=paidAt';
+      var isAmountMatch = (
+        (finalTotal > 0 && candidateAmounts.indexOf(finalTotal) !== -1) ||
+        (uniqueTotal > 0 && candidateAmounts.indexOf(uniqueTotal) !== -1)
+      );
 
-          orderPatchRequests.push({
-            url: docPatchUrl,
-            method: 'patch',
-            contentType: 'application/json',
-            payload: JSON.stringify({
-              fields: {
-                status: { stringValue: 'PAID' },
-                paymentVerified: { booleanValue: true },
-                paidAt: { integerValue: String(timestampMs) }
-              }
-            }),
-            muteHttpExceptions: true
-          });
+      // Cek juga kecocokan teks titik/koma pada isi notifikasi
+      if (!isAmountMatch && finalTotal > 0 && safeRawText) {
+        var dotStr = finalTotal.toLocaleString('id-ID');
+        var commaStr = dotStr.replace(/\./g, ',');
+        if (safeRawText.indexOf(dotStr) !== -1 || safeRawText.indexOf(commaStr) !== -1 || safeRawText.indexOf(String(finalTotal)) !== -1) {
+          isAmountMatch = true;
         }
       }
 
-      if (orderPatchRequests.length > 0) {
-        UrlFetchApp.fetchAll(orderPatchRequests);
+      if (isAmountMatch) {
+        matchedOrderIds.push(orderIdStr);
+        var parentQueryUrl = entry.isWorkspace ? wsParentUrl : baseUrl;
+        var processOutcome = processMatchedOrderInFirebaseDirect(docObj, parentQueryUrl, timestampMs);
+        processedStatuses.push(orderIdStr + ':' + processOutcome);
       }
     }
 
     var anySuccess = httpCodes.indexOf(200) !== -1;
-    return { synced: anySuccess, matchedOrderIds: matchedOrderIds, httpCodes: httpCodes };
+    return {
+      synced: anySuccess,
+      matchedOrderIds: matchedOrderIds,
+      processedStatuses: processedStatuses,
+      httpCodes: httpCodes
+    };
   } catch (err) {
-    Logger.log('Fast Firestore Sync Error: ' + err);
-    return { synced: false, matchedOrderIds: matchedOrderIds, httpCodes: httpCodes };
+    Logger.log('Direct Firebase QRIS Verification Error: ' + err);
+    return {
+      synced: false,
+      matchedOrderIds: matchedOrderIds,
+      processedStatuses: processedStatuses,
+      httpCodes: httpCodes
+    };
   }
+}
+
+/**
+ * Memproses dokumen Order yang sudah cocok di Firebase secara langsung:
+ * 1. Mengecek apakah produk otomatis dan memiliki stok `Ready` di koleksi `stocks`.
+ * 2. Jika ada stok Ready -> langsung ambil stok, ubah status order jadi `SUCCESS`, isi `adminReply`, dan kirim email struk.
+ * 3. Jika tidak ada stok / produk manual -> langsung ubah status order jadi `PENDING` (`paymentVerified: true`).
+ */
+function processMatchedOrderInFirebaseDirect(orderDoc, parentQueryUrl, timestampMs) {
+  var f = orderDoc.fields || {};
+  var orderId = extractFirestoreString(f.id) || orderDoc.name.split('/').pop();
+  var userEmail = extractFirestoreString(f.userEmail) || extractFirestoreString(f.buyerEmail);
+  var buyerName = extractFirestoreString(f.buyerName) || (userEmail ? userEmail.split('@')[0] : 'Pelanggan');
+  var finalTotal = extractFirestoreInt(f.finalTotal) || extractFirestoreInt(f.uniqueTotal);
+  var durationDays = extractFirestoreInt(f.durationDays);
+  var emailReceiptEnabled = f.emailReceiptEnabled && f.emailReceiptEnabled.booleanValue === false ? false : true;
+
+  // Ekstrak informasi item pertama dari array items
+  var itemBrand = extractFirestoreString(f.productName);
+  var itemVariant = extractFirestoreString(f.variantName);
+  var itemFullName = itemBrand && itemVariant ? (itemBrand + ' - ' + itemVariant) : (itemBrand || 'Produk Vipercell');
+  var itemType = 'app';
+  var itemProcessType = 'auto';
+  var itemQty = 1;
+  var targetId = extractFirestoreString(f.targetId) || '-';
+
+  if (f.items && f.items.arrayValue && Array.isArray(f.items.arrayValue.values) && f.items.arrayValue.values.length > 0) {
+    var firstItemMap = f.items.arrayValue.values[0].mapValue;
+    if (firstItemMap && firstItemMap.fields) {
+      var itf = firstItemMap.fields;
+      itemBrand = extractFirestoreString(itf.brandName) || itemBrand;
+      itemVariant = extractFirestoreString(itf.exactItemName) || itemVariant;
+      itemFullName = extractFirestoreString(itf.name) || itemFullName;
+      itemType = (extractFirestoreString(itf.type) || 'app').toLowerCase();
+      itemProcessType = (extractFirestoreString(itf.processType) || 'auto').toLowerCase();
+      itemQty = Math.max(1, extractFirestoreInt(itf.qty) || 1);
+      targetId = extractFirestoreString(itf.playerInfo) || targetId;
+      if (!durationDays) durationDays = extractFirestoreInt(itf.durationDays);
+    }
+  }
+
+  var deliveredCredentialsText = '';
+
+  // Coba ambil stok otomatis dari koleksi `stocks` jika bukan produk manual/game
+  if (itemType !== 'game' && itemProcessType !== 'manual' && itemBrand) {
+    deliveredCredentialsText = tryClaimReadyStockFromFirestoreDirect(
+      parentQueryUrl,
+      itemBrand,
+      itemVariant,
+      itemQty,
+      orderId,
+      userEmail,
+      timestampMs
+    );
+  }
+
+  var docPatchBaseUrl = 'https://firestore.googleapis.com/v1/' + orderDoc.name;
+  var subEndAt = durationDays > 0 ? (timestampMs + (durationDays * 86400000)) : 0;
+
+  if (deliveredCredentialsText) {
+    var finalReply = 'Terima kasih telah berbelanja di Vipercell.\n\n' + deliveredCredentialsText;
+    var maskSuccess = '?updateMask.fieldPaths=status' +
+      '&updateMask.fieldPaths=paymentVerified' +
+      '&updateMask.fieldPaths=paidAt' +
+      '&updateMask.fieldPaths=adminReply' +
+      '&updateMask.fieldPaths=autoDelivered' +
+      '&updateMask.fieldPaths=deliveredAt' +
+      '&updateMask.fieldPaths=emailSent';
+
+    var successFields = {
+      status: { stringValue: 'SUCCESS' },
+      paymentVerified: { booleanValue: true },
+      paidAt: { integerValue: String(timestampMs) },
+      adminReply: { stringValue: finalReply },
+      autoDelivered: { booleanValue: true },
+      deliveredAt: { integerValue: String(timestampMs) },
+      emailSent: { booleanValue: Boolean(emailReceiptEnabled && userEmail && userEmail.indexOf('@') !== -1) }
+    };
+
+    if (durationDays > 0) {
+      maskSuccess += '&updateMask.fieldPaths=durationDays&updateMask.fieldPaths=subscriptionStartAt&updateMask.fieldPaths=subscriptionEndAt&updateMask.fieldPaths=subscriptionStatus';
+      successFields.durationDays = { integerValue: String(durationDays) };
+      successFields.subscriptionStartAt = { integerValue: String(timestampMs) };
+      successFields.subscriptionEndAt = { integerValue: String(subEndAt) };
+      successFields.subscriptionStatus = { stringValue: 'ACTIVE' };
+    }
+
+    executeFirestoreRequestsSmart([{
+      url: docPatchBaseUrl + maskSuccess,
+      method: 'patch',
+      contentType: 'application/json',
+      payload: JSON.stringify({ fields: successFields }),
+      muteHttpExceptions: true
+    }]);
+
+    // Kirim struk & akun otomatis ke email pembeli jika diizinkan
+    if (emailReceiptEnabled && userEmail && userEmail.indexOf('@') !== -1) {
+      try {
+        handleSendOrderDeliveryEmail({
+          orderId: orderId,
+          buyerEmail: userEmail,
+          buyerName: buyerName,
+          productName: itemBrand,
+          variantName: itemVariant,
+          itemName: itemFullName,
+          totalAmount: finalTotal,
+          paymentMethod: 'QRIS OTOMATIS',
+          targetId: targetId,
+          accountDetails: finalReply,
+          durationDays: durationDays,
+          subscriptionEndAt: subEndAt,
+          emailReceiptEnabled: true
+        });
+      } catch (emErr) {}
+    }
+
+    return 'SUCCESS_AUTO_DELIVERED';
+  } else {
+    // Jika produk manual/game atau stok di Gudang Stok sedang kosong -> Langsung set PENDING (Diproses Admin)
+    var maskPending = '?updateMask.fieldPaths=status&updateMask.fieldPaths=paymentVerified&updateMask.fieldPaths=paidAt';
+    var pendingFields = {
+      status: { stringValue: 'PENDING' },
+      paymentVerified: { booleanValue: true },
+      paidAt: { integerValue: String(timestampMs) }
+    };
+
+    if (durationDays > 0) {
+      maskPending += '&updateMask.fieldPaths=durationDays&updateMask.fieldPaths=subscriptionStartAt&updateMask.fieldPaths=subscriptionEndAt&updateMask.fieldPaths=subscriptionStatus';
+      pendingFields.durationDays = { integerValue: String(durationDays) };
+      pendingFields.subscriptionStartAt = { integerValue: String(timestampMs) };
+      pendingFields.subscriptionEndAt = { integerValue: String(subEndAt) };
+      pendingFields.subscriptionStatus = { stringValue: 'ACTIVE' };
+    }
+
+    executeFirestoreRequestsSmart([{
+      url: docPatchBaseUrl + maskPending,
+      method: 'patch',
+      contentType: 'application/json',
+      payload: JSON.stringify({ fields: pendingFields }),
+      muteHttpExceptions: true
+    }]);
+
+    return 'PENDING_ADMIN_PROCESS';
+  }
+}
+
+/**
+ * Mencari dan mengklaim stok `Ready` dari koleksi `stocks` di Firestore secara langsung
+ */
+function tryClaimReadyStockFromFirestoreDirect(parentQueryUrl, targetBrand, targetVariant, neededQty, orderId, buyerEmail, timestampMs) {
+  try {
+    var stockQuery = {
+      structuredQuery: {
+        from: [{ collectionId: 'stocks' }],
+        where: {
+          fieldFilter: {
+            field: { fieldPath: 'status' },
+            op: 'EQUAL',
+            value: { stringValue: 'Ready' }
+          }
+        },
+        limit: 100
+      }
+    };
+
+    var qResps = executeFirestoreRequestsSmart([{
+      url: parentQueryUrl + ':runQuery',
+      method: 'post',
+      contentType: 'application/json',
+      payload: JSON.stringify(stockQuery),
+      muteHttpExceptions: true
+    }]);
+
+    if (!qResps[0] || qResps[0].getResponseCode() !== 200) return '';
+
+    var rows = JSON.parse(qResps[0].getContentText() || '[]');
+    var matchingStockDocs = [];
+    var normBrand = String(targetBrand || '').trim().toLowerCase();
+    var normVar = String(targetVariant || '').trim().toLowerCase();
+
+    for (var i = 0; i < rows.length; i++) {
+      var sDoc = rows[i] && rows[i].document;
+      if (!sDoc || !sDoc.fields) continue;
+      var sf = sDoc.fields;
+      var sBrand = extractFirestoreString(sf.brand).trim().toLowerCase();
+      var sItem = extractFirestoreString(sf.itemName).trim().toLowerCase();
+
+      if (sBrand === normBrand && (!normVar || sItem === normVar)) {
+        matchingStockDocs.push(sDoc);
+      }
+    }
+
+    if (matchingStockDocs.length === 0) return '';
+
+    // 1. Cek apakah ada stok Reusable (tanpa batas)
+    for (var r = 0; r < matchingStockDocs.length; r++) {
+      var rDoc = matchingStockDocs[r];
+      var rf = rDoc.fields;
+      if (rf.isReusable && rf.isReusable.booleanValue === true) {
+        var rawData = extractFirestoreString(rf.data);
+        var sentCount = extractFirestoreInt(rf.sentCount) + neededQty;
+        var rPatchUrl = 'https://firestore.googleapis.com/v1/' + rDoc.name +
+          '?updateMask.fieldPaths=sentCount&updateMask.fieldPaths=lastSentAt&updateMask.fieldPaths=lastOrderId';
+        executeFirestoreRequestsSmart([{
+          url: rPatchUrl,
+          method: 'patch',
+          contentType: 'application/json',
+          payload: JSON.stringify({
+            fields: {
+              sentCount: { integerValue: String(sentCount) },
+              lastSentAt: { integerValue: String(timestampMs) },
+              lastOrderId: { stringValue: orderId }
+            }
+          }),
+          muteHttpExceptions: true
+        }]);
+        return formatStockCredentialLineGas(rawData, extractFirestoreString(rf.stockFormat) || 'REUSABLE', '');
+      }
+    }
+
+    // 2. Ambil stok Private / Sharing / Email OAuth sesuai jumlah neededQty
+    var collectedLines = [];
+    var stockPatchRequests = [];
+
+    for (var s = 0; s < matchingStockDocs.length; s++) {
+      if (collectedLines.length >= neededQty) break;
+      var stDoc = matchingStockDocs[s];
+      var stf = stDoc.fields;
+      var maxQ = Math.max(1, extractFirestoreInt(stf.maxQuota) || 1);
+      var usedQ = extractFirestoreInt(stf.usedQuota) || 0;
+
+      if (usedQ < maxQ) {
+        var nextUsed = usedQ + 1;
+        var nextStatus = nextUsed >= maxQ ? 'Used' : 'Ready';
+        var slotLabel = maxQ > 1 ? (' (Slot #' + nextUsed + '/' + maxQ + ')') : '';
+        var stockMode = extractFirestoreString(stf.stockFormat) || extractFirestoreString(stf.mode) || 'PRIVATE';
+        var rawCred = extractFirestoreString(stf.data);
+
+        collectedLines.push(formatStockCredentialLineGas(rawCred, stockMode, slotLabel));
+
+        var stPatchUrl = 'https://firestore.googleapis.com/v1/' + stDoc.name +
+          '?updateMask.fieldPaths=usedQuota&updateMask.fieldPaths=status&updateMask.fieldPaths=usedAt&updateMask.fieldPaths=orderId';
+
+        stockPatchRequests.push({
+          url: stPatchUrl,
+          method: 'patch',
+          contentType: 'application/json',
+          payload: JSON.stringify({
+            fields: {
+              usedQuota: { integerValue: String(nextUsed) },
+              status: { stringValue: nextStatus },
+              usedAt: { integerValue: String(timestampMs) },
+              orderId: { stringValue: orderId }
+            }
+          }),
+          muteHttpExceptions: true
+        });
+      }
+    }
+
+    if (stockPatchRequests.length > 0) {
+      executeFirestoreRequestsSmart(stockPatchRequests);
+    }
+
+    return collectedLines.join('\n\n');
+  } catch (e) {
+    Logger.log('Claim Stock Error: ' + e);
+    return '';
+  }
+}
+
+function formatStockCredentialLineGas(rawStr, stockMode, slotInfo) {
+  var clean = String(rawStr || '').trim();
+  if (!clean) return '';
+
+  var parts = clean.split('|');
+  for (var i = 0; i < parts.length; i++) parts[i] = parts[i].trim();
+
+  var isEmailOAuth = (stockMode === 'EMAIL_OAUTH' || parts.length >= 4);
+  if (isEmailOAuth && parts.length >= 4) {
+    var emailAddr = parts[0] || '-';
+    var passStr = parts[1] || '-';
+    var refreshToken = parts[2] || '-';
+    var clientId = parts[3] || '-';
+    var fourPart = emailAddr + '|' + passStr + '|' + refreshToken + '|' + clientId;
+
+    var out = '[PRODUK EMAIL' + (slotInfo || '') + ']\n';
+    out += 'FORMAT_UTUH : ' + fourPart + '\n';
+    out += 'Email       : ' + emailAddr + '\n';
+    out += 'Password    : ' + passStr + '\n';
+    out += 'RefreshToken: ' + refreshToken + '\n';
+    out += 'Client_ID   : ' + clientId;
+    return out;
+  }
+
+  if (parts.length >= 2) {
+    var ket = parts.length > 2 ? parts.slice(2).join(' | ') : '-';
+    return '[DETAIL AKUN' + (slotInfo || '') + ']\nEmail / ID : ' + (parts[0] || '-') + '\nPassword   : ' + (parts[1] || '-') + '\nKeterangan : ' + (ket || '-');
+  }
+
+  return '[DETAIL PESANAN' + (slotInfo || '') + ']\n' + clean;
+}
+
+function saveMutationToServerMemory(primaryAmount, candidateAmounts, rawText, timestampMs) {
+  var record = {
+    id: 'MUT_' + timestampMs + '_' + primaryAmount,
+    amount: Number(primaryAmount),
+    candidateAmounts: candidateAmounts,
+    rawText: String(rawText || '').slice(0, 280),
+    timestamp: Number(timestampMs)
+  };
+
+  try {
+    var list = getStoredRecentMutations(1800000);
+    list.unshift(record);
+    if (list.length > 40) {
+      list = list.slice(0, 40);
+    }
+    var serialized = JSON.stringify(list);
+
+    var cache = CacheService.getScriptCache();
+    if (cache) {
+      cache.put('RECENT_QRIS_MUTATIONS_V274', serialized, 1800);
+    }
+    var props = PropertiesService.getScriptProperties();
+    if (props) {
+      props.setProperty('RECENT_QRIS_MUTATIONS_V274', serialized);
+    }
+  } catch (err) {}
+  return record;
+}
+
+function getStoredRecentMutations(maxAgeMs) {
+  var now = Date.now();
+  var limitAge = maxAgeMs || 1200000;
+  var rawJson = '';
+
+  try {
+    var cache = CacheService.getScriptCache();
+    if (cache) {
+      rawJson = cache.get('RECENT_QRIS_MUTATIONS_V274') || '';
+    }
+    if (!rawJson) {
+      var props = PropertiesService.getScriptProperties();
+      if (props) {
+        rawJson = props.getProperty('RECENT_QRIS_MUTATIONS_V274') || '';
+      }
+    }
+    if (!rawJson) return [];
+
+    var parsed = JSON.parse(rawJson);
+    if (!Array.isArray(parsed)) return [];
+
+    var valid = [];
+    for (var i = 0; i < parsed.length; i++) {
+      var item = parsed[i];
+      if (item && item.timestamp && (now - Number(item.timestamp) <= limitAge)) {
+        valid.push(item);
+      }
+    }
+    return valid;
+  } catch (e) {
+    return [];
+  }
+}
+
+function extractCandidateAmountsFromNotification(text, explicitAmount) {
+  var results = [];
+
+  function addAmount(val) {
+    var num = Math.round(Number(val));
+    if (!isNaN(num) && num >= 100 && num <= 100000000 && results.indexOf(num) === -1) {
+      results.push(num);
+    }
+  }
+
+  if (explicitAmount !== undefined && explicitAmount !== null && String(explicitAmount).trim() !== '') {
+    var cleanExplicit = String(explicitAmount)
+      .replace(/[,\.]00\b/g, '')
+      .replace(/,-/g, '')
+      .replace(/[^0-9]/g, '');
+    if (cleanExplicit) addAmount(parseInt(cleanExplicit, 10));
+  }
+
+  if (!text) return results;
+
+  var cleaned = String(text)
+    .replace(/(\d)[,\.]00(?!\d)/g, '$1')
+    .replace(/(\d)[,\.]0(?!\d)/g, '$1')
+    .replace(/,-/g, '');
+
+  var regexRp = /(?:rp\.?|idr|sebesar|senilai|masuk|terima|diterima|pembayaran|kredit|qris|total|nominal|\+)\s*[:\.]?\s*([0-9]{1,3}(?:[.,][0-9]{3})+|[0-9]{3,8})\b/gi;
+  var match;
+  while ((match = regexRp.exec(cleaned)) !== null) {
+    var numStr = match[1].replace(/[^0-9]/g, '');
+    var val = parseInt(numStr, 10);
+    if (!isNaN(val) && val >= 100) {
+      addAmount(val);
+    }
+  }
+
+  var genericRegex = /\b([0-9]{1,3}(?:[.,][0-9]{3})+|[0-9]{3,8})\b/g;
+  var gMatch;
+  while ((gMatch = genericRegex.exec(cleaned)) !== null) {
+    var rawToken = gMatch[1];
+    var gNum = parseInt(rawToken.replace(/[^0-9]/g, ''), 10);
+    if (gNum >= 2020 && gNum <= 2035 && rawToken.indexOf('.') === -1 && rawToken.indexOf(',') === -1) {
+      continue;
+    }
+    if (!isNaN(gNum) && gNum >= 500 && gNum <= 50000000) {
+      addAmount(gNum);
+    }
+  }
+
+  return results;
 }
 
 function extractFirestoreInt(fieldObj) {
@@ -633,9 +1107,13 @@ function extractFirestoreInt(fieldObj) {
   return 0;
 }
 
-/* ============================================================================
- * CADANGAN PENYIMPANAN SARAN PRODUK (#1)
- * ============================================================================ */
+function extractFirestoreString(fieldObj) {
+  if (!fieldObj) return '';
+  if (fieldObj.stringValue !== undefined) return String(fieldObj.stringValue);
+  if (fieldObj.integerValue !== undefined) return String(fieldObj.integerValue);
+  return '';
+}
+
 function handleSaveProductSuggestion(data) {
   var prodName = String(data.productName || '').trim();
   if (!prodName) {
@@ -651,10 +1129,9 @@ function handleSaveProductSuggestion(data) {
 }
 
 /* ============================================================================
- * 2. TEMPLATE STRUK & RINCIAN PESANAN HTML NEO-BRUTALISM MATANG (#3 PROTEKSI OPSI EMAIL)
+ * 2. TEMPLATE STRUK & RINCIAN PESANAN HTML NEO-BRUTALISM MATANG (UNLIMITED EMAIL #5)
  * ============================================================================ */
 function handleSendOrderDeliveryEmail(data) {
-  // [FITUR #3] Cek apakah pembeli mengaktifkan opsi pengiriman struk ke email
   if (data.emailReceiptEnabled === false || String(data.emailReceiptEnabled).toLowerCase() === 'false') {
     return buildJsonResponse({
       ok: false,
@@ -860,12 +1337,12 @@ function handleSendOrderDeliveryEmail(data) {
       orderIdForSupport: orderId
     });
 
-    MailApp.sendEmail({
+    var sendInfo = sendUnlimitedEmailGas({
       to: targetEmail,
       subject: subject,
       htmlBody: htmlBody,
       name: CONFIG.STORE_NAME
-    });
+    }, data);
 
     return buildJsonResponse({
       ok: true,
@@ -873,6 +1350,7 @@ function handleSendOrderDeliveryEmail(data) {
       action: 'SEND_ORDER_DELIVERY',
       orderId: orderId,
       recipient: targetEmail,
+      engine: sendInfo.engine,
       message: 'Struk & rincian pesanan dikirim ke ' + targetEmail
     });
   } finally {
@@ -928,18 +1406,19 @@ function handleSendOtpEmail(data) {
     orderIdForSupport: ''
   });
 
-  MailApp.sendEmail({
+  var sendInfo = sendUnlimitedEmailGas({
     to: targetEmail,
     subject: subject,
     htmlBody: htmlBody,
     name: CONFIG.STORE_NAME
-  });
+  }, data);
 
   return buildJsonResponse({
     ok: true,
     status: 'ok',
     action: 'SEND_OTP_EMAIL',
     recipient: targetEmail,
+    engine: sendInfo.engine,
     message: 'Kode OTP berhasil dikirim ke ' + targetEmail
   });
 }
@@ -992,18 +1471,19 @@ function handleSendExpiryReminderEmail(data) {
     orderIdForSupport: orderId
   });
 
-  MailApp.sendEmail({
+  var sendInfo = sendUnlimitedEmailGas({
     to: targetEmail,
     subject: subject,
     htmlBody: htmlBody,
     name: CONFIG.STORE_NAME
-  });
+  }, data);
 
   return buildJsonResponse({
     ok: true,
     status: 'ok',
     action: 'SEND_EXPIRY_REMINDER',
     orderId: orderId,
+    engine: sendInfo.engine,
     recipient: targetEmail
   });
 }
@@ -1049,18 +1529,19 @@ function handleSendPasswordResetLink(data) {
     orderIdForSupport: ''
   });
 
-  MailApp.sendEmail({
+  var sendInfo = sendUnlimitedEmailGas({
     to: targetEmail,
     subject: subject,
     htmlBody: htmlBody,
     name: CONFIG.STORE_NAME
-  });
+  }, data);
 
   return buildJsonResponse({
     ok: true,
     status: 'ok',
     action: 'SEND_PASSWORD_RESET_LINK',
     recipient: targetEmail,
+    engine: sendInfo.engine,
     message: 'Link ubah kata sandi dikirim ke ' + targetEmail
   });
 }
@@ -1249,7 +1730,6 @@ function parseIncomingPayload(e) {
           data[jk] = parsedJson[jk];
         }
       } catch (jsonErr) {
-        // Jika dikirim dalam format application/x-www-form-urlencoded (key=val&key2=val2)
         if (raw.indexOf('=') !== -1 && raw.indexOf('{') === -1) {
           var pairs = raw.split('&');
           for (var p = 0; p < pairs.length; p++) {
