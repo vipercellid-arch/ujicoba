@@ -28,6 +28,7 @@ const pathReviews = isWorkspace ? `artifacts/${appId}/public/data/reviews` : 're
 const pathStocks = isWorkspace ? `artifacts/${appId}/public/data/stocks` : 'stocks';
 const pathDeviceLocks = isWorkspace ? `artifacts/${appId}/public/data/device_locks` : 'device_locks';
 const pathMutations = isWorkspace ? `artifacts/${appId}/public/data/payment_mutations` : 'payment_mutations';
+const pathSuggestions = isWorkspace ? `artifacts/${appId}/public/data/product_suggestions` : 'product_suggestions';
 
 const fallbackSettingsPath = isWorkspace ? 'settings' : `artifacts/${appId}/public/data/settings`;
 
@@ -65,11 +66,12 @@ let siteSettings = {
     isStoreOpen: true,
     waChannelLink: '',
     anonAutoDelete6h: true,
-    // Pengaturan Jam Operasional Toko (#20)
+    // Pengaturan Jam Operasional Toko (#4 & #5 — Tanpa Paksa Mode Stok Lokal)
     opHoursEnabled: false,
     opOpenTime: '08:00',
     opCloseTime: '22:00',
-    localStockOnlyMode: false,
+    // Efek Latar Belakang Sentuhan Air Berwarna (#9)
+    waterRippleEnabled: true,
     deletedUids: [],
     blockedUids: [],
     blockedDevices: []
@@ -81,8 +83,6 @@ let userProfile = {
     uid: '',
     name: '',
     email: '',
-    phone: '',
-    whatsapp: '',
     role: 'anonymous',
     isAnonymous: true,
     isGuest: true,
@@ -109,15 +109,15 @@ let isCatalogExpanded = true;
 let isVariantsExpanded = false;
 let currentVariantSearchQuery = '';
 let currentUserHistoryFilter = 'ALL';
+let currentBantuanSubTab = 'chat';
 
 // Debounce Timers
 let catalogSearchDebounceTimer = null;
 let variantSearchDebounceTimer = null;
 
-// State Verifikasi OTP 6-Digit
+// State Verifikasi OTP 6-Digit (Tanpa No HP #3)
 let pendingUpgradeState = {
     name: '',
-    whatsapp: '',
     email: '',
     password: '',
     otpCode: '',
@@ -143,11 +143,12 @@ const activeListenersRegistry = {
 // Preferensi Notifikasi User
 let isUserNotifEnabled = localStorage.getItem('vipercell_user_notif') !== 'off';
 
-// Gembok Anti-Dobel Transaksi, Pengiriman Stok & Email (#12)
+// Gembok Anti-Dobel Transaksi, Pengiriman Stok & Email
 let isProcessingCheckout = false;
 let isCancellingOrder = false;
 let isCheckingPaymentNow = false;
 let isSubmittingReview = false;
+let isSubmittingSuggestion = false;
 let isUpgradingAccount = false;
 let targetReviewOrderId = null;
 const deliveringOrderIds = new Set();
@@ -173,7 +174,178 @@ function escapeJsStr(str) {
 }
 
 // ==========================================
-// ISOLASI PENYIMPANAN LOKAL MEMBER VS TAMU
+// EFEK SENTUHAN AIR BERWARNA / WATER RIPPLE CANVAS (#9)
+// ==========================================
+let waterRippleEngine = {
+    initialized: false,
+    canvas: null,
+    ctx: null,
+    ripples: [],
+    animFrameId: null,
+    lastMoveTime: 0
+};
+
+const LIGHT_RIPPLE_COLORS = [
+    'rgba(37, 99, 235, ',   // Biru
+    'rgba(250, 204, 21, ',  // Kuning Neo
+    'rgba(244, 63, 94, ',   // Pink
+    'rgba(16, 185, 129, ',  // Emerald
+    'rgba(139, 92, 246, '   // Ungu
+];
+
+const DARK_RIPPLE_COLORS = [
+    'rgba(59, 130, 246, ',  // Biru Terang
+    'rgba(250, 204, 21, ',  // Kuning
+    'rgba(34, 211, 238, ',  // Cyan
+    'rgba(251, 113, 133, ', // Rose
+    'rgba(167, 139, 250, '  // Violet
+];
+
+function initWaterRippleBackground() {
+    if (waterRippleEngine.initialized) {
+        updateWaterRippleVisibility();
+        return;
+    }
+    const canvas = document.getElementById('water-ripple-canvas');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    waterRippleEngine.initialized = true;
+    waterRippleEngine.canvas = canvas;
+    waterRippleEngine.ctx = ctx;
+
+    const resizeCanvas = () => {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+    };
+    resizeCanvas();
+    window.addEventListener('resize', resizeCanvas, { passive: true });
+
+    const spawnRipple = (x, y, isBurst = false) => {
+        if (siteSettings.waterRippleEnabled === false) return;
+        const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+        const palette = isDark ? DARK_RIPPLE_COLORS : LIGHT_RIPPLE_COLORS;
+        const colorPrefix = palette[Math.floor(Math.random() * palette.length)];
+
+        waterRippleEngine.ripples.push({
+            x,
+            y,
+            radius: isBurst ? 6 : 3,
+            maxRadius: isBurst ? 135 : 82,
+            speed: isBurst ? 2.6 : 1.85,
+            alpha: isBurst ? 0.52 : 0.34,
+            lineWidth: isBurst ? 3.2 : 2.1,
+            colorPrefix,
+            secondRing: isBurst
+        });
+
+        if (waterRippleEngine.ripples.length > 36) {
+            waterRippleEngine.ripples.shift();
+        }
+
+        if (!waterRippleEngine.animFrameId) {
+            waterRippleEngine.animFrameId = requestAnimationFrame(renderWaterRipplesLoop);
+        }
+    };
+
+    window.addEventListener('pointerdown', (e) => {
+        spawnRipple(e.clientX, e.clientY, true);
+    }, { passive: true });
+
+    window.addEventListener('pointermove', (e) => {
+        const now = performance.now();
+        if (now - waterRippleEngine.lastMoveTime > 55) {
+            waterRippleEngine.lastMoveTime = now;
+            spawnRipple(e.clientX, e.clientY, false);
+        }
+    }, { passive: true });
+
+    window.addEventListener('touchstart', (e) => {
+        if (e.touches && e.touches[0]) {
+            spawnRipple(e.touches[0].clientX, e.touches[0].clientY, true);
+        }
+    }, { passive: true });
+
+    window.addEventListener('touchmove', (e) => {
+        const now = performance.now();
+        if (now - waterRippleEngine.lastMoveTime > 65 && e.touches && e.touches[0]) {
+            waterRippleEngine.lastMoveTime = now;
+            spawnRipple(e.touches[0].clientX, e.touches[0].clientY, false);
+        }
+    }, { passive: true });
+
+    updateWaterRippleVisibility();
+}
+
+function updateWaterRippleVisibility() {
+    const canvas = waterRippleEngine.canvas || document.getElementById('water-ripple-canvas');
+    if (!canvas) return;
+    if (siteSettings.waterRippleEnabled === false) {
+        canvas.style.display = 'none';
+        waterRippleEngine.ripples = [];
+        if (waterRippleEngine.ctx) {
+            waterRippleEngine.ctx.clearRect(0, 0, canvas.width, canvas.height);
+        }
+    } else {
+        canvas.style.display = 'block';
+    }
+}
+
+function renderWaterRipplesLoop() {
+    const { canvas, ctx, ripples } = waterRippleEngine;
+    if (!canvas || !ctx || siteSettings.waterRippleEnabled === false) {
+        waterRippleEngine.animFrameId = null;
+        return;
+    }
+
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    for (let i = ripples.length - 1; i >= 0; i--) {
+        const r = ripples[i];
+        r.radius += r.speed;
+        const progress = r.radius / r.maxRadius;
+        const currentAlpha = Math.max(0, r.alpha * (1 - progress));
+
+        if (currentAlpha <= 0.01 || r.radius >= r.maxRadius) {
+            ripples.splice(i, 1);
+            continue;
+        }
+
+        // Lingkaran Air Utama
+        ctx.beginPath();
+        ctx.arc(r.x, r.y, r.radius, 0, Math.PI * 2);
+        ctx.strokeStyle = `${r.colorPrefix}${currentAlpha.toFixed(3)})`;
+        ctx.lineWidth = r.lineWidth;
+        ctx.stroke();
+
+        // Pendaran Halus di Dalam Riak Air
+        const grad = ctx.createRadialGradient(r.x, r.y, r.radius * 0.2, r.x, r.y, r.radius);
+        grad.addColorStop(0, `${r.colorPrefix}0)`);
+        grad.addColorStop(0.75, `${r.colorPrefix}${(currentAlpha * 0.25).toFixed(3)})`);
+        grad.addColorStop(1, `${r.colorPrefix}0)`);
+        ctx.fillStyle = grad;
+        ctx.fill();
+
+        // Lingkaran Gelombang Kedua saat disentuh/diklik
+        if (r.secondRing && r.radius > 18) {
+            ctx.beginPath();
+            ctx.arc(r.x, r.y, r.radius * 0.62, 0, Math.PI * 2);
+            ctx.strokeStyle = `${r.colorPrefix}${(currentAlpha * 0.65).toFixed(3)})`;
+            ctx.lineWidth = Math.max(1, r.lineWidth - 1);
+            ctx.stroke();
+        }
+    }
+
+    if (ripples.length > 0) {
+        waterRippleEngine.animFrameId = requestAnimationFrame(renderWaterRipplesLoop);
+    } else {
+        waterRippleEngine.animFrameId = null;
+    }
+}
+
+// ==========================================
+// ISOLASI PENYIMPANAN EMAIL MEMBER VS TAMU (TANPA NO HP #3)
 // ==========================================
 function getActiveSessionStorageEmail() {
     const isMember = Boolean(currentUser && !currentUser.isAnonymous && !userProfile.isGuest);
@@ -183,39 +355,26 @@ function getActiveSessionStorageEmail() {
     return (userProfile.email || localStorage.getItem('vipercell_guest_email') || '').trim().toLowerCase();
 }
 
-function getActiveSessionStoragePhone() {
-    const isMember = Boolean(currentUser && !currentUser.isAnonymous && !userProfile.isGuest);
-    if (isMember) {
-        return (userProfile.phone || userProfile.whatsapp || localStorage.getItem('vipercell_member_phone') || '').trim();
-    }
-    return (userProfile.phone || userProfile.whatsapp || localStorage.getItem('vipercell_guest_phone') || '').trim();
-}
-
-function saveActiveSessionContact(email, phone) {
+function saveActiveSessionContact(email) {
     const isMember = Boolean(currentUser && !currentUser.isAnonymous && !userProfile.isGuest);
     if (isMember) {
         if (email) localStorage.setItem('vipercell_member_email', email.trim().toLowerCase());
-        if (phone) localStorage.setItem('vipercell_member_phone', phone.trim());
     } else {
         if (email) localStorage.setItem('vipercell_guest_email', email.trim().toLowerCase());
-        if (phone) localStorage.setItem('vipercell_guest_phone', phone.trim());
     }
 }
 
 // ==========================================
-// PENGECEKAN JAM OPERASIONAL TOKO (#20)
+// PENGECEKAN JAM OPERASIONAL TOKO MATANG (#4 & #5)
 // ==========================================
 function isLocalStockOnlyRestrictionActive() {
-    if (siteSettings.localStockOnlyMode === true) {
-        return true;
-    }
+    // Fitur Paksa Mode Stok Lokal sudah dihapus (#4); murni mengikuti jadwal jam operasional (#5)
     if (!siteSettings.opHoursEnabled) {
         return false;
     }
     const openStr = String(siteSettings.opOpenTime || '').trim();
     const closeStr = String(siteSettings.opCloseTime || '').trim();
 
-    // Jika jam buka & tutup diatur, periksa apakah waktu sekarang berada di luar jam operasional
     if (/^\d{1,2}:\d{2}$/.test(openStr) && /^\d{1,2}:\d{2}$/.test(closeStr)) {
         const [openH, openM] = openStr.split(':').map(Number);
         const [closeH, closeM] = closeStr.split(':').map(Number);
@@ -234,19 +393,10 @@ function isLocalStockOnlyRestrictionActive() {
             // Lintas tengah malam (contoh 20:00 - 06:00)
             isWithinOpenHours = curMins >= openMins || curMins < closeMins;
         }
-        // Jika di luar jam operasional (atau jika mode jam operasional disetel membatasi stok non-lokal), aktifkan pembatasan
-        if (!isWithinOpenHours) {
-            return true;
-        }
-        // Jika admin mengaktifkan sakelar Jam Operasional khusus stok lokal
-        if (siteSettings.opHoursStrictLocalOnly === true) {
-            return true;
-        }
-        return false;
+        // Jika waktu saat ini di luar jam operasional, hanya produk berstok lokal yang bisa dibeli (#5)
+        return !isWithinOpenHours;
     }
-
-    // Jika sakelar Jam Operasional diaktifkan tanpa jam spesifik, langsung batasi hanya produk berstok lokal
-    return true;
+    return false;
 }
 
 function getVariantLocalVaultStockCount(item) {
@@ -266,16 +416,15 @@ function getVariantLocalVaultStockCount(item) {
 }
 
 function updateOpHoursBannerUI() {
-    const bannerEl = document.getElementById('op-hours-banner');
-    const textEl = document.getElementById('op-hours-banner-text');
+    const bannerEl = document.getElementById('operational-hours-banner');
+    const textEl = document.getElementById('operational-hours-text');
     if (!bannerEl || !textEl) return;
 
     const restricted = isLocalStockOnlyRestrictionActive();
     if (restricted) {
-        const openStr = siteSettings.opOpenTime || '';
-        const closeStr = siteSettings.opCloseTime || '';
-        const timeInfo = (openStr && closeStr) ? ` (Jam layanan manual: ${openStr} - ${closeStr})` : '';
-        textEl.innerText = `Di luar jam layanan manual${timeInfo} — Saat ini hanya melayani produk dengan stok instan yang tersedia.`;
+        const openStr = siteSettings.opOpenTime || '08:00';
+        const closeStr = siteSettings.opCloseTime || '22:00';
+        textEl.innerText = `Saat ini di luar jam operasional (${openStr} - ${closeStr}). Hanya produk yang memiliki stok lokal tersedia yang dapat dibeli langsung.`;
         bannerEl.style.display = 'flex';
     } else {
         bannerEl.style.display = 'none';
@@ -283,7 +432,7 @@ function updateOpHoursBannerUI() {
 }
 
 // ==========================================
-// WEBHOOK CALLER & ANTI-DUPLIKAT EMAIL (#12)
+// WEBHOOK CALLER & ANTI-DUPLIKAT EMAIL
 // ==========================================
 async function callUnifiedGasWebhook(payloadObj) {
     const gasWebAppUrl = (siteSettings.emailWebhookUrl || '').trim();
@@ -328,13 +477,11 @@ async function callUnifiedGasWebhook(payloadObj) {
     }
 }
 
-// Pengiriman Email Struk & Akun dengan Proteksi Anti-Dobel 3 Lapis (#12)
 async function sendOrderReceiptAndAccountEmail(orderData, accountDetailsText, orderDbId = null) {
     if (!orderData || !orderData.id) return false;
     const invKey = String(orderData.id).trim().toUpperCase();
     const localSentKey = `vipercell_email_sent_${invKey}`;
 
-    // Lapis 1: Cek status di objek order, memori lokal, dan localStorage
     if (
         orderData.emailSent === true ||
         orderData.emailSending === true ||
@@ -351,12 +498,10 @@ async function sendOrderReceiptAndAccountEmail(orderData, accountDetailsText, or
 
     const resolvedDbId = orderDbId || orderData.dbId;
 
-    // Lapis 2: Kunci segera di memori dan localStorage sebelum request jaringan dimulai
     inFlightEmailOrderIds.add(invKey);
     sentEmailOrderIds.add(invKey);
     try { localStorage.setItem(localSentKey, '1'); } catch (e) {}
 
-    // Lapis 3: Cek dokumen terbaru di Firestore dan tandai emailSent = true lebih dulu agar tab/perangkat lain tidak ikut mengirim
     if (resolvedDbId) {
         try {
             const latestSnap = await getDoc(doc(db, pathOrders, resolvedDbId));
@@ -401,7 +546,6 @@ async function sendOrderReceiptAndAccountEmail(orderData, accountDetailsText, or
         });
         return true;
     } catch (e) {
-        // Jika gagal karena jaringan, lepaskan kunci agar Admin masih bisa mengirim dari panel Admin
         sentEmailOrderIds.delete(invKey);
         try { localStorage.removeItem(localSentKey); } catch (err) {}
         if (resolvedDbId) {
@@ -414,7 +558,7 @@ async function sendOrderReceiptAndAccountEmail(orderData, accountDetailsText, or
 }
 
 // ==========================================
-// PRE-LOADER & GERBANG LOGIN (#4)
+// PRE-LOADER & PROTEKSI ANTI BOCOR KE TAB LOGIN (#7)
 // ==========================================
 function updatePreloaderStage(percent, statusText, subText = '') {
     const txtEl = document.getElementById('preloader-status-text');
@@ -464,6 +608,7 @@ function unlockAppUI() {
 function setAuthGateLock(isLocked) {
     const authTab = document.getElementById('tab-auth');
     if (isLocked) {
+        document.documentElement.classList.remove('has-saved-session');
         document.body.classList.add('auth-locked');
         document.body.classList.remove('is-member-session');
         document.querySelectorAll('.main-tab-content').forEach(el => {
@@ -477,13 +622,16 @@ function setAuthGateLock(isLocked) {
         window.switchAuthTab('login');
         window.scrollTo({ top: 0, behavior: 'instant' });
     } else {
+        document.documentElement.classList.add('has-saved-session');
         document.body.classList.remove('auth-locked');
         if (authTab) {
             authTab.classList.remove('active');
-            authTab.style.display = '';
+            authTab.style.display = 'none';
         }
         document.querySelectorAll('.main-tab-content').forEach(el => {
-            if (!el.classList.contains('active')) {
+            if (el.id === 'tab-auth') {
+                el.style.display = 'none';
+            } else if (!el.classList.contains('active')) {
                 el.style.display = '';
             }
         });
@@ -536,6 +684,7 @@ async function fetchInitialStoreDataWithGatekeeper() {
     isSettingsLoaded = true;
     window.applySettingsToUI();
     applyCustomPwaIcon();
+    initWaterRippleBackground();
 
     if (stocksSnap) {
         rebuildLiveReadyStocksMap(stocksSnap.docs);
@@ -565,7 +714,6 @@ async function fetchInitialStoreDataWithGatekeeper() {
 }
 
 async function initializeAppWithLoader() {
-    initTypewriter();
     updateProfileNotifToggleUI();
 
     const savedTheme = localStorage.getItem('vipercell_theme') || 'light';
@@ -575,8 +723,20 @@ async function initializeAppWithLoader() {
     const themeLbl = document.getElementById('theme-label-text');
     if (themeLbl) themeLbl.innerText = savedTheme === 'dark' ? 'Gelap' : 'Terang';
 
-    // Pastikan panel login siap tampil jika status terkunci
-    setAuthGateLock(true);
+    const savedSessionMode = localStorage.getItem('vipercell_active_session_mode');
+    const hasSavedSession = (savedSessionMode === 'member' || savedSessionMode === 'guest');
+
+    // Jangan tampilkan tab-auth jika pengguna memiliki sesi tersimpan (#7)
+    if (hasSavedSession) {
+        document.documentElement.classList.add('has-saved-session');
+        const authTab = document.getElementById('tab-auth');
+        if (authTab) {
+            authTab.classList.remove('active');
+            authTab.style.display = 'none';
+        }
+    } else {
+        setAuthGateLock(true);
+    }
 
     if (!navigator.onLine) {
         updatePreloaderStage(20, 'Koneksi Terputus', 'Periksa sambungan internet kamu.');
@@ -641,7 +801,6 @@ async function initializeAppWithLoader() {
                 setAuthGateLock(true);
             }
         } else {
-            // Pengguna belum masuk atau sudah keluar -> wajib tampilkan panel login (#4)
             setAuthGateLock(true);
         }
 
@@ -660,6 +819,7 @@ function startOpHoursWatcher() {
     updateOpHoursBannerUI();
     activeTimersRegistry.opHoursWatcher = setInterval(() => {
         updateOpHoursBannerUI();
+        window.renderBrands(currentBrandFilter);
         if (currentCheckoutBrand) {
             renderCheckoutVariantCards();
             window.calculateDirectBuyTotal();
@@ -755,7 +915,6 @@ async function checkRealtimeAccountRestriction(isLiveSnapshot = false) {
     const isBlocked = blockedUidList.includes(effectiveUid) ||
                       (!isMemberSession && currentDeviceId && blockedDevList.includes(currentDeviceId));
 
-    // Akun Member yang masuk dengan email/password atau Google tidak boleh ter-logout oleh deletedUids lama
     const isDeleted = !isMemberSession && deletedList.includes(effectiveUid);
 
     if (!isBlocked && !isDeleted) return false;
@@ -780,7 +939,7 @@ async function checkRealtimeAccountRestriction(isLiveSnapshot = false) {
         } catch (e) {}
 
         currentUser = null;
-        userProfile = { uid: '', name: '', email: '', phone: '', isGuest: true, isAnonymous: true };
+        userProfile = { uid: '', name: '', email: '', isGuest: true, isAnonymous: true };
         setAuthGateLock(true);
 
         if (isBlocked) {
@@ -812,7 +971,7 @@ function listenDeletedAccountStatus(uid) {
 }
 
 // ==========================================
-// PEMBERSIHAN OTOMATIS TAMU 6 JAM TANPA INDIKATOR UI (#14)
+// PEMBERSIHAN OTOMATIS TAMU 6 JAM
 // ==========================================
 async function checkAndExpireAnonSessionIf6Hours() {
     if (siteSettings.anonAutoDelete6h === false) {
@@ -837,7 +996,6 @@ async function checkAndExpireAnonSessionIf6Hours() {
         await clearMultiLayerToken('vipercell_anon_uid');
         localStorage.removeItem('vipercell_anon_session_started_at');
         localStorage.removeItem('vipercell_guest_email');
-        localStorage.removeItem('vipercell_guest_phone');
         localStorage.removeItem('vipercell_anon_name');
         localStorage.setItem('vipercell_active_session_mode', 'logged_out');
         return true;
@@ -896,9 +1054,7 @@ window.processAnonymousLogin = async function() {
         }
 
         localStorage.removeItem('vipercell_track_email');
-        localStorage.removeItem('vipercell_track_phone');
         localStorage.removeItem('vipercell_guest_email');
-        localStorage.removeItem('vipercell_guest_phone');
         localStorage.removeItem('vipercell_anon_name');
         await clearMultiLayerToken('vipercell_anon_uid');
         boundLegacyGuestUid = null;
@@ -940,8 +1096,6 @@ window.processAnonymousLogin = async function() {
             authUid: activeUser.uid,
             name: freshAnonName,
             email: '',
-            phone: '',
-            whatsapp: '',
             role: 'anonymous',
             isAnonymous: true,
             isGuest: true,
@@ -987,11 +1141,10 @@ window.processAnonymousLogin = async function() {
 };
 
 // ==========================================
-// UPGRADE AKUN TAMU KE MEMBER (POP-UP MODAL #8 & #15)
+// UPGRADE AKUN TAMU KE MEMBER (TANPA MEMINTA NO HP #3)
 // ==========================================
 window.openUpgradeMemberModal = function() {
     const nameInp = document.getElementById('upg-name');
-    const phoneInp = document.getElementById('upg-phone');
     const emailInp = document.getElementById('upg-email');
     const passInp = document.getElementById('upg-pass');
     const passConfInp = document.getElementById('upg-pass-confirm');
@@ -999,7 +1152,6 @@ window.openUpgradeMemberModal = function() {
 
     const savedName = userProfile.name && !userProfile.name.startsWith('Tamu #') ? userProfile.name : '';
     if (nameInp) nameInp.value = savedName;
-    if (phoneInp) phoneInp.value = userProfile.phone || userProfile.whatsapp || '';
     if (emailInp) emailInp.value = userProfile.email || localStorage.getItem('vipercell_guest_email') || '';
     if (passInp) passInp.value = '';
     if (passConfInp) passConfInp.value = '';
@@ -1043,13 +1195,12 @@ function startOtpResendCountdown(seconds = 60) {
 
 window.requestUpgradeOtpEmail = async function(isResend = false) {
     const name = document.getElementById('upg-name')?.value.trim() || '';
-    const whatsapp = document.getElementById('upg-phone')?.value.trim() || '';
     const email = document.getElementById('upg-email')?.value.trim().toLowerCase() || '';
     const password = document.getElementById('upg-pass')?.value || '';
     const passwordConfirm = document.getElementById('upg-pass-confirm')?.value || '';
 
-    if (!name || !whatsapp || !email || !email.includes('@')) {
-        window.customAlert('Data Belum Lengkap', 'Harap isi Nama, Nomor WhatsApp, dan Email.', 'warning');
+    if (!name || !email || !email.includes('@')) {
+        window.customAlert('Data Belum Lengkap', 'Harap isi Nama Panggilan dan Email aktif.', 'warning');
         return;
     }
     if (password.length < 6) {
@@ -1072,7 +1223,6 @@ window.requestUpgradeOtpEmail = async function(isResend = false) {
         const generatedOtp = String(Math.floor(100000 + Math.random() * 900000));
         pendingUpgradeState = {
             name,
-            whatsapp,
             email,
             password,
             otpCode: generatedOtp,
@@ -1130,7 +1280,7 @@ window.verifyOtpAndUpgradeMember = async function() {
         return;
     }
 
-    const { name, whatsapp, email, password } = pendingUpgradeState;
+    const { name, email, password } = pendingUpgradeState;
     const btn = document.getElementById('btn-submit-upgrade');
     const ogHtml = btn ? btn.innerHTML : '';
     isUpgradingAccount = true;
@@ -1161,7 +1311,7 @@ window.verifyOtpAndUpgradeMember = async function() {
         if (previousAnonUid && previousAnonUid !== finalUid) {
             const oldOrders = orders.filter(o => o.userId === previousAnonUid);
             for (const ord of oldOrders) {
-                await updateDoc(doc(db, pathOrders, ord.dbId), { userId: finalUid, userEmail: email, userPhone: whatsapp }).catch(() => {});
+                await updateDoc(doc(db, pathOrders, ord.dbId), { userId: finalUid, userEmail: email }).catch(() => {});
             }
             const oldChatSnap = await getDoc(doc(db, pathChats, previousAnonUid)).catch(() => null);
             if (oldChatSnap && oldChatSnap.exists()) {
@@ -1179,8 +1329,6 @@ window.verifyOtpAndUpgradeMember = async function() {
         const memberData = {
             uid: finalUid,
             name: name,
-            phone: whatsapp,
-            whatsapp: whatsapp,
             email: email,
             role: 'member',
             isAnonymous: false,
@@ -1206,16 +1354,14 @@ window.verifyOtpAndUpgradeMember = async function() {
         }
 
         boundLegacyGuestUid = null;
-        pendingUpgradeState = { name: '', whatsapp: '', email: '', password: '', otpCode: '', otpExpiresAt: 0 };
+        pendingUpgradeState = { name: '', email: '', password: '', otpCode: '', otpExpiresAt: 0 };
         if (otpResendTimer) clearInterval(otpResendTimer);
         if (activeTimersRegistry.anonSixHourCountdown) clearInterval(activeTimersRegistry.anonSixHourCountdown);
 
         await clearMultiLayerToken('vipercell_anon_uid');
         localStorage.removeItem('vipercell_anon_session_started_at');
         localStorage.removeItem('vipercell_guest_email');
-        localStorage.removeItem('vipercell_guest_phone');
         localStorage.setItem('vipercell_member_email', email);
-        localStorage.setItem('vipercell_member_phone', whatsapp);
 
         userProfile = memberData;
         window.closeModal('modal-upgrade-member');
@@ -1251,7 +1397,7 @@ window.verifyOtpAndUpgradeMember = async function() {
 window.upgradeAnonymousToMember = window.verifyOtpAndUpgradeMember;
 
 // ==========================================
-// SINKRONISASI SESI & TAMPILAN PROFIL (#15)
+// SINKRONISASI SESI & TAMPILAN PROFIL (TANPA NO HP #3)
 // ==========================================
 async function ensureAuthSession() {
     if (auth.currentUser) {
@@ -1311,8 +1457,6 @@ async function syncUserProfileFromAuth(user) {
                 authUid: user.uid,
                 name: savedName,
                 email: localStorage.getItem('vipercell_guest_email') || '',
-                phone: localStorage.getItem('vipercell_guest_phone') || '',
-                whatsapp: localStorage.getItem('vipercell_guest_phone') || '',
                 role: 'anonymous',
                 isAnonymous: true,
                 isGuest: true,
@@ -1342,8 +1486,6 @@ async function syncUserProfileFromAuth(user) {
                 ...data,
                 uid: user.uid,
                 email: data.email || user.email || '',
-                phone: data.phone || data.whatsapp || '',
-                whatsapp: data.whatsapp || data.phone || '',
                 role: 'member',
                 isAnonymous: false,
                 isGuest: false,
@@ -1357,8 +1499,6 @@ async function syncUserProfileFromAuth(user) {
                 uid: user.uid,
                 name: user.displayName || user.email?.split('@')[0] || 'Member',
                 email: user.email || '',
-                phone: '',
-                whatsapp: '',
                 role: 'member',
                 isAnonymous: false,
                 isGuest: false,
@@ -1370,7 +1510,6 @@ async function syncUserProfileFromAuth(user) {
             await setDoc(userDocRef, userProfile, { merge: true }).catch(() => {});
         }
         if (userProfile.email) localStorage.setItem('vipercell_member_email', userProfile.email.toLowerCase());
-        if (userProfile.phone) localStorage.setItem('vipercell_member_phone', userProfile.phone);
     }
 
     applyUserSessionToUI();
@@ -1389,19 +1528,21 @@ function setupAuthStateListener() {
             localStorage.setItem('vipercell_active_session_mode', 'member');
             await syncUserProfileFromAuth(user);
             const restricted = await checkRealtimeAccountRestriction(false);
-            if (!restricted && document.body.classList.contains('auth-locked')) {
+            if (!restricted) {
+                const wasLocked = document.body.classList.contains('auth-locked');
                 setAuthGateLock(false);
-                window.switchMainTab('katalog');
+                if (wasLocked) window.switchMainTab('katalog');
             }
         } else if (user && user.isAnonymous && sessionMode === 'guest') {
             await syncUserProfileFromAuth(user);
             const restricted = await checkRealtimeAccountRestriction(false);
-            if (!restricted && document.body.classList.contains('auth-locked')) {
+            if (!restricted) {
+                const wasLocked = document.body.classList.contains('auth-locked');
                 setAuthGateLock(false);
-                window.switchMainTab('katalog');
+                if (wasLocked) window.switchMainTab('katalog');
             }
         } else if (!user && sessionMode !== 'guest') {
-            userProfile = { uid: '', name: '', email: '', phone: '', isGuest: true, isAnonymous: true };
+            userProfile = { uid: '', name: '', email: '', isGuest: true, isAnonymous: true };
             setAuthGateLock(true);
         }
     });
@@ -1417,16 +1558,15 @@ function applyUserSessionToUI() {
     const textProfilDesk = document.getElementById('nav-text-profil-desk');
     const textProfilMob = document.getElementById('nav-text-profil-mob');
 
-    // Hanya SATU tombol upgrade akun di profil (#15)
     const btnProfUpgrade = document.getElementById('btn-prof-upgrade-guest');
     const btnProfLogout = document.getElementById('btn-prof-logout-member');
     const textBtnLogout = document.getElementById('text-btn-logout');
     const secMemberBox = document.getElementById('prof-security-member-box');
+    const secGuestBox = document.getElementById('prof-security-guest-box');
 
     const guestTrackSec = document.getElementById('guest-tracking-section');
     const guestContactBox = document.getElementById('buy-guest-contact-box');
     const emailGroupBuy = document.getElementById('buy-email-group');
-    const phoneGroupBuy = document.getElementById('buy-phone-group');
     const memberAutofillBadge = document.getElementById('buy-member-autofill-badge');
     const memberAutofillText = document.getElementById('buy-member-autofill-text');
 
@@ -1436,14 +1576,13 @@ function applyUserSessionToUI() {
     const avatarEl = document.getElementById('prof-avatar-initial');
     const profNameInp = document.getElementById('prof-name');
     const profEmailInp = document.getElementById('prof-email');
-    const profPhoneInp = document.getElementById('prof-phone');
+    const suggestNameInp = document.getElementById('suggest-sender-name');
 
     if (guestTrackSec) guestTrackSec.style.display = 'block';
 
     if (isMember) {
         const finalEmail = userProfile.email || currentUser.email || '';
         const finalName = userProfile.name || finalEmail.split('@')[0] || 'Member';
-        const finalPhone = userProfile.phone || userProfile.whatsapp || '';
 
         if (textPesananDesk) textPesananDesk.innerText = 'Pesanan';
         if (textProfilDesk) textProfilDesk.innerText = 'Profil';
@@ -1453,14 +1592,14 @@ function applyUserSessionToUI() {
         if (btnProfLogout) btnProfLogout.style.display = 'inline-flex';
         if (textBtnLogout) textBtnLogout.innerText = 'Keluar';
         if (secMemberBox) secMemberBox.style.display = 'block';
+        if (secGuestBox) secGuestBox.style.display = 'none';
 
         if (guestContactBox) guestContactBox.style.display = 'none';
         if (emailGroupBuy) emailGroupBuy.style.display = 'none';
-        if (phoneGroupBuy) phoneGroupBuy.style.display = 'none';
         if (memberAutofillBadge) {
             memberAutofillBadge.style.display = 'flex';
             if (memberAutofillText) {
-                memberAutofillText.innerText = `${finalEmail}${finalPhone ? ' • ' + finalPhone : ''}`;
+                memberAutofillText.innerText = finalEmail;
             }
         }
 
@@ -1469,33 +1608,31 @@ function applyUserSessionToUI() {
             statusBadge.innerHTML = '<i class="fa-solid fa-circle-check"></i> MEMBER';
         }
         if (dispNameEl) dispNameEl.innerText = finalName;
-        if (dispEmailEl) dispEmailEl.innerText = finalEmail + (finalPhone ? ` • ${finalPhone}` : '');
+        if (dispEmailEl) dispEmailEl.innerText = finalEmail;
         if (avatarEl) avatarEl.innerText = finalName.charAt(0).toUpperCase();
 
         if (profNameInp) profNameInp.value = finalName;
         if (profEmailInp) profEmailInp.value = finalEmail;
-        if (profPhoneInp) profPhoneInp.value = finalPhone;
+        if (suggestNameInp && !suggestNameInp.value) suggestNameInp.value = finalName;
 
     } else if (isGuestSession) {
         const effectiveUid = boundLegacyGuestUid || currentUser?.uid || userProfile.uid || 'TAMU';
         const shortId = effectiveUid.slice(-4).toUpperCase();
         const guestName = userProfile.name || localStorage.getItem('vipercell_anon_name') || `Tamu #${shortId}`;
-        const guestEmail = userProfile.email || localStorage.getItem('vipercell_guest_email') || 'Belum ada email';
-        const guestPhone = userProfile.phone || userProfile.whatsapp || localStorage.getItem('vipercell_guest_phone') || '';
+        const guestEmail = userProfile.email || localStorage.getItem('vipercell_guest_email') || 'Akun Tamu';
 
         if (textPesananDesk) textPesananDesk.innerText = 'Pesanan';
         if (textProfilDesk) textProfilDesk.innerText = 'Profil';
         if (textProfilMob) textProfilMob.innerText = 'Profil';
 
-        // Hanya tampilkan 1 tombol Upgrade Member di bagian atas profil (#15)
         if (btnProfUpgrade) btnProfUpgrade.style.display = 'inline-flex';
         if (btnProfLogout) btnProfLogout.style.display = 'inline-flex';
         if (textBtnLogout) textBtnLogout.innerText = 'Keluar';
         if (secMemberBox) secMemberBox.style.display = 'none';
+        if (secGuestBox) secGuestBox.style.display = 'block';
 
         if (guestContactBox) guestContactBox.style.display = 'block';
         if (emailGroupBuy) emailGroupBuy.style.display = 'block';
-        if (phoneGroupBuy) phoneGroupBuy.style.display = 'block';
         if (memberAutofillBadge) memberAutofillBadge.style.display = 'none';
 
         if (statusBadge) {
@@ -1508,12 +1645,12 @@ function applyUserSessionToUI() {
 
         if (profNameInp) profNameInp.value = guestName;
         if (profEmailInp) profEmailInp.value = guestEmail;
-        if (profPhoneInp) profPhoneInp.value = guestPhone;
+        if (suggestNameInp && !suggestNameInp.value) suggestNameInp.value = guestName;
     }
 }
 
 // ==========================================
-// PERHITUNGAN STOK & JAM OPERASIONAL (#18 & #20)
+// PERHITUNGAN STOK, JAM OPERASIONAL (#5) & PENGIRIMAN STOK OTOMATIS vs PENDING ADMIN (#1)
 // ==========================================
 function makeStockKey(brandName, itemName) {
     return `${String(brandName || '').trim().toLowerCase()}__${String(itemName || '').trim().toLowerCase()}`;
@@ -1545,8 +1682,7 @@ function computeVariantAvailableStock(item) {
     const totalLocalVaultStock = getVariantLocalVaultStockCount(item);
     const opRestricted = isLocalStockOnlyRestrictionActive();
 
-    // [FITUR #20] Jika Jam Operasional Toko aktif membatasi pembelian hanya untuk stok lokal:
-    // Semua produk/variasi yang tidak memiliki stok lokal di gudang (atau bertipe manual/game) otomatis tidak menerima pembelian (return 0).
+    // [FITUR #5] Saat di luar jam operasional toko, hanya produk yang memiliki stok lokal tersedia yang bisa dibeli
     if (opRestricted) {
         if (procType === 'manual' || item.type === 'game') {
             return 0;
@@ -1578,7 +1714,6 @@ function computeVariantAvailableStock(item) {
     return null;
 }
 
-// Formatter Kredensial Stok Tanpa Link Default Ambil Kode (#18)
 function formatStockCredentialLine(rawStr, stockMode = 'PRIVATE', slotInfo = '') {
     const clean = String(rawStr || '').trim();
     if (!clean) return '';
@@ -1609,14 +1744,22 @@ function formatStockCredentialLine(rawStr, stockMode = 'PRIVATE', slotInfo = '')
     return `[DETAIL PESANAN${slotInfo}]\n${clean}`;
 }
 
+/**
+ * Mencoba mengambil stok lokal & mengirimkan ke pembeli (#1):
+ * - Jika ada stok lokal: langsung kirim, ubah status menjadi SUCCESS, dan kembalikan true.
+ * - Jika TIDAK ada stok lokal (atau produk manual/game yang dikirim Admin): ubah status menjadi PENDING (paymentVerified: true) dan kembalikan false.
+ */
 async function tryAutoDeliverOrderFromVault(orderData, orderDbId) {
-    if (!orderData || !orderDbId || deliveringOrderIds.has(orderDbId)) return;
+    if (!orderData || !orderDbId || deliveringOrderIds.has(orderDbId)) return false;
     if (orderData.adminReply && orderData.adminReply.trim() !== '') {
-        return;
+        if (orderData.status !== 'SUCCESS') {
+            await updateDoc(doc(db, pathOrders, orderDbId), { status: 'SUCCESS', paymentVerified: true }).catch(() => {});
+        }
+        return true;
     }
 
     const item = (orderData.items && orderData.items[0]) ? orderData.items[0] : null;
-    if (!item) return;
+    if (!item) return false;
 
     deliveringOrderIds.add(orderDbId);
     const neededQty = parseInt(item.qty || 1, 10);
@@ -1631,11 +1774,15 @@ async function tryAutoDeliverOrderFromVault(orderData, orderDbId) {
     } : {};
 
     try {
+        // Jika produk bertipe manual atau game (dikirim oleh Admin), setelah bayar statusnya wajib PENDING (#1)
         if (procType === 'manual' || item.type === 'game') {
-            if (Object.keys(subUpdates).length > 0 && !orderData.subscriptionEndAt) {
-                await updateDoc(doc(db, pathOrders, orderDbId), subUpdates).catch(() => {});
-            }
-            return;
+            await updateDoc(doc(db, pathOrders, orderDbId), {
+                status: 'PENDING',
+                paymentVerified: true,
+                paidAt: orderData.paidAt || nowMs,
+                ...subUpdates
+            }).catch(() => {});
+            return false;
         }
 
         let deliveredCredentialsText = '';
@@ -1754,9 +1901,10 @@ async function tryAutoDeliverOrderFromVault(orderData, orderDbId) {
 
         if (deliveredCredentialsText) {
             const finalReply = `Terima kasih telah berbelanja di Vipercell.\n\n${deliveredCredentialsText}`;
-            // Tandai emailSent: true sekaligus saat menulis adminReply untuk mencegah pengiriman email dobel (#12)
             await updateDoc(doc(db, pathOrders, orderDbId), {
                 status: 'SUCCESS',
+                paymentVerified: true,
+                paidAt: orderData.paidAt || nowMs,
                 adminReply: finalReply,
                 autoDelivered: true,
                 deliveredAt: nowMs,
@@ -1768,18 +1916,27 @@ async function tryAutoDeliverOrderFromVault(orderData, orderDbId) {
                 ...subUpdates,
                 adminReply: finalReply
             }, finalReply, orderDbId);
-        } else if (Object.keys(subUpdates).length > 0 && !orderData.subscriptionEndAt) {
-            await updateDoc(doc(db, pathOrders, orderDbId), subUpdates).catch(() => {});
+            return true;
+        } else {
+            // Tidak ada stok lokal tersedia -> akan dikirim oleh Admin, sehingga status menjadi PENDING (#1)
+            await updateDoc(doc(db, pathOrders, orderDbId), {
+                status: 'PENDING',
+                paymentVerified: true,
+                paidAt: orderData.paidAt || nowMs,
+                ...subUpdates
+            }).catch(() => {});
+            return false;
         }
     } catch (err) {
         console.error("Auto-Delivery Error:", err);
+        return false;
     } finally {
         setTimeout(() => deliveringOrderIds.delete(orderDbId), 4000);
     }
 }
 
 // ==========================================
-// REAL-TIME DATA LISTENER FIRESTORE
+// REAL-TIME DATA LISTENER FIRESTORE & LOGIKA STATUS PEMBAYARAN (#1)
 // ==========================================
 let isListening = false;
 function listenData() {
@@ -1813,6 +1970,7 @@ function listenData() {
         isSettingsLoaded = true;
         window.applySettingsToUI();
         applyCustomPwaIcon();
+        updateWaterRippleVisibility();
         updateOpHoursBannerUI();
         window.renderBrands(currentBrandFilter);
         if (currentCheckoutBrand) {
@@ -1890,28 +2048,40 @@ function listenData() {
                 }
             }
 
-            if (data.status === 'PAID') {
+            // [FITUR #1] Jika pembayaran diterima (status PAID atau baru saja terverifikasi tapi belum dikirim stok):
+            // Coba kirim stok lokal otomatis. Jika ada stok lokal -> SUCCESS, jika tidak ada stok lokal -> PENDING.
+            if (data.status === 'PAID' || (data.status === 'SUCCESS' && !data.adminReply && !data.autoDelivered)) {
                 if (isMyOrder) {
-                    updateDoc(doc(db, pathOrders, data.dbId), { status: 'SUCCESS' }).catch(() => {});
+                    tryAutoDeliverOrderFromVault(data, data.dbId);
                 }
-                data.status = 'SUCCESS';
             }
 
             newOrders.push(data);
 
-            // Hanya jalankan auto-deliver jika status SUCCESS dan adminReply masih kosong (#12)
-            // Jangan memicu ulang pengiriman email di listener jika adminReply sudah ada (karena sudah dikirim saat auto-deliver atau oleh Admin)
-            if (isMyOrder && data.status === 'SUCCESS' && !data.adminReply) {
-                tryAutoDeliverOrderFromVault(data, data.dbId);
-            }
-
             if (!initialOrderLoad && isMyOrder) {
-                let oldStatus = previousOrdersData[data.id];
-                if (oldStatus && oldStatus !== 'SUCCESS' && data.status === 'SUCCESS') {
-                    window.showPaymentSuccessAnimation(data.id);
+                const prevInfo = previousOrdersData[data.id] || {};
+                const oldStatus = prevInfo.status;
+                const oldPaid = prevInfo.paymentVerified;
+
+                // Tampilkan animasi pembayaran diterima saat beralih dari UNPAID/PAID ke SUCCESS atau ke PENDING (yang sudah dibayar)
+                if (oldStatus && (oldStatus === 'UNPAID' || oldStatus === 'PENDING_PAYMENT' || oldStatus === 'PAID')) {
+                    if (data.status === 'SUCCESS') {
+                        window.showPaymentSuccessAnimation(data.id, 'SUCCESS');
+                    } else if (data.status === 'PENDING' && data.paymentVerified === true) {
+                        window.showPaymentSuccessAnimation(data.id, 'PENDING');
+                    }
+                } else if (oldStatus === 'PENDING' && !oldPaid && data.status === 'PENDING' && data.paymentVerified === true) {
+                    window.showPaymentSuccessAnimation(data.id, 'PENDING');
+                } else if (oldStatus === 'PENDING' && data.status === 'SUCCESS') {
+                    window.showToast('Pesanan Selesai', `Pesanan #${data.id} telah dikirim oleh Admin.`, 'success', () => window.openOrderDetailModalById(data.id));
                 }
             }
-            previousOrdersData[data.id] = data.status;
+            if (data.status !== 'PAID') {
+                previousOrdersData[data.id] = {
+                    status: data.status,
+                    paymentVerified: Boolean(data.paymentVerified)
+                };
+            }
         });
         
         orders = newOrders.sort((a, b) => new Date(b.date) - new Date(a.date));
@@ -1958,6 +2128,8 @@ function mutObjListMatch(candidateAmounts) {
     (candidateAmounts || []).forEach(amt => checkClientPendingOrdersAgainstAmount(Number(amt)));
 }
 
+// Saat nominal mutasi QRIS cocok dengan tagihan UNPAID (#1):
+// Cek apakah produk punya stok lokal. Jika ada -> langsung kirim & SUCCESS. Jika tidak ada -> PENDING (Menunggu Dikirim Admin).
 async function checkClientPendingOrdersAgainstAmount(detectedAmount) {
     if (!detectedAmount || detectedAmount <= 0) return;
     const matchingUnpaid = orders.find(o =>
@@ -1965,9 +2137,7 @@ async function checkClientPendingOrdersAgainstAmount(detectedAmount) {
         (Number(o.finalTotal) === detectedAmount || Number(o.uniqueTotal) === detectedAmount)
     );
     if (matchingUnpaid) {
-        await updateDoc(doc(db, pathOrders, matchingUnpaid.dbId), {
-            status: 'SUCCESS'
-        }).catch(() => {});
+        await tryAutoDeliverOrderFromVault(matchingUnpaid, matchingUnpaid.dbId);
     }
 }
 
@@ -1998,10 +2168,6 @@ function rebuildGroupedBrands() {
         }
     });
 
-    const heroCatalogCount = document.getElementById('hero-live-catalog-count');
-    if (heroCatalogCount && groupedBrands.length > 0) {
-        heroCatalogCount.innerText = `${groupedBrands.length} Brand Tersedia`;
-    }
     window.renderBrands(currentBrandFilter);
 }
 
@@ -2215,7 +2381,7 @@ window.cancelActiveOrder = function(explicitDbId = null) {
                 isCancellingOrder = false;
                 if (btnCancelQris) {
                     btnCancelQris.disabled = false;
-                    btnCancelQris.innerHTML = '<i class="fa-solid fa-ban"></i> Batalkan Pesanan';
+                    btnCancelQris.innerHTML = '<i class="fa-solid fa-ban"></i> Batalkan';
                 }
                 if (btnCancelCash) {
                     btnCancelCash.disabled = false;
@@ -2246,12 +2412,18 @@ window.manualCheckQrisPaymentStatus = async function() {
         ]);
 
         if (orderSnap && orderSnap.exists()) {
-            const oData = orderSnap.data();
-            if (oData.status === 'SUCCESS' || oData.status === 'PAID') {
-                if (oData.status === 'PAID') {
-                    await updateDoc(orderRef, { status: 'SUCCESS' }).catch(() => {});
-                }
-                window.showPaymentSuccessAnimation(oData.id);
+            const oData = { dbId: orderSnap.id, ...orderSnap.data() };
+            if (oData.status === 'SUCCESS') {
+                window.showPaymentSuccessAnimation(oData.id, 'SUCCESS');
+                return;
+            }
+            if (oData.status === 'PENDING' && oData.paymentVerified === true) {
+                window.showPaymentSuccessAnimation(oData.id, 'PENDING');
+                return;
+            }
+            if (oData.status === 'PAID') {
+                const delivered = await tryAutoDeliverOrderFromVault(oData, oData.dbId);
+                window.showPaymentSuccessAnimation(oData.id, delivered ? 'SUCCESS' : 'PENDING');
                 return;
             }
         }
@@ -2264,8 +2436,9 @@ window.manualCheckQrisPaymentStatus = async function() {
             if (mutObj && mutObj.timestamp && (Date.now() - Number(mutObj.timestamp) < 600000)) {
                 const candidates = Array.isArray(mutObj.candidateAmounts) ? mutObj.candidateAmounts.map(Number) : [Number(mutObj.amount || 0)];
                 if (candidates.includes(targetNominal)) {
-                    await updateDoc(orderRef, { status: 'SUCCESS' }).catch(() => {});
-                    window.showPaymentSuccessAnimation(currentCheckoutSession.id);
+                    const orderObj = orders.find(o => o.dbId === currentCheckoutSession.dbId) || { id: currentCheckoutSession.id, dbId: currentCheckoutSession.dbId };
+                    const delivered = await tryAutoDeliverOrderFromVault(orderObj, currentCheckoutSession.dbId);
+                    window.showPaymentSuccessAnimation(currentCheckoutSession.id, delivered ? 'SUCCESS' : 'PENDING');
                     return;
                 }
             }
@@ -2354,7 +2527,7 @@ window.openQRISModal = function() {
     if (activeCard) activeCard.style.display = 'grid';
     if (expiredCard) expiredCard.style.display = 'none';
     if (statusBadge) {
-        statusBadge.className = 'status-badge status-pending';
+        statusBadge.className = 'status-badge status-unpaid';
         statusBadge.innerText = 'MENUNGGU PEMBAYARAN';
     }
 
@@ -2423,7 +2596,7 @@ window.recreateExpiredOrder = function() {
 };
 
 // ==========================================
-// RENDER KATALOG & VARIASI 90FPS BEBAS LAG (#10 & #20)
+// RENDER KATALOG & VARIASI (#5)
 // ==========================================
 window.filterBrands = function(type, btnEl) {
     currentBrandFilter = type;
@@ -2502,7 +2675,6 @@ window.renderBrands = function(filter = currentBrandFilter) {
         const safeJsBrand = escapeJsStr(b.brandName);
         const safeHtmlBrand = escapeHtml(b.brandName);
         
-        // Cek apakah seluruh variasi di brand ini kosong saat Jam Operasional membatasi stok lokal (#20)
         const hasAnyPurchasableVariant = b.items.some(it => {
             const avail = computeVariantAvailableStock(it);
             if (opRestricted) return typeof avail === 'number' && avail > 0;
@@ -2516,7 +2688,7 @@ window.renderBrands = function(filter = currentBrandFilter) {
             tagLabel = 'GANGGUAN';
         } else if (opRestricted && !hasAnyPurchasableVariant) {
             tagClass = 'tag-maint';
-            tagLabel = 'STOK HABIS';
+            tagLabel = 'TUTUP JAM OPS';
         } else if (b.type === 'game') {
             tagClass = 'tag-game';
             tagLabel = 'GAME';
@@ -2529,10 +2701,14 @@ window.renderBrands = function(filter = currentBrandFilter) {
              ? `<img src="${b.imgUrlBase64}" alt="${safeHtmlBrand}" loading="lazy" decoding="async">` 
              : `<div style="width:100%; height:100%; background:var(--primary); display:flex; align-items:center; justify-content:center; font-size:1.7rem; font-weight:800; color:#ffffff;">${safeHtmlBrand.charAt(0)}</div>`;
              
-        const clickAction = b.isGangguan 
-            ? `window.customAlert('Maintenance', 'Layanan produk ini sedang dalam pemeliharaan.', 'warning')` 
-            : `window.openDirectBuyModal('${safeJsBrand}')`;
-        const cssClass = b.isGangguan ? 'brand-card sold-out' : 'brand-card';
+        let clickAction = `window.openDirectBuyModal('${safeJsBrand}')`;
+        if (b.isGangguan) {
+            clickAction = `window.customAlert('Maintenance', 'Layanan produk ini sedang dalam pemeliharaan.', 'warning')`;
+        } else if (opRestricted && !hasAnyPurchasableVariant) {
+            clickAction = `window.showToast('Di Luar Jam Operasional', 'Saat ini di luar jam operasional (${escapeJsStr(siteSettings.opOpenTime || '08:00')} - ${escapeJsStr(siteSettings.opCloseTime || '22:00')}). Produk ini belum memiliki stok lokal.', 'warning')`;
+        }
+
+        const cssClass = (b.isGangguan || (opRestricted && !hasAnyPurchasableVariant)) ? 'brand-card sold-out' : 'brand-card';
         
         html += `
             <div class="${cssClass}" onclick="${clickAction}">
@@ -2640,7 +2816,7 @@ function renderCheckoutVariantCards() {
         const hasStockQuota = typeof availQuota === 'number' && availQuota >= 0;
         const isQuotaEmpty = hasStockQuota && availQuota === 0;
 
-        // Jika Jam Operasional aktif membatasi stok lokal, varian yang tidak punya stok lokal terkunci (#20)
+        // Jika di luar jam operasional toko, variasi yang tidak memiliki stok lokal dikunci (#5)
         const isLockedByOpHours = opRestricted && (availQuota === null || availQuota <= 0);
         const isSold = isLockedByOpHours
             ? true
@@ -2650,9 +2826,9 @@ function renderCheckoutVariantCards() {
 
         let procBadge = '';
         if (isLockedByOpHours) {
-            procBadge = '<span class="proc-mode-badge proc-mode-manual">TUTUP JAM LAYANAN</span>';
+            procBadge = '<span class="proc-mode-badge proc-mode-manual">DI LUAR JAM OPS</span>';
         } else if (procType === 'manual') {
-            procBadge = '<span class="proc-mode-badge proc-mode-manual">MANUAL</span>';
+            procBadge = '<span class="proc-mode-badge proc-mode-manual">ADMIN</span>';
         } else if (procType === 'ask_auto' || procType === 'hybrid') {
             procBadge = '<span class="proc-mode-badge proc-mode-ask-auto">TANYA / AUTO</span>';
         } else {
@@ -2673,7 +2849,7 @@ function renderCheckoutVariantCards() {
         }
 
         const clickHandler = isSold
-            ? (isLockedByOpHours ? `window.showToast('Di Luar Jam Layanan', 'Saat ini hanya melayani variasi yang memiliki stok tersedia.', 'warning')` : '')
+            ? (isLockedByOpHours ? `window.showToast('Di Luar Jam Operasional', 'Varian ini membutuhkan pengiriman Admin dan baru dapat dibeli pada jam operasional (${escapeJsStr(siteSettings.opOpenTime || '08:00')} - ${escapeJsStr(siteSettings.opCloseTime || '22:00')}).', 'warning')` : '')
             : `window.selectItemToBuy('${item.dbId}')`;
 
         html += `
@@ -2694,7 +2870,7 @@ function renderCheckoutVariantCards() {
 }
 
 // ==========================================
-// CHECKOUT, PROMO & VERIFIKASI JAM OPERASIONAL (#11, #18, #20)
+// CHECKOUT, PROMO KHUSUS MEMBER (#11), TANPA NO HP (#3) & JAM OPERASIONAL (#5)
 // ==========================================
 window.openDirectBuyModal = function(brandName) {
     const brandObj = groupedBrands.find(b => b.brandName === brandName);
@@ -2800,33 +2976,26 @@ window.openDirectBuyModal = function(brandName) {
             ${extraDesc}
             <div class="brutal-alert-box" style="background:var(--bg); color:var(--text);">
                 <i class="fa-solid fa-circle-check text-primary"></i>
-                <span>Detail akun akan dikirim ke halaman Pesanan & Email kamu setelah pembayaran selesai.</span>
+                <span>Detail akun akan dikirim ke halaman Pesanan & Email kamu setelah pembayaran diterima.</span>
             </div>`;
     }
     
     const isMember = Boolean(currentUser && !currentUser.isAnonymous && !userProfile.isGuest);
     const guestContactBox = document.getElementById('buy-guest-contact-box');
     const emailGroup = document.getElementById('buy-email-group');
-    const phoneGroup = document.getElementById('buy-phone-group');
     const emailInput = document.getElementById('buy-email');
-    const phoneInput = document.getElementById('buy-phone');
     const memberAutofillBadge = document.getElementById('buy-member-autofill-badge');
 
     if (isMember) {
         const memEmail = userProfile.email || currentUser.email || localStorage.getItem('vipercell_member_email') || '';
-        const memPhone = userProfile.phone || userProfile.whatsapp || localStorage.getItem('vipercell_member_phone') || '';
         if (emailInput) emailInput.value = memEmail;
-        if (phoneInput) phoneInput.value = memPhone;
         if (guestContactBox) guestContactBox.style.display = 'none';
         if (emailGroup) emailGroup.style.display = 'none';
-        if (phoneGroup) phoneGroup.style.display = 'none';
         if (memberAutofillBadge) memberAutofillBadge.style.display = 'flex';
     } else {
         if (emailInput) emailInput.value = localStorage.getItem('vipercell_guest_email') || '';
-        if (phoneInput) phoneInput.value = localStorage.getItem('vipercell_guest_phone') || '';
         if (guestContactBox) guestContactBox.style.display = 'block';
         if (emailGroup) emailGroup.style.display = 'block';
-        if (phoneGroup) phoneGroup.style.display = 'block';
         if (memberAutofillBadge) memberAutofillBadge.style.display = 'none';
     }
     
@@ -2846,7 +3015,7 @@ window.selectItemToBuy = function(dbId) {
     const availQuota = computeVariantAvailableStock(candidate);
 
     if (opRestricted && (availQuota === null || availQuota <= 0)) {
-        window.showToast('Di Luar Jam Layanan', 'Saat ini hanya melayani produk dengan stok yang tersedia.', 'warning');
+        window.showToast('Di Luar Jam Operasional', 'Saat ini di luar jam operasional. Hanya variasi yang memiliki stok lokal tersedia yang bisa dibeli.', 'warning');
         return;
     }
 
@@ -2913,6 +3082,7 @@ window.changeBuyQty = function(change) {
     window.calculateDirectBuyTotal();
 };
 
+// [FITUR #11] Kode Promo Wajib Hanya Bisa Digunakan oleh Member (Tanpa Teks Aturan di Web)
 window.applyPromoDirect = function() {
     const codeInput = document.getElementById('buy-promo-code').value.trim().toUpperCase();
     const msgEl = document.getElementById('buy-promo-msg');
@@ -2922,8 +3092,17 @@ window.applyPromoDirect = function() {
     }
     
     const isMember = Boolean(currentUser && !currentUser.isAnonymous && !userProfile.isGuest);
-    const effectiveUid = isMember ? currentUser.uid : (boundLegacyGuestUid || currentUser?.uid || '');
-    const buyerEmail = (isMember ? (userProfile.email || currentUser?.email || '') : (document.getElementById('buy-email')?.value || '')).trim().toLowerCase();
+
+    // Semua kode promo wajib khusus Member (#11)
+    if (!isMember) {
+        appliedPromo = null;
+        msgEl.innerHTML = `<span style="color:var(--danger)">Kode promo hanya dapat digunakan oleh Member.</span>`;
+        window.calculateDirectBuyTotal();
+        return;
+    }
+
+    const effectiveUid = currentUser.uid;
+    const buyerEmail = (userProfile.email || currentUser?.email || '').trim().toLowerCase();
 
     const p = promos.find(x => x.code === codeInput);
     const qty = parseInt(document.getElementById('buy-qty')?.value) || 1;
@@ -2932,15 +3111,7 @@ window.applyPromoDirect = function() {
 
     if (!p || !p.active) {
         appliedPromo = null;
-        msgEl.innerHTML = `<span style="color:var(--danger)">Kode promo tidak valid.</span>`;
-        window.calculateDirectBuyTotal();
-        return;
-    }
-
-    const isMemberOnlyPromo = (p.targetUser === 'member' || p.targetUser === 'member_only' || p.memberOnly === true);
-    if (isMemberOnlyPromo && !isMember) {
-        appliedPromo = null;
-        msgEl.innerHTML = `<span style="color:var(--danger)">Kode promo ini khusus untuk Member.</span>`;
+        msgEl.innerHTML = `<span style="color:var(--danger)">Kode promo tidak ditemukan.</span>`;
         window.calculateDirectBuyTotal();
         return;
     }
@@ -2956,7 +3127,7 @@ window.applyPromoDirect = function() {
 
         if (usedEmailsList.includes(buyerEmail) || hasUsedInOrders || hasUsedLocal) {
             appliedPromo = null;
-            msgEl.innerHTML = `<span style="color:var(--danger)">Kode promo sudah pernah digunakan pada email ini.</span>`;
+            msgEl.innerHTML = `<span style="color:var(--danger)">Kode promo sudah pernah digunakan pada akun ini.</span>`;
             window.calculateDirectBuyTotal();
             return;
         }
@@ -2978,16 +3149,16 @@ window.applyPromoDirect = function() {
         if (hasOrders) {
             appliedPromo = null; msgEl.innerHTML = `<span style="color:var(--danger)">Khusus transaksi pertama.</span>`;
         } else {
-            setValidPromo(p, msgEl, isMemberOnlyPromo);
+            setValidPromo(p, msgEl);
         }
     } else {
-        setValidPromo(p, msgEl, isMemberOnlyPromo);
+        setValidPromo(p, msgEl);
     }
     window.calculateDirectBuyTotal();
 };
 
-function setValidPromo(p, msgEl, isMemberOnlyPromo = false) {
-    appliedPromo = { dbId: p.dbId, code: p.code, amount: p.amount, type: p.type || 'nominal', memberOnly: isMemberOnlyPromo };
+function setValidPromo(p, msgEl) {
+    appliedPromo = { dbId: p.dbId, code: p.code, amount: p.amount, type: p.type || 'nominal', memberOnly: true };
     msgEl.innerHTML = `<span style="color:var(--success)"><i class="fa-solid fa-circle-check"></i> Promo ${escapeHtml(p.code)} diterapkan.</span>`;
 }
 
@@ -2997,7 +3168,7 @@ window.calculateDirectBuyTotal = function() {
     
     if (!selectedProductForBuy) {
         document.getElementById('buy-total-price').innerText = 'Rp0';
-        btnProc.innerHTML = '<i class="fa-solid fa-cart-shopping"></i> <span>Pilih Varian Dahulu</span>';
+        btnProc.innerHTML = '<i class="fa-solid fa-cart-shopping"></i> <span>Pilih Variasi</span>';
         btnProc.disabled = true;
         return; 
     }
@@ -3027,7 +3198,7 @@ window.calculateDirectBuyTotal = function() {
     const opRestricted = isLocalStockOnlyRestrictionActive();
     const availQuota = computeVariantAvailableStock(selectedProductForBuy);
     if (opRestricted && (availQuota === null || availQuota <= 0)) {
-        btnProc.innerHTML = '<i class="fa-solid fa-clock"></i> <span>Stok Lokal Kosong (Tutup Jam Layanan)</span>';
+        btnProc.innerHTML = '<i class="fa-solid fa-clock"></i> <span>Di Luar Jam Operasional</span>';
         btnProc.disabled = true;
         return;
     }
@@ -3047,7 +3218,7 @@ window.processDirectCheckout = async function() {
     const opRestricted = isLocalStockOnlyRestrictionActive();
     const availQuota = computeVariantAvailableStock(selectedProductForBuy);
     if (opRestricted && (availQuota === null || availQuota <= 0)) {
-        window.customAlert('Di Luar Jam Layanan', 'Saat ini toko hanya melayani pembelian produk yang memiliki stok lokal tersedia.', 'warning');
+        window.customAlert('Di Luar Jam Operasional', `Saat ini di luar jam operasional (${siteSettings.opOpenTime || '08:00'} - ${siteSettings.opCloseTime || '22:00'}). Hanya produk yang memiliki stok lokal tersedia yang bisa dibeli langsung.`, 'warning');
         return;
     }
 
@@ -3057,23 +3228,20 @@ window.processDirectCheckout = async function() {
         ? (userProfile.email || currentUser?.email || document.getElementById('buy-email')?.value || '').trim()
         : (document.getElementById('buy-email')?.value || '').trim();
 
-    let phoneInput = isMember
-        ? (userProfile.phone || userProfile.whatsapp || document.getElementById('buy-phone')?.value || '').trim()
-        : (document.getElementById('buy-phone')?.value || '').trim();
-
     if (!emailInput || !emailInput.includes('@')) { 
-        window.customAlert('Email Diperlukan', 'Harap masukkan alamat email aktif.', 'warning'); 
+        window.customAlert('Email Diperlukan', 'Harap masukkan alamat email aktif untuk pengiriman pesanan.', 'warning'); 
         return; 
     }
 
     if (appliedPromo) {
+        if (!isMember) {
+            appliedPromo = null;
+            window.calculateDirectBuyTotal();
+            window.customAlert('Khusus Member', 'Kode promo hanya dapat digunakan oleh Member.', 'warning');
+            return;
+        }
         const promoDoc = promos.find(x => x.code === appliedPromo.code);
         if (promoDoc) {
-            const isMemOnly = (promoDoc.targetUser === 'member' || promoDoc.targetUser === 'member_only' || promoDoc.memberOnly === true);
-            if (isMemOnly && !isMember) {
-                window.customAlert('Khusus Member', 'Kode promo ini hanya berlaku untuk Member.', 'warning');
-                return;
-            }
             if (promoDoc.onePerEmail !== false) {
                 const lowerEm = emailInput.toLowerCase();
                 const usedEmails = Array.isArray(promoDoc.usedEmails) ? promoDoc.usedEmails.map(e => String(e).toLowerCase()) : [];
@@ -3094,7 +3262,7 @@ window.processDirectCheckout = async function() {
     
     const qty = parseInt(document.getElementById('buy-qty').value) || 1;
     if (typeof availQuota === 'number' && availQuota < qty) {
-        window.customAlert('Stok Tidak Cukup', `Sisa stok tersedia untuk varian ini adalah ${availQuota}.`, 'warning');
+        window.customAlert('Stok Tidak Cukup', `Sisa stok tersedia untuk variasi ini adalah ${availQuota}.`, 'warning');
         return;
     }
     
@@ -3128,7 +3296,7 @@ window.processDirectCheckout = async function() {
 
     const existingActiveOrder = orders.find(o => {
         const isSameUser = effectiveUid && o.userId === effectiveUid;
-        const isStillActive = (o.status === 'UNPAID' || o.status === 'PENDING_PAYMENT' || o.status === 'PENDING') && (now - new Date(o.date).getTime() < 900000);
+        const isStillActive = (o.status === 'UNPAID' || o.status === 'PENDING_PAYMENT') && (now - new Date(o.date).getTime() < 900000);
         const isSameItem = o.items && o.items[0] &&
                            o.items[0].productDbId === selectedProductForBuy.dbId &&
                            o.items[0].qty === qty &&
@@ -3149,7 +3317,7 @@ window.processDirectCheckout = async function() {
     btnProc.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> <span>Memproses...</span>';
     btnProc.disabled = true;
 
-    saveActiveSessionContact(emailInput, phoneInput);
+    saveActiveSessionContact(emailInput);
     
     let rawTotal = selectedProductForBuy.priceNum * qty;
     let discountPromo = 0; let promoUsedCode = '';
@@ -3196,13 +3364,14 @@ window.processDirectCheckout = async function() {
         playerInfo: playerInfo 
     };
 
+    // Semua pesanan yang belum dibayar dimulai dari status UNPAID (Menunggu Pembayaran #1)
     const newOrder = {
         id: invId, 
         orderId: invId,
         userEmail: emailInput,
         buyerEmail: emailInput,
         buyerName: userProfile.name || emailInput.split('@')[0],
-        userPhone: phoneInput || userProfile.phone || userProfile.whatsapp || '',
+        userPhone: '',
         userId: effectiveUid, 
         isAnonymousOrder: !isMember,
         deviceId: currentDeviceId,
@@ -3217,7 +3386,8 @@ window.processDirectCheckout = async function() {
         promoCode: promoUsedCode,
         promoDiscount: discountPromo,
         durationDays: durationDays,
-        status: paymentMethod === 'cash' ? 'PENDING' : 'UNPAID',
+        status: 'UNPAID',
+        paymentVerified: false,
         paymentMethod: paymentMethod,
         adminReply: '',
         emailSent: false,
@@ -3263,7 +3433,7 @@ window.processDirectCheckout = async function() {
 };
 
 // ==========================================
-// STRUK DETAIL PESANAN & LACAK ID TRANSAKSI (#18)
+// STRUK RINCIAN PESANAN MATANG & RAPI (#1)
 // ==========================================
 function buildQuickCopyCredentialButtons(rawReplyText) {
     if (!rawReplyText) return '';
@@ -3283,7 +3453,6 @@ function buildQuickCopyCredentialButtons(rawReplyText) {
             return;
         }
 
-        // Abaikan baris LINK_AKSES karena fitur link default web ambil kode telah dihapus (#18)
         if (line.toUpperCase().startsWith('LINK_AKSES')) {
             return;
         }
@@ -3392,19 +3561,14 @@ window.copyAccountReplyText = function(invId) {
 function generateHelpButtons(invId, orderStatus, item) {
     let actionBtn = '';
     if (orderStatus === 'PENDING') {
-        const msg = `Halo Admin, saya sudah membayar pesanan #${invId}. Mohon dicek.`;
-        actionBtn = `<button class="btn btn-warning" style="width:100%;" onclick="window.sendPredefinedChat('${escapeJsStr(msg)}')"><i class="fa-solid fa-check-double"></i> Konfirmasi ke Admin</button>`;
+        const msg = `Halo Admin, pembayaran untuk pesanan #${invId} sudah diterima. Mohon bantuannya untuk memproses pesanan saya.`;
+        actionBtn = `<button class="btn btn-primary" style="width:100%;" onclick="window.sendPredefinedChat('${escapeJsStr(msg)}')"><i class="fa-solid fa-comments"></i> Hubungi Admin</button>`;
     } else if (orderStatus === 'SUCCESS') {
-        if (item?.processType === 'manual') {
-            const msg = `Halo Admin, pesanan #${invId} saya sudah lunas. Mohon segera diproses.`;
-            actionBtn = `<button class="btn btn-primary" style="width:100%;" onclick="window.sendPredefinedChat('${escapeJsStr(msg)}')"><i class="fa-solid fa-headset"></i> Hubungi Admin</button>`;
-        } else {
-            const msg = `Halo Admin, saya butuh bantuan untuk pesanan #${invId}.`;
-            actionBtn = `<button class="btn btn-outline" style="width:100%;" onclick="window.sendPredefinedChat('${escapeJsStr(msg)}')"><i class="fa-solid fa-headset"></i> Bantuan Pesanan</button>`;
-        }
-    } else if (orderStatus === 'EXPIRED') {
+        const msg = `Halo Admin, saya butuh bantuan untuk pesanan #${invId}.`;
+        actionBtn = `<button class="btn btn-outline" style="width:100%;" onclick="window.sendPredefinedChat('${escapeJsStr(msg)}')"><i class="fa-solid fa-headset"></i> Bantuan Pesanan</button>`;
+    } else if (orderStatus === 'EXPIRED' || orderStatus === 'FAILED') {
         const msg = `Halo Admin, saya butuh bantuan terkait pesanan #${invId}.`;
-        actionBtn = `<button class="btn btn-danger" style="width:100%;" onclick="window.sendPredefinedChat('${escapeJsStr(msg)}')"><i class="fa-solid fa-headset"></i> Hubungi Admin</button>`;
+        actionBtn = `<button class="btn btn-outline" style="width:100%;" onclick="window.sendPredefinedChat('${escapeJsStr(msg)}')"><i class="fa-solid fa-headset"></i> Hubungi Admin</button>`;
     }
     
     if (!actionBtn) return '';
@@ -3419,131 +3583,188 @@ function hasOrderBeenReviewed(order) {
     return reviewsData.some(r => r.orderId && r.orderId === order.id);
 }
 
+// Struk Rincian Pesanan Lebih Rapi & Matang dengan 3 Status Utama (#1)
 function buildFullReceiptHTML(order) {
-    const isUnpaid = order.status === 'UNPAID' || order.status === 'PENDING_PAYMENT';
+    const isCashUnpaid = (order.paymentMethod === 'cash' && order.status === 'PENDING' && !order.paymentVerified);
+    const isUnpaid = order.status === 'UNPAID' || order.status === 'PENDING_PAYMENT' || isCashUnpaid;
+    const isPendingAdmin = (order.status === 'PENDING' && !isCashUnpaid) || (order.status === 'SUCCESS' && !order.adminReply);
+    const isDeliveredSuccess = (order.status === 'SUCCESS' && Boolean(order.adminReply));
     const isCancelled = order.status === 'CANCELLED';
     const isFailed = order.status === 'FAILED' || order.status === 'EXPIRED' || isCancelled;
 
-    const sBadge = isUnpaid ? 'status-unpaid' : order.status === 'PENDING' ? 'status-pending' : isCancelled ? 'status-cancelled' : isFailed ? 'status-failed' : 'status-success';
-    const sName = isUnpaid ? 'BELUM BAYAR' : order.status === 'PENDING' ? 'MENUNGGU PROSES' : isCancelled ? 'DIBATALKAN' : order.status === 'FAILED' ? 'GAGAL' : order.status === 'EXPIRED' ? 'WAKTU HABIS' : 'SELESAI';
+    let sBadge = 'status-unpaid';
+    let sName = 'MENUNGGU PEMBAYARAN';
+    let heroClass = 'hero-unpaid';
+    let heroIcon = 'fa-hourglass-half';
+    let heroTitle = 'Menunggu Pembayaran';
+    let heroDesc = order.paymentMethod === 'cash'
+        ? 'Tunjukkan tiket barcode tunai kepada kasir untuk menyelesaikan pembayaran.'
+        : 'Selesaikan pembayaran sesuai nominal tepat agar pesanan segera diproses.';
+
+    if (isDeliveredSuccess) {
+        sBadge = 'status-success';
+        sName = 'TERKIRIM & SELESAI';
+        heroClass = 'hero-success';
+        heroIcon = 'fa-circle-check';
+        heroTitle = 'Pesanan Terkirim & Selesai';
+        heroDesc = 'Pembayaran telah diterima dan rincian pesanan sudah dikirimkan di bawah ini.';
+    } else if (isPendingAdmin) {
+        sBadge = 'status-pending';
+        sName = 'DIPROSES ADMIN (PENDING)';
+        heroClass = 'hero-pending';
+        heroIcon = 'fa-user-clock';
+        heroTitle = 'Pembayaran Diterima — Menunggu Dikirim Admin';
+        heroDesc = 'Pembayaran kamu sudah kami terima. Pesanan sedang disiapkan dan akan segera dikirim oleh Admin.';
+    } else if (isCancelled) {
+        sBadge = 'status-cancelled';
+        sName = 'DIBATALKAN';
+        heroClass = 'hero-failed';
+        heroIcon = 'fa-ban';
+        heroTitle = 'Pesanan Dibatalkan';
+        heroDesc = 'Tagihan pesanan ini telah dibatalkan.';
+    } else if (isFailed) {
+        sBadge = 'status-failed';
+        sName = order.status === 'EXPIRED' ? 'WAKTU HABIS' : 'GAGAL';
+        heroClass = 'hero-failed';
+        heroIcon = 'fa-circle-xmark';
+        heroTitle = order.status === 'EXPIRED' ? 'Batas Waktu Pembayaran Habis' : 'Pesanan Gagal';
+        heroDesc = 'Silakan buat pesanan baru jika masih ingin melanjutkan pembelian.';
+    }
     
     const brandName = order.items[0]?.brandName || '';
     const safeJsBrand = escapeJsStr(brandName);
 
-    const step2Class = order.status === 'SUCCESS' ? 'done' : (isFailed ? 'failed' : 'active');
-    const step3Class = order.status === 'SUCCESS' ? 'done' : '';
+    const step2Class = (isDeliveredSuccess || isPendingAdmin) ? 'done' : (isFailed ? 'failed' : 'active');
+    const step3Class = isDeliveredSuccess ? 'done' : (isPendingAdmin ? 'active' : '');
 
     let actionHtml = '';
     if (isUnpaid) {
-        actionHtml = `
-        <div class="ereceipt-action-grid">
-            <button class="btn btn-primary" onclick="window.resumePayment('${order.dbId}')">
-                <i class="fa-solid fa-qrcode"></i> Bayar QRIS
-            </button>
-            <button class="btn btn-danger" onclick="window.cancelActiveOrder('${order.dbId}')">
-                <i class="fa-solid fa-ban"></i> Batalkan
-            </button>
-        </div>`;
-    } else if (order.status === 'PENDING' && order.paymentMethod === 'cash') {
-        actionHtml = `
-        <div class="ereceipt-action-grid">
-            <button class="btn btn-primary" onclick="window.resumePayment('${order.dbId}')">
-                <i class="fa-solid fa-barcode"></i> Buka Barcode
-            </button>
-            <button class="btn btn-danger" onclick="window.cancelActiveOrder('${order.dbId}')">
-                <i class="fa-solid fa-ban"></i> Batalkan
-            </button>
-        </div>`;
+        if (order.paymentMethod === 'cash') {
+            actionHtml = `
+            <div class="ereceipt-action-grid">
+                <button class="btn btn-warning" onclick="window.resumePayment('${order.dbId}')">
+                    <i class="fa-solid fa-barcode"></i> Buka Barcode Tunai
+                </button>
+                <button class="btn btn-danger" onclick="window.cancelActiveOrder('${order.dbId}')">
+                    <i class="fa-solid fa-ban"></i> Batalkan
+                </button>
+            </div>`;
+        } else {
+            actionHtml = `
+            <div class="ereceipt-action-grid">
+                <button class="btn btn-primary" onclick="window.resumePayment('${order.dbId}')">
+                    <i class="fa-solid fa-qrcode"></i> Lanjut Bayar QRIS
+                </button>
+                <button class="btn btn-danger" onclick="window.cancelActiveOrder('${order.dbId}')">
+                    <i class="fa-solid fa-ban"></i> Batalkan
+                </button>
+            </div>`;
+        }
     } else if (isCancelled || order.status === 'EXPIRED') {
         if (brandName) {
-            actionHtml = `<button class="btn btn-primary" style="width:100%; margin-top:0.9rem;" onclick="window.closeModal('modal-order-detail'); window.openDirectBuyModal('${safeJsBrand}')"><i class="fa-solid fa-rotate-right"></i> Beli Lagi</button>`;
+            actionHtml = `<button class="btn btn-primary" style="width:100%; margin-top:0.9rem;" onclick="window.closeModal('modal-order-detail'); window.openDirectBuyModal('${safeJsBrand}')"><i class="fa-solid fa-rotate-right"></i> Pesan Ulang Produk Ini</button>`;
         }
-    } else if (order.status === 'SUCCESS') {
+    } else if (isDeliveredSuccess) {
         const alreadyReviewed = hasOrderBeenReviewed(order);
         if (!alreadyReviewed && brandName) {
             actionHtml = `
-                <button class="btn btn-warning" style="width:100%; margin-top:0.9rem;" onclick="window.goToReview('${safeJsBrand}', '${order.id}')"><i class="fa-solid fa-star"></i> Beri Ulasan</button>`;
+                <button class="btn btn-warning" style="width:100%; margin-top:0.9rem;" onclick="window.goToReview('${safeJsBrand}', '${order.id}')"><i class="fa-solid fa-star"></i> Beri Ulasan Produk</button>`;
         } else if (alreadyReviewed) {
             actionHtml = `
-                <div style="margin-top:0.9rem; text-align:center; font-size:0.76rem; font-weight:800; color:var(--success); padding:7px; border:1.5px dashed var(--success); border-radius:8px;"><i class="fa-solid fa-circle-check"></i> Sudah diulas</div>`;
+                <div style="margin-top:0.9rem; text-align:center; font-size:0.76rem; font-weight:800; color:var(--success); padding:7px; border:1.5px dashed var(--success); border-radius:8px;"><i class="fa-solid fa-circle-check"></i> Terima kasih, pesanan ini sudah kamu ulas</div>`;
         }
     }
 
     let durationReceiptHtml = '';
     const durDays = order.durationDays || order.items[0]?.durationDays || 0;
-    if (durDays > 0 && order.status === 'SUCCESS') {
+    if (durDays > 0 && (isDeliveredSuccess || isPendingAdmin)) {
         const endMs = order.subscriptionEndAt || (new Date(order.date).getTime() + durDays * 86400000);
         durationReceiptHtml = `
-            <div style="margin-top:8px; padding-top:8px; border-top:1px dashed var(--border-subtle); font-size:0.75rem; font-weight:800; color:var(--primary-light); display:flex; justify-content:space-between; flex-wrap:wrap;">
-                <span>Durasi: ${durDays} Hari</span>
+            <div style="margin-top:8px; padding-top:8px; border-top:1.5px dashed var(--border-subtle); font-size:0.75rem; font-weight:800; color:var(--primary); display:flex; justify-content:space-between; flex-wrap:wrap;">
+                <span><i class="fa-regular fa-clock"></i> Masa Aktif: ${durDays} Hari</span>
                 <span>Berakhir: ${new Date(endMs).toLocaleDateString('id-ID', { day:'2-digit', month:'short', year:'numeric' })}</span>
             </div>`;
     }
     
     let replyHtml = '';
-    if (order.status === 'SUCCESS') {
-        if (order.adminReply) {
-            const quickCopyButtonsHtml = buildQuickCopyCredentialButtons(order.adminReply);
-            replyHtml = `
-            <div class="ereceipt-cred-vault">
-                <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px;">
-                    <span style="font-weight: 800; color: var(--success); font-size: 0.82rem; display: flex; align-items: center; gap: 6px;">
-                        <i class="fa-solid fa-key"></i> DETAIL PESANAN:
-                    </span>
-                    <button class="btn btn-outline btn-sm" style="padding:3px 10px; min-height:28px; font-size:0.7rem;" onclick="window.copyAccountReplyText('${escapeJsStr(order.id)}')">
-                        <i class="fa-regular fa-copy"></i> Salin Semua
-                    </button>
-                </div>
-                ${quickCopyButtonsHtml}
-                <div class="ereceipt-cred-content">${escapeHtml(order.adminReply)}</div>
-            </div>`;
-        } else {
-            replyHtml = `
-            <div class="brutal-alert-box alert-warning" style="margin-top: 12px;">
-                <i class="fa-solid fa-clock"></i>
-                <span>Pembayaran diterima. Pesanan sedang diproses.</span>
-            </div>`;
-        }
+    if (isDeliveredSuccess && order.adminReply) {
+        const quickCopyButtonsHtml = buildQuickCopyCredentialButtons(order.adminReply);
+        replyHtml = `
+        <div class="ereceipt-cred-vault">
+            <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px;">
+                <span style="font-weight: 900; color: var(--success); font-size: 0.82rem; display: flex; align-items: center; gap: 6px;">
+                    <i class="fa-solid fa-key"></i> RINCIAN AKUN / PESANAN TERKIRIM:
+                </span>
+                <button class="btn btn-outline btn-sm" style="padding:3px 10px; min-height:28px; font-size:0.7rem;" onclick="window.copyAccountReplyText('${escapeJsStr(order.id)}')">
+                    <i class="fa-regular fa-copy"></i> Salin Semua
+                </button>
+            </div>
+            ${quickCopyButtonsHtml}
+            <div class="ereceipt-cred-content">${escapeHtml(order.adminReply)}</div>
+        </div>`;
     }
     
-    const helpHtml = generateHelpButtons(order.id, order.status, order.items[0]);
+    const helpHtml = generateHelpButtons(order.id, isPendingAdmin ? 'PENDING' : order.status, order.items[0]);
 
     return `
     <div class="ereceipt-ticket">
         <div class="ereceipt-top-banner">
             <div>
-                <span style="font-size:0.66rem; font-weight:800; color:var(--text-muted); display:block;">NOMOR INVOICE</span>
+                <span style="font-size:0.65rem; font-weight:900; color:var(--text-muted); display:block; letter-spacing:0.04em;">ID TRANSAKSI</span>
                 <div class="ereceipt-inv-code">
                     <span>#${escapeHtml(order.id)}</span>
-                    <button class="mini-copy-btn" onclick="navigator.clipboard.writeText('${escapeJsStr(order.id)}'); window.showToast('Disalin','Nomor Invoice disalin','success');"><i class="fa-regular fa-copy"></i></button>
+                    <button class="mini-copy-btn" onclick="navigator.clipboard.writeText('${escapeJsStr(order.id)}'); window.showToast('Disalin','ID Transaksi berhasil disalin','success');" title="Salin ID"><i class="fa-regular fa-copy"></i></button>
                 </div>
             </div>
             <span class="status-badge ${sBadge}">${sName}</span>
         </div>
 
+        <!-- Hero Penjelasan Status Pesanan (#1) -->
+        <div class="ereceipt-status-hero ${heroClass}">
+            <div class="ereceipt-status-hero-icon">
+                <i class="fa-solid ${heroIcon}"></i>
+            </div>
+            <div class="ereceipt-status-hero-text">
+                <strong>${escapeHtml(heroTitle)}</strong>
+                <span>${escapeHtml(heroDesc)}</span>
+            </div>
+        </div>
+
         <div class="ereceipt-stepper">
             <div class="estep-item done">
                 <div class="estep-dot"><i class="fa-solid fa-check"></i></div>
-                <span class="estep-label">1. Dibuat</span>
+                <span class="estep-label">1. Pesanan</span>
             </div>
             <div class="estep-item ${step2Class}">
-                <div class="estep-dot"><i class="fa-solid ${isFailed ? 'fa-xmark' : (order.paymentMethod === 'cash' ? 'fa-barcode' : 'fa-qrcode')}"></i></div>
-                <span class="estep-label">2. ${order.paymentMethod === 'cash' ? 'Tunai' : 'QRIS'}</span>
+                <div class="estep-dot"><i class="fa-solid ${isFailed ? 'fa-xmark' : ((isDeliveredSuccess || isPendingAdmin) ? 'fa-check' : (order.paymentMethod === 'cash' ? 'fa-barcode' : 'fa-qrcode'))}"></i></div>
+                <span class="estep-label">2. Pembayaran</span>
             </div>
             <div class="estep-item ${step3Class}">
-                <div class="estep-dot"><i class="fa-solid fa-box-open"></i></div>
-                <span class="estep-label">3. Selesai</span>
+                <div class="estep-dot"><i class="fa-solid ${isDeliveredSuccess ? 'fa-check' : 'fa-box-open'}"></i></div>
+                <span class="estep-label">3. ${isPendingAdmin ? 'Diproses Admin' : 'Selesai'}</span>
             </div>
         </div>
 
         <div class="ereceipt-body">
-            <div style="font-size: 0.75rem; font-weight: 700; color: var(--text-muted); margin-bottom: 10px; display:flex; justify-content:space-between; flex-wrap:wrap; gap:6px;">
-                <span>${new Date(order.date).toLocaleString('id-ID')}</span>
-                <span>Email: <b>${escapeHtml(order.userEmail || '-')}</b></span>
+            <div class="ereceipt-meta-grid">
+                <div class="ereceipt-meta-cell">
+                    <span>WAKTU TRANSAKSI</span>
+                    <strong>${new Date(order.date).toLocaleString('id-ID', { day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' })}</strong>
+                </div>
+                <div class="ereceipt-meta-cell">
+                    <span>METODE BAYAR</span>
+                    <strong>${order.paymentMethod === 'cash' ? 'TUNAI (KASIR)' : 'QRIS OTOMATIS'}</strong>
+                </div>
+                <div class="ereceipt-meta-cell" style="grid-column: 1 / -1;">
+                    <span>EMAIL PENGIRIMAN</span>
+                    <strong>${escapeHtml(order.userEmail || '-')}</strong>
+                </div>
             </div>
+
             <div class="ereceipt-product-box">
-                ${order.items.map(i => `<div style="font-weight: 800; font-size: 0.94rem; color: var(--text);">${escapeHtml(i.name)}</div>`).join('')}
-                <div style="font-size: 0.76rem; font-weight: 700; color: var(--text-muted); margin-top:4px;">${escapeHtml(order.items[0]?.playerInfo || '')}</div>
+                <span style="font-size:0.65rem; font-weight:900; color:var(--text-muted); display:block; margin-bottom:2px;">ITEM PESANAN</span>
+                ${order.items.map(i => `<div style="font-weight: 900; font-size: 0.96rem; color: var(--text);">${escapeHtml(i.name)}</div>`).join('')}
+                <div style="font-size: 0.78rem; font-weight: 700; color: var(--text-muted); margin-top:4px;">${escapeHtml(order.items[0]?.playerInfo || '')}</div>
                 ${durationReceiptHtml}
             </div>
             ${replyHtml}
@@ -3551,22 +3772,22 @@ function buildFullReceiptHTML(order) {
 
         <div class="ereceipt-footer">
             <div class="receipt-row">
-                <span style="color:var(--text-muted);">Subtotal</span>
+                <span style="color:var(--text-muted);">Harga Produk</span>
                 <span>Rp${(order.baseTotal + (order.promoDiscount || 0)).toLocaleString('id-ID')}</span>
             </div>
             ${order.promoDiscount > 0 ? `
             <div class="receipt-row">
-                <span style="color:var(--success);">Diskon (${escapeHtml(order.promoCode)})</span>
+                <span style="color:var(--success);">Diskon Promo (${escapeHtml(order.promoCode)})</span>
                 <span style="color:var(--success);">-Rp${order.promoDiscount.toLocaleString('id-ID')}</span>
             </div>` : ''}
             ${order.uniqueCode > 0 ? `
             <div class="receipt-row">
-                <span style="color:var(--warning);">Kode Unik</span>
+                <span style="color:var(--warning);">Kode Unik QRIS</span>
                 <span style="color:var(--warning);">+Rp${order.uniqueCode}</span>
             </div>` : ''}
-            <div class="receipt-row" style="margin-top: 8px; padding-top: 8px; border-top: 1.5px solid var(--border);">
-                <strong style="font-size: 0.92rem; font-weight: 800; color: var(--text);">TOTAL</strong>
-                <strong style="font-size: 1.15rem; font-weight: 800; color: var(--primary-light);">Rp${order.finalTotal.toLocaleString('id-ID')}</strong>
+            <div class="receipt-row" style="margin-top: 8px; padding-top: 8px; border-top: 2px solid var(--border);">
+                <strong style="font-size: 0.92rem; font-weight: 900; color: var(--text);">TOTAL PEMBAYARAN</strong>
+                <strong style="font-size: 1.2rem; font-weight: 900; color: var(--primary);">Rp${order.finalTotal.toLocaleString('id-ID')}</strong>
             </div>
             ${actionHtml}
             ${helpHtml}
@@ -3575,12 +3796,28 @@ function buildFullReceiptHTML(order) {
 }
 
 function buildCompactOrderItemHTML(order) {
-    const isUnpaid = order.status === 'UNPAID' || order.status === 'PENDING_PAYMENT';
+    const isCashUnpaid = (order.paymentMethod === 'cash' && order.status === 'PENDING' && !order.paymentVerified);
+    const isUnpaid = order.status === 'UNPAID' || order.status === 'PENDING_PAYMENT' || isCashUnpaid;
+    const isPendingAdmin = (order.status === 'PENDING' && !isCashUnpaid) || (order.status === 'SUCCESS' && !order.adminReply);
     const isCancelled = order.status === 'CANCELLED';
     const isFailed = order.status === 'FAILED' || order.status === 'EXPIRED' || isCancelled;
 
-    const sBadge = isUnpaid ? 'status-unpaid' : order.status === 'PENDING' ? 'status-pending' : isCancelled ? 'status-cancelled' : isFailed ? 'status-failed' : 'status-success';
-    const sName = isUnpaid ? 'BELUM BAYAR' : order.status === 'PENDING' ? (order.paymentMethod === 'cash' ? 'TUNAI' : 'DIPROSES') : isCancelled ? 'DIBATALKAN' : order.status === 'FAILED' ? 'GAGAL' : order.status === 'EXPIRED' ? 'EXPIRED' : 'SELESAI';
+    let sBadge = 'status-unpaid';
+    let sName = 'MENUNGGU BAYAR';
+
+    if (isPendingAdmin) {
+        sBadge = 'status-pending';
+        sName = 'DIPROSES ADMIN';
+    } else if (isCancelled) {
+        sBadge = 'status-cancelled';
+        sName = 'DIBATALKAN';
+    } else if (isFailed) {
+        sBadge = 'status-failed';
+        sName = order.status === 'EXPIRED' ? 'WAKTU HABIS' : 'GAGAL';
+    } else if (!isUnpaid) {
+        sBadge = 'status-success';
+        sName = 'TERKIRIM & SELESAI';
+    }
     
     const item = order.items && order.items[0] ? order.items[0] : {};
     const typeIcon = item.type === 'game' ? 'fa-gamepad' : (item.type === 'tools' ? 'fa-screwdriver-wrench' : 'fa-mobile-screen');
@@ -3594,7 +3831,7 @@ function buildCompactOrderItemHTML(order) {
             <div class="order-compact-info">
                 <div class="order-compact-top">
                     <span class="order-compact-inv">#${escapeHtml(order.id)}</span>
-                    <span class="status-badge ${sBadge}" style="font-size:0.6rem; padding:2px 6px;">${sName}</span>
+                    <span class="status-badge ${sBadge}" style="font-size:0.6rem; padding:2px 7px;">${sName}</span>
                     <span class="order-compact-date">${new Date(order.date).toLocaleDateString('id-ID', { day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' })}</span>
                 </div>
                 <div class="order-compact-title">${escapeHtml(item.name || 'Pesanan Vipercell')}</div>
@@ -3603,7 +3840,7 @@ function buildCompactOrderItemHTML(order) {
         </div>
         <div class="order-compact-right">
             <span class="order-compact-price">Rp${(order.finalTotal || 0).toLocaleString('id-ID')}</span>
-            <span class="order-tap-hint">Detail <i class="fa-solid fa-chevron-right"></i></span>
+            <span class="order-tap-hint">Rincian <i class="fa-solid fa-chevron-right"></i></span>
         </div>
     </div>`;
 }
@@ -3631,21 +3868,6 @@ window.refreshOrderData = function() {
     const trackResult = document.getElementById('track-result');
     if (trackResult && trackResult.style.display === 'block') window.trackOrder();
     window.showToast('Diperbarui', 'Daftar pesanan telah diperbarui.', 'info');
-};
-
-window.pasteTrackIdFromClipboard = async function() {
-    try {
-        const text = await navigator.clipboard.readText();
-        if (text) {
-            const inp = document.getElementById('track-id');
-            if (inp) {
-                inp.value = text.trim().replace(/^#/, '').toUpperCase();
-                window.trackOrder();
-            }
-        }
-    } catch (e) {
-        window.showToast('Tempel Manual', 'Silakan tempel ID Transaksi pada kolom.', 'info');
-    }
 };
 
 window.trackOrder = async function() {
@@ -3709,14 +3931,18 @@ window.renderUserOrders = function() {
 
     if (currentUserHistoryFilter !== 'ALL') {
         userOrders = userOrders.filter(o => {
-            if (currentUserHistoryFilter === 'UNPAID') return o.status === 'UNPAID' || o.status === 'PENDING_PAYMENT';
+            const isCashUnpaid = (o.paymentMethod === 'cash' && o.status === 'PENDING' && !o.paymentVerified);
+            const isPendingAdmin = (o.status === 'PENDING' && !isCashUnpaid) || (o.status === 'SUCCESS' && !o.adminReply);
+            if (currentUserHistoryFilter === 'UNPAID') return o.status === 'UNPAID' || o.status === 'PENDING_PAYMENT' || isCashUnpaid;
+            if (currentUserHistoryFilter === 'PENDING') return isPendingAdmin;
+            if (currentUserHistoryFilter === 'SUCCESS') return o.status === 'SUCCESS' && Boolean(o.adminReply);
             if (currentUserHistoryFilter === 'FAILED') return o.status === 'FAILED' || o.status === 'EXPIRED' || o.status === 'CANCELLED';
             return o.status === currentUserHistoryFilter;
         });
     }
     
     if (userOrders.length === 0) {
-        grid.innerHTML = `<div class="brutal-empty-box">Belum ada riwayat pesanan.</div>`;
+        grid.innerHTML = `<div class="brutal-empty-box">Belum ada riwayat pesanan pada kategori ini.</div>`;
         return;
     }
     
@@ -3728,8 +3954,88 @@ window.renderUserOrders = function() {
 };
 
 // ==========================================
-// MENU CHAT BANTUAN BERSIH (#13)
+// SUB-TAB TERPISAH: CHAT BANTUAN VS SARAN PRODUK (#14)
 // ==========================================
+window.switchBantuanSubTab = function(subTab) {
+    currentBantuanSubTab = subTab === 'saran' ? 'saran' : 'chat';
+    const btnChat = document.getElementById('subtab-btn-chat');
+    const btnSaran = document.getElementById('subtab-btn-saran');
+    const panelChat = document.getElementById('bantuan-panel-chat');
+    const panelSaran = document.getElementById('bantuan-panel-saran');
+
+    if (btnChat) btnChat.classList.toggle('active', currentBantuanSubTab === 'chat');
+    if (btnSaran) btnSaran.classList.toggle('active', currentBantuanSubTab === 'saran');
+
+    if (panelChat && panelSaran) {
+        if (currentBantuanSubTab === 'chat') {
+            panelSaran.style.display = 'none';
+            panelChat.style.display = 'block';
+            checkChatUserState();
+        } else {
+            panelChat.style.display = 'none';
+            panelSaran.style.display = 'block';
+            const senderInp = document.getElementById('suggest-sender-name');
+            if (senderInp && !senderInp.value && userProfile.name) {
+                senderInp.value = userProfile.name;
+            }
+        }
+    }
+};
+
+window.submitProductSuggestion = async function() {
+    if (isSubmittingSuggestion) return;
+
+    const senderName = (document.getElementById('suggest-sender-name')?.value || userProfile.name || 'Pelanggan').trim();
+    const productName = (document.getElementById('suggest-product-name')?.value || '').trim();
+    const category = (document.getElementById('suggest-product-category')?.value || 'Aplikasi').trim();
+    const notes = (document.getElementById('suggest-product-notes')?.value || '').trim();
+
+    if (!productName) {
+        window.customAlert('Nama Produk Kosong', 'Masukkan nama produk atau layanan yang ingin kamu usulkan.', 'warning');
+        return;
+    }
+
+    isSubmittingSuggestion = true;
+    const btn = document.getElementById('btn-submit-suggestion');
+    const ogHtml = btn ? btn.innerHTML : '';
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> <span>Mengirim Saran...</span>';
+    }
+
+    try {
+        await ensureAuthSession();
+        const isMember = Boolean(currentUser && !currentUser.isAnonymous && !userProfile.isGuest);
+        const effectiveUid = isMember ? currentUser.uid : (boundLegacyGuestUid || currentUser?.uid || 'guest');
+
+        await addDoc(collection(db, pathSuggestions), {
+            senderName: senderName || 'Pelanggan',
+            senderEmail: getActiveSessionStorageEmail() || '',
+            userId: effectiveUid,
+            isMember: isMember,
+            productName: productName,
+            category: category,
+            notes: notes,
+            createdAt: Date.now()
+        });
+
+        const prodInp = document.getElementById('suggest-product-name');
+        const notesInp = document.getElementById('suggest-product-notes');
+        if (prodInp) prodInp.value = '';
+        if (notesInp) notesInp.value = '';
+
+        window.showToast('Saran Terkirim', `Terima kasih! Usulan "${productName}" telah dikirim ke Admin.`, 'success');
+    } catch (err) {
+        window.customAlert('Gagal Mengirim', 'Periksa koneksi internet kamu dan coba lagi.', 'error');
+    } finally {
+        isSubmittingSuggestion = false;
+        if (btn && ogHtml) {
+            btn.disabled = false;
+            btn.innerHTML = ogHtml;
+        }
+    }
+};
+
 async function getResolvedChatDocId() {
     const isMember = Boolean(currentUser && !currentUser.isAnonymous && !userProfile.isGuest);
     if (isMember && currentUser?.uid) return currentUser.uid;
@@ -3854,12 +4160,15 @@ async function listenUserChat() {
             
             const lastMsg = userChatMessages[userChatMessages.length - 1];
             const activeTab = document.querySelector('.main-tab-content.active');
-            const isBantuanOpen = activeTab && activeTab.id === 'tab-bantuan';
+            const isBantuanOpen = activeTab && activeTab.id === 'tab-bantuan' && currentBantuanSubTab === 'chat';
 
             if (oldLen > 0 && userChatMessages.length > oldLen && lastMsg && lastMsg.sender === 'admin') {
                 sendNativeNotification('Pesan Baru dari Admin', lastMsg.text);
                 if (!isBantuanOpen) {
-                    window.showToast('Pesan Admin', lastMsg.text, 'info', () => window.switchMainTab('bantuan'));
+                    window.showToast('Pesan Admin', lastMsg.text, 'info', () => {
+                        window.switchMainTab('bantuan');
+                        window.switchBantuanSubTab('chat');
+                    });
                 }
             }
         } else {
@@ -3955,7 +4264,7 @@ window.sendUserChat = async function() {
 };
 
 // ==========================================
-// TEMA, NOTIFIKASI POP-UP KECIL (#19) & MODAL POP-UP (#15)
+// TEMA, NOTIFIKASI POP-UP MATANG (#13) & TRANSISI HALUS (#15)
 // ==========================================
 window.toggleTheme = function() {
     const html = document.documentElement;
@@ -3965,7 +4274,7 @@ window.toggleTheme = function() {
     localStorage.setItem('vipercell_theme', newTheme);
     
     const metaTheme = document.getElementById('meta-theme-color');
-    if (metaTheme) metaTheme.setAttribute('content', newTheme === 'dark' ? '#090d16' : '#f4f6fb');
+    if (metaTheme) metaTheme.setAttribute('content', newTheme === 'dark' ? '#090d16' : '#f4f1ea');
     
     const icon = document.getElementById('theme-icon');
     if (icon) icon.className = newTheme === 'dark' ? 'fa-solid fa-moon' : 'fa-solid fa-sun';
@@ -4133,43 +4442,6 @@ function applyCustomPwaIcon() {
     } catch (e) {}
 }
 
-const twWords = [
-    "Aplikasi Premium",
-    "Top Up Game",
-    "Produk Digital",
-    "QRIS & Tunai"
-];
-let twWordIdx = 0;
-let twCharIdx = 0;
-let twIsDeleting = false;
-
-function initTypewriter() {
-    const el = document.getElementById('tw-text');
-    if (!el) return;
-
-    const currentWord = twWords[twWordIdx];
-    if (twIsDeleting) {
-        twCharIdx--;
-        el.textContent = currentWord.substring(0, twCharIdx);
-    } else {
-        twCharIdx++;
-        el.textContent = currentWord.substring(0, twCharIdx);
-    }
-
-    let speed = twIsDeleting ? 40 : 85;
-
-    if (!twIsDeleting && twCharIdx === currentWord.length) {
-        speed = 2200;
-        twIsDeleting = true;
-    } else if (twIsDeleting && twCharIdx === 0) {
-        twIsDeleting = false;
-        twWordIdx = (twWordIdx + 1) % twWords.length;
-        speed = 350;
-    }
-
-    setTimeout(initTypewriter, speed);
-}
-
 function triggerSuccessConfetti() {
     const container = document.getElementById('confetti-container');
     if (!container) return;
@@ -4189,13 +4461,25 @@ function triggerSuccessConfetti() {
     }
 }
 
-window.showPaymentSuccessAnimation = function(orderId) {
+window.showPaymentSuccessAnimation = function(orderId, resultStatus = 'SUCCESS') {
     if (activeTimersRegistry.qrisCountdown) {
         clearInterval(activeTimersRegistry.qrisCountdown);
         activeTimersRegistry.qrisCountdown = null;
     }
     window.closeModal('modal-cash-barcode');
-    sendNativeNotification('Pembayaran Berhasil', `Pesanan #${orderId} telah selesai.`);
+
+    const titleEl = document.getElementById('pay-success-title');
+    const descEl = document.getElementById('pay-success-desc');
+    if (resultStatus === 'PENDING') {
+        if (titleEl) titleEl.innerText = 'Pembayaran Diterima!';
+        if (descEl) descEl.innerText = 'Pesanan sedang diproses dan akan dikirim oleh Admin.';
+        sendNativeNotification('Pembayaran Diterima', `Pesanan #${orderId} sedang diproses oleh Admin.`);
+    } else {
+        if (titleEl) titleEl.innerText = 'Pembayaran Berhasil!';
+        if (descEl) descEl.innerText = 'Stok pesanan kamu telah dikirim dan selesai.';
+        sendNativeNotification('Pesanan Selesai', `Pesanan #${orderId} telah terkirim.`);
+    }
+
     const successOverlay = document.getElementById('payment-success-overlay');
     if (successOverlay) {
         triggerSuccessConfetti();
@@ -4215,7 +4499,7 @@ window.showPaymentSuccessAnimation = function(orderId) {
     }
 };
 
-// Pop-Up Toast Notifikasi Kecil & Ringkas (#19)
+// Pop-Up Toast Notifikasi Neo-Brutalist Matang (#13)
 window.showToast = function(title, msg, type = 'info', actionCallback = null) {
     const container = document.getElementById('toast-container');
     if (!container) return;
@@ -4234,13 +4518,14 @@ window.showToast = function(title, msg, type = 'info', actionCallback = null) {
             <h4>${escapeHtml(title)}</h4>
             <p>${escapeHtml(msg)}</p>
         </div>
+        <div class="toast-progress-bar"></div>
     `;
     
     let autoRemoveTimer = null;
     const dismissToast = () => {
         if (autoRemoveTimer) clearTimeout(autoRemoveTimer);
         toast.classList.remove('show');
-        setTimeout(() => toast.remove(), 200);
+        setTimeout(() => toast.remove(), 220);
     };
 
     toast.addEventListener('click', () => {
@@ -4258,7 +4543,6 @@ window.showToast = function(title, msg, type = 'info', actionCallback = null) {
     }, 3400);
 };
 
-// Modal Pop-Up Controller (#15)
 window.openModal = (id) => {
     const el = document.getElementById(id);
     if (el) {
@@ -4326,11 +4610,11 @@ window.openConfirm = function(title, message, callback, actionType = 'warning') 
         if (actionType === 'success') {
             iconContainer.className = 'msg-icon success';
             iconContainer.innerHTML = '<i class="fa-solid fa-circle-check"></i>';
-            confirmBtn.className = 'btn btn-success';
+            confirmBtn.className = 'btn btn-success btn-sm';
         } else {
             iconContainer.className = 'msg-icon warning';
             iconContainer.innerHTML = '<i class="fa-solid fa-circle-question"></i>';
-            confirmBtn.className = 'btn btn-danger';
+            confirmBtn.className = 'btn btn-danger btn-sm';
         }
     }
     window.openModal('modal-confirm');
@@ -4377,7 +4661,7 @@ window.switchAuthTab = function(tab) {
         if (googleBtn) googleBtn.style.display = 'inline-flex';
         if (guestBtn) guestBtn.style.display = 'inline-flex';
         if (authTitle) authTitle.innerText = tab === 'login' ? 'Masuk Akun' : 'Daftar Member';
-        if (authSub) authSub.innerText = tab === 'login' ? 'Masuk untuk mulai berbelanja.' : 'Daftar akun untuk menyimpan riwayat pesanan.';
+        if (authSub) authSub.innerText = tab === 'login' ? 'Masuk ke akunmu atau lanjut sebagai tamu.' : 'Buat akun member untuk menyimpan riwayat & memakai promo.';
         
         const btnL = document.getElementById('tab-login');
         const btnR = document.getElementById('tab-register');
@@ -4387,10 +4671,15 @@ window.switchAuthTab = function(tab) {
 };
 window.showResetPassword = () => window.switchAuthTab('reset');
 
-// Transisi Tab Halus & Navigasi Mobile Aktif Tanpa Harus Scroll (#9 & #22)
+// Transisi Tab Smooth & Anti Bocor ke Tab Auth Saat Sudah Login (#7 & #15)
 window.switchMainTab = function(tab) {
-    if (document.body.classList.contains('auth-locked') && tab !== 'auth') {
+    const isAuthLocked = document.body.classList.contains('auth-locked');
+    if (isAuthLocked && tab !== 'auth') {
         return;
+    }
+    // Jika pengguna sudah login, cegah perpindahan ke tab auth (#7)
+    if (!isAuthLocked && tab === 'auth') {
+        tab = 'katalog';
     }
 
     if (tab !== 'payment-qris' && activeTimersRegistry.qrisCountdown) {
@@ -4413,7 +4702,7 @@ window.switchMainTab = function(tab) {
     
     const tabEl = document.getElementById('tab-' + tab);
     if (tabEl) {
-        tabEl.style.display = '';
+        tabEl.style.display = 'block';
         requestAnimationFrame(() => {
             tabEl.classList.add('active');
         });
@@ -4421,7 +4710,7 @@ window.switchMainTab = function(tab) {
     }
     
     if (tab === 'bantuan') {
-        checkChatUserState();
+        window.switchBantuanSubTab(currentBantuanSubTab);
     }
     if (tab === 'profil') {
         applyUserSessionToUI();
@@ -4442,7 +4731,7 @@ window.goToReview = function(brandName, orderId = null) {
 };
 
 // ==========================================
-// LOGIN EMAIL/PASSWORD, GOOGLE & GANTI SANDI VIA EMAIL (#4 & #8)
+// LOGIN EMAIL/PASSWORD, GOOGLE & GANTI SANDI VIA EMAIL (TANPA NO HP #3)
 // ==========================================
 window.processLogin = async function() {
     const em = (document.getElementById('auth-l-email')?.value || '').trim();
@@ -4489,7 +4778,7 @@ window.processLogin = async function() {
         window.customAlert('Gagal Masuk', msg, 'error');
     } finally { 
         if (btn) {
-            btn.innerHTML = ogHtml || '<i class="fa-solid fa-arrow-right-to-bracket"></i> <span>Masuk</span>'; 
+            btn.innerHTML = ogHtml || '<i class="fa-solid fa-right-to-bracket"></i> <span>Masuk Sekarang</span>'; 
             btn.disabled = false; 
         }
     }
@@ -4497,12 +4786,11 @@ window.processLogin = async function() {
 
 window.processRegister = async function() {
     const name = (document.getElementById('auth-r-name')?.value || '').trim();
-    const phone = (document.getElementById('auth-r-phone')?.value || '').trim();
     const em = (document.getElementById('auth-r-email')?.value || '').trim();
     const pw = (document.getElementById('auth-r-pass')?.value || '').trim();
     
     if (!name || !em || pw.length < 6) { 
-        window.customAlert('Belum Lengkap', 'Lengkapi Nama, Email, dan Kata Sandi minimal 6 karakter.', 'warning');
+        window.customAlert('Belum Lengkap', 'Lengkapi Nama Panggilan, Email, dan Kata Sandi minimal 6 karakter.', 'warning');
         return; 
     }
     
@@ -4526,8 +4814,6 @@ window.processRegister = async function() {
             uid: cred.user.uid,
             email: em, 
             name: name, 
-            phone: phone,
-            whatsapp: phone,
             role: 'member',
             isAnonymous: false,
             isGuest: false, 
@@ -4549,7 +4835,6 @@ window.processRegister = async function() {
         currentUser = cred.user;
         userProfile = newMemberObj;
         localStorage.setItem('vipercell_member_email', em.toLowerCase());
-        localStorage.setItem('vipercell_member_phone', phone);
         setAuthGateLock(false);
         applyUserSessionToUI();
         window.switchMainTab('katalog');
@@ -4562,7 +4847,7 @@ window.processRegister = async function() {
         window.customAlert('Gagal Daftar', errMsg, 'error');
     } finally { 
         if (btn) {
-            btn.innerHTML = ogHtml || '<i class="fa-solid fa-user-check"></i> <span>Daftar Member</span>'; 
+            btn.innerHTML = ogHtml || '<i class="fa-solid fa-user-check"></i> <span>Buat Akun Member</span>'; 
             btn.disabled = false; 
         }
     }
@@ -4580,7 +4865,6 @@ function checkResetCooldown() {
     return true;
 }
 
-// Ganti Kata Sandi Dikirim Langsung ke Email Akun (Bukan Halaman di Web #8)
 async function sendPasswordResetToAccountEmail(source = 'auth') {
     const rawEmail = source === 'profile'
         ? (userProfile.email || currentUser?.email || document.getElementById('prof-email')?.value || '')
@@ -4636,7 +4920,7 @@ window.processGoogleLogin = async function() {
 
     const btn = document.getElementById('auth-google-btn');
     const btnText = document.getElementById('text-google-btn');
-    const ogText = btnText ? btnText.innerText : 'Masuk dengan Google';
+    const ogText = btnText ? btnText.innerText : 'Lanjut dengan Google';
     if (btnText) btnText.innerText = 'Memproses...';
     if (btn) btn.disabled = true;
     
@@ -4658,8 +4942,6 @@ window.processGoogleLogin = async function() {
                 uid: result.user.uid,
                 email: result.user.email || '', 
                 name: result.user.displayName || 'Member', 
-                phone: '',
-                whatsapp: '',
                 role: 'member',
                 isAnonymous: false,
                 isGuest: false, 
@@ -4695,9 +4977,7 @@ window.processGoogleLogin = async function() {
 window.logoutUser = async function() {
     localStorage.setItem('vipercell_active_session_mode', 'logged_out');
     localStorage.removeItem('vipercell_track_email');
-    localStorage.removeItem('vipercell_track_phone');
     localStorage.removeItem('vipercell_guest_email');
-    localStorage.removeItem('vipercell_guest_phone');
     localStorage.removeItem('vipercell_anon_name');
     localStorage.removeItem('vipercell_anon_session_started_at');
     boundLegacyGuestUid = null;
@@ -4712,7 +4992,7 @@ window.logoutUser = async function() {
         await signOut(auth).catch(() => {});
     }
     currentUser = null;
-    userProfile = { uid: '', name: '', email: '', phone: '', isGuest: true, isAnonymous: true };
+    userProfile = { uid: '', name: '', email: '', isGuest: true, isAnonymous: true };
 
     setAuthGateLock(true);
     window.showToast('Keluar', 'Kamu telah keluar dari sesi akun.', 'info');
@@ -4721,8 +5001,7 @@ window.logoutUser = async function() {
 window.saveUserProfile = async function() {
     if (!currentUser) return;
     const name = document.getElementById('prof-name').value.trim();
-    const phone = document.getElementById('prof-phone') ? document.getElementById('prof-phone').value.trim() : '';
-    if (!name) { window.customAlert('Peringatan', 'Nama tidak boleh kosong.', 'warning'); return; }
+    if (!name) { window.customAlert('Peringatan', 'Nama panggilan tidak boleh kosong.', 'warning'); return; }
     
     const isMember = Boolean(currentUser && !currentUser.isAnonymous && !userProfile.isGuest);
     const effectiveUid = isMember ? currentUser.uid : (boundLegacyGuestUid || currentUser.uid);
@@ -4730,19 +5009,12 @@ window.saveUserProfile = async function() {
     try {
         await setDoc(doc(db, pathUsers, effectiveUid), {
             name: name,
-            phone: phone,
-            whatsapp: phone,
             updatedAt: Date.now()
         }, { merge: true });
         userProfile.name = name;
-        userProfile.phone = phone;
-        userProfile.whatsapp = phone;
 
-        if (isMember) {
-            if (phone) localStorage.setItem('vipercell_member_phone', phone);
-        } else {
+        if (!isMember) {
             localStorage.setItem('vipercell_anon_name', name);
-            if (phone) localStorage.setItem('vipercell_guest_phone', phone);
         }
 
         applyUserSessionToUI();
@@ -4775,13 +5047,13 @@ function updateProfileStats() {
 }
 
 // ==========================================
-// RUNNING TEXT MULTI-PESAN (#21) & PENGATURAN UI
+// RUNNING TEXT NEO-BRUTALISM RESMI (15 - 20 TEKS #2)
 // ==========================================
 function buildStructuredMarqueeSlots() {
     const slots = [];
 
     if (Array.isArray(siteSettings.marqueeList) && siteSettings.marqueeList.length > 0) {
-        siteSettings.marqueeList.slice(0, 6).forEach((item) => {
+        siteSettings.marqueeList.slice(0, 20).forEach((item) => {
             if (!item) return;
             if (typeof item === 'string' && item.trim()) {
                 slots.push({ text: item.trim(), type: 'info', promoCode: '', targetBrand: '', newsIndex: -1 });
@@ -4803,7 +5075,7 @@ function buildStructuredMarqueeSlots() {
             ? rawMarquee.split('||')
             : rawMarquee.split(/\r?\n/);
 
-        rawParts.map(s => s.trim()).filter(Boolean).slice(0, 6).forEach(part => {
+        rawParts.map(s => s.trim()).filter(Boolean).slice(0, 20).forEach(part => {
             slots.push({
                 text: part,
                 type: 'info',
@@ -4814,7 +5086,7 @@ function buildStructuredMarqueeSlots() {
         });
     }
 
-    parsedMarqueeSlots = slots.slice(0, 6);
+    parsedMarqueeSlots = slots.slice(0, 20);
     return parsedMarqueeSlots;
 }
 
@@ -4824,7 +5096,12 @@ function renderInteractiveMarqueeUI() {
 
     const slots = buildStructuredMarqueeSlots();
 
-    const buildPassHtml = () => slots.map((slot, idx) => {
+    const repeatFactor = slots.length > 0 && slots.length < 5 ? Math.ceil(6 / slots.length) : 1;
+    const expandedCount = slots.length * repeatFactor;
+    const durationSec = Math.max(26, expandedCount * 5.5);
+    marqueeContent.style.setProperty('--marquee-duration', `${durationSec}s`);
+
+    const buildSinglePass = () => slots.map((slot, idx) => {
         const safePromo = escapeJsStr(slot.promoCode || '');
         const safeBrand = escapeJsStr(slot.targetBrand || '');
         const newsIdx = typeof slot.newsIndex === 'number' ? slot.newsIndex : -1;
@@ -4834,11 +5111,12 @@ function renderInteractiveMarqueeUI() {
 
         if (slot.promoCode) {
             badgeClass = 'badge-promo';
-            badgeLabel = `PROMO: ${escapeHtml(slot.promoCode)}`;
+            badgeLabel = `PROMO`;
         } else if (slot.newsIndex >= 0 || slot.type === 'news') {
             badgeClass = 'badge-news';
             badgeLabel = 'BERITA';
         } else if (slot.targetBrand) {
+            badgeClass = 'badge-product';
             badgeLabel = escapeHtml(slot.targetBrand);
         }
 
@@ -4847,10 +5125,12 @@ function renderInteractiveMarqueeUI() {
                 <span class="marquee-item-badge ${badgeClass}">${badgeLabel}</span>
                 <span>${escapeHtml(slot.text)}</span>
             </span>
+            <span class="marquee-sep-star" aria-hidden="true">✦</span>
         `;
     }).join('');
 
-    marqueeContent.innerHTML = buildPassHtml() + buildPassHtml();
+    const oneHalf = Array.from({ length: repeatFactor }, () => buildSinglePass()).join("");
+    marqueeContent.innerHTML = oneHalf + oneHalf;
 }
 
 window.handleMarqueeItemClick = function(slotIndex = 0, explicitPromo = '', explicitBrand = '', explicitNewsIdx = -1) {
@@ -4860,6 +5140,12 @@ window.handleMarqueeItemClick = function(slotIndex = 0, explicitPromo = '', expl
     const newsIndex = explicitNewsIdx >= 0 ? explicitNewsIdx : (typeof slot.newsIndex === 'number' ? slot.newsIndex : -1);
 
     if (promoCode) {
+        const isMember = Boolean(currentUser && !currentUser.isAnonymous && !userProfile.isGuest);
+        if (!isMember) {
+            window.showToast('Khusus Member', 'Upgrade atau masuk ke akun Member untuk menggunakan promo.', 'warning');
+            return;
+        }
+
         navigator.clipboard.writeText(promoCode).catch(() => {});
         if (!targetBrand) {
             const matchedPromo = promos.find(p => p.code && p.code.toUpperCase() === promoCode);
@@ -4880,7 +5166,7 @@ window.handleMarqueeItemClick = function(slotIndex = 0, explicitPromo = '', expl
                     if (firstAvail) window.selectItemToBuy(firstAvail.dbId);
                 }
                 window.applyPromoDirect();
-                window.showToast(`Promo ${promoCode}`, `Kode promo berhasil dipasang.`, 'success');
+                window.showToast(`Promo Dipasang`, `Kode promo berhasil diterapkan.`, 'success');
             }, 140);
             return;
         }
@@ -4926,6 +5212,7 @@ window.applySettingsToUI = function() {
     
     renderInteractiveMarqueeUI();
     updateOpHoursBannerUI();
+    updateWaterRippleVisibility();
     
     const igBtn = document.getElementById('footer-ig-btn');
     if (igBtn) {
@@ -5160,6 +5447,7 @@ window.confirmCashBarcodeToChat = function() {
         window.sendPredefinedChat(`Halo Admin, saya ingin membayar tunai untuk Invoice #${invToTrack}.`);
     } else {
         window.switchMainTab('bantuan');
+        window.switchBantuanSubTab('chat');
     }
 };
 
@@ -5167,7 +5455,9 @@ window.sendPredefinedChat = function(message) {
     window.closeAlert();
     window.closeModal('modal-order-detail');
     window.closeModal('modal-cash-barcode');
+    currentBantuanSubTab = 'chat';
     window.switchMainTab('bantuan');
+    window.switchBantuanSubTab('chat');
     const savedName = userProfile.name || localStorage.getItem('vipercell_anon_name') || '';
     if (savedName) {
         userProfile.name = savedName;
@@ -5213,7 +5503,7 @@ window.goToPesananFromPay = function() {
 };
 
 // ==========================================
-// FITUR ULASAN PEMBELI
+// FITUR ULASAN PEMBELI (TANPA MENAMPILKAN ID TRX / NOMOR INVOICE #8)
 // ==========================================
 function getUnreviewedSuccessOrdersForBrand(brandName) {
     const isMember = Boolean(currentUser && !currentUser.isAnonymous && !userProfile.isGuest);
@@ -5221,7 +5511,7 @@ function getUnreviewedSuccessOrdersForBrand(brandName) {
     const userEmailToMatch = getActiveSessionStorageEmail();
     
     const mySuccessOrders = orders.filter(o => {
-        if (o.status !== 'SUCCESS') return false;
+        if (o.status !== 'SUCCESS' || !o.adminReply) return false;
         if (!o.items || o.items[0]?.brandName !== brandName) return false;
         if (isMember) {
             return (effectiveUid && o.userId === effectiveUid) || (userEmailToMatch && o.userEmail?.toLowerCase() === userEmailToMatch);
@@ -5273,7 +5563,7 @@ window.renderReviewsUI = function() {
             writeContainer.style.display = 'block';
             const stepHead = writeContainer.querySelector('.step-header h4');
             if (stepHead) {
-                stepHead.innerHTML = `Tulis Ulasan <span class="brutal-tag tag-primary" style="margin-left:8px;">#${escapeHtml(activeOrderForReview.id)}</span>`;
+                stepHead.innerHTML = `Beri Ulasan Pembeli`;
             }
         } else {
             writeContainer.style.display = 'none';
@@ -5295,11 +5585,12 @@ window.renderReviewsUI = function() {
             else starsHtml += `<i class="fa-regular fa-star" style="color:var(--text-muted); font-size:0.85rem;"></i>`;
         }
 
-        const invBadge = r.orderId ? `<span class="brutal-tag tag-success" style="font-size:0.6rem; padding:2px 6px;">#${escapeHtml(r.orderId)}</span>` : '';
+        // [PRIVASI #8] Jangan pernah menampilkan ID Transaksi / Nomor Invoice (r.orderId) di ulasan publik!
+        const verifiedBadge = `<span class="brutal-tag tag-success" style="font-size:0.58rem; padding:2px 7px;"><i class="fa-solid fa-circle-check"></i> Pembeli Terverifikasi</span>`;
         
         const adminReplyHtml = r.adminReply ? `
             <div style="margin-top: 10px; padding: 10px 12px; background: var(--surface); border-left: 3.5px solid var(--primary); border-radius: 8px; border: 1.5px solid var(--border);">
-                <div style="font-size: 0.72rem; font-weight: 800; color: var(--primary-light); margin-bottom: 3px;">
+                <div style="font-size: 0.72rem; font-weight: 800; color: var(--primary); margin-bottom: 3px;">
                     <i class="fa-solid fa-reply"></i> Balasan Admin:
                 </div>
                 <p style="font-size: 0.82rem; font-weight: 600; color: var(--text); margin: 0;">${escapeHtml(r.adminReply)}</p>
@@ -5307,11 +5598,11 @@ window.renderReviewsUI = function() {
         ` : '';
 
         html += `
-        <div style="background:var(--bg); border:var(--brutal-border); padding:14px; border-radius:12px;">
+        <div style="background:var(--bg); border:var(--brutal-border-thin); box-shadow:var(--brutal-shadow-sm); padding:14px; border-radius:12px;">
             <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; margin-bottom:6px;">
                 <div style="display:flex; align-items:center; gap:8px;">
                     <strong style="color:var(--text); font-size:0.88rem; font-weight:800;">${escapeHtml(r.userName || 'Pelanggan')}</strong>
-                    ${invBadge}
+                    ${verifiedBadge}
                 </div>
                 <span style="font-size:0.72rem; font-weight:700; color:var(--text-muted);">${new Date(r.timestamp).toLocaleDateString('id-ID')}</span>
             </div>
@@ -5368,7 +5659,7 @@ window.submitReview = async function() {
         document.getElementById('review-text').value = '';
         targetReviewOrderId = null;
         window.setReviewStar(5);
-        window.showToast('Terkirim', `Ulasan untuk #${orderToReview.id} berhasil dikirim.`, 'success');
+        window.showToast('Terkirim', `Terima kasih atas ulasan kamu!`, 'success');
         window.renderReviewsUI();
     } catch (e) {
         window.customAlert('Gagal', 'Gagal mengirim ulasan.', 'error');
@@ -5467,7 +5758,7 @@ window.copyInvoiceIdModal = function() {
     if (invIdEl && invIdEl.innerText !== '-') {
         const cleanInv = invIdEl.innerText.replace(/^#/, '');
         navigator.clipboard.writeText(cleanInv).then(() => {
-            if (window.showToast) window.showToast('Disalin', 'ID Invoice berhasil disalin.', 'success');
+            if (window.showToast) window.showToast('Disalin', 'ID Transaksi berhasil disalin.', 'success');
         });
     }
 };
