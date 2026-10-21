@@ -399,19 +399,80 @@ function getVariantLocalVaultStockCount(item) {
     return vaultSlots + tabStocksSlots;
 }
 
+// Cek apakah varian memiliki stok lokal yang siap dikirim otomatis tanpa Admin (#1 & #2)
+function isVariantLocallyReadyForAutoProcess(item) {
+    if (!item) return false;
+    const procType = (item.processType || 'auto').toLowerCase();
+    // Produk manual atau top up game selalu membutuhkan Admin
+    if (procType === 'manual' || item.type === 'game') {
+        return false;
+    }
+    if (item.manualLockSoldOut === true) {
+        return false;
+    }
+    const localVaultCount = getVariantLocalVaultStockCount(item);
+    if (localVaultCount > 0) {
+        return true;
+    }
+    if (procType === 'auto' && !item.soldOut && typeof item.stockCount === 'number' && item.stockCount > 0) {
+        return true;
+    }
+    return false;
+}
+
+// Cek apakah varian memang sedang habis (ditandai Admin habis / stok lokal 0 pada mode auto)
+function isVariantMarkedSoldOutByAdmin(item) {
+    if (!item) return true;
+    const procType = (item.processType || 'auto').toLowerCase();
+    const localVaultCount = getVariantLocalVaultStockCount(item);
+
+    if (procType === 'manual') {
+        return Boolean(item.manualLockSoldOut === true || item.soldOut === true);
+    }
+    if (procType === 'ask_auto' || procType === 'hybrid') {
+        return Boolean(item.soldOut === true && localVaultCount <= 0);
+    }
+    // Mode auto: jika ada stok di Gudang Stok maka Ready; jika tidak ada dan soldOut/stockCount===0 maka Habis
+    if (localVaultCount > 0) return false;
+    if (item.soldOut === true) return true;
+    if (typeof item.stockCount === 'number' && item.stockCount <= 0) return true;
+    return false;
+}
+
 function updateOpHoursBannerUI() {
+    const restricted = isLocalStockOnlyRestrictionActive();
+
+    // 1. Banner singkat di dasbor utama user (#2: hanya "Toko saat ini di luar jam layanan Admin.")
     const bannerEl = document.getElementById('operational-hours-banner');
     const textEl = document.getElementById('operational-hours-text');
-    if (!bannerEl || !textEl) return;
+    if (bannerEl && textEl) {
+        if (restricted) {
+            textEl.innerText = 'Toko saat ini di luar jam layanan Admin.';
+            bannerEl.style.display = 'flex';
+        } else {
+            bannerEl.style.display = 'none';
+        }
+    }
 
-    const restricted = isLocalStockOnlyRestrictionActive();
-    if (restricted) {
-        const openStr = siteSettings.opOpenTime || '08:00';
-        const closeStr = siteSettings.opCloseTime || '22:00';
-        textEl.innerText = `Saat ini di luar jam layanan Admin (${openStr} - ${closeStr}). Katalog tetap dapat diakses, namun pembuatan pesanan baru ditutup sementara hingga jam layanan dibuka kembali.`;
-        bannerEl.style.display = 'flex';
-    } else {
-        bannerEl.style.display = 'none';
+    // 2. Indikator di Tab Chat Bantuan saat di luar jam operasional (#4)
+    const chatOpBanner = document.getElementById('chat-op-hours-indicator');
+    const chatOpText = document.getElementById('chat-op-hours-indicator-text');
+    const chatHeaderStatus = document.getElementById('chat-header-status');
+    if (chatOpBanner) {
+        if (restricted) {
+            if (chatOpText) {
+                chatOpText.innerText = 'Mungkin pesan kamu akan direspon lebih lama karena saat ini berada di luar jam operasional.';
+            }
+            chatOpBanner.style.display = 'flex';
+        } else {
+            chatOpBanner.style.display = 'none';
+        }
+    }
+    if (chatHeaderStatus) {
+        chatHeaderStatus.innerText = restricted
+            ? 'Di Luar Jam Operasional (Respon Lebih Lama)'
+            : 'Layanan Bantuan';
+        chatHeaderStatus.style.color = restricted ? 'var(--warning)' : 'var(--text-muted)';
     }
 }
 
@@ -1791,8 +1852,25 @@ async function tryAutoDeliverOrderFromVault(orderData, orderDbId) {
                 deliveredAt: nowMs,
                 ...subUpdates
             }).catch(() => {});
+            orderData.status = 'SUCCESS';
+            orderData.paymentVerified = true;
+            orderData.adminReply = finalReply;
+            orderData.autoDelivered = true;
             return true;
         }
+
+        // Jika tidak ada stok lokal (atau produk manual/game), pastikan status tercatat sebagai
+        // pembayaran terverifikasi (PENDING Admin / SUCCESS tanpa adminReply untuk kompatibilitas rules lama)
+        await updateDoc(doc(db, pathOrders, orderDbId), {
+            status: 'PENDING',
+            paymentVerified: true,
+            paidAt: orderData.paidAt || nowMs,
+            ...subUpdates
+        }).catch(async () => {
+            await updateDoc(doc(db, pathOrders, orderDbId), {
+                status: 'SUCCESS'
+            }).catch(() => {});
+        });
         return false;
     } catch (err) {
         return false;
@@ -1901,9 +1979,19 @@ function listenData() {
             const expiryLimitMs = data.expiresAt ? (data.expiresAt - orderTime) : 900000;
             const orderEmail = (data.userEmail || '').toLowerCase();
 
-            const isMyOrder = isMember
-                ? ((effectiveUid && data.userId === effectiveUid) || (activeEmail && activeEmail === orderEmail))
-                : ((effectiveUid && data.userId === effectiveUid));
+            // Pencocokan kepemilikan pesanan multi-lapis agar Tamu & Member 100% selalu akurat (#5 & #6)
+            const isActiveCheckoutOrder = Boolean(
+                currentCheckoutSession &&
+                (data.dbId === currentCheckoutSession.dbId || data.id === currentCheckoutSession.id)
+            );
+            const isMyOrder = Boolean(
+                isActiveCheckoutOrder ||
+                (effectiveUid && data.userId === effectiveUid) ||
+                (currentUser?.uid && data.userId === currentUser.uid) ||
+                (userProfile?.uid && data.userId === userProfile.uid) ||
+                (currentDeviceId && data.deviceId === currentDeviceId) ||
+                (isMember && activeEmail && activeEmail === orderEmail)
+            );
             
             if (data.status === 'UNPAID' || data.status === 'PENDING_PAYMENT') {
                 if (now - orderTime > expiryLimitMs) { 
@@ -1915,13 +2003,16 @@ function listenData() {
             }
 
             // Jika status diubah dari UNPAID ke PAID oleh Server Apps Script di Firebase,
-            // langsung ubah status ke SUCCESS agar pesanan selesai & animasi pembayaran muncul!
+            // langsung proses pengiriman stok otomatis & ubah ke SUCCESS!
             const wasPaidFromGas = (data.status === 'PAID');
             if (wasPaidFromGas) {
                 if (isMyOrder) {
-                    updateDoc(doc(db, pathOrders, data.dbId), { status: 'SUCCESS' }).catch(() => {});
+                    updateDoc(doc(db, pathOrders, data.dbId), { status: 'SUCCESS', paymentVerified: true }).catch(() => {
+                        updateDoc(doc(db, pathOrders, data.dbId), { status: 'SUCCESS' }).catch(() => {});
+                    });
                 }
                 data.status = 'SUCCESS';
+                data.paymentVerified = true;
             }
 
             // Jika status SUCCESS namun adminReply masih kosong, coba ambil stok otomatis jika tersedia
@@ -1931,22 +2022,28 @@ function listenData() {
 
             newOrders.push(data);
 
-            if (!initialOrderLoad && isMyOrder) {
+            if (isMyOrder) {
                 const prevInfo = previousOrdersData[data.id] || {};
                 const oldStatus = prevInfo.status;
                 const oldHasReply = prevInfo.hasReply;
                 const nowHasReply = Boolean(data.adminReply && data.adminReply.trim() !== '');
+                const activeTab = document.querySelector('.main-tab-content.active');
+                const isOnQrisTab = Boolean(activeTab && activeTab.id === 'tab-payment-qris' && isActiveCheckoutOrder);
 
-                // Tampilkan animasi pembayaran diterima begitu status berubah dari UNPAID/PENDING_PAYMENT ke SUCCESS / PENDING
-                if (oldStatus && (oldStatus === 'UNPAID' || oldStatus === 'PENDING_PAYMENT' || oldStatus === 'PAID')) {
-                    if (data.status === 'SUCCESS') {
+                // Tampilkan animasi pembayaran diterima begitu status berubah dari UNPAID ke PAID / SUCCESS / PENDING
+                // ATAU jika pembeli sedang berada di layar QRIS untuk pesanan ini dan statusnya sudah lunas!
+                if (
+                    (oldStatus && (oldStatus === 'UNPAID' || oldStatus === 'PENDING_PAYMENT' || oldStatus === 'PAID')) ||
+                    (isOnQrisTab && (wasPaidFromGas || data.status === 'SUCCESS' || (data.status === 'PENDING' && data.paymentVerified === true)))
+                ) {
+                    if (data.status === 'SUCCESS' || wasPaidFromGas) {
                         window.showPaymentSuccessAnimation(data.id, nowHasReply ? 'SUCCESS' : 'PENDING');
                     } else if (data.status === 'PENDING' && data.paymentVerified === true) {
                         window.showPaymentSuccessAnimation(data.id, 'PENDING');
                     }
-                } else if (oldStatus === 'SUCCESS' && !oldHasReply && data.status === 'SUCCESS' && nowHasReply) {
+                } else if (!initialOrderLoad && oldStatus === 'SUCCESS' && !oldHasReply && data.status === 'SUCCESS' && nowHasReply) {
                     window.showToast('Pesanan Selesai', `Pesanan #${data.id} telah dikirim dan siap digunakan.`, 'success', () => window.openOrderDetailModalById(data.id));
-                } else if (oldStatus === 'PENDING' && data.status === 'SUCCESS' && nowHasReply) {
+                } else if (!initialOrderLoad && oldStatus === 'PENDING' && data.status === 'SUCCESS' && nowHasReply) {
                     window.showToast('Pesanan Selesai', `Pesanan #${data.id} telah dikirim oleh Admin.`, 'success', () => window.openOrderDetailModalById(data.id));
                 }
             }
@@ -1999,22 +2096,99 @@ function listenData() {
     });
 }
 
-// Pencocokan nominal pembayaran yang 100% mematuhi rules database firebase.js (hanya mengubah field status -> SUCCESS)
+// Settle pesanan yang pembayarannya sudah terverifikasi & jalankan pengiriman stok lokal otomatis (#1, #5, #6)
+const shownPaymentSuccessOrderIds = new Set();
+let activeQrisOrderUnsub = null;
+let activeQrisFastPollTimer = null;
+
+async function settleVerifiedOrderOnClient(orderObj) {
+    if (!orderObj || !orderObj.dbId) return false;
+
+    await updateDoc(doc(db, pathOrders, orderObj.dbId), {
+        status: 'SUCCESS',
+        paymentVerified: true,
+        paidAt: Date.now()
+    }).catch(async () => {
+        await updateDoc(doc(db, pathOrders, orderObj.dbId), {
+            status: 'SUCCESS'
+        }).catch(() => {});
+    });
+
+    orderObj.status = 'SUCCESS';
+    orderObj.paymentVerified = true;
+
+    const autoSent = await tryAutoDeliverOrderFromVault(orderObj, orderObj.dbId);
+    window.showPaymentSuccessAnimation(orderObj.id, autoSent ? 'SUCCESS' : 'PENDING');
+    return true;
+}
+
 async function checkClientPendingOrdersAgainstAmount(detectedAmount) {
     if (!detectedAmount || detectedAmount <= 0) return false;
     const numAmt = Math.round(Number(detectedAmount));
     const matchingUnpaid = orders.find(o =>
-        (o.status === 'UNPAID' || o.status === 'PENDING_PAYMENT') &&
+        (o.status === 'UNPAID' || o.status === 'PENDING_PAYMENT' || o.status === 'PAID') &&
         (Math.round(Number(o.finalTotal)) === numAmt || Math.round(Number(o.uniqueTotal)) === numAmt)
     );
     if (matchingUnpaid) {
-        await updateDoc(doc(db, pathOrders, matchingUnpaid.dbId), {
-            status: 'SUCCESS'
-        }).catch(() => {});
+        await settleVerifiedOrderOnClient(matchingUnpaid);
         return true;
     }
     return false;
 }
+
+function stopActiveQrisPaymentWatcher() {
+    if (activeQrisOrderUnsub) {
+        try { activeQrisOrderUnsub(); } catch (e) {}
+        activeQrisOrderUnsub = null;
+    }
+    if (activeQrisFastPollTimer) {
+        clearInterval(activeQrisFastPollTimer);
+        activeQrisFastPollTimer = null;
+    }
+}
+
+function startActiveQrisPaymentWatcher(sessionObj) {
+    stopActiveQrisPaymentWatcher();
+    if (!sessionObj || !sessionObj.dbId) return;
+
+    // 1. Listener langsung pada dokumen pesanan aktif (deteksi < 0.3 detik saat Apps Script mengubah UNPAID -> PAID / SUCCESS)
+    const orderDocRef = doc(db, pathOrders, sessionObj.dbId);
+    activeQrisOrderUnsub = onSnapshot(orderDocRef, async (docSnap) => {
+        if (!docSnap.exists()) return;
+        const d = { dbId: docSnap.id, ...docSnap.data() };
+        if (d.status === 'PAID' || d.status === 'SUCCESS' || (d.status === 'PENDING' && d.paymentVerified === true)) {
+            stopActiveQrisPaymentWatcher();
+            if (d.status === 'PAID') {
+                await settleVerifiedOrderOnClient(d);
+            } else {
+                const hasReply = Boolean(d.adminReply && d.adminReply.trim() !== '');
+                if (!hasReply && !d.autoDelivered) {
+                    const delivered = await tryAutoDeliverOrderFromVault(d, d.dbId);
+                    window.showPaymentSuccessAnimation(d.id, delivered ? 'SUCCESS' : 'PENDING');
+                } else {
+                    window.showPaymentSuccessAnimation(d.id, hasReply ? 'SUCCESS' : 'PENDING');
+                }
+            }
+        }
+    }, () => {});
+
+    // 2. Pengecekan aktif setiap 3.5 detik ke Firestore & Server Apps Script selama layar QRIS terbuka
+    activeQrisFastPollTimer = setInterval(() => {
+        if (!document.hidden && currentCheckoutSession && currentCheckoutSession.dbId === sessionObj.dbId) {
+            window.manualCheckQrisPaymentStatus(true);
+        }
+    }, 3500);
+}
+
+// Saat pengguna kembali ke browser setelah membayar di aplikasi E-Wallet / Mobile Banking, langsung cek status!
+document.addEventListener('visibilitychange', () => {
+    if (!document.hidden && currentCheckoutSession && currentCheckoutSession.dbId) {
+        const activeTab = document.querySelector('.main-tab-content.active');
+        if (activeTab && activeTab.id === 'tab-payment-qris') {
+            window.manualCheckQrisPaymentStatus(true);
+        }
+    }
+});
 
 function rebuildGroupedBrands() {
     groupedBrands = [];
@@ -2044,6 +2218,7 @@ function rebuildGroupedBrands() {
     });
 
     window.renderBrands(currentBrandFilter);
+    renderFooterMarqueeUI();
 }
 
 // ==========================================
@@ -2264,11 +2439,11 @@ window.cancelActiveOrder = function(explicitDbId = null) {
     );
 };
 
-window.manualCheckQrisPaymentStatus = async function() {
+window.manualCheckQrisPaymentStatus = async function(isSilentAuto = false) {
     if (isCheckingPaymentNow || !currentCheckoutSession?.dbId) return;
     isCheckingPaymentNow = true;
 
-    const btn = document.getElementById('btn-check-payment-now');
+    const btn = !isSilentAuto ? document.getElementById('btn-check-payment-now') : null;
     const ogHtml = btn ? btn.innerHTML : '';
     if (btn) {
         btn.disabled = true;
@@ -2277,47 +2452,83 @@ window.manualCheckQrisPaymentStatus = async function() {
 
     try {
         const orderRef = doc(db, pathOrders, currentCheckoutSession.dbId);
+        const targetNominal = Math.round(Number(currentCheckoutSession.finalTotal || 0));
         const [orderSnap, settingsSnap] = await Promise.all([
             getDoc(orderRef).catch(() => null),
             getDoc(doc(db, pathSettings, 'mainConfig')).catch(() => null)
         ]);
 
+        let currentOrderObj = null;
         if (orderSnap && orderSnap.exists()) {
-            const oData = { dbId: orderSnap.id, ...orderSnap.data() };
-            const hasReply = Boolean(oData.adminReply && oData.adminReply.trim() !== '');
-            if (oData.status === 'SUCCESS') {
-                window.showPaymentSuccessAnimation(oData.id, hasReply ? 'SUCCESS' : 'PENDING');
+            currentOrderObj = { dbId: orderSnap.id, ...orderSnap.data() };
+            const hasReply = Boolean(currentOrderObj.adminReply && currentOrderObj.adminReply.trim() !== '');
+            if (currentOrderObj.status === 'PAID') {
+                await settleVerifiedOrderOnClient(currentOrderObj);
                 return;
             }
-            if (oData.status === 'PENDING' && oData.paymentVerified === true) {
-                window.showPaymentSuccessAnimation(oData.id, 'PENDING');
+            if (currentOrderObj.status === 'SUCCESS') {
+                if (!hasReply && !currentOrderObj.autoDelivered) {
+                    const delivered = await tryAutoDeliverOrderFromVault(currentOrderObj, currentOrderObj.dbId);
+                    window.showPaymentSuccessAnimation(currentOrderObj.id, delivered ? 'SUCCESS' : 'PENDING');
+                } else {
+                    window.showPaymentSuccessAnimation(currentOrderObj.id, hasReply ? 'SUCCESS' : 'PENDING');
+                }
                 return;
             }
-            if (oData.status === 'PAID') {
-                await updateDoc(orderRef, { status: 'SUCCESS' }).catch(() => {});
-                window.showPaymentSuccessAnimation(oData.id, hasReply ? 'SUCCESS' : 'PENDING');
+            if (currentOrderObj.status === 'PENDING' && currentOrderObj.paymentVerified === true) {
+                window.showPaymentSuccessAnimation(currentOrderObj.id, 'PENDING');
                 return;
             }
         }
 
+        // Cek dari sinyal settings/mainConfig
         if (settingsSnap && settingsSnap.exists()) {
             const sData = settingsSnap.data();
-            const targetNominal = Math.round(Number(currentCheckoutSession.finalTotal || 0));
             const mutObj = sData.lastPaymentMutation;
-
-            if (mutObj && mutObj.timestamp && (Date.now() - Number(mutObj.timestamp) < 600000)) {
+            if (mutObj && mutObj.timestamp && (Date.now() - Number(mutObj.timestamp) < 900000)) {
                 const candidates = Array.isArray(mutObj.candidateAmounts) ? mutObj.candidateAmounts.map(Number) : [Number(mutObj.amount || 0)];
                 if (candidates.includes(targetNominal)) {
-                    await updateDoc(orderRef, { status: 'SUCCESS' }).catch(() => {});
-                    window.showPaymentSuccessAnimation(currentCheckoutSession.id, 'PENDING');
+                    await settleVerifiedOrderOnClient(currentOrderObj || currentCheckoutSession);
                     return;
                 }
             }
         }
 
-        window.showToast('Menunggu Pembayaran', `Pastikan transfer sesuai nominal Rp${(currentCheckoutSession.finalTotal || 0).toLocaleString('id-ID')}.`, 'info');
+        // Cek langsung ke Server Apps Script (CHECK_PAYMENT) jika URL sudah diatur di Pengaturan Toko
+        const rawGasUrls = (siteSettings.emailWebhookUrl || '').trim();
+        const gasUrl = rawGasUrls.split(',')[0].trim();
+        if (gasUrl && gasUrl.startsWith('https://script.google.com/') && targetNominal > 0) {
+            try {
+                const sep = gasUrl.includes('?') ? '&' : '?';
+                const checkUrl = `${gasUrl}${sep}action=CHECK_PAYMENT&amount=${targetNominal}&orderDbId=${encodeURIComponent(currentCheckoutSession.dbId)}&t=${Date.now()}`;
+                const resp = await fetch(checkUrl, { method: 'GET', redirect: 'follow', cache: 'no-store' });
+                const rawJson = await resp.text();
+                const parsed = JSON.parse(rawJson);
+                if (parsed && parsed.ok) {
+                    if (parsed.matched === true) {
+                        await settleVerifiedOrderOnClient(currentOrderObj || currentCheckoutSession);
+                        return;
+                    }
+                    if (Array.isArray(parsed.recentMutations)) {
+                        for (const m of parsed.recentMutations) {
+                            const cands = Array.isArray(m.candidateAmounts) ? m.candidateAmounts.map(Number) : [Number(m.amount || 0)];
+                            if (cands.includes(targetNominal)) {
+                                await settleVerifiedOrderOnClient(currentOrderObj || currentCheckoutSession);
+                                return;
+                            }
+                        }
+                    }
+                }
+            } catch (gasErr) {}
+        }
+
+        if (!isSilentAuto) {
+            window.showToast('Menunggu Pembayaran', `Pastikan transfer sesuai nominal Rp${targetNominal.toLocaleString('id-ID')}.`, 'info');
+        }
     } catch (err) {
-        window.showToast('Gagal Mengecek', 'Periksa koneksi internet kamu.', 'warning');
+        if (!isSilentAuto) {
+            window.showToast('Gagal Mengecek', 'Periksa koneksi internet kamu.', 'warning');
+        }
     } finally {
         isCheckingPaymentNow = false;
         if (btn && ogHtml) {
@@ -2454,6 +2665,7 @@ window.openQRISModal = function() {
     if (currentCheckoutSession.date) {
         window.startQrisTimer(currentCheckoutSession.date, currentCheckoutSession.dbId);
     }
+    startActiveQrisPaymentWatcher(currentCheckoutSession);
 };
 
 window.recreateExpiredOrder = function() {
@@ -2587,17 +2799,17 @@ window.renderBrands = function(filter = currentBrandFilter) {
         const safeJsBrand = escapeJsStr(b.brandName);
         const safeHtmlBrand = escapeHtml(b.brandName);
         
-        const hasAnyPurchasableVariant = b.items.some(it => {
-            const avail = computeVariantAvailableStock(it);
-            if (opRestricted) return typeof avail === 'number' && avail > 0;
-            return !it.soldOut || (typeof avail === 'number' && avail > 0);
-        });
+        // Cek apakah seluruh variasi pada produk ini ditandai Admin Habis
+        const allVariantsSoldOut = b.items.length > 0 && b.items.every(it => isVariantMarkedSoldOutByAdmin(it));
 
         let tagClass = 'tag-app';
         let tagLabel = 'APLIKASI';
         if (b.isGangguan) {
             tagClass = 'tag-maint';
             tagLabel = 'GANGGUAN';
+        } else if (allVariantsSoldOut) {
+            tagClass = 'tag-soldout';
+            tagLabel = 'HABIS';
         } else if (b.type === 'game') {
             tagClass = 'tag-game';
             tagLabel = 'GAME';
@@ -2610,6 +2822,7 @@ window.renderBrands = function(filter = currentBrandFilter) {
              ? `<img src="${b.imgUrlBase64}" alt="${safeHtmlBrand}" loading="lazy" decoding="async">` 
              : `<div style="width:100%; height:100%; background:var(--primary); display:flex; align-items:center; justify-content:center; font-size:1.7rem; font-weight:800; color:#ffffff;">${safeHtmlBrand.charAt(0)}</div>`;
              
+        // Katalog tetap bisa diakses penuh; jika semua variasi habis tetap bisa dibuka untuk melihat variasi (#2)
         let clickAction = `window.openDirectBuyModal('${safeJsBrand}')`;
         if (b.isGangguan) {
             clickAction = `window.customAlert('Maintenance', 'Layanan produk ini sedang dalam pemeliharaan.', 'warning')`;
@@ -2721,18 +2934,30 @@ function renderCheckoutVariantCards() {
         const procType = (item.processType || 'auto').toLowerCase();
         const availQuota = computeVariantAvailableStock(item);
         const hasStockQuota = typeof availQuota === 'number' && availQuota >= 0;
-        const isQuotaEmpty = hasStockQuota && availQuota === 0;
 
-        const isSold = (procType === 'auto' && hasStockQuota && availQuota > 0) ? false : Boolean(item.soldOut || isQuotaEmpty);
-        const isSelected = !isSold && selectedProductForBuy && selectedProductForBuy.dbId === item.dbId;
+        // 1. Cek apakah varian memang ditandai Admin Habis
+        const isSoldByAdmin = isVariantMarkedSoldOutByAdmin(item);
+        // 2. Cek apakah varian memiliki stok lokal yang siap diproses otomatis
+        const hasLocalAutoStock = isVariantLocallyReadyForAutoProcess(item);
+        // 3. Jika sedang di luar jam layanan Admin, varian yang tidak punya stok lokal / dilayani Admin
+        //    hanya bisa dipesan saat jam operasional (#1 & #2)
+        const isWaitOpHours = !isSoldByAdmin && opRestricted && !hasLocalAutoStock;
+
+        const isSelected = !isSoldByAdmin && selectedProductForBuy && selectedProductForBuy.dbId === item.dbId;
 
         let procBadge = '';
-        if (procType === 'manual') {
+        if (isSoldByAdmin) {
+            procBadge = '<span class="proc-mode-badge proc-mode-soldout">HABIS</span>';
+        } else if (isWaitOpHours) {
+            procBadge = '<span class="proc-mode-badge proc-mode-op-hours">SAAT JAM OPERASIONAL</span>';
+        } else if (procType === 'manual') {
             procBadge = '<span class="proc-mode-badge proc-mode-manual">ADMIN</span>';
         } else if (procType === 'ask_auto' || procType === 'hybrid') {
-            procBadge = '<span class="proc-mode-badge proc-mode-ask-auto">TANYA / AUTO</span>';
+            procBadge = hasLocalAutoStock
+                ? '<span class="proc-mode-badge proc-mode-auto">OTOMATIS</span>'
+                : '<span class="proc-mode-badge proc-mode-ask-auto">TANYA / AUTO</span>';
         } else {
-            procBadge = '<span class="proc-mode-badge proc-mode-auto">INSTAN</span>';
+            procBadge = '<span class="proc-mode-badge proc-mode-auto">OTOMATIS</span>';
         }
 
         const varDescText = (item.variantDesc || item.description || '').trim();
@@ -2744,14 +2969,20 @@ function renderCheckoutVariantCards() {
         if (item.durationDays && item.durationDays > 0) {
             badgesHtml += `<span class="item-duration-pill"><i class="fa-regular fa-clock"></i> ${item.durationDays} Hari</span>`;
         }
-        if (hasStockQuota) {
+        if (isSoldByAdmin) {
+            badgesHtml += `<span class="item-stock-pill" style="color:var(--danger);">Stok: <b>Habis</b></span>`;
+        } else if (hasLocalAutoStock && hasStockQuota && availQuota > 0) {
+            badgesHtml += `<span class="item-stock-pill">Stok Lokal: <b>${availQuota >= 999 ? 'Tersedia' : availQuota}</b></span>`;
+        } else if (isWaitOpHours) {
+            badgesHtml += `<span class="item-stock-pill" style="color:var(--warning);"><b>Dipesan Saat Jam Operasional</b></span>`;
+        } else if (hasStockQuota && availQuota > 0) {
             badgesHtml += `<span class="item-stock-pill">Stok: <b>${availQuota >= 999 ? 'Tersedia' : availQuota}</b></span>`;
         }
 
-        const clickHandler = isSold ? '' : `window.selectItemToBuy('${item.dbId}')`;
+        const clickHandler = isSoldByAdmin ? '' : `window.selectItemToBuy('${item.dbId}')`;
 
         html += `
-            <div class="item-card ${isSold ? 'sold-out' : ''} ${isSelected ? 'selected' : ''}" id="buy-card-${item.dbId}" onclick="${clickHandler}">
+            <div class="item-card ${isSoldByAdmin ? 'sold-out' : ''} ${isWaitOpHours ? 'op-hours-locked' : ''} ${isSelected ? 'selected' : ''}" id="buy-card-${item.dbId}" onclick="${clickHandler}">
                 <div>
                     <h4>${escapeHtml(item.name)}</h4>
                     ${varDescHtml}
@@ -3087,11 +3318,22 @@ window.calculateDirectBuyTotal = function() {
         return;
     }
 
+    // Jika varian ditandai Admin Habis
+    if (isVariantMarkedSoldOutByAdmin(selectedProductForBuy)) {
+        btnProc.innerHTML = `<i class="fa-solid fa-ban"></i> <span>Stok Habis</span>`;
+        btnProc.disabled = true;
+        return;
+    }
+
+    // Jika sedang di luar jam layanan Admin (#1 & #2):
+    // - Produk yang ADA stok lokal tetap bisa dibeli & diproses otomatis!
+    // - Produk Admin Manual atau yang TIDAK ada stok lokal baru bisa dipesan saat jam operasional!
     const opRestricted = isLocalStockOnlyRestrictionActive();
-    if (opRestricted) {
+    const hasLocalAutoStock = isVariantLocallyReadyForAutoProcess(selectedProductForBuy);
+    if (opRestricted && !hasLocalAutoStock) {
         const openStr = siteSettings.opOpenTime || '08:00';
         const closeStr = siteSettings.opCloseTime || '22:00';
-        btnProc.innerHTML = `<i class="fa-regular fa-clock"></i> <span>Tutup Jam Layanan (${escapeHtml(openStr)} - ${escapeHtml(closeStr)})</span>`;
+        btnProc.innerHTML = `<i class="fa-regular fa-clock"></i> <span>Dipesan Saat Jam Operasional (${escapeHtml(openStr)} - ${escapeHtml(closeStr)})</span>`;
         btnProc.disabled = true;
         return;
     }
@@ -3108,12 +3350,23 @@ window.processDirectCheckout = async function() {
         return;
     }
 
+    if (isVariantMarkedSoldOutByAdmin(selectedProductForBuy)) {
+        window.customAlert('Stok Habis', 'Maaf, variasi produk ini sedang habis.', 'warning');
+        return;
+    }
+
     const opRestricted = isLocalStockOnlyRestrictionActive();
+    const hasLocalAutoStock = isVariantLocallyReadyForAutoProcess(selectedProductForBuy);
     const availQuota = computeVariantAvailableStock(selectedProductForBuy);
-    if (opRestricted) {
+
+    if (opRestricted && !hasLocalAutoStock) {
         const openStr = siteSettings.opOpenTime || '08:00';
         const closeStr = siteSettings.opCloseTime || '22:00';
-        window.customAlert('Di Luar Jam Layanan Admin', `Saat ini di luar jam layanan Admin (<b>${escapeHtml(openStr)} - ${escapeHtml(closeStr)}</b>). Katalog tetap dapat diakses, namun pembuatan pesanan baru ditutup sementara dan dapat dilakukan kembali saat jam layanan buka.`, 'warning');
+        window.customAlert(
+            'Dipesan Saat Jam Operasional',
+            `Saat ini toko berada di luar jam layanan Admin. Produk ini membutuhkan proses Admin atau stok lokal sedang kosong, sehingga baru dapat dipesan pada jam operasional (<b>${escapeHtml(openStr)} - ${escapeHtml(closeStr)}</b>).`,
+            'warning'
+        );
         return;
     }
 
@@ -4389,6 +4642,10 @@ function triggerSuccessConfetti() {
 }
 
 window.showPaymentSuccessAnimation = function(orderId, resultStatus = 'SUCCESS') {
+    if (orderId && shownPaymentSuccessOrderIds.has(orderId)) return;
+    if (orderId) shownPaymentSuccessOrderIds.add(orderId);
+
+    stopActiveQrisPaymentWatcher();
     if (activeTimersRegistry.qrisCountdown) {
         clearInterval(activeTimersRegistry.qrisCountdown);
         activeTimersRegistry.qrisCountdown = null;
@@ -4609,9 +4866,12 @@ window.switchMainTab = function(tab) {
         tab = 'katalog';
     }
 
-    if (tab !== 'payment-qris' && activeTimersRegistry.qrisCountdown) {
-        clearInterval(activeTimersRegistry.qrisCountdown);
-        activeTimersRegistry.qrisCountdown = null;
+    if (tab !== 'payment-qris') {
+        stopActiveQrisPaymentWatcher();
+        if (activeTimersRegistry.qrisCountdown) {
+            clearInterval(activeTimersRegistry.qrisCountdown);
+            activeTimersRegistry.qrisCountdown = null;
+        }
     }
 
     document.querySelectorAll('.main-tab-content').forEach(el => {
@@ -4635,6 +4895,7 @@ window.switchMainTab = function(tab) {
     }
     
     if (tab === 'bantuan') {
+        updateOpHoursBannerUI();
         window.switchBantuanSubTab(currentBantuanSubTab);
     }
     if (tab === 'profil') {
@@ -5018,44 +5279,52 @@ function buildStructuredMarqueeSlots() {
 
 let parsedFooterMarqueeSlots = [];
 
+// [PERBAIKAN v27.7 #3] Teks Running Bawah Otomatis Menampilkan Nama Item Katalog yang Aktif
 function buildStructuredFooterMarqueeSlots() {
     const slots = [];
 
-    if (Array.isArray(siteSettings.footerMarqueeList) && siteSettings.footerMarqueeList.length > 0) {
-        siteSettings.footerMarqueeList.slice(0, 20).forEach((item) => {
-            if (!item) return;
-            if (typeof item === 'string' && item.trim()) {
-                slots.push({ text: item.trim(), type: 'info', promoCode: '', targetBrand: '', newsIndex: -1 });
-            } else if (typeof item === 'object' && item.text && String(item.text).trim() && !item.isHidden) {
-                slots.push({
-                    text: String(item.text).trim(),
-                    type: item.type || (item.promoCode ? 'promo' : (item.newsIndex >= 0 ? 'news' : 'info')),
-                    promoCode: (item.promoCode || '').trim().toUpperCase(),
-                    targetBrand: (item.targetBrand || '').trim(),
-                    newsIndex: typeof item.newsIndex === 'number' ? item.newsIndex : -1
-                });
-            }
-        });
-    }
+    // Ambil seluruh item katalog yang aktif (tidak sedang gangguan)
+    const activeBrands = groupedBrands.filter(b => !b.isGangguan);
 
-    if (slots.length === 0) {
-        const rawFooter = String(
-            siteSettings.footerMarquee ||
-            'TERIMA KASIH TELAH BERBELANJA DI VIPERCELL — LAYANAN APLIKASI PREMIUM, TOP UP GAME & PRODUK DIGITAL || TRANSAKSI OTOMATIS & BERGARANSI — HUBUNGI CS BANTUAN JIKA BUTUH PANDUAN'
-        ).trim();
-        const parts = rawFooter.includes('||') ? rawFooter.split('||') : rawFooter.split(/\r?\n/);
-        parts.map(s => s.trim()).filter(Boolean).slice(0, 20).forEach(part => {
+    if (activeBrands.length > 0) {
+        activeBrands.forEach((b) => {
+            const prices = (b.items || []).map(i => Number(i.priceNum || 0)).filter(p => p > 0);
+            const minPrice = prices.length > 0 ? Math.min(...prices) : 0;
+            const allSold = b.items.length > 0 && b.items.every(it => isVariantMarkedSoldOutByAdmin(it));
+            const priceLabel = minPrice > 0 ? ` — Mulai Rp${minPrice.toLocaleString('id-ID')}` : '';
+            const statusText = allSold ? ' (Stok Habis)' : priceLabel;
+
             slots.push({
-                text: part,
+                text: `${b.brandName}${statusText}`,
+                type: 'product',
+                promoCode: '',
+                targetBrand: b.brandName,
+                categoryType: b.type || 'app',
+                isSoldOut: allSold,
+                newsIndex: -1
+            });
+        });
+    } else {
+        // Fallback nama-nama katalog populer saat katalog sedang dimuat
+        const defaultCatalogNames = [
+            'Viu Premium', 'Prime Video', 'Netflix Premium', 'Spotify Premium',
+            'YouTube Premium', 'Canva Pro', 'CapCut Pro', 'Vidio Premier',
+            'Disney+ Hotstar', 'Mobile Legends', 'Free Fire', 'ChatGPT Plus'
+        ];
+        defaultCatalogNames.forEach((name) => {
+            slots.push({
+                text: name,
                 type: 'info',
                 promoCode: '',
                 targetBrand: '',
+                categoryType: 'app',
+                isSoldOut: false,
                 newsIndex: -1
             });
         });
     }
 
-    parsedFooterMarqueeSlots = slots.slice(0, 20);
+    parsedFooterMarqueeSlots = slots;
     return parsedFooterMarqueeSlots;
 }
 
@@ -5076,12 +5345,14 @@ function renderInteractiveMarqueeUI() {
         const newsIdx = typeof slot.newsIndex === 'number' ? slot.newsIndex : -1;
 
         let badgeHtml = '';
-        if (slot.promoCode) {
-            badgeHtml = `<span class="marquee-item-badge badge-promo">PROMO</span>`;
-        } else if (slot.newsIndex >= 0 || slot.type === 'news') {
-            badgeHtml = `<span class="marquee-item-badge badge-news">BERITA</span>`;
-        } else if (slot.targetBrand) {
-            badgeHtml = `<span class="marquee-item-badge badge-product">${escapeHtml(slot.targetBrand)}</span>`;
+        if (slot.isSoldOut) {
+            badgeHtml = `<span class="marquee-item-badge badge-news">HABIS</span>`;
+        } else if (slot.categoryType === 'game') {
+            badgeHtml = `<span class="marquee-item-badge badge-promo">GAME</span>`;
+        } else if (slot.categoryType === 'tools') {
+            badgeHtml = `<span class="marquee-item-badge badge-product">TOOLS</span>`;
+        } else {
+            badgeHtml = `<span class="marquee-item-badge badge-product">KATALOG</span>`;
         }
 
         return `

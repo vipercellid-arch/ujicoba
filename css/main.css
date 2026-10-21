@@ -3930,3 +3930,49 @@ html[data-theme="dark"] .marquee-container.footer-dark-marquee {
     transform: translate3d(2px, 2px, 0) !important;
     box-shadow: 1px 1px 0px var(--border) !important;
 }
+
+/* ============================================================================
+ * PERBAIKAN v27.7 — BADGE HABIS KATALOG, INDIKATOR CHAT & JAM OPERASIONAL
+ * ============================================================================ */
+.brand-top-tag.tag-soldout {
+    background: var(--danger) !important;
+    color: #ffffff !important;
+    border-color: #0f172a !important;
+}
+
+.proc-mode-badge.proc-mode-op-hours {
+    background: #fef08a;
+    color: #0f172a;
+    border: 1.5px solid #0f172a;
+    font-weight: 800;
+}
+
+[data-theme="dark"] .proc-mode-badge.proc-mode-op-hours {
+    background: #facc15;
+    color: #090d16;
+    border-color: #000000;
+}
+
+.proc-mode-badge.proc-mode-soldout {
+    background: var(--danger);
+    color: #ffffff;
+    border: 1.5px solid #0f172a;
+    font-weight: 800;
+}
+
+.chat-op-hours-banner {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 0.82rem;
+    font-weight: 800;
+    line-height: 1.45;
+    border: var(--brutal-border-thin);
+    box-shadow: var(--brutal-shadow-sm);
+}
+
+.item-card.op-hours-locked {
+    opacity: 0.82;
+    border-style: dashed;
+}
+
