@@ -3755,3 +3755,147 @@ html[data-theme="dark"] .marquee-container.neo-brutal-marquee {
         grid-template-columns: 1fr !important;
     }
 }
+
+
+/* ==========================================================================
+   PEMBARUAN v27.3 — RUNNING TEXT UJUNG-KE-UJUNG, RUNNING TEXT BAWAH HITAM
+   GLOW MANIK-MANIK DI SEMUA TAB & OPTIMASI PERFORMA GOOGLE 90+
+   ========================================================================== */
+
+/* 1. Hilangkan kotak label INFO yang menghalangi di Running Text Atas & Bawah */
+.marquee-label {
+    display: none !important;
+}
+
+.marquee-container.edge-to-edge-marquee {
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+}
+
+.marquee-container.edge-to-edge-marquee .marquee-wrapper {
+    width: 100%;
+    mask-image: linear-gradient(to right, transparent 0%, #000 3%, #000 97%, transparent 100%);
+    -webkit-mask-image: linear-gradient(to right, transparent 0%, #000 3%, #000 97%, transparent 100%);
+}
+
+/* 2. Running Text Bawah (Pemisah Isi & Footer di Semua Tab) */
+body.auth-locked .footer-divider-marquee-wrap {
+    display: none !important;
+}
+
+.footer-divider-marquee-wrap {
+    width: 100%;
+    margin-top: 2.2rem;
+    margin-bottom: 0;
+    position: relative;
+    z-index: 15;
+}
+
+.footer-black-marquee {
+    width: 100%;
+    background-color: #05070d;
+    background-image:
+        radial-gradient(circle, rgba(255, 255, 255, 0.78) 1.2px, transparent 1.6px),
+        radial-gradient(circle, rgba(250, 204, 21, 0.72) 1.2px, transparent 1.6px);
+    background-size: 18px 100%, 18px 100%;
+    background-position: 0 4px, 9px calc(100% - 4px);
+    background-repeat: repeat-x;
+    color: #ffffff;
+    border-top: 3px solid #0f172a;
+    border-bottom: 3px solid #0f172a;
+    box-shadow: 0 -3px 14px rgba(15, 23, 42, 0.16), inset 0 0 18px rgba(59, 130, 246, 0.22);
+    overflow: hidden;
+    padding: 13px 0;
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+html[data-theme="dark"] .footer-black-marquee {
+    background-color: #030509;
+    border-top-color: #334155;
+    border-bottom-color: #334155;
+}
+
+.footer-marquee-track {
+    display: inline-flex;
+    align-items: center;
+    white-space: nowrap;
+    will-change: transform;
+    animation: footerBeadMarqueeScroll var(--footer-marquee-duration, 38s) linear infinite;
+}
+
+.footer-black-marquee:hover .footer-marquee-track {
+    animation-play-state: paused;
+}
+
+@keyframes footerBeadMarqueeScroll {
+    0% { transform: translate3d(0, 0, 0); }
+    100% { transform: translate3d(-50%, 0, 0); }
+}
+
+.footer-bead-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 14px;
+    padding: 0 18px;
+    cursor: pointer;
+}
+
+/* Ornamen Rangkaian Manik-Manik Bercahaya (Beads) */
+.bead-ornament {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    color: #facc15;
+    font-size: 0.92rem;
+    letter-spacing: 3px;
+    text-shadow:
+        0 0 6px rgba(250, 204, 21, 0.95),
+        0 0 14px rgba(255, 255, 255, 0.85);
+    animation: beadSparklePulse 2.2s ease-in-out infinite alternate;
+}
+
+/* Teks Putih Bercahaya (Glow) dengan Aksen Manik-Manik Halus */
+.footer-glow-text {
+    font-family: var(--font-heading);
+    font-size: 0.88rem;
+    font-weight: 800;
+    color: #ffffff;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    position: relative;
+    padding: 3px 12px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1.5px dotted rgba(255, 255, 255, 0.68);
+    text-shadow:
+        0 0 6px rgba(255, 255, 255, 0.95),
+        0 0 14px rgba(147, 197, 253, 0.88),
+        0 0 24px rgba(59, 130, 246, 0.65),
+        0 0 34px rgba(250, 204, 21, 0.35);
+    box-shadow:
+        0 0 10px rgba(255, 255, 255, 0.18),
+        inset 0 0 8px rgba(255, 255, 255, 0.14);
+}
+
+@keyframes beadSparklePulse {
+    0% { opacity: 0.78; transform: scale(0.96); }
+    100% { opacity: 1; transform: scale(1.06); }
+}
+
+/* 3. Optimasi Render & Layout untuk Skor Google Lighthouse 90+ */
+.brand-card {
+    content-visibility: auto;
+    contain-intrinsic-size: 175px;
+}
+
+.order-compact-card,
+.news-article-card {
+    content-visibility: auto;
+    contain-intrinsic-size: 110px;
+}
+
+.marquee-content {
+    will-change: transform;
+}

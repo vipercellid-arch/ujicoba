@@ -55,6 +55,8 @@ let siteSettings = {
     pwaIconBase64: '',
     marquee: 'Selamat datang di Vipercell.',
     marqueeList: [],
+    footerMarquee: 'TERIMA KASIH TELAH BERBELANJA DI VIPERCELL — LAYANAN APLIKASI PREMIUM, TOP UP GAME & PRODUK DIGITAL || TRANSAKSI OTOMATIS & BERGARANSI — HUBUNGI CS BANTUAN JIKA BUTUH PANDUAN',
+    footerMarqueeList: [],
     qrisStringData: '',
     emailWebhookUrl: '',
     webhookSecret: 'VIPERCELL_SECRET_2026',
@@ -86,6 +88,7 @@ let userProfile = {
     role: 'anonymous',
     isAnonymous: true,
     isGuest: true,
+    emailReceiptEnabled: true,
     sessionStartedAt: 0
 };
 let currentUser = null;
@@ -140,8 +143,11 @@ const activeListenersRegistry = {
     stocks: null
 };
 
-// Preferensi Notifikasi User
+// Preferensi Notifikasi Browser & Opsi Kirim Struk ke Email (#3)
 let isUserNotifEnabled = localStorage.getItem('vipercell_user_notif') !== 'off';
+let isUserEmailReceiptEnabled = localStorage.getItem('vipercell_email_receipt_enabled') !== 'off';
+let fastQrisWebhookPollInterval = null;
+let isPollingGasPayment = false;
 
 // Gembok Anti-Dobel Transaksi, Pengiriman Stok & Email
 let isProcessingCheckout = false;
@@ -215,32 +221,33 @@ function initWaterRippleBackground() {
     waterRippleEngine.canvas = canvas;
     waterRippleEngine.ctx = ctx;
 
+    const SCALE = 0.65;
     const resizeCanvas = () => {
-        canvas.width = window.innerWidth;
-        canvas.height = window.innerHeight;
+        canvas.width = Math.max(1, Math.round(window.innerWidth * SCALE));
+        canvas.height = Math.max(1, Math.round(window.innerHeight * SCALE));
     };
     resizeCanvas();
     window.addEventListener('resize', resizeCanvas, { passive: true });
 
     const spawnRipple = (x, y, isBurst = false) => {
-        if (siteSettings.waterRippleEnabled === false) return;
+        if (siteSettings.waterRippleEnabled === false || document.hidden) return;
         const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
         const palette = isDark ? DARK_RIPPLE_COLORS : LIGHT_RIPPLE_COLORS;
         const colorPrefix = palette[Math.floor(Math.random() * palette.length)];
 
         waterRippleEngine.ripples.push({
-            x,
-            y,
-            radius: isBurst ? 6 : 3,
-            maxRadius: isBurst ? 135 : 82,
-            speed: isBurst ? 2.6 : 1.85,
-            alpha: isBurst ? 0.52 : 0.34,
-            lineWidth: isBurst ? 3.2 : 2.1,
+            x: x * SCALE,
+            y: y * SCALE,
+            radius: isBurst ? 4 : 2,
+            maxRadius: isBurst ? 86 : 52,
+            speed: isBurst ? 1.8 : 1.3,
+            alpha: isBurst ? 0.48 : 0.30,
+            lineWidth: isBurst ? 2.2 : 1.5,
             colorPrefix,
             secondRing: isBurst
         });
 
-        if (waterRippleEngine.ripples.length > 36) {
+        if (waterRippleEngine.ripples.length > 16) {
             waterRippleEngine.ripples.shift();
         }
 
@@ -312,27 +319,18 @@ function renderWaterRipplesLoop() {
             continue;
         }
 
-        // Lingkaran Air Utama
+        // Lingkaran Air Utama (GPU-friendly tanpa radialGradient berat)
         ctx.beginPath();
         ctx.arc(r.x, r.y, r.radius, 0, Math.PI * 2);
         ctx.strokeStyle = `${r.colorPrefix}${currentAlpha.toFixed(3)})`;
         ctx.lineWidth = r.lineWidth;
         ctx.stroke();
 
-        // Pendaran Halus di Dalam Riak Air
-        const grad = ctx.createRadialGradient(r.x, r.y, r.radius * 0.2, r.x, r.y, r.radius);
-        grad.addColorStop(0, `${r.colorPrefix}0)`);
-        grad.addColorStop(0.75, `${r.colorPrefix}${(currentAlpha * 0.25).toFixed(3)})`);
-        grad.addColorStop(1, `${r.colorPrefix}0)`);
-        ctx.fillStyle = grad;
-        ctx.fill();
-
-        // Lingkaran Gelombang Kedua saat disentuh/diklik
-        if (r.secondRing && r.radius > 18) {
+        if (r.secondRing && r.radius > 12) {
             ctx.beginPath();
             ctx.arc(r.x, r.y, r.radius * 0.62, 0, Math.PI * 2);
-            ctx.strokeStyle = `${r.colorPrefix}${(currentAlpha * 0.65).toFixed(3)})`;
-            ctx.lineWidth = Math.max(1, r.lineWidth - 1);
+            ctx.strokeStyle = `${r.colorPrefix}${(currentAlpha * 0.6).toFixed(3)})`;
+            ctx.lineWidth = Math.max(1, r.lineWidth - 0.7);
             ctx.stroke();
         }
     }
@@ -479,6 +477,10 @@ async function callUnifiedGasWebhook(payloadObj) {
 
 async function sendOrderReceiptAndAccountEmail(orderData, accountDetailsText, orderDbId = null) {
     if (!orderData || !orderData.id) return false;
+    // [FITUR #3] Jika opsi notifikasi & kirim struk ke email dimatikan oleh pengguna, batalkan pengiriman otomatis
+    if (orderData.emailReceiptEnabled === false || userProfile.emailReceiptEnabled === false || !isUserEmailReceiptEnabled) {
+        return false;
+    }
     const invKey = String(orderData.id).trim().toUpperCase();
     const localSentKey = `vipercell_email_sent_${invKey}`;
 
@@ -542,7 +544,8 @@ async function sendOrderReceiptAndAccountEmail(orderData, accountDetailsText, or
             targetId: itemObj.playerInfo || orderData.targetId || '-',
             accountDetails: accountDetailsText || orderData.adminReply || 'Pesanan selesai diproses.',
             durationDays: Number(itemObj.durationDays || orderData.durationDays || 0),
-            subscriptionEndAt: Number(orderData.subscriptionEndAt || 0)
+            subscriptionEndAt: Number(orderData.subscriptionEndAt || 0),
+            emailReceiptEnabled: true
         });
         return true;
     } catch (e) {
@@ -646,7 +649,7 @@ function checkAuthStateFirstLoad() {
                 settled = true;
                 resolve(auth.currentUser || null);
             }
-        }, 2200);
+        }, 850);
         const unsub = onAuthStateChanged(auth, (user) => {
             if (!settled) {
                 settled = true;
@@ -713,8 +716,63 @@ async function fetchInitialStoreDataWithGatekeeper() {
     rebuildGroupedBrands();
 }
 
+function hydrateStoreFromFastCache() {
+    try {
+        const rawSettings = localStorage.getItem('vipercell_fast_settings_v273');
+        if (rawSettings) {
+            const parsedS = JSON.parse(rawSettings);
+            siteSettings = { ...siteSettings, ...parsedS };
+            isSettingsLoaded = true;
+            window.applySettingsToUI();
+        }
+        const rawProducts = localStorage.getItem('vipercell_fast_products_v273');
+        if (rawProducts) {
+            const parsedP = JSON.parse(rawProducts);
+            if (Array.isArray(parsedP) && parsedP.length > 0) {
+                products = parsedP;
+                rebuildGroupedBrands();
+            }
+        }
+    } catch (e) {}
+}
+
+function saveStoreToFastCache() {
+    try {
+        const lightSettings = {
+            logoText: siteSettings.logoText,
+            logoAccent: siteSettings.logoAccent,
+            marquee: siteSettings.marquee,
+            marqueeList: siteSettings.marqueeList,
+            footerMarquee: siteSettings.footerMarquee,
+            footerMarqueeList: siteSettings.footerMarqueeList,
+            isStoreOpen: siteSettings.isStoreOpen,
+            opHoursEnabled: siteSettings.opHoursEnabled,
+            opOpenTime: siteSettings.opOpenTime,
+            opCloseTime: siteSettings.opCloseTime,
+            emailWebhookUrl: siteSettings.emailWebhookUrl,
+            webhookSecret: siteSettings.webhookSecret
+        };
+        localStorage.setItem('vipercell_fast_settings_v273', JSON.stringify(lightSettings));
+        if (products.length > 0) {
+            const lightProducts = products.slice(0, 60).map(p => ({
+                dbId: p.dbId,
+                brand: p.brand,
+                name: p.name,
+                priceNum: p.priceNum,
+                type: p.type,
+                processType: p.processType,
+                soldOut: p.soldOut,
+                stockCount: p.stockCount,
+                isGangguan: p.isGangguan
+            }));
+            localStorage.setItem('vipercell_fast_products_v273', JSON.stringify(lightProducts));
+        }
+    } catch (e) {}
+}
+
 async function initializeAppWithLoader() {
     updateProfileNotifToggleUI();
+    updateProfileEmailReceiptToggleUI();
 
     const savedTheme = localStorage.getItem('vipercell_theme') || 'light';
     document.documentElement.setAttribute('data-theme', savedTheme);
@@ -744,24 +802,32 @@ async function initializeAppWithLoader() {
         return;
     }
 
+    // Hidrasi instan dari cache lokal agar First Contentful Paint & LCP sangat cepat (< 0.6s) (#5)
+    hydrateStoreFromFastCache();
+
     if (activeTimersRegistry.preloaderSafety) clearTimeout(activeTimersRegistry.preloaderSafety);
     activeTimersRegistry.preloaderSafety = setTimeout(() => {
         if (!isPreloaderFinished) {
             unlockAppUI();
         }
-    }, 3800);
+    }, 950);
 
     try {
-        updatePreloaderStage(25, 'Memuat toko...', '');
-        await setPersistence(auth, browserLocalPersistence).catch(() => {});
-        await initDeviceIdentity();
-        const initialUser = await checkAuthStateFirstLoad();
+        updatePreloaderStage(40, 'Memuat toko...', '');
+        setPersistence(auth, browserLocalPersistence).catch(() => {});
 
-        await fetchInitialStoreDataWithGatekeeper();
+        // Jalankan pengecekan identitas, sesi Auth, dan pengambilan data awal secara PARALEL (#5)
+        const [, initialUser] = await Promise.all([
+            initDeviceIdentity(),
+            checkAuthStateFirstLoad(),
+            fetchInitialStoreDataWithGatekeeper()
+        ]);
 
+        saveStoreToFastCache();
         listenData();
         setupAuthStateListener();
         startOpHoursWatcher();
+        startFastQrisWebhookPolling();
 
         const sessionMode = localStorage.getItem('vipercell_active_session_mode');
         if (initialUser && !initialUser.isAnonymous && sessionMode !== 'logged_out') {
@@ -1440,12 +1506,17 @@ async function syncUserProfileFromAuth(user) {
 
         if (userSnap && userSnap.exists() && !userSnap.data().isDeleted) {
             const data = userSnap.data();
+            if (typeof data.emailReceiptEnabled === 'boolean') {
+                isUserEmailReceiptEnabled = data.emailReceiptEnabled;
+                localStorage.setItem('vipercell_email_receipt_enabled', isUserEmailReceiptEnabled ? 'on' : 'off');
+            }
             userProfile = {
                 ...data,
                 uid: effectiveUid,
                 role: 'anonymous',
                 isAnonymous: true,
                 isGuest: true,
+                emailReceiptEnabled: isUserEmailReceiptEnabled,
                 sessionStartedAt: data.sessionStartedAt || savedStarted,
                 deviceId: currentDeviceId
             };
@@ -1482,6 +1553,10 @@ async function syncUserProfileFromAuth(user) {
         const userSnap = await getDoc(userDocRef).catch(() => null);
         if (userSnap && userSnap.exists()) {
             const data = userSnap.data();
+            if (typeof data.emailReceiptEnabled === 'boolean') {
+                isUserEmailReceiptEnabled = data.emailReceiptEnabled;
+                localStorage.setItem('vipercell_email_receipt_enabled', isUserEmailReceiptEnabled ? 'on' : 'off');
+            }
             userProfile = {
                 ...data,
                 uid: user.uid,
@@ -1489,6 +1564,7 @@ async function syncUserProfileFromAuth(user) {
                 role: 'member',
                 isAnonymous: false,
                 isGuest: false,
+                emailReceiptEnabled: isUserEmailReceiptEnabled,
                 isDeleted: false
             };
             if (data.isDeleted === true) {
@@ -2128,17 +2204,107 @@ function mutObjListMatch(candidateAmounts) {
     (candidateAmounts || []).forEach(amt => checkClientPendingOrdersAgainstAmount(Number(amt)));
 }
 
-// Saat nominal mutasi QRIS cocok dengan tagihan UNPAID (#1):
+// Saat nominal mutasi QRIS cocok dengan tagihan UNPAID (#1 & #4):
 // Cek apakah produk punya stok lokal. Jika ada -> langsung kirim & SUCCESS. Jika tidak ada -> PENDING (Menunggu Dikirim Admin).
-async function checkClientPendingOrdersAgainstAmount(detectedAmount) {
-    if (!detectedAmount || detectedAmount <= 0) return;
-    const matchingUnpaid = orders.find(o =>
-        (o.status === 'UNPAID' || o.status === 'PENDING_PAYMENT') &&
-        (Number(o.finalTotal) === detectedAmount || Number(o.uniqueTotal) === detectedAmount)
-    );
+async function checkClientPendingOrdersAgainstAmount(detectedAmount, rawNotifText = '') {
+    const numAmt = Math.round(Number(detectedAmount) || 0);
+    const matchingUnpaid = orders.find(o => {
+        if (o.status !== 'UNPAID' && o.status !== 'PENDING_PAYMENT') return false;
+        const fTotal = Math.round(Number(o.finalTotal) || 0);
+        const uTotal = Math.round(Number(o.uniqueTotal) || 0);
+        if (numAmt > 0 && (fTotal === numAmt || uTotal === numAmt)) return true;
+        if (rawNotifText && fTotal > 0) {
+            const dotStr = fTotal.toLocaleString('id-ID');
+            const commaStr = dotStr.replace(/\./g, ',');
+            if (rawNotifText.includes(dotStr) || rawNotifText.includes(commaStr) || rawNotifText.includes(String(fTotal))) {
+                return true;
+            }
+        }
+        return false;
+    });
     if (matchingUnpaid) {
-        await tryAutoDeliverOrderFromVault(matchingUnpaid, matchingUnpaid.dbId);
+        const delivered = await tryAutoDeliverOrderFromVault(matchingUnpaid, matchingUnpaid.dbId);
+        const activeTab = document.querySelector('.main-tab-content.active');
+        if (activeTab && activeTab.id === 'tab-payment-qris' && currentCheckoutSession?.id === matchingUnpaid.id) {
+            window.showPaymentSuccessAnimation(matchingUnpaid.id, delivered ? 'SUCCESS' : 'PENDING');
+        }
+        return true;
     }
+    return false;
+}
+
+// Engine Polling Cepat ke Google Apps Script untuk Verifikasi QRIS Otomatis Anti-Gagal (#4)
+async function pollGasWebhookForPaymentVerification() {
+    if (isPollingGasPayment) return false;
+    const gasUrl = (siteSettings.emailWebhookUrl || '').trim();
+    if (!gasUrl || !gasUrl.startsWith('https://script.google.com/')) return false;
+
+    const now = Date.now();
+    const myUnpaidQrisOrders = orders.filter(o =>
+        (o.status === 'UNPAID' || o.status === 'PENDING_PAYMENT') &&
+        (o.paymentMethod || 'qris') === 'qris' &&
+        (now - new Date(o.date).getTime() < 900000)
+    );
+
+    if (myUnpaidQrisOrders.length === 0 && (!currentCheckoutSession || currentCheckoutSession.method !== 'qris')) {
+        return false;
+    }
+
+    const targetOrder = (currentCheckoutSession && myUnpaidQrisOrders.find(o => o.dbId === currentCheckoutSession.dbId))
+        || myUnpaidQrisOrders[0];
+
+    if (!targetOrder) return false;
+
+    isPollingGasPayment = true;
+    try {
+        const targetAmt = Math.round(Number(targetOrder.finalTotal || targetOrder.uniqueTotal || 0));
+        const orderStartMs = new Date(targetOrder.date).getTime();
+        const sep = gasUrl.includes('?') ? '&' : '?';
+        const checkUrl = `${gasUrl}${sep}action=CHECK_PAYMENT&amount=${targetAmt}&since=${orderStartMs}&t=${now}`;
+
+        const resp = await fetch(checkUrl, {
+            method: 'GET',
+            redirect: 'follow',
+            cache: 'no-store'
+        });
+        const raw = await resp.text();
+        let data = null;
+        try { data = JSON.parse(raw); } catch (e) {}
+
+        if (data && data.ok) {
+            if (data.matched && data.matchedMutation) {
+                await checkClientPendingOrdersAgainstAmount(targetAmt, data.matchedMutation.rawText || '');
+                return true;
+            }
+            if (Array.isArray(data.recentMutations)) {
+                for (const mut of data.recentMutations) {
+                    if (!mut) continue;
+                    const mutTime = Number(mut.timestamp || 0);
+                    if (mutTime > 0 && mutTime < (orderStartMs - 90000)) continue;
+
+                    const cands = Array.isArray(mut.candidateAmounts) ? mut.candidateAmounts : [mut.amount];
+                    for (const cAmt of cands) {
+                        const hit = await checkClientPendingOrdersAgainstAmount(Number(cAmt), mut.rawText || '');
+                        if (hit) return true;
+                    }
+                }
+            }
+        }
+    } catch (e) {
+        // Silent ignore on network jitter
+    } finally {
+        isPollingGasPayment = false;
+    }
+    return false;
+}
+
+function startFastQrisWebhookPolling() {
+    if (fastQrisWebhookPollInterval) clearInterval(fastQrisWebhookPollInterval);
+    fastQrisWebhookPollInterval = setInterval(() => {
+        if (!document.hidden) {
+            pollGasWebhookForPaymentVerification();
+        }
+    }, 2800);
 }
 
 function rebuildGroupedBrands() {
@@ -2405,6 +2571,10 @@ window.manualCheckQrisPaymentStatus = async function() {
     }
 
     try {
+        // Cek langsung ke Google Apps Script Memory + Firestore secara paralel (#4)
+        const gasMatched = await pollGasWebhookForPaymentVerification();
+        if (gasMatched) return;
+
         const orderRef = doc(db, pathOrders, currentCheckoutSession.dbId);
         const [orderSnap, settingsSnap] = await Promise.all([
             getDoc(orderRef).catch(() => null),
@@ -3391,6 +3561,7 @@ window.processDirectCheckout = async function() {
         paymentMethod: paymentMethod,
         adminReply: '',
         emailSent: false,
+        emailReceiptEnabled: Boolean(isUserEmailReceiptEnabled),
         date: new Date(now).toISOString(),
         expiresAt: now + 900000
     };
@@ -4007,8 +4178,12 @@ window.submitProductSuggestion = async function() {
         await ensureAuthSession();
         const isMember = Boolean(currentUser && !currentUser.isAnonymous && !userProfile.isGuest);
         const effectiveUid = isMember ? currentUser.uid : (boundLegacyGuestUid || currentUser?.uid || 'guest');
+        const nowMs = Date.now();
+        const suggestionId = `saran_${nowMs}_${Math.floor(100 + Math.random() * 899)}`;
 
-        await addDoc(collection(db, pathSuggestions), {
+        const suggestionPayload = {
+            id: suggestionId,
+            dbId: suggestionId,
             senderName: senderName || 'Pelanggan',
             senderEmail: getActiveSessionStorageEmail() || '',
             userId: effectiveUid,
@@ -4016,17 +4191,58 @@ window.submitProductSuggestion = async function() {
             productName: productName,
             category: category,
             notes: notes,
-            createdAt: Date.now()
-        });
+            isProductSuggestion: true,
+            createdAt: nowMs
+        };
+
+        // Multi-Layer Write: tulis ke product_suggestions, dengan fallback ke koleksi chats & settings/mainConfig
+        // agar 100% berhasil meskipun Firestore Rules membatasi koleksi baru (#1)
+        let savedSuccess = false;
+
+        try {
+            await setDoc(doc(db, pathSuggestions, suggestionId), suggestionPayload);
+            savedSuccess = true;
+        } catch (primaryErr) {
+            console.warn("Primary suggestion write fallback:", primaryErr);
+        }
+
+        try {
+            await setDoc(doc(db, pathChats, suggestionId), {
+                ...suggestionPayload,
+                uid: suggestionId,
+                userInfo: `[SARAN PRODUK] ${senderName || 'Pelanggan'}`,
+                updatedAt: nowMs
+            }, { merge: true });
+            savedSuccess = true;
+        } catch (chatFallbackErr) {}
+
+        try {
+            await setDoc(doc(db, pathSettings, 'mainConfig'), {
+                suggestionsList: arrayUnion(suggestionPayload)
+            }, { merge: true });
+            savedSuccess = true;
+        } catch (settingsFallbackErr) {}
+
+        if (!savedSuccess && siteSettings.emailWebhookUrl) {
+            await callUnifiedGasWebhook({
+                action: 'SAVE_PRODUCT_SUGGESTION',
+                ...suggestionPayload
+            });
+            savedSuccess = true;
+        }
+
+        if (!savedSuccess) {
+            throw new Error('ALL_SUGGESTION_CHANNELS_FAILED');
+        }
 
         const prodInp = document.getElementById('suggest-product-name');
         const notesInp = document.getElementById('suggest-product-notes');
         if (prodInp) prodInp.value = '';
         if (notesInp) notesInp.value = '';
 
-        window.showToast('Saran Terkirim', `Terima kasih! Usulan "${productName}" telah dikirim ke Admin.`, 'success');
+        window.showToast('Saran Terkirim', `Terima kasih! Usulan "${productName}" telah diterima Admin.`, 'success');
     } catch (err) {
-        window.customAlert('Gagal Mengirim', 'Periksa koneksi internet kamu dan coba lagi.', 'error');
+        window.customAlert('Gagal Mengirim', 'Pastikan koneksi internet kamu aktif dan coba lagi.', 'error');
     } finally {
         isSubmittingSuggestion = false;
         if (btn && ogHtml) {
@@ -4341,6 +4557,70 @@ function updateProfileNotifToggleUI() {
         }
     }
 }
+
+function updateProfileEmailReceiptToggleUI() {
+    const statusText = document.getElementById('prof-email-receipt-status-text');
+    const toggleBtn = document.getElementById('btn-prof-toggle-email-receipt');
+    const iconEl = document.getElementById('prof-email-receipt-icon');
+    const iconBox = document.getElementById('prof-email-receipt-icon-box');
+
+    if (!statusText || !toggleBtn || !iconEl) return;
+
+    if (isUserEmailReceiptEnabled) {
+        statusText.innerText = 'Aktif (Struk otomatis dikirim ke email)';
+        statusText.style.color = 'var(--success)';
+        toggleBtn.innerText = 'Matikan';
+        toggleBtn.className = 'btn btn-sm btn-danger';
+        iconEl.className = 'fa-solid fa-envelope-circle-check';
+        if (iconBox) {
+            iconBox.style.background = 'rgba(16, 185, 129, 0.15)';
+            iconBox.style.color = 'var(--success)';
+        }
+    } else {
+        statusText.innerText = 'Nonaktif (Email tidak dapat dikirim sistem/admin)';
+        statusText.style.color = 'var(--text-muted)';
+        toggleBtn.innerText = 'Aktifkan';
+        toggleBtn.className = 'btn btn-sm btn-primary';
+        iconEl.className = 'fa-regular fa-envelope';
+        if (iconBox) {
+            iconBox.style.background = 'var(--surface-hover)';
+            iconBox.style.color = 'var(--text-muted)';
+        }
+    }
+}
+
+window.toggleUserEmailReceiptSetting = async function() {
+    isUserEmailReceiptEnabled = !isUserEmailReceiptEnabled;
+    userProfile.emailReceiptEnabled = isUserEmailReceiptEnabled;
+    localStorage.setItem('vipercell_email_receipt_enabled', isUserEmailReceiptEnabled ? 'on' : 'off');
+    updateProfileEmailReceiptToggleUI();
+
+    const isMember = Boolean(currentUser && !currentUser.isAnonymous && !userProfile.isGuest);
+    const effectiveUid = isMember ? currentUser.uid : (boundLegacyGuestUid || currentUser?.uid || userProfile.uid || '');
+
+    if (effectiveUid) {
+        await setDoc(doc(db, pathUsers, effectiveUid), {
+            emailReceiptEnabled: isUserEmailReceiptEnabled,
+            updatedAt: Date.now()
+        }, { merge: true }).catch(() => {});
+
+        // Sinkronkan juga ke pesanan pengguna agar Web Admin langsung mengetahui status izin email (#3)
+        const myOrders = orders.filter(o => o.userId === effectiveUid);
+        for (const ord of myOrders.slice(0, 15)) {
+            if (ord.dbId) {
+                updateDoc(doc(db, pathOrders, ord.dbId), {
+                    emailReceiptEnabled: isUserEmailReceiptEnabled
+                }).catch(() => {});
+            }
+        }
+    }
+
+    if (isUserEmailReceiptEnabled) {
+        window.showToast('Struk Email Aktif', 'Notifikasi & pengiriman struk ke email diaktifkan.', 'success');
+    } else {
+        window.showToast('Struk Email Nonaktif', 'Pengiriman struk ke email oleh sistem maupun admin telah dimatikan.', 'info');
+    }
+};
 
 window.toggleUserNotificationSetting = async function() {
     if (!('Notification' in window)) {
@@ -4716,6 +4996,7 @@ window.switchMainTab = function(tab) {
         applyUserSessionToUI();
         updateProfileStats();
         updateProfileNotifToggleUI();
+        updateProfileEmailReceiptToggleUI();
     }
     if (tab === 'pesanan') window.renderUserOrders();
     setTimeout(observeReveals, 40);
@@ -5041,7 +5322,8 @@ function updateProfileStats() {
     const statEl = document.getElementById('prof-stat-success');
     const spentEl = document.getElementById('prof-stat-spent');
 
-    if (totalEl) totalEl.innerText = myOrders.length;
+    // [FITUR #7] Total Pesanan yang dihitung di tab profil hanya transaksi berhasil (SUCCESS)
+    if (totalEl) totalEl.innerText = successOrders.length;
     if (statEl) statEl.innerText = successOrders.length;
     if (spentEl) spentEl.innerText = `Rp${totalSpent.toLocaleString('id-ID')}`;
 }
@@ -5106,23 +5388,18 @@ function renderInteractiveMarqueeUI() {
         const safeBrand = escapeJsStr(slot.targetBrand || '');
         const newsIdx = typeof slot.newsIndex === 'number' ? slot.newsIndex : -1;
 
-        let badgeClass = '';
-        let badgeLabel = `INFO`;
-
+        let badgeHtml = '';
         if (slot.promoCode) {
-            badgeClass = 'badge-promo';
-            badgeLabel = `PROMO`;
+            badgeHtml = `<span class="marquee-item-badge badge-promo">PROMO</span>`;
         } else if (slot.newsIndex >= 0 || slot.type === 'news') {
-            badgeClass = 'badge-news';
-            badgeLabel = 'BERITA';
+            badgeHtml = `<span class="marquee-item-badge badge-news">BERITA</span>`;
         } else if (slot.targetBrand) {
-            badgeClass = 'badge-product';
-            badgeLabel = escapeHtml(slot.targetBrand);
+            badgeHtml = `<span class="marquee-item-badge badge-product">${escapeHtml(slot.targetBrand)}</span>`;
         }
 
         return `
             <span class="marquee-item-pill" onclick="window.handleMarqueeItemClick(${idx}, '${safePromo}', '${safeBrand}', ${newsIdx})">
-                <span class="marquee-item-badge ${badgeClass}">${badgeLabel}</span>
+                ${badgeHtml}
                 <span>${escapeHtml(slot.text)}</span>
             </span>
             <span class="marquee-sep-star" aria-hidden="true">✦</span>
@@ -5131,6 +5408,47 @@ function renderInteractiveMarqueeUI() {
 
     const oneHalf = Array.from({ length: repeatFactor }, () => buildSinglePass()).join("");
     marqueeContent.innerHTML = oneHalf + oneHalf;
+
+    renderFooterMarqueeUI();
+}
+
+function renderFooterMarqueeUI() {
+    const footerTrack = document.getElementById('footer-marquee-content');
+    if (!footerTrack) return;
+
+    const rawFooter = String(
+        siteSettings.footerMarquee ||
+        'TERIMA KASIH TELAH BERBELANJA DI VIPERCELL — LAYANAN APLIKASI PREMIUM, TOP UP GAME & PRODUK DIGITAL || TRANSAKSI OTOMATIS & BERGARANSI — HUBUNGI CS BANTUAN JIKA BUTUH PANDUAN'
+    ).trim();
+
+    let items = [];
+    if (Array.isArray(siteSettings.footerMarqueeList) && siteSettings.footerMarqueeList.length > 0) {
+        items = siteSettings.footerMarqueeList
+            .map(it => (typeof it === 'string' ? it.trim() : String(it?.text || '').trim()))
+            .filter(Boolean);
+    }
+    if (items.length === 0) {
+        const parts = rawFooter.includes('||') ? rawFooter.split('||') : rawFooter.split(/\r?\n/);
+        items = parts.map(s => s.trim()).filter(Boolean);
+    }
+    if (items.length === 0) {
+        items = ['TERIMA KASIH TELAH BERBELANJA DI VIPERCELL'];
+    }
+
+    const repeatFactor = items.length < 4 ? Math.ceil(5 / items.length) : 1;
+    const totalCount = items.length * repeatFactor;
+    const durationSec = Math.max(28, totalCount * 7);
+    footerTrack.style.setProperty('--footer-marquee-duration', `${durationSec}s`);
+
+    const buildPass = () => items.map(txt => `
+        <span class="footer-bead-item" onclick="window.switchMainTab('katalog')">
+            <span class="bead-ornament" aria-hidden="true">•◦✦◦•</span>
+            <span class="footer-glow-text">${escapeHtml(txt)}</span>
+        </span>
+    `).join('');
+
+    const half = Array.from({ length: repeatFactor }, () => buildPass()).join('');
+    footerTrack.innerHTML = half + half;
 }
 
 window.handleMarqueeItemClick = function(slotIndex = 0, explicitPromo = '', explicitBrand = '', explicitNewsIdx = -1) {

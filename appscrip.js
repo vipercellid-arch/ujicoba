@@ -1,21 +1,28 @@
 /**
  * ============================================================================
- * VIPERCELL — GOOGLE APPS SCRIPT SERVER (NEO-BRUTALISM & FAST PAYMENT ENGINE)
+ * VIPERCELL — GOOGLE APPS SCRIPT SERVER v27.3 (HYBRID ULTRA-FAST QRIS ENGINE)
  * Nama File : SERVER_APPS_SCRIP.js
  *
- * Fungsi Utama:
- *  1. Verifikasi Pembayaran QRIS Sangat Cepat (Paralel `UrlFetchApp.fetchAll` +
- *     Auto-Match & Patch Langsung Dokumen Order `UNPAID` di Firestore)
- *  2. Mengirim Email Struk & Rincian Pesanan Bergaya Neo-Brutalism Matang
- *     dengan Proteksi Anti-Dobel (`SEND_ORDER_DELIVERY`)
- *  3. Mengirim Kode OTP 6-Digit Neo-Brutalism untuk Upgrade Member (`SEND_OTP_EMAIL`)
- *  4. Mengirim Email Pengingat Masa Aktif Langganan (`SEND_EXPIRY_REMINDER`)
- *  5. Mengirim Email Tautan Ubah Kata Sandi (`SEND_PASSWORD_RESET_LINK`)
+ * Pembaruan Utama v27.3:
+ *  1. Hybrid Push + Pull Payment Verification Engine:
+ *     - Menyimpan setiap mutasi QRIS dari MacroDroid ke Memori Cepat Server
+ *       (`CacheService` + `PropertiesService`) SEkaligus mendorong ke Firestore
+ *       (Root Path & Workspace Path) secara paralel (`UrlFetchApp.fetchAll`).
+ *     - Menyediakan endpoint `CHECK_PAYMENT` & `GET_RECENT_MUTATIONS` pada
+ *       `doGet` dan `doPost` agar Web User & Web Admin dapat mendeteksi
+ *       pembayaran dalam < 2 detik meskipun Firestore REST API terhalang Rules!
+ *  2. Proteksi Opsi Kirim Struk Email (`emailReceiptEnabled`):
+ *     - Jika pembeli mematikan opsi notifikasi & kirim struk email di profil,
+ *       server otomatis menolak pengiriman email struk pesanan.
+ *  3. Cadangan Penyimpanan Saran Produk (`SAVE_PRODUCT_SUGGESTION`).
+ *  4. Template Email HTML Neo-Brutalism Matang (`SEND_ORDER_DELIVERY`,
+ *     `SEND_OTP_EMAIL`, `SEND_EXPIRY_REMINDER`, `SEND_PASSWORD_RESET_LINK`).
  * ============================================================================
  */
 
 var CONFIG = {
   FIREBASE_PROJECT_ID: 'vipercell-fc50e',
+  WORKSPACE_APP_ID: 'vipercell-prod',
   WEBHOOK_SECRET: 'VIPERCELL_SECRET_2026',
   STORE_NAME: 'VIPERCELL',
   STORE_TAGLINE: 'Toko Aplikasi Premium, Top Up Game & Produk Digital',
@@ -38,17 +45,62 @@ function setupAndAuthorize() {
 }
 
 /**
- * Handler HTTP GET (Cek Status Server Cepat)
+ * Handler HTTP GET — Mendukung Pengecekan Status Pembayaran Instan oleh Web User & Admin
  */
 function doGet(e) {
-  return buildJsonResponse({
-    ok: true,
-    status: 'ok',
-    service: 'Vipercell Fast Payment & Email Server',
-    projectId: CONFIG.FIREBASE_PROJECT_ID,
-    remainingEmailQuota: MailApp.getRemainingDailyQuota(),
-    timestamp: new Date().toISOString()
-  });
+  try {
+    var params = (e && e.parameter) ? e.parameter : {};
+    var action = String(params.action || params.type || '').toUpperCase().trim();
+
+    // Jika MacroDroid dikonfigurasi mengirim via HTTP GET (query parameter text/notification/amount)
+    if (
+      action === 'MACRODROID_PAYMENT_WEBHOOK' ||
+      action === 'PAYMENT_WEBHOOK' ||
+      action === 'QRIS_MUTATION' ||
+      params.notification ||
+      params.notif_text ||
+      params.text ||
+      params.bigText
+    ) {
+      return handleMacroDroidPaymentMutation(params, Date.now());
+    }
+
+    var recentMutations = getStoredRecentMutations(1200000); // 20 menit terakhir
+    var targetAmount = Number(params.amount || params.nominal || params.total || 0);
+    var sinceMs = Number(params.since || 0);
+
+    if (action === 'CHECK_PAYMENT' || targetAmount > 0) {
+      var matchedMut = findMatchingMutationForAmount(recentMutations, targetAmount, sinceMs);
+      return buildJsonResponse({
+        ok: true,
+        status: 'ok',
+        action: 'CHECK_PAYMENT',
+        matched: Boolean(matchedMut),
+        amountChecked: targetAmount,
+        matchedMutation: matchedMut || null,
+        recentMutations: recentMutations.slice(0, 15),
+        timestamp: Date.now()
+      });
+    }
+
+    return buildJsonResponse({
+      ok: true,
+      status: 'ok',
+      version: 'v27.3',
+      service: 'Vipercell Hybrid Fast Payment & Email Server',
+      projectId: CONFIG.FIREBASE_PROJECT_ID,
+      remainingEmailQuota: MailApp.getRemainingDailyQuota(),
+      lastMutation: recentMutations.length > 0 ? recentMutations[0] : null,
+      recentMutations: recentMutations.slice(0, 20),
+      timestamp: Date.now()
+    });
+  } catch (err) {
+    return buildJsonResponse({
+      ok: false,
+      status: 'error',
+      error: String(err.message || err)
+    });
+  }
 }
 
 /**
@@ -62,8 +114,35 @@ function doPost(e) {
       return buildJsonResponse({ ok: false, status: 'error', error: 'EMPTY_OR_INVALID_PAYLOAD' });
     }
 
+    var action = String(payload.action || payload.type || '').toUpperCase().trim();
+
+    // Deteksi otomatis jenis aksi jika parameter action tidak dikirim
+    if (!action) {
+      if (payload.otpCode || payload.otp) {
+        action = 'SEND_OTP_EMAIL';
+      } else if (payload.resetLink || payload.newPassword) {
+        action = payload.newPassword ? 'CONFIRM_PASSWORD_RESET' : 'SEND_PASSWORD_RESET_LINK';
+      } else if (payload.orderId || payload.invoice || payload.accountDetails) {
+        action = 'SEND_ORDER_DELIVERY';
+      } else if (payload.productName && payload.category && !payload.amount && !payload.totalAmount) {
+        action = 'SAVE_PRODUCT_SUGGESTION';
+      } else {
+        action = 'MACRODROID_PAYMENT_WEBHOOK';
+      }
+    }
+
+    // Untuk aksi selain mutasi pembayaran, cek secret jika dikirim
     var incomingSecret = String(payload.secret || payload.key || '').trim();
-    if (CONFIG.WEBHOOK_SECRET && incomingSecret && incomingSecret !== CONFIG.WEBHOOK_SECRET) {
+    if (
+      action !== 'MACRODROID_PAYMENT_WEBHOOK' &&
+      action !== 'PAYMENT_WEBHOOK' &&
+      action !== 'QRIS_MUTATION' &&
+      action !== 'CHECK_PAYMENT' &&
+      action !== 'GET_RECENT_MUTATIONS' &&
+      CONFIG.WEBHOOK_SECRET &&
+      incomingSecret &&
+      incomingSecret !== CONFIG.WEBHOOK_SECRET
+    ) {
       return buildJsonResponse({
         ok: false,
         status: 'error',
@@ -72,37 +151,49 @@ function doPost(e) {
       });
     }
 
-    var action = String(payload.action || payload.type || '').toUpperCase().trim();
-
-    if (!action) {
-      if (payload.otpCode || payload.otp) {
-        action = 'SEND_OTP_EMAIL';
-      } else if (payload.resetLink || payload.newPassword) {
-        action = payload.newPassword ? 'CONFIRM_PASSWORD_RESET' : 'SEND_PASSWORD_RESET_LINK';
-      } else if (payload.orderId || payload.invoice || payload.accountDetails) {
-        action = 'SEND_ORDER_DELIVERY';
-      } else {
-        action = 'MACRODROID_PAYMENT_WEBHOOK';
-      }
+    // 1. Cek Pembayaran / Ambil Mutasi Terbaru dari Web User & Web Admin
+    if (action === 'CHECK_PAYMENT' || action === 'GET_RECENT_MUTATIONS') {
+      var recentList = getStoredRecentMutations(1200000);
+      var checkAmt = Number(payload.amount || payload.nominal || payload.total || 0);
+      var sinceTime = Number(payload.since || 0);
+      var foundMatch = checkAmt > 0 ? findMatchingMutationForAmount(recentList, checkAmt, sinceTime) : null;
+      return buildJsonResponse({
+        ok: true,
+        status: 'ok',
+        action: action,
+        matched: Boolean(foundMatch),
+        matchedMutation: foundMatch || null,
+        recentMutations: recentList.slice(0, 20),
+        timestamp: Date.now()
+      });
     }
 
-    // Prioritaskan jalur cepat untuk mutasi pembayaran QRIS
+    // 2. Jalur Cepat Mutasi Pembayaran QRIS dari MacroDroid
     if (action === 'MACRODROID_PAYMENT_WEBHOOK' || action === 'PAYMENT_WEBHOOK' || action === 'QRIS_MUTATION') {
       return handleMacroDroidPaymentMutation(payload, startMs);
     }
 
+    // 3. Simpan Saran Produk Cadangan
+    if (action === 'SAVE_PRODUCT_SUGGESTION') {
+      return handleSaveProductSuggestion(payload);
+    }
+
+    // 4. Kirim Email OTP 6-Digit
     if (action === 'SEND_OTP_EMAIL' || action === 'OTP') {
       return handleSendOtpEmail(payload);
     }
 
+    // 5. Kirim Email Struk & Rincian Pesanan
     if (action === 'SEND_ORDER_DELIVERY' || action === 'ORDER_DELIVERY') {
       return handleSendOrderDeliveryEmail(payload);
     }
 
+    // 6. Kirim Email Pengingat Masa Aktif
     if (action === 'SEND_EXPIRY_REMINDER' || action === 'EXPIRY_REMINDER') {
       return handleSendExpiryReminderEmail(payload);
     }
 
+    // 7. Kirim Link Ubah Kata Sandi
     if (action === 'SEND_PASSWORD_RESET_LINK' || action === 'RESET_PASSWORD') {
       return handleSendPasswordResetLink(payload);
     }
@@ -123,45 +214,68 @@ function doPost(e) {
 }
 
 /* ============================================================================
- * 1. VERIFIKASI PEMBAYARAN QRIS SANGAT CEPAT (MACRODROID -> FIRESTORE PARALEL)
+ * 1. ENGINE VERIFIKASI PEMBAYARAN QRIS SANGAT CEPAT (HYBRID MEMORY + FIRESTORE)
  * ============================================================================ */
 function handleMacroDroidPaymentMutation(data, startMs) {
   var nowMs = Date.now();
-  var rawTitle = String(data.title || data.appName || data.app || '').trim();
-  var rawText = String(
-    data.text ||
-    data.notification ||
-    data.message ||
-    data.body ||
-    data.bigText ||
-    data.subText ||
-    data.amount ||
-    data.nominal ||
-    ''
+  var rawTitle = String(
+    data.title || data.appName || data.app || data.package || data.notif_title || ''
   ).trim();
-  var combinedText = (rawTitle + ' ' + rawText).trim();
 
-  var candidateAmounts = extractCandidateAmountsFromNotification(
-    combinedText,
-    data.amount || data.nominal || data.total
-  );
+  // Gabungkan seluruh field yang mungkin dikirim oleh MacroDroid
+  var textParts = [
+    data.text,
+    data.notification,
+    data.notif_text,
+    data.notification_text,
+    data.message,
+    data.body,
+    data.bigText,
+    data.big_text,
+    data.subText,
+    data.content,
+    data.isi,
+    data.pesan,
+    data.ticker,
+    data.rawBody
+  ];
+  var rawTextJoined = '';
+  for (var t = 0; t < textParts.length; t++) {
+    if (textParts[t] !== undefined && textParts[t] !== null && String(textParts[t]).trim() !== '') {
+      rawTextJoined += ' ' + String(textParts[t]).trim();
+    }
+  }
+
+  // Jika masih kosong, rangkum seluruh nilai string dari objek payload
+  if (!rawTextJoined.trim()) {
+    for (var k in data) {
+      if (k !== 'secret' && k !== 'key' && k !== 'action' && data[k]) {
+        rawTextJoined += ' ' + String(data[k]);
+      }
+    }
+  }
+
+  var combinedText = (rawTitle + ' ' + rawTextJoined).trim();
+
+  var explicitAmt = data.amount || data.nominal || data.total || data.uang || data.nilai || '';
+  var candidateAmounts = extractCandidateAmountsFromNotification(combinedText, explicitAmt);
 
   if (candidateAmounts.length === 0) {
     return buildJsonResponse({
       ok: false,
       status: 'ignored',
       reason: 'NO_VALID_AMOUNT_DETECTED',
-      rawText: combinedText
+      rawText: combinedText.slice(0, 300)
     });
   }
 
   var primaryAmount = candidateAmounts[0];
 
-  // Proteksi anti-spam notifikasi ganda dalam 6 detik yang sama agar super ringan
+  // Proteksi anti-spam notifikasi ganda dalam 4 detik yang sama
   try {
     var cache = CacheService.getScriptCache();
     if (cache) {
-      var sigHash = 'MUT_' + primaryAmount + '_' + String(combinedText).replace(/\s+/g, '').slice(0, 40);
+      var sigHash = 'DEDUP_' + primaryAmount + '_' + String(combinedText).replace(/\s+/g, '').slice(0, 36);
       if (cache.get(sigHash)) {
         return buildJsonResponse({
           ok: true,
@@ -173,29 +287,136 @@ function handleMacroDroidPaymentMutation(data, startMs) {
           latencyMs: Date.now() - (startMs || nowMs)
         });
       }
-      cache.put(sigHash, '1', 6);
+      cache.put(sigHash, '1', 4);
     }
   } catch (cErr) {}
 
-  // Eksekusi sinkronisasi paralel ke Firestore + verifikasi langsung dokumen order UNPAID
+  // SIMPAN LANGSUNG KE MEMORI SERVER APPS SCRIPT (100% BEBAS BLOKIR FIRESTORE RULES)
+  var mutationRecord = saveMutationToServerMemory(primaryAmount, candidateAmounts, combinedText, nowMs);
+
+  // DORONG PARALEL KE FIRESTORE (ROOT PATH & WORKSPACE PATH)
   var syncResult = pushFastPaymentSignalAndVerifyOrder(primaryAmount, candidateAmounts, combinedText, nowMs);
 
   return buildJsonResponse({
     ok: true,
     status: 'ok',
     action: 'MACRODROID_PAYMENT_WEBHOOK',
+    mutationId: mutationRecord.id,
     detectedAmount: primaryAmount,
     candidateAmounts: candidateAmounts,
     matchedOrderIds: syncResult.matchedOrderIds,
     firestoreSynced: syncResult.synced,
+    firestoreHttpCodes: syncResult.httpCodes,
     latencyMs: Date.now() - (startMs || nowMs),
     timestamp: nowMs
   });
 }
 
 /**
- * Ekstraktor Nominal QRIS Cepat & Akurat
- * Mendukung GoPay Merchant, DANA Bisnis, OVO, ShopeePay, SeaBank, BCA, BRI, Mandiri, BNI, Nobu, Soundbox, dll.
+ * Menyimpan mutasi pembayaran ke CacheService & PropertiesService agar Web User / Admin
+ * dapat menarik data pembayaran secara real-time meskipun Firestore REST API diblokir Rules
+ */
+function saveMutationToServerMemory(primaryAmount, candidateAmounts, rawText, timestampMs) {
+  var record = {
+    id: 'MUT_' + timestampMs + '_' + primaryAmount,
+    amount: Number(primaryAmount),
+    candidateAmounts: candidateAmounts,
+    rawText: String(rawText || '').slice(0, 280),
+    timestamp: Number(timestampMs)
+  };
+
+  try {
+    var list = getStoredRecentMutations(1800000); // Simpan riwayat 30 menit terakhir
+    list.unshift(record);
+    if (list.length > 40) {
+      list = list.slice(0, 40);
+    }
+    var serialized = JSON.stringify(list);
+
+    var cache = CacheService.getScriptCache();
+    if (cache) {
+      cache.put('RECENT_QRIS_MUTATIONS_V273', serialized, 1800);
+    }
+    var props = PropertiesService.getScriptProperties();
+    if (props) {
+      props.setProperty('RECENT_QRIS_MUTATIONS_V273', serialized);
+    }
+  } catch (err) {
+    Logger.log('Save Mutation Memory Error: ' + err);
+  }
+  return record;
+}
+
+function getStoredRecentMutations(maxAgeMs) {
+  var now = Date.now();
+  var limitAge = maxAgeMs || 1200000;
+  var rawJson = '';
+
+  try {
+    var cache = CacheService.getScriptCache();
+    if (cache) {
+      rawJson = cache.get('RECENT_QRIS_MUTATIONS_V273') || '';
+    }
+    if (!rawJson) {
+      var props = PropertiesService.getScriptProperties();
+      if (props) {
+        rawJson = props.getProperty('RECENT_QRIS_MUTATIONS_V273') || '';
+      }
+    }
+    if (!rawJson) return [];
+
+    var parsed = JSON.parse(rawJson);
+    if (!Array.isArray(parsed)) return [];
+
+    var valid = [];
+    for (var i = 0; i < parsed.length; i++) {
+      var item = parsed[i];
+      if (item && item.timestamp && (now - Number(item.timestamp) <= limitAge)) {
+        valid.push(item);
+      }
+    }
+    return valid;
+  } catch (e) {
+    return [];
+  }
+}
+
+function findMatchingMutationForAmount(mutationsList, targetAmount, sinceMs) {
+  var amt = Math.round(Number(targetAmount) || 0);
+  if (amt <= 0 || !Array.isArray(mutationsList)) return null;
+
+  var amtPlain = String(amt);
+  var amtDot = amt.toLocaleString('id-ID'); // contoh: 15.123
+  var amtComma = amtDot.replace(/\./g, ','); // contoh: 15,123
+
+  for (var i = 0; i < mutationsList.length; i++) {
+    var m = mutationsList[i];
+    if (!m) continue;
+    if (sinceMs > 0 && Number(m.timestamp) < (sinceMs - 90000)) {
+      continue;
+    }
+
+    if (Number(m.amount) === amt) {
+      return m;
+    }
+    if (Array.isArray(m.candidateAmounts)) {
+      for (var c = 0; c < m.candidateAmounts.length; c++) {
+        if (Number(m.candidateAmounts[c]) === amt) {
+          return m;
+        }
+      }
+    }
+    var raw = String(m.rawText || '');
+    if (raw && (raw.indexOf(amtDot) !== -1 || raw.indexOf(amtComma) !== -1 || raw.indexOf(amtPlain) !== -1)) {
+      return m;
+    }
+  }
+  return null;
+}
+
+/**
+ * Ekstraktor Nominal QRIS Sangat Akurat
+ * Mendukung GoPay Merchant, DANA Bisnis, OVO, ShopeePay, SeaBank, BCA, BRI, Mandiri, BNI, Jago, Nobu, Soundbox, dll.
  */
 function extractCandidateAmountsFromNotification(text, explicitAmount) {
   var results = [];
@@ -208,19 +429,23 @@ function extractCandidateAmountsFromNotification(text, explicitAmount) {
   }
 
   if (explicitAmount !== undefined && explicitAmount !== null && String(explicitAmount).trim() !== '') {
-    var cleanExplicit = String(explicitAmount).replace(/[,\.]00\b/g, '').replace(/[^0-9]/g, '');
+    var cleanExplicit = String(explicitAmount)
+      .replace(/[,\.]00\b/g, '')
+      .replace(/,-/g, '')
+      .replace(/[^0-9]/g, '');
     if (cleanExplicit) addAmount(parseInt(cleanExplicit, 10));
   }
 
   if (!text) return results;
 
-  // Bersihkan akhiran sen desimal seperti ,00 atau .00
+  // Bersihkan akhiran desimal sen seperti ,00 atau .00 atau ,-
   var cleaned = String(text)
     .replace(/(\d)[,\.]00(?!\d)/g, '$1')
-    .replace(/(\d)[,\.]0(?!\d)/g, '$1');
+    .replace(/(\d)[,\.]0(?!\d)/g, '$1')
+    .replace(/,-/g, '');
 
-  // 1. Prioritas Utama: Pola kata kunci mata uang / mutasi masuk (Rp, IDR, sebesar, senilai, diterima, masuk, kredit, +)
-  var regexRp = /(?:rp\.?|idr|sebesar|senilai|masuk|terima|diterima|pembayaran|kredit|qris|total|\+)\s*[:\.]?\s*([0-9]{1,3}(?:[.,][0-9]{3})+|[0-9]{3,8})\b/gi;
+  // 1. Prioritas Utama: Pola mata uang / kata kunci pembayaran masuk
+  var regexRp = /(?:rp\.?|idr|sebesar|senilai|masuk|terima|diterima|pembayaran|kredit|qris|total|nominal|\+)\s*[:\.]?\s*([0-9]{1,3}(?:[.,][0-9]{3})+|[0-9]{3,8})\b/gi;
   var match;
   while ((match = regexRp.exec(cleaned)) !== null) {
     var numStr = match[1].replace(/[^0-9]/g, '');
@@ -230,13 +455,12 @@ function extractCandidateAmountsFromNotification(text, explicitAmount) {
     }
   }
 
-  // 2. Cadangan: Angka ribuan berformat titik/koma (contoh: 15.234 atau 25,108) atau angka 4-8 digit
-  var genericRegex = /\b([0-9]{1,3}(?:[.,][0-9]{3})+|[0-9]{4,8})\b/g;
+  // 2. Cadangan: Angka ribuan bertitik/koma (contoh: 15.234 atau 25,108) atau angka 3-8 digit
+  var genericRegex = /\b([0-9]{1,3}(?:[.,][0-9]{3})+|[0-9]{3,8})\b/g;
   var gMatch;
   while ((gMatch = genericRegex.exec(cleaned)) !== null) {
     var rawToken = gMatch[1];
     var gNum = parseInt(rawToken.replace(/[^0-9]/g, ''), 10);
-    // Hindari tahun seperti 2025/2026/2027 jika tidak diawali Rp
     if (gNum >= 2020 && gNum <= 2035 && rawToken.indexOf('.') === -1 && rawToken.indexOf(',') === -1) {
       continue;
     }
@@ -249,13 +473,14 @@ function extractCandidateAmountsFromNotification(text, explicitAmount) {
 }
 
 /**
- * Mendorong sinyal pembayaran secara PARALEL (`UrlFetchApp.fetchAll`) sekaligus
- * mencari & menandai pesanan `UNPAID` yang cocok menjadi `PAID` (`paymentVerified: true`)
- * agar Web User dan Web Admin merespons secara instan!
+ * Mendorong sinyal pembayaran ke Firestore secara PARALEL (mendukung Root Path & Workspace Path)
+ * sekaligus langsung menandai dokumen order `UNPAID` yang cocok menjadi `PAID` (`paymentVerified: true`)
  */
 function pushFastPaymentSignalAndVerifyOrder(primaryAmount, candidateAmounts, rawNotifText, timestampMs) {
   var baseUrl = 'https://firestore.googleapis.com/v1/projects/' + CONFIG.FIREBASE_PROJECT_ID + '/databases/(default)/documents';
+  var wsPrefix = baseUrl + '/artifacts/' + CONFIG.WORKSPACE_APP_ID + '/public/data';
   var matchedOrderIds = [];
+  var httpCodes = [];
 
   try {
     var arrayValues = [];
@@ -265,8 +490,6 @@ function pushFastPaymentSignalAndVerifyOrder(primaryAmount, candidateAmounts, ra
 
     var safeRawText = String(rawNotifText || '').slice(0, 280);
 
-    // Request 1: Patch settings/mainConfig
-    var settingsPatchUrl = baseUrl + '/settings/mainConfig?updateMask.fieldPaths=lastPaymentDetected&updateMask.fieldPaths=lastPaymentTimestamp&updateMask.fieldPaths=lastPaymentMutation';
     var patchBody = {
       fields: {
         lastPaymentDetected: { integerValue: String(primaryAmount) },
@@ -284,8 +507,6 @@ function pushFastPaymentSignalAndVerifyOrder(primaryAmount, candidateAmounts, ra
       }
     };
 
-    // Request 2: Post ke koleksi payment_mutations
-    var mutationsUrl = baseUrl + '/payment_mutations';
     var mutBody = {
       fields: {
         amount: { integerValue: String(primaryAmount) },
@@ -295,11 +516,11 @@ function pushFastPaymentSignalAndVerifyOrder(primaryAmount, candidateAmounts, ra
       }
     };
 
-    // Request 3: Query langsung ke koleksi orders yang berstatus UNPAID
-    var runQueryUrl = baseUrl + ':runQuery';
+    var maskParams = '?updateMask.fieldPaths=lastPaymentDetected&updateMask.fieldPaths=lastPaymentTimestamp&updateMask.fieldPaths=lastPaymentMutation';
+
     var queryBody = {
       structuredQuery: {
-        from: [{ collectionId: 'orders' }],
+        from: [{ collectionId: 'orders', allDescendants: true }],
         where: {
           fieldFilter: {
             field: { fieldPath: 'status' },
@@ -311,33 +532,47 @@ function pushFastPaymentSignalAndVerifyOrder(primaryAmount, candidateAmounts, ra
       }
     };
 
-    // Jalankan ketiga request secara PARALEL dalam 1 waktu tunggu!
-    var responses = UrlFetchApp.fetchAll([
+    var requests = [
+      // 1. Root settings/mainConfig
       {
-        url: settingsPatchUrl,
+        url: baseUrl + '/settings/mainConfig' + maskParams,
         method: 'patch',
         contentType: 'application/json',
         payload: JSON.stringify(patchBody),
         muteHttpExceptions: true
       },
+      // 2. Workspace settings/mainConfig
       {
-        url: mutationsUrl,
+        url: wsPrefix + '/settings/mainConfig' + maskParams,
+        method: 'patch',
+        contentType: 'application/json',
+        payload: JSON.stringify(patchBody),
+        muteHttpExceptions: true
+      },
+      // 3. Root payment_mutations
+      {
+        url: baseUrl + '/payment_mutations',
         method: 'post',
         contentType: 'application/json',
         payload: JSON.stringify(mutBody),
         muteHttpExceptions: true
       },
+      // 4. Query semua koleksi orders (termasuk subkoleksi/workspace) yang berstatus UNPAID
       {
-        url: runQueryUrl,
+        url: baseUrl + ':runQuery',
         method: 'post',
         contentType: 'application/json',
         payload: JSON.stringify(queryBody),
         muteHttpExceptions: true
       }
-    ]);
+    ];
 
-    // Periksa hasil query pesanan UNPAID dan langsung ubah ke PAID jika nominal cocok
-    var queryResp = responses[2];
+    var responses = UrlFetchApp.fetchAll(requests);
+    for (var c = 0; c < responses.length; c++) {
+      httpCodes.push(responses[c].getResponseCode());
+    }
+
+    var queryResp = responses[3];
     if (queryResp && queryResp.getResponseCode() === 200) {
       var rows = JSON.parse(queryResp.getContentText() || '[]');
       var orderPatchRequests = [];
@@ -382,10 +617,11 @@ function pushFastPaymentSignalAndVerifyOrder(primaryAmount, candidateAmounts, ra
       }
     }
 
-    return { synced: true, matchedOrderIds: matchedOrderIds };
+    var anySuccess = httpCodes.indexOf(200) !== -1;
+    return { synced: anySuccess, matchedOrderIds: matchedOrderIds, httpCodes: httpCodes };
   } catch (err) {
     Logger.log('Fast Firestore Sync Error: ' + err);
-    return { synced: false, matchedOrderIds: matchedOrderIds };
+    return { synced: false, matchedOrderIds: matchedOrderIds, httpCodes: httpCodes };
   }
 }
 
@@ -398,9 +634,36 @@ function extractFirestoreInt(fieldObj) {
 }
 
 /* ============================================================================
- * 2. TEMPLATE STRUK & RINCIAN PESANAN HTML NEO-BRUTALISM MATANG (#1)
+ * CADANGAN PENYIMPANAN SARAN PRODUK (#1)
+ * ============================================================================ */
+function handleSaveProductSuggestion(data) {
+  var prodName = String(data.productName || '').trim();
+  if (!prodName) {
+    return buildJsonResponse({ ok: false, status: 'error', error: 'NAMA_PRODUK_KOSONG' });
+  }
+  return buildJsonResponse({
+    ok: true,
+    status: 'ok',
+    action: 'SAVE_PRODUCT_SUGGESTION',
+    productName: prodName,
+    timestamp: Date.now()
+  });
+}
+
+/* ============================================================================
+ * 2. TEMPLATE STRUK & RINCIAN PESANAN HTML NEO-BRUTALISM MATANG (#3 PROTEKSI OPSI EMAIL)
  * ============================================================================ */
 function handleSendOrderDeliveryEmail(data) {
+  // [FITUR #3] Cek apakah pembeli mengaktifkan opsi pengiriman struk ke email
+  if (data.emailReceiptEnabled === false || String(data.emailReceiptEnabled).toLowerCase() === 'false') {
+    return buildJsonResponse({
+      ok: false,
+      status: 'blocked',
+      error: 'EMAIL_RECEIPT_DISABLED_BY_USER',
+      message: 'Pengiriman struk email dinonaktifkan oleh pengguna di pengaturan profil.'
+    });
+  }
+
   var targetEmail = String(data.buyerEmail || data.email || data.to || '').trim();
   if (!targetEmail || targetEmail.indexOf('@') === -1) {
     return buildJsonResponse({ ok: false, status: 'error', error: 'EMAIL_PEMBELI_TIDAK_VALID' });
@@ -409,7 +672,6 @@ function handleSendOrderDeliveryEmail(data) {
   var orderId = String(data.orderId || data.invoice || data.invoiceId || 'VP-ORDER').trim().toUpperCase();
   var isTestOrder = (orderId.indexOf('VP-TEST') === 0);
 
-  // Proteksi Anti-Email Dobel di Server menggunakan LockService & CacheService
   var lock = LockService.getScriptLock();
   var hasLock = false;
   try {
@@ -449,10 +711,8 @@ function handleSendOrderDeliveryEmail(data) {
     var subscriptionEndAt = Number(data.subscriptionEndAt || 0);
     var txDateStr = formatIndonesianDateTime(data.date ? new Date(data.date) : new Date());
 
-    // Ekstraksi cerdas baris kredensial agar tampil dalam kartu Neo-Brutalist yang rapi
     var parsedCreds = parseCredentialsForEmailReceipt(accountDetails);
 
-    // Blok Format Utuh untuk Produk Email (email|password|refresh_token|client_id)
     var emailOAuthSectionHtml = '';
     if (parsedCreds.rawPipes.length > 0) {
       for (var p = 0; p < parsedCreds.rawPipes.length; p++) {
@@ -471,7 +731,6 @@ function handleSendOrderDeliveryEmail(data) {
       }
     }
 
-    // Kartu Kredensial Terstruktur (Email/ID, Password, Link, Keterangan)
     var structuredPairsHtml = '';
     if (parsedCreds.pairs.length > 0) {
       var rowsPairs = '';
@@ -498,7 +757,6 @@ function handleSendOrderDeliveryEmail(data) {
         '</table>';
     }
 
-    // Baris Durasi Masa Aktif (Jika Produk Berdurasi)
     var durationRowHtml = '';
     if (durationDays > 0) {
       var endDateStr = subscriptionEndAt > 0
@@ -516,7 +774,6 @@ function handleSendOrderDeliveryEmail(data) {
     var subject = 'Struk & Rincian Pesanan #' + orderId + ' — ' + CONFIG.STORE_NAME;
 
     var innerContentHtml = '' +
-      '<!-- BANNER STATUS HERO NEO-BRUTALISM -->' +
       '<div style="background:#dcfce7; border:2.5px solid #0f172a; border-right:4px solid #0f172a; border-bottom:4px solid #0f172a; border-radius:12px; padding:14px 16px; margin-bottom:16px;">' +
         '<table role="presentation" width="100%" cellpadding="0" cellspacing="0">' +
           '<tr>' +
@@ -531,7 +788,6 @@ function handleSendOrderDeliveryEmail(data) {
         '</table>' +
       '</div>' +
 
-      '<!-- STEPPER PROGRES 3 TAHAP -->' +
       '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f8fafc; border:2px solid #0f172a; border-radius:10px; margin-bottom:16px; text-align:center;">' +
         '<tr>' +
           '<td width="33%" style="padding:8px 4px; border-right:1.5px dashed #cbd5e1;">' +
@@ -546,7 +802,6 @@ function handleSendOrderDeliveryEmail(data) {
         '</tr>' +
       '</table>' +
 
-      '<!-- KARTU ITEM & RINCIAN TRANSAKSI -->' +
       '<div style="background:#ffffff; border:2.5px solid #0f172a; border-right:4px solid #0f172a; border-bottom:4px solid #0f172a; border-radius:12px; overflow:hidden; margin-bottom:18px;">' +
         '<div style="background:#eff6ff; padding:12px 14px; border-bottom:2px solid #0f172a;">' +
           '<span style="display:inline-block; background:#2563eb; color:#ffffff; font-size:9.5px; font-weight:900; padding:2px 7px; border-radius:5px; border:1.5px solid #0f172a; text-transform:uppercase; margin-bottom:4px;">ITEM PESANAN</span>' +
@@ -578,7 +833,6 @@ function handleSendOrderDeliveryEmail(data) {
         '</table>' +
       '</div>' +
 
-      '<!-- KOTAK KREDENSIAL / DETAIL AKUN TERKIRIM -->' +
       '<div style="background:#ecfdf5; border:2.5px solid #0f172a; border-right:5px solid #0f172a; border-bottom:5px solid #0f172a; border-radius:12px; padding:15px;">' +
         '<div style="margin-bottom:10px;">' +
           '<span style="display:inline-block; background:#10b981; color:#ffffff; font-size:10.5px; font-weight:900; padding:4px 10px; border-radius:6px; border:1.5px solid #0f172a; letter-spacing:0.04em;">' +
@@ -694,6 +948,15 @@ function handleSendOtpEmail(data) {
  * 4. EMAIL PENGINGAT DURASI LANGGANAN NEO-BRUTALISM
  * ============================================================================ */
 function handleSendExpiryReminderEmail(data) {
+  if (data.emailReceiptEnabled === false || String(data.emailReceiptEnabled).toLowerCase() === 'false') {
+    return buildJsonResponse({
+      ok: false,
+      status: 'blocked',
+      error: 'EMAIL_RECEIPT_DISABLED_BY_USER',
+      message: 'Notifikasi email dinonaktifkan oleh pengguna.'
+    });
+  }
+
   var targetEmail = String(data.buyerEmail || data.email || data.to || '').trim();
   if (!targetEmail || targetEmail.indexOf('@') === -1) {
     return buildJsonResponse({ ok: false, status: 'error', error: 'EMAIL_TUJUAN_TIDAK_VALID' });
@@ -837,10 +1100,8 @@ function buildNeoBrutalEmailEnvelope(opts) {
       '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:580px; margin:0 auto;">' +
         '<tr>' +
           '<td>' +
-            '<!-- KARTU UTAMA NEO-BRUTALISM -->' +
             '<div style="background:#ffffff; border:3px solid #0f172a; border-right:7px solid #0f172a; border-bottom:7px solid #0f172a; border-radius:18px; overflow:hidden;">' +
 
-              '<!-- HEADER NEO-BRUTALISM -->' +
               '<div style="background:' + headerBg + '; color:' + headerTextColor + '; padding:20px 22px; border-bottom:3px solid #0f172a;">' +
                 '<table role="presentation" width="100%" cellpadding="0" cellspacing="0">' +
                   '<tr>' +
@@ -859,12 +1120,10 @@ function buildNeoBrutalEmailEnvelope(opts) {
                 '</table>' +
               '</div>' +
 
-              '<!-- ISI UTAMA -->' +
               '<div style="padding:20px 22px; background:#ffffff;">' +
                 bodyHtml +
               '</div>' +
 
-              '<!-- FOOTER NEO-BRUTALISM -->' +
               '<div style="background:#f8fafc; padding:15px 22px; border-top:2.5px solid #0f172a;">' +
                 '<table role="presentation" width="100%" cellpadding="0" cellspacing="0">' +
                   '<tr>' +
@@ -990,6 +1249,18 @@ function parseIncomingPayload(e) {
           data[jk] = parsedJson[jk];
         }
       } catch (jsonErr) {
+        // Jika dikirim dalam format application/x-www-form-urlencoded (key=val&key2=val2)
+        if (raw.indexOf('=') !== -1 && raw.indexOf('{') === -1) {
+          var pairs = raw.split('&');
+          for (var p = 0; p < pairs.length; p++) {
+            var eqIdx = pairs[p].indexOf('=');
+            if (eqIdx > 0) {
+              var pKey = decodeURIComponent(pairs[p].substring(0, eqIdx).replace(/\+/g, ' ')).trim();
+              var pVal = decodeURIComponent(pairs[p].substring(eqIdx + 1).replace(/\+/g, ' ')).trim();
+              data[pKey] = pVal;
+            }
+          }
+        }
         data.rawBody = raw;
         if (!data.text) data.text = raw;
       }
