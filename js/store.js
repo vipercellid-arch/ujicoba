@@ -256,30 +256,16 @@ function initWaterRippleBackground() {
         }
     };
 
+    let isScrollingNow = false;
+    let scrollPauseTimer = null;
+    window.addEventListener('scroll', () => {
+        isScrollingNow = true;
+        if (scrollPauseTimer) clearTimeout(scrollPauseTimer);
+        scrollPauseTimer = setTimeout(() => { isScrollingNow = false; }, 140);
+    }, { passive: true });
+
     window.addEventListener('pointerdown', (e) => {
-        spawnRipple(e.clientX, e.clientY, true);
-    }, { passive: true });
-
-    window.addEventListener('pointermove', (e) => {
-        const now = performance.now();
-        if (now - waterRippleEngine.lastMoveTime > 95) {
-            waterRippleEngine.lastMoveTime = now;
-            spawnRipple(e.clientX, e.clientY, false);
-        }
-    }, { passive: true });
-
-    window.addEventListener('touchstart', (e) => {
-        if (e.touches && e.touches[0]) {
-            spawnRipple(e.touches[0].clientX, e.touches[0].clientY, true);
-        }
-    }, { passive: true });
-
-    window.addEventListener('touchmove', (e) => {
-        const now = performance.now();
-        if (now - waterRippleEngine.lastMoveTime > 65 && e.touches && e.touches[0]) {
-            waterRippleEngine.lastMoveTime = now;
-            spawnRipple(e.touches[0].clientX, e.touches[0].clientY, false);
-        }
+        if (!isScrollingNow) spawnRipple(e.clientX, e.clientY, true);
     }, { passive: true });
 
     updateWaterRippleVisibility();
@@ -422,159 +408,10 @@ function updateOpHoursBannerUI() {
     if (restricted) {
         const openStr = siteSettings.opOpenTime || '08:00';
         const closeStr = siteSettings.opCloseTime || '22:00';
-        textEl.innerText = `Saat ini di luar jam operasional (${openStr} - ${closeStr}). Hanya produk yang memiliki stok lokal tersedia yang dapat dibeli langsung.`;
+        textEl.innerText = `Saat ini di luar jam layanan Admin (${openStr} - ${closeStr}). Kamu tetap bisa membeli produk yang stoknya siap kirim.`;
         bannerEl.style.display = 'flex';
     } else {
         bannerEl.style.display = 'none';
-    }
-}
-
-// ==========================================
-// WEBHOOK CALLER & ANTI-DUPLIKAT EMAIL
-// ==========================================
-async function callUnifiedGasWebhook(payloadObj) {
-    const rawUrls = (siteSettings.emailWebhookUrl || '').trim();
-    const urlList = rawUrls
-        .split(",")
-        .map(u => u.trim())
-        .filter(u => u.startsWith('https://script.google.com/'));
-
-    if (urlList.length === 0) {
-        throw new Error('WEBHOOK_NOT_CONFIGURED');
-    }
-
-    const activeSecret = (siteSettings.webhookSecret || 'VIPERCELL_SECRET_2026').trim();
-    let lastError = null;
-
-    // Rotasi otomatis ke semua URL Apps Script yang terdaftar agar pengiriman email tanpa batas kuota harian (#5)
-    for (let i = 0; i < urlList.length; i++) {
-        const targetUrl = urlList[i];
-        const backupUrls = urlList.filter((_, idx) => idx !== i);
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 16000);
-
-        try {
-            const response = await fetch(targetUrl, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'text/plain;charset=utf-8'
-                },
-                body: JSON.stringify({
-                    projectId: 'vipercell-fc50e',
-                    secret: activeSecret,
-                    key: activeSecret,
-                    backupWebhookUrls: backupUrls,
-                    ...payloadObj
-                }),
-                redirect: 'follow',
-                signal: controller.signal
-            });
-
-            const rawText = await response.text();
-            let result = null;
-            try {
-                result = JSON.parse(rawText);
-            } catch (parseErr) {
-                throw new Error('Respons server email tidak valid.');
-            }
-
-            if (result && (result.ok === true || result.status === 'ok')) {
-                clearTimeout(timeoutId);
-                return result;
-            }
-            throw new Error((result && result.message) || (result && result.error) || 'Gagal menghubungi server email.');
-        } catch (err) {
-            lastError = err;
-        } finally {
-            clearTimeout(timeoutId);
-        }
-    }
-
-    throw lastError || new Error('Gagal menghubungi seluruh server email.');
-}
-
-async function sendOrderReceiptAndAccountEmail(orderData, accountDetailsText, orderDbId = null) {
-    if (!orderData || !orderData.id) return false;
-    // [FITUR #3] Jika opsi notifikasi & kirim struk ke email dimatikan oleh pengguna, batalkan pengiriman otomatis
-    if (orderData.emailReceiptEnabled === false || userProfile.emailReceiptEnabled === false || !isUserEmailReceiptEnabled) {
-        return false;
-    }
-    const invKey = String(orderData.id).trim().toUpperCase();
-    const localSentKey = `vipercell_email_sent_${invKey}`;
-
-    if (
-        orderData.emailSent === true ||
-        orderData.emailSending === true ||
-        sentEmailOrderIds.has(invKey) ||
-        inFlightEmailOrderIds.has(invKey) ||
-        localStorage.getItem(localSentKey) === '1'
-    ) {
-        return true;
-    }
-
-    const gasUrl = (siteSettings.emailWebhookUrl || '').trim();
-    const buyerEmail = (orderData.userEmail || orderData.buyerEmail || '').trim();
-    if (!gasUrl || !buyerEmail || !buyerEmail.includes('@')) return false;
-
-    const resolvedDbId = orderDbId || orderData.dbId;
-
-    inFlightEmailOrderIds.add(invKey);
-    sentEmailOrderIds.add(invKey);
-    try { localStorage.setItem(localSentKey, '1'); } catch (e) {}
-
-    if (resolvedDbId) {
-        try {
-            const latestSnap = await getDoc(doc(db, pathOrders, resolvedDbId));
-            if (latestSnap.exists()) {
-                const latestData = latestSnap.data();
-                if (latestData.emailSent === true || latestData.emailSending === true) {
-                    inFlightEmailOrderIds.delete(invKey);
-                    return true;
-                }
-            }
-            await updateDoc(doc(db, pathOrders, resolvedDbId), {
-                emailSent: true,
-                emailSending: false,
-                emailSentAt: Date.now()
-            }).catch(() => {});
-        } catch (e) {}
-    }
-
-    const itemObj = (orderData.items && orderData.items[0]) ? orderData.items[0] : {};
-    const finalNominal = Number(orderData.finalTotal || orderData.uniqueTotal || 0);
-
-    try {
-        await callUnifiedGasWebhook({
-            action: 'SEND_ORDER_DELIVERY',
-            email: buyerEmail,
-            buyerEmail: buyerEmail,
-            to: buyerEmail,
-            orderId: orderData.id,
-            invoice: orderData.id,
-            invoiceId: orderData.id,
-            buyerName: orderData.buyerName || userProfile.name || buyerEmail.split('@')[0],
-            productName: itemObj.brandName || orderData.productName || itemObj.name || 'Produk Digital',
-            variantName: itemObj.exactItemName || orderData.variantName || itemObj.name || '-',
-            itemName: itemObj.name || 'Produk Vipercell',
-            totalAmount: finalNominal,
-            uniqueTotal: finalNominal,
-            totalFormatted: `Rp ${finalNominal.toLocaleString('id-ID')}`,
-            targetId: itemObj.playerInfo || orderData.targetId || '-',
-            accountDetails: accountDetailsText || orderData.adminReply || 'Pesanan selesai diproses.',
-            durationDays: Number(itemObj.durationDays || orderData.durationDays || 0),
-            subscriptionEndAt: Number(orderData.subscriptionEndAt || 0),
-            emailReceiptEnabled: true
-        });
-        return true;
-    } catch (e) {
-        sentEmailOrderIds.delete(invKey);
-        try { localStorage.removeItem(localSentKey); } catch (err) {}
-        if (resolvedDbId) {
-            await updateDoc(doc(db, pathOrders, resolvedDbId), { emailSent: false }).catch(() => {});
-        }
-        return false;
-    } finally {
-        inFlightEmailOrderIds.delete(invKey);
     }
 }
 
@@ -790,7 +627,6 @@ function saveStoreToFastCache() {
 
 async function initializeAppWithLoader() {
     updateProfileNotifToggleUI();
-    updateProfileEmailReceiptToggleUI();
 
     const savedTheme = localStorage.getItem('vipercell_theme') || 'light';
     document.documentElement.setAttribute('data-theme', savedTheme);
@@ -802,7 +638,6 @@ async function initializeAppWithLoader() {
     const savedSessionMode = localStorage.getItem('vipercell_active_session_mode');
     const hasSavedSession = (savedSessionMode === 'member' || savedSessionMode === 'guest');
 
-    // Jangan tampilkan tab-auth jika pengguna memiliki sesi tersimpan (#7)
     if (hasSavedSession) {
         document.documentElement.classList.add('has-saved-session');
         const authTab = document.getElementById('tab-auth');
@@ -820,32 +655,37 @@ async function initializeAppWithLoader() {
         return;
     }
 
-    // Hidrasi instan dari cache lokal: jika cache tersedia, buka UI dalam 80ms tanpa menunggu jaringan (#4)
+    // Muat cadangan tampilan awal di balik layar tanpa membuka preloader sebelum data katalog siap (#2)
     hydrateStoreFromFastCache();
-    if (products.length > 0 && hasSavedSession) {
-        setTimeout(() => {
-            if (!isPreloaderFinished) unlockAppUI();
-        }, 80);
-    }
 
+    // Safety timer darurat (7.5 detik) hanya jika jaringan benar-benar macet:
+    // Pastikan tab katalog/auth sudah ditampilkan lebih dulu sebelum membuka layar loading
     if (activeTimersRegistry.preloaderSafety) clearTimeout(activeTimersRegistry.preloaderSafety);
     activeTimersRegistry.preloaderSafety = setTimeout(() => {
         if (!isPreloaderFinished) {
+            if (hasSavedSession) {
+                setAuthGateLock(false);
+                window.renderBrands(currentBrandFilter);
+                window.switchMainTab('katalog');
+            } else {
+                setAuthGateLock(true);
+            }
             unlockAppUI();
         }
-    }, 600);
+    }, 7500);
 
     try {
-        updatePreloaderStage(40, 'Memuat toko...', '');
+        updatePreloaderStage(30, 'Menyiapkan toko...', 'Memuat katalog produk...');
         setPersistence(auth, browserLocalPersistence).catch(() => {});
 
-        // Jalankan pengecekan identitas, sesi Auth, dan pengambilan data awal secara PARALEL (#5)
+        // Tunggu hingga data produk, pengaturan, dan sesi pengguna benar-benar siap
         const [, initialUser] = await Promise.all([
             initDeviceIdentity(),
             checkAuthStateFirstLoad(),
             fetchInitialStoreDataWithGatekeeper()
         ]);
 
+        updatePreloaderStage(90, 'Menampilkan katalog...', 'Hampir selesai...');
         saveStoreToFastCache();
         listenData();
         setupAuthStateListener();
@@ -861,6 +701,7 @@ async function initializeAppWithLoader() {
             if (!restricted) {
                 localStorage.setItem('vipercell_active_session_mode', 'member');
                 setAuthGateLock(false);
+                window.renderBrands(currentBrandFilter);
                 window.switchMainTab('katalog');
             } else {
                 setAuthGateLock(true);
@@ -880,6 +721,7 @@ async function initializeAppWithLoader() {
                 if (!restricted) {
                     localStorage.setItem('vipercell_active_session_mode', 'guest');
                     setAuthGateLock(false);
+                    window.renderBrands(currentBrandFilter);
                     window.switchMainTab('katalog');
                     startSilentAnonSixHourCleanup();
                 } else {
@@ -892,11 +734,22 @@ async function initializeAppWithLoader() {
             setAuthGateLock(true);
         }
 
-        updatePreloaderStage(100, 'Siap', '');
-        setTimeout(unlockAppUI, 50);
+        // Pastikan DOM Katalog sudah selesai ter-render penuh di layar baru tutup layar loading (#2)
+        updatePreloaderStage(100, 'Toko Siap!', '');
+        requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+                unlockAppUI();
+            });
+        });
     } catch (error) {
         console.error("Init Error:", error);
-        setAuthGateLock(true);
+        if (hasSavedSession && products.length > 0) {
+            setAuthGateLock(false);
+            window.renderBrands(currentBrandFilter);
+            window.switchMainTab('katalog');
+        } else {
+            setAuthGateLock(true);
+        }
         unlockAppUI();
     }
     observeReveals();
@@ -1229,146 +1082,112 @@ window.processAnonymousLogin = async function() {
 };
 
 // ==========================================
-// UPGRADE AKUN TAMU KE MEMBER (TANPA MEMINTA NO HP #3)
+// UPGRADE AKUN TAMU KE MEMBER (100% MURNI FIREBASE AUTH TANPA OTP EMAIL)
 // ==========================================
 window.openUpgradeMemberModal = function() {
     const nameInp = document.getElementById('upg-name');
     const emailInp = document.getElementById('upg-email');
     const passInp = document.getElementById('upg-pass');
     const passConfInp = document.getElementById('upg-pass-confirm');
-    const otpInp = document.getElementById('upg-otp-input');
 
     const savedName = userProfile.name && !userProfile.name.startsWith('Tamu #') ? userProfile.name : '';
     if (nameInp) nameInp.value = savedName;
     if (emailInp) emailInp.value = userProfile.email || localStorage.getItem('vipercell_guest_email') || '';
     if (passInp) passInp.value = '';
     if (passConfInp) passConfInp.value = '';
-    if (otpInp) otpInp.value = '';
 
-    window.backToUpgradeStep1();
     window.openModal('modal-upgrade-member');
 };
 
-window.backToUpgradeStep1 = function() {
-    const step1 = document.getElementById('upgrade-step-1-form');
-    const step2 = document.getElementById('upgrade-step-2-otp');
-    if (step1) step1.style.display = 'block';
-    if (step2) step2.style.display = 'none';
-};
+async function finalizeGuestToMemberMigration(finalUid, name, email) {
+    const previousAnonUid = boundLegacyGuestUid || userProfile.uid || (auth.currentUser?.isAnonymous ? auth.currentUser.uid : null);
 
-function startOtpResendCountdown(seconds = 60) {
-    if (otpResendTimer) clearInterval(otpResendTimer);
-    const resendBtn = document.getElementById('btn-resend-upg-otp');
-    let remain = seconds;
-
-    if (resendBtn) {
-        resendBtn.disabled = true;
-        resendBtn.innerHTML = `Kirim Ulang (<span id="upg-otp-countdown">${remain}</span>s)`;
+    if (previousAnonUid && previousAnonUid !== finalUid) {
+        const oldOrders = orders.filter(o => o.userId === previousAnonUid);
+        for (const ord of oldOrders) {
+            ord.userId = finalUid;
+            ord.userEmail = email;
+            await updateDoc(doc(db, pathOrders, ord.dbId), { userId: finalUid, userEmail: email }).catch(() => {});
+        }
+        const oldChatSnap = await getDoc(doc(db, pathChats, previousAnonUid)).catch(() => null);
+        if (oldChatSnap && oldChatSnap.exists()) {
+            await setDoc(doc(db, pathChats, finalUid), {
+                ...oldChatSnap.data(),
+                uid: finalUid,
+                userInfo: name,
+                userEmail: email
+            }, { merge: true }).catch(() => {});
+            await deleteDoc(doc(db, pathChats, previousAnonUid)).catch(() => {});
+        }
+        await deleteDoc(doc(db, pathUsers, previousAnonUid)).catch(() => {});
     }
 
-    otpResendTimer = setInterval(() => {
-        remain--;
-        const countSpan = document.getElementById('upg-otp-countdown');
-        if (countSpan) countSpan.innerText = String(Math.max(0, remain));
+    const memberData = {
+        uid: finalUid,
+        name: name,
+        email: email,
+        role: 'member',
+        isAnonymous: false,
+        isGuest: false,
+        isBlocked: false,
+        isDeleted: false,
+        verified: true,
+        emailVerified: true,
+        deviceId: currentDeviceId,
+        upgradedAt: Date.now(),
+        createdAt: userProfile.createdAt || Date.now()
+    };
 
-        if (remain <= 0) {
-            clearInterval(otpResendTimer);
-            if (resendBtn) {
-                resendBtn.disabled = false;
-                resendBtn.innerHTML = `<i class="fa-solid fa-rotate-right"></i> Kirim Ulang OTP`;
-            }
-        }
-    }, 1000);
+    await setDoc(doc(db, pathUsers, finalUid), memberData, { merge: true });
+
+    if (currentDeviceId) {
+        setDoc(doc(db, pathDeviceLocks, currentDeviceId), {
+            status: 'upgraded_to_member',
+            role: 'member',
+            uid: finalUid,
+            updatedAt: Date.now()
+        }, { merge: true }).catch(() => {});
+    }
+
+    boundLegacyGuestUid = null;
+    if (activeTimersRegistry.anonSixHourCountdown) clearInterval(activeTimersRegistry.anonSixHourCountdown);
+
+    await clearMultiLayerToken('vipercell_anon_uid');
+    localStorage.removeItem('vipercell_anon_session_started_at');
+    localStorage.removeItem('vipercell_guest_email');
+    localStorage.setItem('vipercell_member_email', email);
+    localStorage.setItem('vipercell_active_session_mode', 'member');
+
+    userProfile = memberData;
+    window.closeModal('modal-upgrade-member');
+    setAuthGateLock(false);
+    applyUserSessionToUI();
+    window.renderUserOrders();
+    updateProfileStats();
+    listenUserChat();
 }
 
-window.requestUpgradeOtpEmail = async function(isResend = false) {
+window.upgradeAnonymousToMember = async function() {
+    if (isUpgradingAccount) return;
+
     const name = document.getElementById('upg-name')?.value.trim() || '';
     const email = document.getElementById('upg-email')?.value.trim().toLowerCase() || '';
     const password = document.getElementById('upg-pass')?.value || '';
     const passwordConfirm = document.getElementById('upg-pass-confirm')?.value || '';
 
     if (!name || !email || !email.includes('@')) {
-        window.customAlert('Data Belum Lengkap', 'Harap isi Nama Panggilan dan Email aktif.', 'warning');
+        window.customAlert('Belum Lengkap', 'Harap isi Nama Panggilan dan alamat Email aktif kamu.', 'warning');
         return;
     }
     if (password.length < 6) {
-        window.customAlert('Sandi Terlalu Pendek', 'Kata sandi minimal 6 karakter.', 'warning');
+        window.customAlert('Sandi Terlalu Pendek', 'Kata sandi minimal terdiri dari 6 karakter.', 'warning');
         return;
     }
     if (password !== passwordConfirm) {
-        window.customAlert('Sandi Tidak Cocok', 'Konfirmasi kata sandi tidak sama.', 'warning');
+        window.customAlert('Sandi Tidak Sama', 'Konfirmasi kata sandi belum cocok.', 'warning');
         return;
     }
 
-    const btn = isResend ? document.getElementById('btn-resend-upg-otp') : document.getElementById('btn-request-upgrade-otp');
-    const ogHtml = btn ? btn.innerHTML : '';
-    if (btn) {
-        btn.disabled = true;
-        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> <span>Mengirim Kode OTP...</span>';
-    }
-
-    try {
-        const generatedOtp = String(Math.floor(100000 + Math.random() * 900000));
-        pendingUpgradeState = {
-            name,
-            email,
-            password,
-            otpCode: generatedOtp,
-            otpExpiresAt: Date.now() + 300000
-        };
-
-        await callUnifiedGasWebhook({
-            action: 'SEND_OTP_EMAIL',
-            email: email,
-            to: email,
-            otpCode: generatedOtp,
-            otp: generatedOtp,
-            userName: name,
-            name: name,
-            expiryMinutes: 5
-        });
-
-        const step1 = document.getElementById('upgrade-step-1-form');
-        const step2 = document.getElementById('upgrade-step-2-otp');
-        const targetLbl = document.getElementById('upg-otp-target-email');
-
-        if (targetLbl) targetLbl.innerText = email;
-        if (step1) step1.style.display = 'none';
-        if (step2) step2.style.display = 'block';
-        document.getElementById('upg-otp-input')?.focus();
-
-        startOtpResendCountdown(60);
-        window.showToast('Kode OTP Terkirim', `Cek kotak masuk atau spam email ${email}`, 'success');
-    } catch (err) {
-        window.customAlert('Gagal Mengirim OTP', 'Pastikan alamat email aktif dan coba lagi.', 'error');
-    } finally {
-        if (btn && ogHtml && !isResend) {
-            btn.disabled = false;
-            btn.innerHTML = ogHtml;
-        }
-    }
-};
-
-window.verifyOtpAndUpgradeMember = async function() {
-    if (isUpgradingAccount) return;
-
-    const inputOtp = (document.getElementById('upg-otp-input')?.value || '').trim();
-    if (!/^\d{6}$/.test(inputOtp)) {
-        window.customAlert('Kode OTP Belum Lengkap', 'Masukkan 6 digit kode OTP dari email kamu.', 'warning');
-        return;
-    }
-
-    if (!pendingUpgradeState.otpCode || Date.now() > pendingUpgradeState.otpExpiresAt) {
-        window.customAlert('Kode OTP Kedaluwarsa', 'Masa berlaku kode OTP telah habis. Silakan kirim ulang.', 'error');
-        return;
-    }
-
-    if (inputOtp !== pendingUpgradeState.otpCode) {
-        window.customAlert('Kode OTP Salah', 'Kode OTP yang dimasukkan tidak sesuai.', 'error');
-        return;
-    }
-
-    const { name, email, password } = pendingUpgradeState;
     const btn = document.getElementById('btn-submit-upgrade');
     const ogHtml = btn ? btn.innerHTML : '';
     isUpgradingAccount = true;
@@ -1378,100 +1197,45 @@ window.verifyOtpAndUpgradeMember = async function() {
     }
 
     try {
-        const previousAnonUid = boundLegacyGuestUid || userProfile.uid || (auth.currentUser?.isAnonymous ? auth.currentUser.uid : null);
         await ensureAuthSession();
         const activeUser = auth.currentUser;
-        let finalUid = activeUser ? activeUser.uid : null;
+        let finalUid = null;
 
         localStorage.setItem('vipercell_active_session_mode', 'member');
 
         if (activeUser && activeUser.isAnonymous && typeof activeUser.getIdToken === 'function') {
-            const credential = EmailAuthProvider.credential(email, password);
-            const usercred = await linkWithCredential(activeUser, credential);
-            finalUid = usercred.user.uid;
-            currentUser = usercred.user;
+            try {
+                const credential = EmailAuthProvider.credential(email, password);
+                const usercred = await linkWithCredential(activeUser, credential);
+                finalUid = usercred.user.uid;
+                currentUser = usercred.user;
+            } catch (linkErr) {
+                if (linkErr.code === 'auth/credential-already-in-use' || linkErr.code === 'auth/email-already-in-use') {
+                    throw linkErr;
+                }
+                const cred = await createUserWithEmailAndPassword(auth, email, password);
+                finalUid = cred.user.uid;
+                currentUser = cred.user;
+            }
         } else {
             const cred = await createUserWithEmailAndPassword(auth, email, password);
             finalUid = cred.user.uid;
             currentUser = cred.user;
         }
 
-        if (previousAnonUid && previousAnonUid !== finalUid) {
-            const oldOrders = orders.filter(o => o.userId === previousAnonUid);
-            for (const ord of oldOrders) {
-                await updateDoc(doc(db, pathOrders, ord.dbId), { userId: finalUid, userEmail: email }).catch(() => {});
-            }
-            const oldChatSnap = await getDoc(doc(db, pathChats, previousAnonUid)).catch(() => null);
-            if (oldChatSnap && oldChatSnap.exists()) {
-                await setDoc(doc(db, pathChats, finalUid), {
-                    ...oldChatSnap.data(),
-                    uid: finalUid,
-                    userInfo: name,
-                    userEmail: email
-                }, { merge: true }).catch(() => {});
-                await deleteDoc(doc(db, pathChats, previousAnonUid)).catch(() => {});
-            }
-            await deleteDoc(doc(db, pathUsers, previousAnonUid)).catch(() => {});
-        }
-
-        const memberData = {
-            uid: finalUid,
-            name: name,
-            email: email,
-            role: 'member',
-            isAnonymous: false,
-            isGuest: false,
-            isBlocked: false,
-            isDeleted: false,
-            verified: true,
-            emailVerified: true,
-            deviceId: currentDeviceId,
-            upgradedAt: Date.now(),
-            createdAt: userProfile.createdAt || Date.now()
-        };
-
-        await setDoc(doc(db, pathUsers, finalUid), memberData, { merge: true });
-
-        if (currentDeviceId) {
-            setDoc(doc(db, pathDeviceLocks, currentDeviceId), {
-                status: 'upgraded_to_member',
-                role: 'member',
-                uid: finalUid,
-                updatedAt: Date.now()
-            }, { merge: true }).catch(() => {});
-        }
-
-        boundLegacyGuestUid = null;
-        pendingUpgradeState = { name: '', email: '', password: '', otpCode: '', otpExpiresAt: 0 };
-        if (otpResendTimer) clearInterval(otpResendTimer);
-        if (activeTimersRegistry.anonSixHourCountdown) clearInterval(activeTimersRegistry.anonSixHourCountdown);
-
-        await clearMultiLayerToken('vipercell_anon_uid');
-        localStorage.removeItem('vipercell_anon_session_started_at');
-        localStorage.removeItem('vipercell_guest_email');
-        localStorage.setItem('vipercell_member_email', email);
-
-        userProfile = memberData;
-        window.closeModal('modal-upgrade-member');
-        setAuthGateLock(false);
-        applyUserSessionToUI();
-        window.renderUserOrders();
-        updateProfileStats();
-
-        window.customAlert(
-            'Upgrade Berhasil',
-            `Akun kamu kini telah aktif sebagai Member.`,
-            'success'
-        );
+        await finalizeGuestToMemberMigration(finalUid, name, email);
+        window.customAlert('Berhasil Menjadi Member!', `Selamat datang, <b>${escapeHtml(name)}</b>! Akun kamu kini resmi menjadi Member.`, 'success');
     } catch (error) {
         if (error.code === 'auth/credential-already-in-use' || error.code === 'auth/email-already-in-use') {
             window.customAlert(
                 'Email Sudah Terdaftar',
-                'Email ini sudah terdaftar sebelumnya. Silakan gunakan email lain atau masuk ke akun kamu.',
+                'Email ini sudah terdaftar sebagai Member. Silakan keluar lalu masuk menggunakan email tersebut.',
                 'warning'
             );
+        } else if (error.code === 'auth/invalid-email') {
+            window.customAlert('Format Email Salah', 'Periksa kembali penulisan alamat email kamu.', 'warning');
         } else {
-            window.customAlert('Gagal Upgrade', 'Pastikan format email benar dan koneksi internet stabil.', 'error');
+            window.customAlert('Gagal Upgrade', 'Periksa sambungan internet kamu dan coba lagi.', 'error');
         }
     } finally {
         isUpgradingAccount = false;
@@ -1482,7 +1246,40 @@ window.verifyOtpAndUpgradeMember = async function() {
     }
 };
 
-window.upgradeAnonymousToMember = window.verifyOtpAndUpgradeMember;
+window.upgradeAnonymousWithGoogle = async function() {
+    if (isUpgradingAccount) return;
+    const btn = document.getElementById('btn-upgrade-google');
+    const ogHtml = btn ? btn.innerHTML : '';
+    isUpgradingAccount = true;
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> <span>Menghubungkan Google...</span>';
+    }
+
+    try {
+        const provider = new GoogleAuthProvider();
+        provider.setCustomParameters({ prompt: 'select_account' });
+        localStorage.setItem('vipercell_active_session_mode', 'member');
+
+        const result = await signInWithPopup(auth, provider);
+        currentUser = result.user;
+        const gName = document.getElementById('upg-name')?.value.trim() || result.user.displayName || result.user.email?.split('@')[0] || 'Member';
+        const gEmail = (result.user.email || '').toLowerCase();
+
+        await finalizeGuestToMemberMigration(result.user.uid, gName, gEmail);
+        window.showToast('Berhasil Terhubung', `Akun kamu kini aktif sebagai Member (${gName}).`, 'success');
+    } catch (error) {
+        if (error.code !== 'auth/popup-closed-by-user' && error.code !== 'auth/cancelled-popup-request') {
+            window.customAlert('Gagal Menghubungkan Google', 'Silakan gunakan formulir Email & Kata Sandi di atas.', 'warning');
+        }
+    } finally {
+        isUpgradingAccount = false;
+        if (btn && ogHtml) {
+            btn.disabled = false;
+            btn.innerHTML = ogHtml;
+        }
+    }
+};
 
 // ==========================================
 // SINKRONISASI SESI & TAMPILAN PROFIL (TANPA NO HP #3)
@@ -1850,9 +1647,6 @@ function formatStockCredentialLine(rawStr, stockMode = 'PRIVATE', slotInfo = '')
 async function tryAutoDeliverOrderFromVault(orderData, orderDbId) {
     if (!orderData || !orderDbId || deliveringOrderIds.has(orderDbId)) return false;
     if (orderData.adminReply && orderData.adminReply.trim() !== '') {
-        if (orderData.status !== 'SUCCESS') {
-            await updateDoc(doc(db, pathOrders, orderDbId), { status: 'SUCCESS', paymentVerified: true }).catch(() => {});
-        }
         return true;
     }
 
@@ -1872,14 +1666,9 @@ async function tryAutoDeliverOrderFromVault(orderData, orderDbId) {
     } : {};
 
     try {
-        // Jika produk bertipe manual atau game (dikirim oleh Admin), setelah bayar statusnya wajib PENDING (#1)
+        // Jika produk bertipe manual atau game (dikirim oleh Admin), biarkan status tetap SUCCESS tanpa adminReply
+        // (yang otomatis ditampilkan sebagai "DIPROSES ADMIN (PENDING)" sesuai rules database firebase.js & bot_info.js)
         if (procType === 'manual' || item.type === 'game') {
-            await updateDoc(doc(db, pathOrders, orderDbId), {
-                status: 'PENDING',
-                paymentVerified: true,
-                paidAt: orderData.paidAt || nowMs,
-                ...subUpdates
-            }).catch(() => {});
             return false;
         }
 
@@ -2008,25 +1797,10 @@ async function tryAutoDeliverOrderFromVault(orderData, orderDbId) {
                 deliveredAt: nowMs,
                 ...subUpdates
             }).catch(() => {});
-
-            await sendOrderReceiptAndAccountEmail({
-                ...orderData,
-                ...subUpdates,
-                adminReply: finalReply
-            }, finalReply, orderDbId);
             return true;
-        } else {
-            // Tidak ada stok lokal tersedia -> akan dikirim oleh Admin, sehingga status menjadi PENDING (#1)
-            await updateDoc(doc(db, pathOrders, orderDbId), {
-                status: 'PENDING',
-                paymentVerified: true,
-                paidAt: orderData.paidAt || nowMs,
-                ...subUpdates
-            }).catch(() => {});
-            return false;
         }
+        return false;
     } catch (err) {
-        console.error("Auto-Delivery Error:", err);
         return false;
     } finally {
         setTimeout(() => deliveringOrderIds.delete(orderDbId), 4000);
@@ -2034,7 +1808,7 @@ async function tryAutoDeliverOrderFromVault(orderData, orderDbId) {
 }
 
 // ==========================================
-// REAL-TIME DATA LISTENER FIRESTORE & LOGIKA STATUS PEMBAYARAN (#1)
+// REAL-TIME DATA LISTENER FIRESTORE & VALIDASI PEMBAYARAN KOMPATIBEL PENUH (#1)
 // ==========================================
 let isListening = false;
 function listenData() {
@@ -2045,6 +1819,27 @@ function listenData() {
         if (docSnap.exists()) {
             const incoming = docSnap.data();
             siteSettings = { ...siteSettings, ...incoming };
+
+            // Sinyal 1: lastPaymentDetected dari Server Apps Script / Simulator
+            if (incoming.lastPaymentDetected && incoming.lastPaymentTimestamp) {
+                const ageMs = Date.now() - Number(incoming.lastPaymentTimestamp);
+                if (ageMs < 240000) {
+                    checkClientPendingOrdersAgainstAmount(Number(incoming.lastPaymentDetected));
+                }
+            }
+
+            // Sinyal 2: lastPaymentMutation dari SERVER_APPS_SCRIP.js
+            if (incoming.lastPaymentMutation && incoming.lastPaymentMutation.timestamp) {
+                const mutObj = incoming.lastPaymentMutation;
+                const mutAge = Date.now() - Number(mutObj.timestamp);
+                if (mutAge < 240000) {
+                    if (Array.isArray(mutObj.candidateAmounts) && mutObj.candidateAmounts.length > 0) {
+                        mutObj.candidateAmounts.forEach(amt => checkClientPendingOrdersAgainstAmount(Number(amt)));
+                    } else if (mutObj.amount) {
+                        checkClientPendingOrdersAgainstAmount(Number(mutObj.amount));
+                    }
+                }
+            }
         }
         isSettingsLoaded = true;
         window.applySettingsToUI();
@@ -2058,6 +1853,26 @@ function listenData() {
         }
         await checkRealtimeAccountRestriction(true);
     });
+
+    // Sinyal 3: Koleksi payment_mutations dari MacroDroid Webhook
+    if (!activeListenersRegistry.mutations) {
+        activeListenersRegistry.mutations = onSnapshot(collection(db, pathMutations), (snapshot) => {
+            snapshot.docChanges().forEach((change) => {
+                if (change.type === 'added') {
+                    const mut = change.doc.data();
+                    const mutTime = Number(mut.receivedAt || mut.createdAt || mut.timestamp || 0);
+                    const mutAge = Date.now() - mutTime;
+                    if (mutAge < 240000) {
+                        if (Array.isArray(mut.candidateAmounts) && mut.candidateAmounts.length > 0) {
+                            mut.candidateAmounts.forEach(amt => checkClientPendingOrdersAgainstAmount(Number(amt)));
+                        } else if (mut.amount) {
+                            checkClientPendingOrdersAgainstAmount(Number(mut.amount));
+                        }
+                    }
+                }
+            });
+        }, () => {});
+    }
 
     if (!activeListenersRegistry.stocks) {
         activeListenersRegistry.stocks = onSnapshot(query(collection(db, pathStocks), where("status", "==", "Ready")), (snapshot) => {
@@ -2087,9 +1902,6 @@ function listenData() {
         
         snapshot.forEach((docSnap) => {
             let data = { dbId: docSnap.id, ...docSnap.data() };
-            if (data.emailSent === true && data.id) {
-                sentEmailOrderIds.add(String(data.id).toUpperCase());
-            }
 
             const orderTime = new Date(data.date).getTime();
             const expiryLimitMs = data.expiresAt ? (data.expiresAt - orderTime) : 900000;
@@ -2108,12 +1920,17 @@ function listenData() {
                 }
             }
 
-            // [FITUR #1] Jika pembayaran diterima (status PAID atau baru saja terverifikasi tapi belum dikirim stok):
-            // Coba kirim stok lokal otomatis. Jika ada stok lokal -> SUCCESS, jika tidak ada stok lokal -> PENDING.
-            if (data.status === 'PAID' || (data.status === 'SUCCESS' && !data.adminReply && !data.autoDelivered)) {
+            // Jika status berubah menjadi PAID, ubah ke SUCCESS sesuai rules database firebase.js
+            if (data.status === 'PAID') {
                 if (isMyOrder) {
-                    tryAutoDeliverOrderFromVault(data, data.dbId);
+                    updateDoc(doc(db, pathOrders, data.dbId), { status: 'SUCCESS' }).catch(() => {});
                 }
+                data.status = 'SUCCESS';
+            }
+
+            // Jika status SUCCESS namun adminReply masih kosong, coba ambil stok otomatis jika tersedia
+            if (isMyOrder && data.status === 'SUCCESS' && !data.adminReply && !data.autoDelivered) {
+                tryAutoDeliverOrderFromVault(data, data.dbId);
             }
 
             newOrders.push(data);
@@ -2121,24 +1938,26 @@ function listenData() {
             if (!initialOrderLoad && isMyOrder) {
                 const prevInfo = previousOrdersData[data.id] || {};
                 const oldStatus = prevInfo.status;
-                const oldPaid = prevInfo.paymentVerified;
+                const oldHasReply = prevInfo.hasReply;
+                const nowHasReply = Boolean(data.adminReply && data.adminReply.trim() !== '');
 
-                // Tampilkan animasi pembayaran diterima saat beralih dari UNPAID/PAID ke SUCCESS atau ke PENDING (yang sudah dibayar)
+                // Tampilkan animasi pembayaran diterima begitu status berubah dari UNPAID/PENDING_PAYMENT ke SUCCESS / PENDING
                 if (oldStatus && (oldStatus === 'UNPAID' || oldStatus === 'PENDING_PAYMENT' || oldStatus === 'PAID')) {
                     if (data.status === 'SUCCESS') {
-                        window.showPaymentSuccessAnimation(data.id, 'SUCCESS');
+                        window.showPaymentSuccessAnimation(data.id, nowHasReply ? 'SUCCESS' : 'PENDING');
                     } else if (data.status === 'PENDING' && data.paymentVerified === true) {
                         window.showPaymentSuccessAnimation(data.id, 'PENDING');
                     }
-                } else if (oldStatus === 'PENDING' && !oldPaid && data.status === 'PENDING' && data.paymentVerified === true) {
-                    window.showPaymentSuccessAnimation(data.id, 'PENDING');
-                } else if (oldStatus === 'PENDING' && data.status === 'SUCCESS') {
+                } else if (oldStatus === 'SUCCESS' && !oldHasReply && data.status === 'SUCCESS' && nowHasReply) {
+                    window.showToast('Pesanan Selesai', `Pesanan #${data.id} telah dikirim dan siap digunakan.`, 'success', () => window.openOrderDetailModalById(data.id));
+                } else if (oldStatus === 'PENDING' && data.status === 'SUCCESS' && nowHasReply) {
                     window.showToast('Pesanan Selesai', `Pesanan #${data.id} telah dikirim oleh Admin.`, 'success', () => window.openOrderDetailModalById(data.id));
                 }
             }
             if (data.status !== 'PAID') {
                 previousOrdersData[data.id] = {
                     status: data.status,
+                    hasReply: Boolean(data.adminReply && data.adminReply.trim() !== ''),
                     paymentVerified: Boolean(data.paymentVerified)
                 };
             }
@@ -2184,8 +2003,22 @@ function listenData() {
     });
 }
 
-// [PEMBARUAN v27.4 #1] Verifikasi pembayaran QRIS dilakukan 100% langsung oleh Google Apps Script ke Firebase!
-// Web User TIDAK melakukan polling ke Apps Script dan hanya mendengarkan perubahan status dokumen order dari Firebase.
+// Pencocokan nominal pembayaran yang 100% mematuhi rules database firebase.js (hanya mengubah field status -> SUCCESS)
+async function checkClientPendingOrdersAgainstAmount(detectedAmount) {
+    if (!detectedAmount || detectedAmount <= 0) return false;
+    const numAmt = Math.round(Number(detectedAmount));
+    const matchingUnpaid = orders.find(o =>
+        (o.status === 'UNPAID' || o.status === 'PENDING_PAYMENT') &&
+        (Math.round(Number(o.finalTotal)) === numAmt || Math.round(Number(o.uniqueTotal)) === numAmt)
+    );
+    if (matchingUnpaid) {
+        await updateDoc(doc(db, pathOrders, matchingUnpaid.dbId), {
+            status: 'SUCCESS'
+        }).catch(() => {});
+        return true;
+    }
+    return false;
+}
 
 function rebuildGroupedBrands() {
     groupedBrands = [];
@@ -2403,13 +2236,9 @@ window.cancelActiveOrder = function(explicitDbId = null) {
             }
 
             try {
-                try {
-                    await updateDoc(doc(db, pathOrders, targetDbId), { status: 'CANCELLED' });
-                    if (orderObj) orderObj.status = 'CANCELLED';
-                } catch (ruleErr) {
-                    await updateDoc(doc(db, pathOrders, targetDbId), { status: 'EXPIRED' });
-                    if (orderObj) orderObj.status = 'EXPIRED';
-                }
+                // Sesuai rules database firebase.js, perubahan status oleh pembeli menggunakan EXPIRED
+                await updateDoc(doc(db, pathOrders, targetDbId), { status: 'EXPIRED' });
+                if (orderObj) orderObj.status = 'EXPIRED';
 
                 window.closeModal('modal-cash-barcode');
                 window.closeModal('modal-order-detail');
@@ -2451,14 +2280,17 @@ window.manualCheckQrisPaymentStatus = async function() {
     }
 
     try {
-        // Hanya membaca status pesanan dari Firebase yang diubah secara langsung oleh Server Apps Script (#1)
         const orderRef = doc(db, pathOrders, currentCheckoutSession.dbId);
-        const orderSnap = await getDoc(orderRef).catch(() => null);
+        const [orderSnap, settingsSnap] = await Promise.all([
+            getDoc(orderRef).catch(() => null),
+            getDoc(doc(db, pathSettings, 'mainConfig')).catch(() => null)
+        ]);
 
         if (orderSnap && orderSnap.exists()) {
             const oData = { dbId: orderSnap.id, ...orderSnap.data() };
+            const hasReply = Boolean(oData.adminReply && oData.adminReply.trim() !== '');
             if (oData.status === 'SUCCESS') {
-                window.showPaymentSuccessAnimation(oData.id, 'SUCCESS');
+                window.showPaymentSuccessAnimation(oData.id, hasReply ? 'SUCCESS' : 'PENDING');
                 return;
             }
             if (oData.status === 'PENDING' && oData.paymentVerified === true) {
@@ -2466,13 +2298,28 @@ window.manualCheckQrisPaymentStatus = async function() {
                 return;
             }
             if (oData.status === 'PAID') {
-                const delivered = await tryAutoDeliverOrderFromVault(oData, oData.dbId);
-                window.showPaymentSuccessAnimation(oData.id, delivered ? 'SUCCESS' : 'PENDING');
+                await updateDoc(orderRef, { status: 'SUCCESS' }).catch(() => {});
+                window.showPaymentSuccessAnimation(oData.id, hasReply ? 'SUCCESS' : 'PENDING');
                 return;
             }
         }
 
-        window.showToast('Menunggu Pembayaran', `Server otomatis memverifikasi begitu transfer Rp${(currentCheckoutSession.finalTotal || 0).toLocaleString('id-ID')} masuk.`, 'info');
+        if (settingsSnap && settingsSnap.exists()) {
+            const sData = settingsSnap.data();
+            const targetNominal = Math.round(Number(currentCheckoutSession.finalTotal || 0));
+            const mutObj = sData.lastPaymentMutation;
+
+            if (mutObj && mutObj.timestamp && (Date.now() - Number(mutObj.timestamp) < 600000)) {
+                const candidates = Array.isArray(mutObj.candidateAmounts) ? mutObj.candidateAmounts.map(Number) : [Number(mutObj.amount || 0)];
+                if (candidates.includes(targetNominal)) {
+                    await updateDoc(orderRef, { status: 'SUCCESS' }).catch(() => {});
+                    window.showPaymentSuccessAnimation(currentCheckoutSession.id, 'PENDING');
+                    return;
+                }
+            }
+        }
+
+        window.showToast('Menunggu Pembayaran', `Pastikan transfer sesuai nominal Rp${(currentCheckoutSession.finalTotal || 0).toLocaleString('id-ID')}.`, 'info');
     } catch (err) {
         window.showToast('Gagal Mengecek', 'Periksa koneksi internet kamu.', 'warning');
     } finally {
@@ -2733,7 +2580,7 @@ window.renderBrands = function(filter = currentBrandFilter) {
         if (b.isGangguan) {
             clickAction = `window.customAlert('Maintenance', 'Layanan produk ini sedang dalam pemeliharaan.', 'warning')`;
         } else if (opRestricted && !hasAnyPurchasableVariant) {
-            clickAction = `window.showToast('Di Luar Jam Operasional', 'Saat ini di luar jam operasional (${escapeJsStr(siteSettings.opOpenTime || '08:00')} - ${escapeJsStr(siteSettings.opCloseTime || '22:00')}). Produk ini belum memiliki stok lokal.', 'warning')`;
+            clickAction = `window.showToast('Di Luar Jam Operasional', 'Saat ini di luar jam operasional (${escapeJsStr(siteSettings.opOpenTime || '08:00')} - ${escapeJsStr(siteSettings.opCloseTime || '22:00')}). Stok siap kirim untuk produk ini sedang kosong.', 'warning')`;
         }
 
         const cssClass = (b.isGangguan || (opRestricted && !hasAnyPurchasableVariant)) ? 'brand-card sold-out' : 'brand-card';
@@ -3004,7 +2851,7 @@ window.openDirectBuyModal = function(brandName) {
             ${extraDesc}
             <div class="brutal-alert-box" style="background:var(--bg); color:var(--text);">
                 <i class="fa-solid fa-circle-check text-primary"></i>
-                <span>Detail akun akan dikirim ke halaman Pesanan & Email kamu setelah pembayaran diterima.</span>
+                <span>Rincian akun akan langsung tampil di halaman Pesanan setelah pembayaran kamu diterima.</span>
             </div>`;
     }
     
@@ -3043,7 +2890,7 @@ window.selectItemToBuy = function(dbId) {
     const availQuota = computeVariantAvailableStock(candidate);
 
     if (opRestricted && (availQuota === null || availQuota <= 0)) {
-        window.showToast('Di Luar Jam Operasional', 'Saat ini di luar jam operasional. Hanya variasi yang memiliki stok lokal tersedia yang bisa dibeli.', 'warning');
+        window.showToast('Di Luar Jam Operasional', 'Saat ini di luar jam operasional. Hanya variasi yang stoknya siap kirim yang dapat dibeli saat ini.', 'warning');
         return;
     }
 
@@ -3246,7 +3093,7 @@ window.processDirectCheckout = async function() {
     const opRestricted = isLocalStockOnlyRestrictionActive();
     const availQuota = computeVariantAvailableStock(selectedProductForBuy);
     if (opRestricted && (availQuota === null || availQuota <= 0)) {
-        window.customAlert('Di Luar Jam Operasional', `Saat ini di luar jam operasional (${siteSettings.opOpenTime || '08:00'} - ${siteSettings.opCloseTime || '22:00'}). Hanya produk yang memiliki stok lokal tersedia yang bisa dibeli langsung.`, 'warning');
+        window.customAlert('Di Luar Jam Operasional', `Saat ini di luar jam operasional (${siteSettings.opOpenTime || '08:00'} - ${siteSettings.opCloseTime || '22:00'}). Hanya produk yang stoknya siap kirim yang dapat dibeli saat ini.`, 'warning');
         return;
     }
 
@@ -3785,7 +3632,7 @@ function buildFullReceiptHTML(order) {
                     <strong>${order.paymentMethod === 'cash' ? 'TUNAI (KASIR)' : 'QRIS OTOMATIS'}</strong>
                 </div>
                 <div class="ereceipt-meta-cell" style="grid-column: 1 / -1;">
-                    <span>EMAIL PENGIRIMAN</span>
+                    <span>EMAIL PEMBELI</span>
                     <strong>${escapeHtml(order.userEmail || '-')}</strong>
                 </div>
             </div>
@@ -4071,13 +3918,7 @@ window.submitProductSuggestion = async function() {
             savedSuccess = true;
         } catch (settingsFallbackErr) {}
 
-        if (!savedSuccess && siteSettings.emailWebhookUrl) {
-            await callUnifiedGasWebhook({
-                action: 'SAVE_PRODUCT_SUGGESTION',
-                ...suggestionPayload
-            });
-            savedSuccess = true;
-        }
+
 
         if (!savedSuccess) {
             throw new Error('ALL_SUGGESTION_CHANNELS_FAILED');
@@ -4406,69 +4247,7 @@ function updateProfileNotifToggleUI() {
     }
 }
 
-function updateProfileEmailReceiptToggleUI() {
-    const statusText = document.getElementById('prof-email-receipt-status-text');
-    const toggleBtn = document.getElementById('btn-prof-toggle-email-receipt');
-    const iconEl = document.getElementById('prof-email-receipt-icon');
-    const iconBox = document.getElementById('prof-email-receipt-icon-box');
 
-    if (!statusText || !toggleBtn || !iconEl) return;
-
-    if (isUserEmailReceiptEnabled) {
-        statusText.innerText = 'Aktif (Struk otomatis dikirim ke email)';
-        statusText.style.color = 'var(--success)';
-        toggleBtn.innerText = 'Matikan';
-        toggleBtn.className = 'btn btn-sm btn-danger';
-        iconEl.className = 'fa-solid fa-envelope-circle-check';
-        if (iconBox) {
-            iconBox.style.background = 'rgba(16, 185, 129, 0.15)';
-            iconBox.style.color = 'var(--success)';
-        }
-    } else {
-        statusText.innerText = 'Nonaktif (Email tidak dapat dikirim sistem/admin)';
-        statusText.style.color = 'var(--text-muted)';
-        toggleBtn.innerText = 'Aktifkan';
-        toggleBtn.className = 'btn btn-sm btn-primary';
-        iconEl.className = 'fa-regular fa-envelope';
-        if (iconBox) {
-            iconBox.style.background = 'var(--surface-hover)';
-            iconBox.style.color = 'var(--text-muted)';
-        }
-    }
-}
-
-window.toggleUserEmailReceiptSetting = async function() {
-    isUserEmailReceiptEnabled = !isUserEmailReceiptEnabled;
-    userProfile.emailReceiptEnabled = isUserEmailReceiptEnabled;
-    localStorage.setItem('vipercell_email_receipt_enabled', isUserEmailReceiptEnabled ? 'on' : 'off');
-    updateProfileEmailReceiptToggleUI();
-
-    const isMember = Boolean(currentUser && !currentUser.isAnonymous && !userProfile.isGuest);
-    const effectiveUid = isMember ? currentUser.uid : (boundLegacyGuestUid || currentUser?.uid || userProfile.uid || '');
-
-    if (effectiveUid) {
-        await setDoc(doc(db, pathUsers, effectiveUid), {
-            emailReceiptEnabled: isUserEmailReceiptEnabled,
-            updatedAt: Date.now()
-        }, { merge: true }).catch(() => {});
-
-        // Sinkronkan juga ke pesanan pengguna agar Web Admin langsung mengetahui status izin email (#3)
-        const myOrders = orders.filter(o => o.userId === effectiveUid);
-        for (const ord of myOrders.slice(0, 15)) {
-            if (ord.dbId) {
-                updateDoc(doc(db, pathOrders, ord.dbId), {
-                    emailReceiptEnabled: isUserEmailReceiptEnabled
-                }).catch(() => {});
-            }
-        }
-    }
-
-    if (isUserEmailReceiptEnabled) {
-        window.showToast('Struk Email Aktif', 'Notifikasi & pengiriman struk ke email diaktifkan.', 'success');
-    } else {
-        window.showToast('Struk Email Nonaktif', 'Pengiriman struk ke email oleh sistem maupun admin telah dimatikan.', 'info');
-    }
-};
 
 window.toggleUserNotificationSetting = async function() {
     if (!('Notification' in window)) {
@@ -4831,9 +4610,7 @@ window.switchMainTab = function(tab) {
     const tabEl = document.getElementById('tab-' + tab);
     if (tabEl) {
         tabEl.style.display = 'block';
-        requestAnimationFrame(() => {
-            tabEl.classList.add('active');
-        });
+        tabEl.classList.add('active');
         window.scrollTo({ top: 0, behavior: 'instant' }); 
     }
     
@@ -4844,7 +4621,6 @@ window.switchMainTab = function(tab) {
         applyUserSessionToUI();
         updateProfileStats();
         updateProfileNotifToggleUI();
-        updateProfileEmailReceiptToggleUI();
     }
     if (tab === 'pesanan') window.renderUserOrders();
     setTimeout(observeReveals, 40);
@@ -5308,10 +5084,9 @@ function renderFooterMarqueeUI() {
     if (!footerTrack) return;
 
     const slots = buildStructuredFooterMarqueeSlots();
-    const repeatFactor = slots.length > 0 && slots.length < 4 ? Math.ceil(5 / slots.length) : 1;
+    const repeatFactor = slots.length > 0 && slots.length < 6 ? Math.ceil(6 / slots.length) : 1;
     const totalCount = slots.length * repeatFactor;
-    // Kecepatan jauh lebih tenang dan sangat smooth (#2)
-    const durationSec = Math.max(76, totalCount * 15);
+    const durationSec = Math.max(36, totalCount * 7);
     footerTrack.style.setProperty('--footer-marquee-duration', `${durationSec}s`);
 
     const buildPass = () => slots.map((slot, idx) => {

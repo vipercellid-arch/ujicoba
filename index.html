@@ -186,7 +186,7 @@
             <!-- Banner Jam Operasional -->
             <div id="operational-hours-banner" class="brutal-alert-box alert-warning" style="display:none; margin-bottom: 1.1rem;">
                 <i class="fa-regular fa-clock"></i>
-                <span id="operational-hours-text">Saat ini di luar jam operasional admin. Pembelian tetap buka untuk produk yang memiliki stok tersedia.</span>
+                <span id="operational-hours-text">Saat ini di luar jam layanan Admin. Kamu tetap bisa membeli produk yang stoknya siap kirim.</span>
             </div>
             
             <!-- Banner Slider -->
@@ -539,21 +539,7 @@
                             </button>
                         </div>
 
-                        <!-- Opsi 2: Notifikasi & Kirim Struk ke Email (#3) -->
-                        <div class="notif-toggle-card" id="prof-email-receipt-card">
-                            <div class="notif-toggle-info">
-                                <div class="notif-bell-circle" id="prof-email-receipt-icon-box">
-                                    <i class="fa-solid fa-envelope-open-text" id="prof-email-receipt-icon"></i>
-                                </div>
-                                <div>
-                                    <strong>Notifikasi &amp; Kirim Struk ke Email</strong>
-                                    <span id="prof-email-receipt-status-text">Aktif (Struk dikirim ke email)</span>
-                                </div>
-                            </div>
-                            <button id="btn-prof-toggle-email-receipt" class="btn btn-sm btn-danger" onclick="window.toggleUserEmailReceiptSetting()">
-                                Matikan
-                            </button>
-                        </div>
+
 
                         <div id="prof-security-member-box" style="margin-top: 1.1rem;">
                             <p style="font-size:0.84rem; color:var(--text-muted); margin-bottom: 0.8rem; line-height: 1.5;">
@@ -680,7 +666,7 @@
                                 <!-- Kolom Email untuk Tamu -->
                                 <div id="buy-guest-contact-box">
                                     <div id="buy-email-group" class="form-group" style="margin-top: 0.8rem;">
-                                        <label for="buy-email">Email Pengiriman <span style="color:var(--danger)">*</span></label>
+                                        <label for="buy-email">Email Pembeli <span style="color:var(--danger)">*</span></label>
                                         <input type="email" id="buy-email" class="form-control" placeholder="nama@email.com" required>
                                     </div>
                                 </div>
@@ -688,7 +674,7 @@
                                 <div id="buy-member-autofill-badge" class="member-autofill-card" style="display:none;">
                                     <i class="fa-solid fa-circle-check"></i>
                                     <div>
-                                        <strong style="display:block;">Dikirim ke Email Akun</strong>
+                                        <strong style="display:block;">Terhubung ke Akun Member</strong>
                                         <span id="buy-member-autofill-text" style="font-size:0.72rem; color:var(--text-muted);"></span>
                                     </div>
                                 </div>
@@ -738,7 +724,7 @@
 
                                 <div id="ask-auto-warning-msg" class="brutal-alert-box alert-info" style="display:none; margin-top:10px;">
                                     <i class="fa-solid fa-bolt"></i>
-                                    <span>Jika stok lokal tersedia, pesanan langsung dikirim otomatis setelah lunas.</span>
+                                    <span>Jika stok siap kirim tersedia, pesanan langsung tampil di halaman Pesanan setelah pembayaran selesai.</span>
                                 </div>
                                 
                                 <button aria-label="Beli Sekarang" id="btn-process-buy" class="btn btn-primary btn-checkout-submit" onclick="window.processDirectCheckout()" disabled>
@@ -860,7 +846,7 @@
                         <div class="qris-live-listener-box">
                             <div style="flex:1; min-width:0;">
                                 <strong>Deteksi Pembayaran Otomatis Aktif</strong>
-                                <span id="qris-live-watcher-text">Memantau mutasi QRIS secara real-time...</span>
+                                <span id="qris-live-watcher-text">Pembayaran akan terdeteksi otomatis setelah kamu selesai transfer.</span>
                             </div>
                             <button type="button" id="btn-check-payment-now" class="btn btn-outline btn-sm" onclick="window.manualCheckQrisPaymentStatus()">
                                 <i class="fa-solid fa-rotate"></i> Cek Status
@@ -1156,7 +1142,7 @@
         </a>
     </nav>
 
-    <!-- POP-UP MODAL 1: UPGRADE AKUN TAMU KE MEMBER -->
+    <!-- POP-UP MODAL 1: UPGRADE AKUN TAMU KE MEMBER (LANGSUNG VIA FIREBASE) -->
     <div class="modal-overlay" id="modal-upgrade-member">
         <div class="modal-content" style="max-width: 440px;">
             <div class="modal-header">
@@ -1167,6 +1153,9 @@
             </div>
 
             <div id="upgrade-step-1-form">
+                <p style="font-size:0.82rem; color:var(--text-muted); font-weight:600; margin-bottom:1rem; line-height:1.45;">
+                    Simpan seluruh riwayat pesanan dan obrolan kamu secara permanen serta nikmati akses kode promo Member.
+                </p>
                 <div class="form-group">
                     <label for="upg-name">Nama Panggilan <span style="color:var(--danger)">*</span></label>
                     <input type="text" id="upg-name" class="form-control" placeholder="Nama lengkap / panggilan" autocomplete="name">
@@ -1175,46 +1164,27 @@
                     <label for="upg-email">Email Aktif <span style="color:var(--danger)">*</span></label>
                     <input type="email" id="upg-email" class="form-control" placeholder="nama@email.com" autocomplete="email">
                 </div>
-                <div class="grid-2col-form" style="grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 1.1rem;">
+                <div class="grid-2col-form" style="grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 1.15rem;">
                     <div class="form-group" style="margin-bottom:0;">
                         <label for="upg-pass">Kata Sandi <span style="color:var(--danger)">*</span></label>
                         <input type="password" id="upg-pass" class="form-control" placeholder="Min. 6 karakter" autocomplete="new-password">
                     </div>
                     <div class="form-group" style="margin-bottom:0;">
                         <label for="upg-pass-confirm">Ulangi Sandi <span style="color:var(--danger)">*</span></label>
-                        <input type="password" id="upg-pass-confirm" class="form-control" placeholder="Konfirmasi" autocomplete="new-password">
+                        <input type="password" id="upg-pass-confirm" class="form-control" placeholder="Konfirmasi" autocomplete="new-password" onkeypress="if(event.key === 'Enter') window.upgradeAnonymousToMember()">
                     </div>
                 </div>
 
-                <button id="btn-request-upgrade-otp" class="btn btn-primary" style="width:100%; padding: 12px;" onclick="window.requestUpgradeOtpEmail()">
-                    <i class="fa-solid fa-paper-plane"></i> <span>Kirim Kode OTP</span>
+                <button id="btn-submit-upgrade" class="btn btn-primary" style="width:100%; padding: 12px;" onclick="window.upgradeAnonymousToMember()">
+                    <i class="fa-solid fa-user-check"></i> <span>Upgrade Jadi Member Sekarang</span>
                 </button>
-            </div>
 
-            <div id="upgrade-step-2-otp" style="display: none; text-align: center;">
-                <div class="otp-badge-icon">
-                    <i class="fa-solid fa-envelope-circle-check"></i>
-                </div>
-                <h3 style="font-size:1.1rem; font-weight:900; margin-bottom:4px;">Masukkan Kode OTP</h3>
-                <p style="font-size:0.8rem; color:var(--text-muted); font-weight:600; margin-bottom: 0.8rem;">
-                    Kode 6 digit telah dikirim ke <b id="upg-otp-target-email" class="text-primary">-</b>
-                </p>
-
-                <div class="form-group">
-                    <input type="text" id="upg-otp-input" class="form-control otp-code-input" maxlength="6" placeholder="000000" inputmode="numeric" autocomplete="one-time-code" onkeypress="if(event.key === 'Enter') window.verifyOtpAndUpgradeMember()">
+                <div class="auth-divider" style="margin: 0.95rem 0;">
+                    <hr> <span>ATAU LEBIH CEPAT</span> <hr>
                 </div>
 
-                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.1rem; font-size:0.78rem; font-weight:700;">
-                    <button type="button" class="btn btn-outline btn-sm" onclick="window.backToUpgradeStep1()">
-                        <i class="fa-solid fa-arrow-left"></i> Kembali
-                    </button>
-                    <button type="button" id="btn-resend-upg-otp" class="btn btn-outline btn-sm" onclick="window.requestUpgradeOtpEmail(true)" disabled>
-                        Kirim Ulang (<span id="upg-otp-countdown">60</span>s)
-                    </button>
-                </div>
-
-                <button id="btn-submit-upgrade" class="btn btn-success" style="width:100%; padding: 12px;" onclick="window.verifyOtpAndUpgradeMember()">
-                    <i class="fa-solid fa-check"></i> <span>Verifikasi &amp; Simpan</span>
+                <button type="button" id="btn-upgrade-google" class="btn btn-outline" style="width:100%; padding: 11px;" onclick="window.upgradeAnonymousWithGoogle()">
+                    <i class="fa-brands fa-google" style="color:#ea4335; font-size:1.05rem;"></i> <span>Hubungkan dengan Google</span>
                 </button>
             </div>
         </div>
