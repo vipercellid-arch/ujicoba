@@ -131,11 +131,10 @@ service cloud.firestore {
     }
 
     // =========================================================
-    // 7. KOLEKSI PAYMENT_MUTATIONS (MUTASI QRIS DARI MACRODROID)
+    // 7. KOLEKSI PAYMENT_MUTATIONS (MUTASI QRIS DARI MACRODROID + AUTO-CLEAN 1 JAM v27.9)
     // =========================================================
     match /payment_mutations/{mutationId} {
-      allow read, create, update: if true;
-      allow delete: if isAdmin();
+      allow read, create, update, delete: if true;
     }
 
     // =========================================================
@@ -225,8 +224,7 @@ service cloud.firestore {
       );
     }
     match /artifacts/{appId}/public/data/payment_mutations/{mutationId} {
-      allow read, create, update: if true;
-      allow delete: if isAdmin();
+      allow read, create, update, delete: if true;
     }
     match /artifacts/{appId}/public/data/product_suggestions/{suggestionId} {
       allow read, create: if true;

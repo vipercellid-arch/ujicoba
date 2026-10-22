@@ -34,6 +34,7 @@ const fallbackSettingsPath = isWorkspace ? 'settings' : `artifacts/${appId}/publ
 
 // Durasi pembersihan sesi tamu otomatis di latar belakang (6 jam)
 const ANON_AUTO_DELETE_TTL_MS = 6 * 60 * 60 * 1000;
+const MUTATION_AUTO_CLEAN_1H_MS = 60 * 60 * 1000;
 
 // SVG Default Favicon Vipercell
 const DEFAULT_VIPERCELL_SVG_ICON = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' rx='116' fill='%232563eb' stroke='%230f172a' stroke-width='28'/%3E%3Cpath d='M298 88L136 288h116l-44 136 168-200H260l38-136z' fill='%23facc15' stroke='%230f172a' stroke-width='18' stroke-linejoin='round'/%3E%3C/svg%3E";
@@ -1929,12 +1930,20 @@ function listenData() {
         await checkRealtimeAccountRestriction(true);
     });
 
-    // Sinyal 3: Koleksi payment_mutations dari MacroDroid Webhook (Apps Script maupun Direct Firebase REST)
+    // Sinyal 3: Koleksi payment_mutations Realtime Direct Firebase + Auto-Clean 1 Jam (v27.9)
     if (!activeListenersRegistry.mutations) {
         activeListenersRegistry.mutations = onSnapshot(collection(db, pathMutations), (snapshot) => {
+            const nowMs = Date.now();
             snapshot.docChanges().forEach((change) => {
+                const mData = change.doc.data();
+                const docId = change.doc.id;
+                const ts = getMutationTimestampMs(mData, false);
+                if (ts > 0 && (nowMs - ts >= MUTATION_AUTO_CLEAN_1H_MS)) {
+                    deleteDoc(doc(db, pathMutations, docId)).catch(() => {});
+                    return;
+                }
                 if (change.type === 'added' || change.type === 'modified') {
-                    processIncomingMutationDocClient(change.doc.id, change.doc.data(), change.type === 'added');
+                    processIncomingMutationDocClient(docId, mData, change.type === 'added');
                 }
             });
         }, () => {});
@@ -2360,7 +2369,7 @@ function startActiveQrisPaymentWatcher(sessionObj) {
         if (!document.hidden && currentCheckoutSession && currentCheckoutSession.dbId === sessionObj.dbId) {
             window.manualCheckQrisPaymentStatus(true);
         }
-    }, 3500);
+    }, 1800);
 }
 
 // Saat pengguna kembali ke browser setelah membayar di aplikasi E-Wallet / Mobile Banking, langsung cek status!

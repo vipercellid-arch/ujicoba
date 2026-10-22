@@ -4023,3 +4023,12 @@ html[data-theme="dark"] .marquee-container.footer-dark-marquee {
     font-weight: 800;
     letter-spacing: 0.01em;
 }
+
+
+/* ============================================================================
+ * PEMBARUAN v27.9 — V27.9 ULTRA-FAST QRIS AUTO-VERIFY & STOREFRONT POLISH
+ * ============================================================================ */
+.qris-live-listener-box {
+    border: 2px solid var(--success);
+    background: var(--surface-elevated);
+}
