@@ -2118,6 +2118,19 @@ async function settleVerifiedOrderOnClient(orderObj) {
 
 const processedClientMutationIds = new Set();
 
+function stripMacroDroidMagicTagsClient(str) {
+    if (!str) return '';
+    return String(str)
+        .replace(/\[notification\]/gi, ' ')
+        .replace(/\{notification\}/gi, ' ')
+        .replace(/\[not_[a-z0-9_]+\]/gi, ' ')
+        .replace(/\{not_[a-z0-9_]+\}/gi, ' ')
+        .replace(/\[(?:hour|minute|second|system_time|dayofmonth|month_digit|year)\]/gi, ' ')
+        .replace(/\{(?:hour|minute|second|system_time|dayofmonth|month_digit|year)\}/gi, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+}
+
 function cleanCurrencyNumberClient(str) {
     if (str === null || str === undefined) return 0;
     let s = String(str).trim();
@@ -2130,42 +2143,58 @@ function cleanCurrencyNumberClient(str) {
 
 function extractSmartCurrencyAmountsClient(rawText, directAmount) {
     const results = [];
-    const addCand = (val) => {
+    const addCand = (val, minAllowed = 1) => {
         const num = parseInt(val, 10);
-        if (!isNaN(num) && num >= 100 && num <= 50000000 && !results.includes(num)) {
+        if (!isNaN(num) && num >= minAllowed && num <= 50000000 && !results.includes(num)) {
             results.push(num);
         }
     };
 
     if (directAmount !== undefined && directAmount !== null && String(directAmount).trim() !== '') {
         const c = cleanCurrencyNumberClient(directAmount);
-        if (c > 0) addCand(c);
+        if (c > 0) addCand(c, 1);
     }
     if (!rawText) return results;
 
-    let text = String(rawText)
-        .replace(/\{not_[a-z0-9_]+\}/gi, ' ')
-        .replace(/\[not_[a-z0-9_]+\]/gi, ' ')
+    let text = stripMacroDroidMagicTagsClient(rawText)
         .replace(/\b\d{1,4}[\/\-]\d{1,2}[\/\-]\d{1,4}\b/g, ' ')
         .replace(/\b\d{1,2}:\d{2}(:\d{2})?\b/g, ' ')
         .replace(/\b\d{1,2}\.\d{2}\s*(WIB|WITA|WIT|AM|PM)\b/gi, ' ');
 
-    const rpRegex = /(?:Rp\.?|IDR|sebesar|senilai|masuk|diterima|pembayaran|qris|total|nominal|\+)\s*[:\.]?\s*([0-9]{1,3}(?:[.,][0-9]{3})+(?:[.,][0-9]{1,2})?|[0-9]{3,8}(?:[.,][0-9]{1,2})?)/gi;
+    // Prioritas 1: Angka yang didahului Rp / IDR / qris / diterima / sebesar (mendukung Rp 1 s/d Rp 50.000.000 termasuk Rp 345)
+    const rpRegex = /(?:Rp\.?|IDR|sebesar|senilai|masuk|diterima|pembayaran|qris|total|nominal|\+)\s*[:\.]?\s*([0-9]{1,3}(?:[.,][0-9]{3})+(?:[.,][0-9]{1,2})?|[0-9]{1,8}(?:[.,][0-9]{1,2})?)/gi;
     let m;
     while ((m = rpRegex.exec(text)) !== null) {
         const parsed = cleanCurrencyNumberClient(m[1]);
-        if (parsed > 0) addCand(parsed);
+        if (parsed > 0) addCand(parsed, 1);
     }
 
+    // Prioritas 2: Angka ribuan bertitik/koma atau 3-8 digit (cth: 345, 15.123)
     const genRegex = /\b([0-9]{1,3}(?:[.,][0-9]{3})+(?:[.,][0-9]{1,2})?|[0-9]{3,8})\b/g;
     while ((m = genRegex.exec(text)) !== null) {
         const token = m[1];
         const parsed = cleanCurrencyNumberClient(token);
         if (parsed > 0 && (parsed < 2020 || parsed > 2035 || token.includes('.') || token.includes(','))) {
-            addCand(parsed);
+            addCand(parsed, 50);
         }
     }
     return results;
+}
+
+function getCombinedMutationTextClient(mut) {
+    if (!mut) return '';
+    const parts = [
+        mut.title, mut.not_title,
+        mut.text, mut.notification, mut.not_text,
+        mut.bigText, mut.big_text, mut.not_big_text,
+        mut.subText, mut.not_sub_text,
+        mut.rawText, mut.message, mut.body, mut.isi
+    ].map(stripMacroDroidMagicTagsClient).filter(Boolean);
+    const uniqueParts = [];
+    parts.forEach(p => {
+        if (p && !uniqueParts.includes(p)) uniqueParts.push(p);
+    });
+    return uniqueParts.join(' — ');
 }
 
 function extractCandidateAmountsFromMutationObj(mut) {
@@ -2173,7 +2202,7 @@ function extractCandidateAmountsFromMutationObj(mut) {
     const list = [];
     const add = (n) => {
         const v = Math.round(Number(n) || 0);
-        if (v >= 100 && !list.includes(v)) list.push(v);
+        if (v >= 1 && !list.includes(v)) list.push(v);
     };
     if (Array.isArray(mut.candidateAmounts)) {
         mut.candidateAmounts.forEach(add);
@@ -2181,7 +2210,10 @@ function extractCandidateAmountsFromMutationObj(mut) {
     if (mut.amount !== undefined && mut.amount !== null) {
         add(cleanCurrencyNumberClient(mut.amount));
     }
-    const combinedRaw = [mut.rawText, mut.text, mut.title, mut.big_text, mut.message, mut.body].filter(Boolean).join(' | ');
+    if (mut.detectedAmount !== undefined && mut.detectedAmount !== null) {
+        add(cleanCurrencyNumberClient(mut.detectedAmount));
+    }
+    const combinedRaw = getCombinedMutationTextClient(mut);
     if (combinedRaw) {
         extractSmartCurrencyAmountsClient(combinedRaw, mut.amount).forEach(add);
     }
@@ -2205,8 +2237,26 @@ async function processIncomingMutationDocClient(docId, mut, isNewlyAdded = false
     if (!mut) return false;
     if (docId && processedClientMutationIds.has(docId)) return false;
 
+    const cands = extractCandidateAmountsFromMutationObj(mut);
+    const primaryAmt = cands[0] || 0;
+    const cleanFullText = getCombinedMutationTextClient(mut);
+
+    // Jika dokumen baru dikirim langsung dari MacroDroid REST API ke Firebase (belum punya receivedAt),
+    // lengkapi otomatis receivedAt & nominalnya agar tercatat rapi di Firebase Log Admin!
+    if (docId && !mut.receivedAt) {
+        const nowStamp = Date.now();
+        mut.receivedAt = nowStamp;
+        updateDoc(doc(db, pathMutations, docId), {
+            receivedAt: nowStamp,
+            receivedAtIso: new Date(nowStamp).toISOString(),
+            amount: primaryAmt,
+            candidateAmounts: cands,
+            cleanText: cleanFullText,
+            status: mut.status || 'UNMATCHED'
+        }).catch(() => {});
+    }
+
     const mutStatus = String(mut.status || '').toUpperCase();
-    // Jika mutasi sudah diklaim oleh order lain yang berbeda, lewati
     if (mutStatus === 'MATCHED' && mut.matchedOrderId) {
         const myActiveInv = currentCheckoutSession?.id || '';
         if (myActiveInv && !String(mut.matchedOrderId).includes(myActiveInv)) {
@@ -2214,12 +2264,10 @@ async function processIncomingMutationDocClient(docId, mut, isNewlyAdded = false
         }
     }
 
-    const mutTime = getMutationTimestampMs(mut, isNewlyAdded);
+    const mutTime = getMutationTimestampMs(mut, true);
     const ageMs = Math.abs(Date.now() - mutTime);
-    // Toleransi 20 menit (1.200.000 ms)
     if (mutTime > 0 && ageMs > 1200000) return false;
 
-    const cands = extractCandidateAmountsFromMutationObj(mut);
     for (const amt of cands) {
         const matchedOrder = await checkClientPendingOrdersAgainstAmount(amt, docId);
         if (matchedOrder) {
@@ -2235,7 +2283,6 @@ async function checkClientPendingOrdersAgainstAmount(detectedAmount, sourceMutat
     const numAmt = Math.round(Number(detectedAmount));
     const now = Date.now();
 
-    // Prioritaskan order yang sedang dibuka di layar QRIS saat ini
     let matchingUnpaid = null;
     if (currentCheckoutSession && currentCheckoutSession.dbId) {
         const activeOrd = orders.find(o => o.dbId === currentCheckoutSession.dbId || o.id === currentCheckoutSession.id);
@@ -2262,7 +2309,8 @@ async function checkClientPendingOrdersAgainstAmount(detectedAmount, sourceMutat
             processedClientMutationIds.add(sourceMutationDocId);
             updateDoc(doc(db, pathMutations, sourceMutationDocId), {
                 status: 'MATCHED',
-                matchedOrderId: matchingUnpaid.id || matchingUnpaid.dbId
+                matchedOrderId: matchingUnpaid.id || matchingUnpaid.dbId,
+                amount: numAmt
             }).catch(() => {});
         }
         await settleVerifiedOrderOnClient(matchingUnpaid);
@@ -2666,33 +2714,7 @@ window.manualCheckQrisPaymentStatus = async function(isSilentAuto = false) {
             }
         } catch (mutErr) {}
 
-        // Cek 4: Cek langsung ke Server Apps Script (CHECK_PAYMENT) jika URL sudah diatur di Pengaturan Toko
-        const rawGasUrls = (siteSettings.emailWebhookUrl || '').trim();
-        const gasUrl = rawGasUrls.split(',')[0].trim();
-        if (gasUrl && gasUrl.startsWith('https://script.google.com/') && targetNominal > 0) {
-            try {
-                const sep = gasUrl.includes('?') ? '&' : '?';
-                const checkUrl = `${gasUrl}${sep}action=CHECK_PAYMENT&amount=${targetNominal}&baseAmount=${targetBaseNominal}&orderDbId=${encodeURIComponent(currentCheckoutSession.dbId)}&t=${Date.now()}`;
-                const resp = await fetch(checkUrl, { method: 'GET', redirect: 'follow', cache: 'no-store' });
-                const rawJson = await resp.text();
-                const parsed = JSON.parse(rawJson);
-                if (parsed && parsed.ok) {
-                    if (parsed.matched === true) {
-                        await settleVerifiedOrderOnClient(currentOrderObj || currentCheckoutSession);
-                        return;
-                    }
-                    if (Array.isArray(parsed.recentMutations)) {
-                        for (const m of parsed.recentMutations) {
-                            const cands = extractCandidateAmountsFromMutationObj(m);
-                            if (cands.includes(targetNominal) || (targetBaseNominal > 0 && cands.includes(targetBaseNominal))) {
-                                await settleVerifiedOrderOnClient(currentOrderObj || currentCheckoutSession);
-                                return;
-                            }
-                        }
-                    }
-                }
-            } catch (gasErr) {}
-        }
+        // 100% Direct Firebase (Tanpa Google Apps Script)
 
         if (!isSilentAuto) {
             window.showToast('Menunggu Pembayaran', `Pastikan transfer sesuai nominal Rp${targetNominal.toLocaleString('id-ID')}.`, 'info');
