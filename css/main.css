@@ -407,26 +407,25 @@ header {
     display: none;
     padding: 1.5rem 1.15rem 3rem;
     opacity: 0;
-    transform: translateY(10px) scale(0.994);
-    transition: opacity 0.28s var(--ease-spring), transform 0.28s var(--ease-spring);
-    will-change: opacity, transform;
+    transform: translate3d(0, 6px, 0);
+    contain: layout style;
 }
 
 .main-tab-content.active {
     display: block;
     opacity: 1;
-    transform: translateY(0) scale(1);
-    animation: tabSmoothEnter 0.3s var(--ease-spring) forwards;
+    transform: translate3d(0, 0, 0);
+    animation: tabSmoothEnter 0.18s cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }
 
 @keyframes tabSmoothEnter {
     0% {
         opacity: 0;
-        transform: translateY(10px) scale(0.994);
+        transform: translate3d(0, 6px, 0);
     }
     100% {
         opacity: 1;
-        transform: translateY(0) scale(1);
+        transform: translate3d(0, 0, 0);
     }
 }
 
@@ -3974,5 +3973,54 @@ html[data-theme="dark"] .marquee-container.footer-dark-marquee {
 .item-card.op-hours-locked {
     opacity: 0.82;
     border-style: dashed;
+}
+
+/* ============================================================================
+ * PEMBARUAN v27.8 — ISOLASI GPU COMPOSITOR LAYER RUNNING TEXT BAWAH ANTI-LAG
+ * SAAT PERPINDAHAN TAB (60/120FPS LOCKED)
+ * ============================================================================ */
+.footer-divider-marquee-wrap {
+    contain: layout paint style;
+    isolation: isolate;
+    transform: translate3d(0, 0, 0);
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+}
+
+.marquee-container.footer-dark-marquee {
+    contain: layout paint style;
+    transform: translate3d(0, 0, 0);
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+}
+
+.marquee-container.footer-dark-marquee .marquee-wrapper {
+    contain: content;
+    transform: translate3d(0, 0, 0);
+}
+
+.marquee-container.footer-dark-marquee .marquee-content {
+    display: inline-flex;
+    width: max-content;
+    will-change: transform;
+    transform: translate3d(0, 0, 0);
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+    perspective: 1000px;
+    animation: neoMarqueeScroll var(--footer-marquee-duration, 44s) linear infinite !important;
+    animation-play-state: running !important;
+}
+
+.marquee-item-pill.footer-dark-pill {
+    contain: layout style;
+    transform: translate3d(0, 0, 0);
+    backface-visibility: hidden;
+    transition: background-color 0.15s ease, border-color 0.15s ease !important;
+}
+
+.footer-catalog-text {
+    color: #f8fafc;
+    font-weight: 800;
+    letter-spacing: 0.01em;
 }
 
