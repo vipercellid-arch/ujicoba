@@ -683,8 +683,9 @@ function checkAuthStateFirstLoad() {
 
 async function fetchInitialStoreDataWithGatekeeper() {
     updatePreloaderStage(50, 'Memuat toko...', '');
-    const [settingsSnap, productsSnap, ordersSnap, stocksSnap] = await Promise.all([
+    const [settingsSnap, secretSnap, productsSnap, ordersSnap, stocksSnap] = await Promise.all([
         getDoc(doc(db, pathSettings, 'mainConfig')).catch(() => null),
+        getDoc(doc(db, pathSettings, 'secretConfig')).catch(() => null),
         getDocs(collection(db, pathProducts)).catch(() => null),
         getDocs(collection(db, pathOrders)).catch(() => null),
         getDocs(query(collection(db, pathStocks), where("status", "==", "Ready"))).catch(() => null)
@@ -698,6 +699,10 @@ async function fetchInitialStoreDataWithGatekeeper() {
             siteSettings = { ...siteSettings, ...fallbackSnap.data() };
         }
     }
+    if (secretSnap && secretSnap.exists()) {
+        siteSettings = { ...siteSettings, ...secretSnap.data() };
+    }
+    hydrateClientDigiflazzSyncToken();
     isSettingsLoaded = true;
     window.applySettingsToUI();
     applyCustomPwaIcon();
@@ -1066,16 +1071,38 @@ function listenDeletedAccountStatus(uid) {
     if (!uid) return;
     if (activeListenersRegistry.deletedAccount) activeListenersRegistry.deletedAccount();
 
+    let initialUserDocLoaded = false;
     activeListenersRegistry.deletedAccount = onSnapshot(doc(db, pathUsers, uid), async (docSnap) => {
         if (docSnap.exists()) {
             const uData = docSnap.data();
+            const wasMpActive = isUserMemberPlusActive();
+            const prevExpMs = Number(userProfile.memberPlusExpiresAt || 0);
+
             userProfile.balance = Math.round(Number(uData.balance || 0));
             if (uData.trxPin !== undefined) userProfile.trxPin = uData.trxPin;
             if (uData.isMemberPlus !== undefined) userProfile.isMemberPlus = uData.isMemberPlus;
+            if (uData.memberPlusSince !== undefined) userProfile.memberPlusSince = uData.memberPlusSince;
             if (uData.memberPlusExpiresAt !== undefined) userProfile.memberPlusExpiresAt = uData.memberPlusExpiresAt;
+
+            const nowMpActive = isUserMemberPlusActive();
+            const newExpMs = Number(userProfile.memberPlusExpiresAt || 0);
+
             window.updateUserWalletBalanceUI();
-            if (typeof window.updateUserGreetingPanelUI === 'function') window.updateUserGreetingPanelUI();
+            if (typeof window.refreshRealtimeMemberPlusUI === 'function') {
+                window.refreshRealtimeMemberPlusUI();
+            } else if (typeof window.updateUserGreetingPanelUI === 'function') {
+                window.updateUserGreetingPanelUI();
+            }
             if (typeof window.updateUserTrxPinProfileUI === 'function') window.updateUserTrxPinProfileUI();
+
+            if (initialUserDocLoaded && nowMpActive && (!wasMpActive || (newExpMs > prevExpMs && newExpMs > Date.now()))) {
+                window.closeModal('modal-cash-barcode');
+                if (typeof window.showMemberPlusWelcomeAnimation === 'function') {
+                    window.showMemberPlusWelcomeAnimation(newExpMs);
+                }
+            }
+            initialUserDocLoaded = true;
+
             if (uData.isBlocked === true) {
                 if (!siteSettings.blockedUids) siteSettings.blockedUids = [];
                 if (!siteSettings.blockedUids.includes(uid)) siteSettings.blockedUids.push(uid);
@@ -1256,6 +1283,9 @@ window.processAnonymousLogin = async function() {
         setAuthGateLock(false);
         applyUserSessionToUI();
         window.renderUserOrders();
+        if (typeof window.renderTopupHistoryList === 'function') {
+            window.renderTopupHistoryList();
+        }
         updateProfileStats();
         checkChatUserState();
         listenUserChat();
@@ -2053,10 +2083,18 @@ function listenData() {
     if (isListening) return;
     isListening = true;
     
+    onSnapshot(doc(db, pathSettings, 'secretConfig'), (secSnap) => {
+        if (secSnap.exists()) {
+            siteSettings = { ...siteSettings, ...secSnap.data() };
+            hydrateClientDigiflazzSyncToken();
+        }
+    }, () => {});
+
     onSnapshot(doc(db, pathSettings, 'mainConfig'), async (docSnap) => {
         if (docSnap.exists()) {
             const incoming = docSnap.data();
             siteSettings = { ...siteSettings, ...incoming };
+            hydrateClientDigiflazzSyncToken();
 
             // Sinyal 1: lastPaymentDetected dari Server Apps Script / Simulator
             if (incoming.lastPaymentDetected && incoming.lastPaymentTimestamp) {
@@ -2201,7 +2239,16 @@ function listenData() {
                     (oldStatus && (oldStatus === 'UNPAID' || oldStatus === 'PENDING_PAYMENT' || oldStatus === 'PAID')) ||
                     (isOnQrisTab && (wasPaidFromGas || data.status === 'SUCCESS' || (data.status === 'PENDING' && data.paymentVerified === true)))
                 ) {
-                    if (data.status === 'SUCCESS' || wasPaidFromGas) {
+                    const isMpSubOrder = Boolean(data.isMemberPlusOrder === true || data.orderType === 'MEMBER_PLUS_SUB' || String(data.id || '').startsWith('MPLUS-'));
+                    if (isMpSubOrder) {
+                        if (data.status === 'SUCCESS' || wasPaidFromGas || data.memberPlusActivated === true) {
+                            window.closeModal('modal-cash-barcode');
+                            if (typeof window.refreshRealtimeMemberPlusUI === 'function') window.refreshRealtimeMemberPlusUI();
+                            if (typeof window.showMemberPlusWelcomeAnimation === 'function') {
+                                window.showMemberPlusWelcomeAnimation(data.subscriptionEndAt || userProfile.memberPlusExpiresAt || (Date.now() + 30 * 86400000), data.id);
+                            }
+                        }
+                    } else if (data.status === 'SUCCESS' || wasPaidFromGas) {
                         window.showPaymentSuccessAnimation(data.id, nowHasReply ? 'SUCCESS' : 'PENDING');
                     } else if (data.status === 'PENDING' && data.paymentVerified === true) {
                         window.showPaymentSuccessAnimation(data.id, 'PENDING');
@@ -3582,8 +3629,13 @@ window.openDirectBuyModal = function(brandName) {
             ${extraDesc}
             <div class="form-group" style="margin-bottom:0;">
                 <label for="buy-id">Nomor Meter / ID Pelanggan PLN <span style="color:var(--danger)">*</span></label>
-                <input type="text" id="buy-id" class="form-control" placeholder="Masukkan Nomor Meter / ID Pelanggan PLN (Cth: 530000000001)" required oninput="window.onInputAutoCheckPlnSubscriber()">
-                <small style="font-size:0.72rem; color:var(--text-muted); display:block; margin-top:4px;">Nama pelanggan &amp; daya listrik tampil otomatis saat nomor dimasukkan.</small>
+                <div style="display:flex; gap:8px; align-items:stretch;">
+                    <input type="text" id="buy-id" class="form-control" placeholder="Masukkan Nomor Meter / ID Pelanggan PLN (Cth: 530000000001)" required oninput="window.onInputAutoCheckPlnSubscriber()">
+                    <button type="button" id="btn-user-check-pln" class="btn btn-primary btn-sm" style="white-space:nowrap; padding:0 14px; font-weight:900;" onclick="window.userCheckPlnSubscriber()">
+                        <i class="fa-solid fa-magnifying-glass"></i> Cek ID PLN
+                    </button>
+                </div>
+                <small style="font-size:0.72rem; color:var(--text-muted); display:block; margin-top:4px;">Masukkan Nomor Meter / ID Pelanggan lalu tekan <b>Cek ID PLN</b> atau tunggu pengecekan otomatis.</small>
                 <div id="user-pln-inquiry-box" class="pln-inquiry-result-card" style="display:none;"></div>
             </div>`;
     } else if (inpType === 'ewallet_no' || brandObj.type === 'ewallet') {
@@ -3635,14 +3687,15 @@ window.openDirectBuyModal = function(brandName) {
                 <div style="display:grid; grid-template-columns: 2fr 1fr; gap:10px;">
                     <div class="form-group" style="margin-bottom:0;">
                         <label for="buy-id">ID Player <span style="color:var(--danger)">*</span></label>
-                        <input type="text" id="buy-id" class="form-control" placeholder="ID Player" required>
+                        <input type="text" id="buy-id" class="form-control" placeholder="ID Player" required oninput="window.updateMergedGameTargetPreview()">
                     </div>
                     <div class="form-group" style="margin-bottom:0;">
                         <label for="buy-zone">Zone / Server</label>
-                        <input type="text" id="buy-zone" class="form-control" placeholder="Zone">
+                        <input type="text" id="buy-zone" class="form-control" placeholder="Zone / Server" oninput="window.updateMergedGameTargetPreview()">
                     </div>
                 </div>
-                <small style="font-size:0.72rem; color:var(--text-muted); display:block; margin-top:5px;">Username akun game akan dicek otomatis saat konfirmasi pesanan sebelum bayar.</small>`;
+                <div id="buy-merged-target-preview" style="display:none; margin-top:6px; font-size:0.74rem; font-weight:800; color:var(--primary);"></div>
+                <small style="font-size:0.72rem; color:var(--text-muted); display:block; margin-top:5px;">ID Player dan Zone/Server otomatis digabungkan saat proses pengecekan username dan pengiriman produk.</small>`;
         }
     } else {
         fields.innerHTML = `
@@ -4298,16 +4351,42 @@ window.openCheckoutConfirmWithAutoCheckId = async function() {
     }
 
     try {
+        await ensureClientDigiflazzCredentialsLoaded();
+        const mergedTargetNo = combineGameIdAndZoneForDigiflazz(p.pidVal, p.zolVal);
+
         if (currentCheckoutBrand.type === 'pln' || p.inpType === 'pln_token') {
+            if (verifiedPlnSubscriber && String(verifiedPlnSubscriber.customer_no || verifiedPlnSubscriber.meter_no || '').includes(mergedTargetNo) && (verifiedPlnSubscriber.name || verifiedPlnSubscriber.customer_name)) {
+                const cachedPlnName = String(verifiedPlnSubscriber.name || verifiedPlnSubscriber.customer_name || '').trim();
+                p.verifiedTargetName = cachedPlnName;
+                if (userEl) {
+                    userEl.style.color = 'var(--success)';
+                    userEl.innerText = cachedPlnName;
+                }
+                if (extraRow && extraLbl && extraVal) {
+                    extraRow.style.display = 'flex';
+                    extraLbl.innerText = 'Tarif / Daya Listrik';
+                    extraVal.innerText = verifiedPlnSubscriber.segment_power || '-';
+                }
+                if (banner) {
+                    banner.className = 'brutal-alert-box alert-info';
+                    if (bannerIcon) bannerIcon.className = 'fa-solid fa-circle-check text-success';
+                    if (bannerTitle) bannerTitle.innerText = 'ID Pelanggan PLN Terverifikasi';
+                    if (bannerSub) bannerSub.innerText = `Atas Nama: ${cachedPlnName} (${verifiedPlnSubscriber.segment_power || '-'})`;
+                }
+                if (btnProceed) btnProceed.disabled = false;
+                return;
+            }
+
             const username = (siteSettings.digiflazzUsername || 'username').trim();
-            const sign = md5ClientDigiflazz(username + 'dev-apikey' + p.pidVal);
+            const apiKey = getActiveClientDigiflazzApiKey();
+            const sign = md5ClientDigiflazz(username + apiKey + mergedTargetNo);
             const res = await callClientDigiflazzApi('/v1/inquiry-pln', {
                 username: username,
-                customer_no: p.pidVal,
+                customer_no: mergedTargetNo,
                 sign: sign
-            });
+            }, mergedTargetNo);
             const d = res?.data || {};
-            const realPlnName = String(d.name || d.customer_name || '').trim();
+            const realPlnName = extractRealUsernameFromDigiflazzResponse(d);
             if ((d.status === 'Sukses' || d.rc === '00') && realPlnName) {
                 verifiedPlnSubscriber = d;
                 p.verifiedTargetName = realPlnName;
@@ -4336,7 +4415,7 @@ window.openCheckoutConfirmWithAutoCheckId = async function() {
                     banner.className = 'brutal-alert-box alert-danger';
                     if (bannerIcon) bannerIcon.className = 'fa-solid fa-circle-xmark';
                     if (bannerTitle) bannerTitle.innerText = 'Nomor Meter / ID PLN Tidak Ditemukan';
-                    if (bannerSub) bannerSub.innerText = d.message || 'Periksa kembali Nomor Meter / ID Pelanggan PLN Anda.';
+                    if (bannerSub) bannerSub.innerText = d.message || 'Periksa kembali Nomor Meter / ID Pelanggan PLN kamu.';
                 }
                 if (btnProceed) btnProceed.disabled = true;
             }
@@ -4372,17 +4451,15 @@ window.openCheckoutConfirmWithAutoCheckId = async function() {
             p.checkIdSku
         );
 
-        // Cek Username Game / Nama Pengguna E-Wallet via /v1/check-id ke Digiflazz Bridge
-        const res = await callClientDigiflazzApi('/v1/check-id', {
-            sku: p.checkIdSku || selectedProductForBuy?.buyerSkuCode || '',
-            buyer_sku_code: p.checkIdSku || selectedProductForBuy?.buyerSkuCode || '',
+        const d = await performClientDigiflazzTargetCheck({
+            sku: p.checkIdSku || (selectedProductForBuy?.isCheckUsernameProduct ? selectedProductForBuy?.buyerSkuCode : '') || '',
+            fallbackSku: selectedProductForBuy?.buyerSkuCode || '',
             brand: currentCheckoutBrand.brandName,
             type: currentCheckoutBrand.type,
-            customer_no: p.pidVal,
-            zone_id: p.zolVal || ''
+            customerNo: p.pidVal,
+            zoneId: p.zolVal || ''
         });
-        const d = res?.data || {};
-        const realUsername = String(d.name || d.username || d.customer_name || '').trim();
+        const realUsername = extractRealUsernameFromDigiflazzResponse(d);
         if ((d.status === 'Sukses' || d.rc === '00') && realUsername) {
             p.verifiedTargetName = realUsername;
             if (currentCheckoutBrand.type === 'ewallet') {
@@ -4529,7 +4606,7 @@ window.confirmAndExecuteCheckout = async function() {
     }
 
     const durationDays = parseInt(selectedProductForBuy.durationDays || 0, 10);
-    const cleanDfCustNo = p.zolVal ? `${p.pidVal}${p.zolVal}` : p.pidVal;
+    const cleanDfCustNo = combineGameIdAndZoneForDigiflazz(p.pidVal, p.zolVal);
     const itemDisplayName = p.isCustomEwallet
         ? `${currentCheckoutBrand.brandName} - Nominal Bebas Rp${p.customEwAmount.toLocaleString('id-ID')}`
         : `${currentCheckoutBrand.brandName} - ${selectedProductForBuy.name} (x${p.qty})`;
@@ -4855,277 +4932,224 @@ function buildFullReceiptHTML(order) {
     const isCancelled = order.status === 'CANCELLED';
     const isFailed = order.status === 'FAILED' || order.status === 'EXPIRED' || isCancelled;
 
-    let sBadge = 'status-unpaid';
-    let sName = 'MENUNGGU PEMBAYARAN';
-    let heroClass = 'hero-unpaid';
-    let heroIcon = 'fa-hourglass-half';
-    let heroTitle = 'Menunggu Pembayaran';
-    let heroDesc = order.paymentMethod === 'cash'
-        ? 'Tunjukkan tiket barcode tunai kepada kasir untuk menyelesaikan pembayaran.'
-        : 'Selesaikan pembayaran sesuai nominal tepat agar pesanan segera diproses.';
+    let statusText = 'MENUNGGU PEMBAYARAN';
+    if (isDeliveredSuccess) statusText = 'LUNAS / SELESAI';
+    else if (isPendingAdmin) statusText = 'LUNAS / SEDANG DIPROSES';
+    else if (isCancelled) statusText = 'DIBATALKAN';
+    else if (isFailed) statusText = order.status === 'EXPIRED' ? 'KEDALUWARSA' : 'GAGAL';
 
-    if (isDeliveredSuccess) {
-        sBadge = 'status-success';
-        sName = 'TERKIRIM & SELESAI';
-        heroClass = 'hero-success';
-        heroIcon = 'fa-circle-check';
-        heroTitle = 'Transaksi Berhasil & Selesai';
-        heroDesc = 'Pembayaran telah diterima dan rincian pesanan sudah tersedia di bawah ini.';
-    } else if (isPendingAdmin) {
-        sBadge = 'status-pending';
-        sName = 'SEDANG DIPROSES';
-        heroClass = 'hero-pending';
-        heroIcon = 'fa-user-clock';
-        heroTitle = 'Pembayaran Diterima — Pesanan Sedang Diproses';
-        heroDesc = 'Pembayaran kamu sudah diterima dan pesanan sedang diproses.';
-    } else if (isCancelled) {
-        sBadge = 'status-cancelled';
-        sName = 'DIBATALKAN';
-        heroClass = 'hero-failed';
-        heroIcon = 'fa-ban';
-        heroTitle = 'Pesanan Dibatalkan';
-        heroDesc = 'Tagihan pesanan ini telah dibatalkan.';
-    } else if (isFailed) {
-        sBadge = 'status-failed';
-        sName = order.status === 'EXPIRED' ? 'WAKTU HABIS' : 'GAGAL';
-        heroClass = 'hero-failed';
-        heroIcon = 'fa-circle-xmark';
-        heroTitle = order.status === 'EXPIRED' ? 'Batas Waktu Pembayaran Habis' : 'Pesanan Gagal';
-        heroDesc = order.balanceRefunded
-            ? 'Transaksi gagal dan dana telah dikembalikan otomatis ke Saldo Akun kamu.'
-            : 'Silakan buat pesanan baru atau hubungi Admin jika membutuhkan bantuan.';
-    }
-    
-    const brandName = order.items[0]?.brandName || '';
+    const brandName = order.items?.[0]?.brandName || order.productName || '';
     const safeJsBrand = escapeJsStr(brandName);
+    const itemObj = order.items?.[0] || {};
+    const itemName = itemObj.name || order.variantName || order.productName || 'Produk Digital';
+    const itemQty = Number(itemObj.qty || 1);
+    const baseAmount = Number((order.baseTotal || 0) + (order.promoDiscount || 0));
+    const unitPrice = itemQty > 0 ? Math.round(baseAmount / itemQty) : baseAmount;
+    const targetRaw = order.digiflazzCustomerNo || itemObj.playerInfo || order.targetId || '-';
+    const targetName = order.verifiedTargetName || order.plnSubscriberName || '';
+    const payLabel = order.paymentMethod === 'cash'
+        ? 'TUNAI (KASIR)'
+        : (order.paymentMethod === 'balance' ? 'SALDO AKUN' : 'QRIS');
 
-    const step2Class = (isDeliveredSuccess || isPendingAdmin) ? 'done' : (isFailed ? 'failed' : 'active');
-    const step3Class = isDeliveredSuccess ? 'done' : (isPendingAdmin ? 'active' : '');
+    const dateFormatted = order.date
+        ? new Date(order.date).toLocaleString('id-ID', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' })
+        : new Date().toLocaleString('id-ID');
 
-    let actionHtml = '';
-    if (isUnpaid) {
-        if (order.paymentMethod === 'cash') {
-            actionHtml = `
-            <div class="ereceipt-action-grid">
-                <button class="btn btn-warning" onclick="window.resumePayment('${order.dbId}')">
-                    <i class="fa-solid fa-barcode"></i> Buka Barcode Tunai
-                </button>
-                <button class="btn btn-danger" onclick="window.cancelActiveOrder('${order.dbId}')">
-                    <i class="fa-solid fa-ban"></i> Batalkan
-                </button>
-            </div>`;
-        } else {
-            actionHtml = `
-            <div class="ereceipt-action-grid">
-                <button class="btn btn-primary" onclick="window.resumePayment('${order.dbId}')">
-                    <i class="fa-solid fa-qrcode"></i> Lanjut Bayar QRIS
-                </button>
-                <button class="btn btn-danger" onclick="window.cancelActiveOrder('${order.dbId}')">
-                    <i class="fa-solid fa-ban"></i> Batalkan
-                </button>
-            </div>`;
-        }
-    } else if (isCancelled || order.status === 'EXPIRED' || order.status === 'FAILED') {
-        if (brandName) {
-            actionHtml = `<button class="btn btn-primary" style="width:100%; margin-top:0.9rem;" onclick="window.closeModal('modal-order-detail'); window.openDirectBuyModal('${safeJsBrand}')"><i class="fa-solid fa-rotate-right"></i> Pesan Ulang Produk Ini</button>`;
-        }
-    } else if (isDeliveredSuccess) {
-        const alreadyReviewed = hasOrderBeenReviewed(order);
-        if (!alreadyReviewed && brandName) {
-            actionHtml = `
-                <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap:8px; margin-top:0.9rem;">
-                    <button class="btn btn-warning btn-sm" onclick="window.goToReview('${safeJsBrand}', '${order.id}')"><i class="fa-solid fa-star"></i> Beri Ulasan</button>
-                    <button class="btn btn-primary btn-sm" onclick="window.shareOrderReceipt('${escapeJsStr(order.id)}')"><i class="fa-solid fa-share-nodes"></i> Bagikan Struk</button>
-                    <button class="btn btn-outline btn-sm" onclick="window.downloadOrderReceiptImage('${escapeJsStr(order.id)}')"><i class="fa-solid fa-download"></i> Unduh Struk</button>
-                </div>`;
-        } else {
-            actionHtml = `
-                <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap:8px; margin-top:0.9rem;">
-                    <button class="btn btn-primary btn-sm" onclick="window.shareOrderReceipt('${escapeJsStr(order.id)}')"><i class="fa-solid fa-share-nodes"></i> Bagikan Struk</button>
-                    <button class="btn btn-outline btn-sm" onclick="window.downloadOrderReceiptImage('${escapeJsStr(order.id)}')"><i class="fa-solid fa-download"></i> Unduh Struk</button>
-                </div>`;
-        }
-    }
+    const storeTitle = `${siteSettings.logoText || 'VIPER'}${siteSettings.logoAccent || 'CELL'}`.toUpperCase();
 
-    let durationReceiptHtml = '';
-    const durDays = order.durationDays || order.items[0]?.durationDays || 0;
-    if (durDays > 0 && (isDeliveredSuccess || isPendingAdmin)) {
-        const endMs = order.subscriptionEndAt || (new Date(order.date).getTime() + durDays * 86400000);
-        durationReceiptHtml = `
-            <div style="margin-top:8px; padding-top:8px; border-top:1.5px dashed var(--border-subtle); font-size:0.75rem; font-weight:800; color:var(--primary); display:flex; justify-content:space-between; flex-wrap:wrap;">
-                <span><i class="fa-regular fa-clock"></i> Masa Aktif: ${durDays} Hari</span>
-                <span>Berakhir: ${new Date(endMs).toLocaleDateString('id-ID', { day:'2-digit', month:'short', year:'numeric' })}</span>
-            </div>`;
-    }
-
-    // Kartu Khusus Token Listrik PLN 20 Digit (#9)
-    let plnCardHtml = '';
     const parsedPln = isDeliveredSuccess ? parsePlnTokenFromOrder(order) : null;
+    let plnThermalHtml = '';
     if (parsedPln && parsedPln.token) {
         const safeTokenJs = escapeJsStr(parsedPln.token);
-        plnCardHtml = `
-        <div class="pln-token-highlight-card">
-            <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px;">
-                <span style="font-size:0.75rem; font-weight:900; color:var(--text); display:flex; align-items:center; gap:6px;">
-                    <i class="fa-solid fa-bolt text-warning"></i> TOKEN LISTRIK PLN PRABAYAR
-                </span>
-                <span class="status-badge status-success" style="font-size:0.6rem;">RESMI</span>
+        plnThermalHtml = `
+        <div class="indomaret-sn-box">
+            <div style="text-align:center; font-weight:900; border-bottom:1.5px dashed #000; padding-bottom:4px; margin-bottom:6px;">
+                STRUK TOKEN LISTRIK PLN PRABAYAR
             </div>
-            <div class="pln-token-digits-box">${escapeHtml(parsedPln.token)}</div>
-            <div class="pln-token-meta-grid">
-                <div>
-                    <span>ID PELANGGAN / METER</span>
-                    <strong>${escapeHtml(order.digiflazzCustomerNo || order.targetId || '-')}</strong>
-                </div>
-                <div>
-                    <span>NAMA PELANGGAN</span>
-                    <strong>${escapeHtml(parsedPln.subscriberName || '-')}</strong>
-                </div>
-                <div>
-                    <span>TARIF / DAYA</span>
-                    <strong>${escapeHtml(parsedPln.segmentPower || '-')}</strong>
-                </div>
-                <div>
-                    <span>JUMLAH KWH</span>
-                    <strong>${escapeHtml(parsedPln.kwh || '-')}</strong>
-                </div>
+            <div class="indomaret-kv-row"><span>ID PEL / METER</span><strong>${escapeHtml(order.digiflazzCustomerNo || order.targetId || '-')}</strong></div>
+            <div class="indomaret-kv-row"><span>NAMA PELANGGAN</span><strong>${escapeHtml(parsedPln.subscriberName || targetName || '-')}</strong></div>
+            <div class="indomaret-kv-row"><span>TARIF / DAYA</span><strong>${escapeHtml(parsedPln.segmentPower || '-')}</strong></div>
+            <div class="indomaret-kv-row"><span>JUMLAH KWH</span><strong>${escapeHtml(parsedPln.kwh || '-')}</strong></div>
+            <div style="margin-top:6px; padding-top:6px; border-top:1.5px dashed #000; text-align:center;">
+                <span style="font-size:0.68rem; font-weight:800; display:block;">NOMOR TOKEN (STROOM / TOKEN):</span>
+                <strong style="font-size:1.02rem; font-weight:900; letter-spacing:0.06em; display:block; margin-top:2px;">${escapeHtml(parsedPln.token)}</strong>
             </div>
-            <button type="button" class="btn btn-primary btn-sm" style="width:100%;" onclick="window.copyCredentialPart('${safeTokenJs}', 'Nomor Token PLN')">
-                <i class="fa-regular fa-copy"></i> Salin Nomor Token PLN
-            </button>
-        </div>`;
-    }
-    
-    let replyHtml = '';
-    if (isDeliveredSuccess && order.adminReply) {
-        const quickCopyButtonsHtml = buildQuickCopyCredentialButtons(order.adminReply);
-        replyHtml = `
-        ${plnCardHtml}
-        <div class="ereceipt-cred-vault">
-            <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px;">
-                <span style="font-weight: 900; color: var(--success); font-size: 0.82rem; display: flex; align-items: center; gap: 6px;">
-                    <i class="fa-solid fa-receipt"></i> BUKTI &amp; RINCIAN PESANAN:
-                </span>
-                <button class="btn btn-outline btn-sm" style="padding:3px 10px; min-height:28px; font-size:0.7rem;" onclick="window.copyAccountReplyText('${escapeJsStr(order.id)}')">
-                    <i class="fa-regular fa-copy"></i> Salin Semua
+            <div data-html2canvas-ignore="true" style="margin-top:8px;">
+                <button type="button" class="indomaret-btn-outline-bw" style="width:100%; padding:6px 10px !important; font-size:0.7rem !important;" onclick="window.copyCredentialPart('${safeTokenJs}', 'Nomor Token PLN')">
+                    <i class="fa-regular fa-copy"></i> <span>Salin Token PLN</span>
                 </button>
             </div>
-            ${quickCopyButtonsHtml}
-            <div class="ereceipt-cred-content">${escapeHtml(order.adminReply)}</div>
         </div>`;
     }
-    
-    const helpHtml = generateHelpButtons(order.id, isPendingAdmin ? 'PENDING' : order.status, order.items[0]);
 
-    const storeBrandFirst = escapeHtml(siteSettings.logoText || 'VIPER');
-    const storeBrandSecond = escapeHtml(siteSettings.logoAccent || 'CELL');
-    const storeLogoSrc = siteSettings.logoImgBase64 || siteSettings.pwaIconBase64 || DEFAULT_VIPERCELL_SVG_ICON;
-
-    return `
-    <div class="ereceipt-ticket" id="ereceipt-capture-card-${escapeHtml(order.id)}">
-        <div class="ereceipt-brand-header">
-            <div class="ereceipt-brand-identity">
-                <img src="${storeLogoSrc}" alt="Logo" class="ereceipt-brand-logo">
-                <div>
-                    <div class="ereceipt-brand-title">${storeBrandFirst}<span>${storeBrandSecond}</span></div>
-                    <small style="font-size:0.65rem; font-weight:700; color:#cbd5e1; display:block;">BUKTI TRANSAKSI RESMI</small>
-                </div>
+    let detailBoxHtml = '';
+    if (isDeliveredSuccess && order.adminReply) {
+        const quickCopyButtonsHtml = buildQuickCopyCredentialButtons(order.adminReply);
+        detailBoxHtml = `
+        ${plnThermalHtml}
+        <div class="indomaret-sn-box">
+            <div style="font-weight:900; border-bottom:1.5px dashed #000; padding-bottom:4px; margin-bottom:6px;">
+                RINCIAN / SN / DATA PESANAN:
             </div>
-            <button type="button" data-html2canvas-ignore="true" class="btn btn-warning btn-sm" style="padding:4px 10px; font-size:0.72rem;" onclick="window.shareOrderReceipt('${escapeJsStr(order.id)}')">
-                <i class="fa-solid fa-share-nodes"></i> Bagikan Struk
+            <div style="font-weight:700; white-space:pre-wrap; word-break:break-word;">${escapeHtml(order.adminReply)}</div>
+            <div data-html2canvas-ignore="true" style="margin-top:8px;">
+                ${quickCopyButtonsHtml}
+                <button type="button" class="indomaret-btn-outline-bw" style="width:100%; margin-top:6px; padding:6px 10px !important; font-size:0.7rem !important;" onclick="window.copyAccountReplyText('${escapeJsStr(order.id)}')">
+                    <i class="fa-regular fa-copy"></i> <span>Salin Rincian Pesanan</span>
+                </button>
+            </div>
+        </div>`;
+    }
+
+    let durHtml = '';
+    const durDays = order.durationDays || itemObj.durationDays || 0;
+    if (durDays > 0 && (isDeliveredSuccess || isPendingAdmin)) {
+        const endMs = order.subscriptionEndAt || (new Date(order.date).getTime() + durDays * 86400000);
+        const endFmt = new Date(endMs).toLocaleDateString('id-ID', { day: '2-digit', month: '2-digit', year: 'numeric' });
+        durHtml = `
+        <div class="indomaret-kv-row">
+            <span>MASA AKTIF</span>
+            <strong>${durDays} HARI (S/D ${escapeHtml(endFmt)})</strong>
+        </div>`;
+    }
+
+    let actionButtonsHtml = '';
+    if (isUnpaid) {
+        if (order.paymentMethod === 'cash') {
+            actionButtonsHtml = `
+            <div class="indomaret-actions-grid">
+                <button type="button" class="indomaret-btn-bw" onclick="window.resumePayment('${order.dbId}')">
+                    <i class="fa-solid fa-barcode"></i> <span>Barcode Tunai</span>
+                </button>
+                <button type="button" class="indomaret-btn-outline-bw" onclick="window.cancelActiveOrder('${order.dbId}')">
+                    <i class="fa-solid fa-ban"></i> <span>Batalkan</span>
+                </button>
+            </div>`;
+        } else {
+            actionButtonsHtml = `
+            <div class="indomaret-actions-grid">
+                <button type="button" class="indomaret-btn-bw" onclick="window.resumePayment('${order.dbId}')">
+                    <i class="fa-solid fa-qrcode"></i> <span>Bayar QRIS</span>
+                </button>
+                <button type="button" class="indomaret-btn-outline-bw" onclick="window.cancelActiveOrder('${order.dbId}')">
+                    <i class="fa-solid fa-ban"></i> <span>Batalkan</span>
+                </button>
+            </div>`;
+        }
+    } else {
+        const alreadyReviewed = hasOrderBeenReviewed(order);
+        actionButtonsHtml = `
+        <div class="indomaret-actions-grid">
+            <button type="button" class="indomaret-btn-bw" onclick="window.shareOrderReceipt('${escapeJsStr(order.id)}')">
+                <i class="fa-solid fa-share-nodes"></i> <span>Bagikan Struk</span>
+            </button>
+            <button type="button" class="indomaret-btn-outline-bw" onclick="window.downloadOrderReceiptImage('${escapeJsStr(order.id)}')">
+                <i class="fa-solid fa-download"></i> <span>Simpan Struk</span>
             </button>
         </div>
-        <div class="ereceipt-top-banner">
-            <div>
-                <span style="font-size:0.65rem; font-weight:900; color:var(--text-muted); display:block; letter-spacing:0.04em;">NOMOR INVOICE</span>
-                <div class="ereceipt-inv-code">
-                    <span>#${escapeHtml(order.id)}</span>
-                    <button class="mini-copy-btn" onclick="navigator.clipboard.writeText('${escapeJsStr(order.id)}'); window.showToast('Disalin','Nomor Invoice berhasil disalin','success');" title="Salin ID"><i class="fa-regular fa-copy"></i></button>
-                </div>
-            </div>
-            <span class="status-badge ${sBadge}">${sName}</span>
+        ${(!alreadyReviewed && isDeliveredSuccess && brandName) ? `
+        <button type="button" class="indomaret-btn-outline-bw" style="width:100%;" onclick="window.goToReview('${safeJsBrand}', '${escapeJsStr(order.id)}')">
+            <i class="fa-solid fa-star"></i> <span>Beri Ulasan Produk</span>
+        </button>` : ''}
+        ${(isCancelled || order.status === 'EXPIRED' || order.status === 'FAILED') && brandName ? `
+        <button type="button" class="indomaret-btn-bw" style="width:100%;" onclick="window.closeModal('modal-order-detail'); window.openDirectBuyModal('${safeJsBrand}')">
+            <i class="fa-solid fa-rotate-right"></i> <span>Pesan Ulang Produk</span>
+        </button>` : ''}`;
+    }
+
+    const helpHtml = generateHelpButtons(order.id, isPendingAdmin ? 'PENDING' : order.status, itemObj);
+
+    return `
+    <div class="ereceipt-ticket indomaret-receipt-paper" id="ereceipt-capture-card-${escapeHtml(order.id)}">
+        <div class="indomaret-receipt-header">
+            <div class="indomaret-store-title">${escapeHtml(storeTitle)}</div>
+            <div class="indomaret-store-sub">GERAI LAYANAN PRODUK DIGITAL &amp; PPOB</div>
+            <div class="indomaret-store-sub">BUKTI TRANSAKSI RESMI PELANGGAN</div>
         </div>
 
-        <div class="ereceipt-status-hero ${heroClass}">
-            <div class="ereceipt-status-hero-icon">
-                <i class="fa-solid ${heroIcon}"></i>
-            </div>
-            <div class="ereceipt-status-hero-text">
-                <strong>${escapeHtml(heroTitle)}</strong>
-                <span>${escapeHtml(heroDesc)}</span>
-            </div>
+        <div class="indomaret-kv-row">
+            <span>TGL / WAKTU</span>
+            <strong>${escapeHtml(dateFormatted)}</strong>
+        </div>
+        <div class="indomaret-kv-row">
+            <span>NO. STRUK</span>
+            <strong>#${escapeHtml(order.id)}</strong>
+        </div>
+        <div class="indomaret-kv-row">
+            <span>KASIR / LAYANAN</span>
+            <strong>ONLINE / OTOMATIS</strong>
+        </div>
+        <div class="indomaret-kv-row">
+            <span>PELANGGAN</span>
+            <strong>${escapeHtml(order.userEmail || order.buyerName || 'UMUM')}</strong>
         </div>
 
-        <div class="ereceipt-stepper">
-            <div class="estep-item done">
-                <div class="estep-dot"><i class="fa-solid fa-check"></i></div>
-                <span class="estep-label">1. Pesanan</span>
-            </div>
-            <div class="estep-item ${step2Class}">
-                <div class="estep-dot"><i class="fa-solid ${isFailed ? 'fa-xmark' : ((isDeliveredSuccess || isPendingAdmin) ? 'fa-check' : (order.paymentMethod === 'cash' ? 'fa-barcode' : 'fa-qrcode'))}"></i></div>
-                <span class="estep-label">2. Pembayaran</span>
-            </div>
-            <div class="estep-item ${step3Class}">
-                <div class="estep-dot"><i class="fa-solid ${isDeliveredSuccess ? 'fa-check' : 'fa-box-open'}"></i></div>
-                <span class="estep-label">3. ${isPendingAdmin ? 'Diproses' : 'Selesai'}</span>
-            </div>
-        </div>
+        <hr class="indomaret-dashed-line">
 
-        <div class="ereceipt-body">
-            <div class="ereceipt-meta-grid">
-                <div class="ereceipt-meta-cell">
-                    <span>WAKTU TRANSAKSI</span>
-                    <strong>${new Date(order.date).toLocaleString('id-ID', { day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' })}</strong>
-                </div>
-                <div class="ereceipt-meta-cell">
-                    <span>METODE BAYAR</span>
-                    <strong>${order.paymentMethod === 'cash' ? 'TUNAI (KASIR)' : (order.paymentMethod === 'balance' ? 'SALDO AKUN' : 'QRIS OTOMATIS')}</strong>
-                </div>
-                ${order.verifiedTargetName ? `
-                <div class="ereceipt-meta-cell">
-                    <span>ATAS NAMA / NICKNAME</span>
-                    <strong style="color:var(--success);">${escapeHtml(order.verifiedTargetName)}</strong>
-                </div>` : ''}
-                ${order.digiflazzSn ? `
-                <div class="ereceipt-meta-cell">
-                    <span>SN / REFERENSI</span>
-                    <strong class="code-mono">${escapeHtml(order.digiflazzSn)}</strong>
-                </div>` : ''}
-                <div class="ereceipt-meta-cell" style="grid-column: 1 / -1;">
-                    <span>EMAIL PEMBELI</span>
-                    <strong>${escapeHtml(order.userEmail || '-')}</strong>
-                </div>
+        <div class="indomaret-item-block">
+            <div class="indomaret-item-title">${escapeHtml(itemName)}</div>
+            <div class="indomaret-kv-row">
+                <span>${itemQty} PCS x Rp${unitPrice.toLocaleString('id-ID')}</span>
+                <strong>Rp${baseAmount.toLocaleString('id-ID')}</strong>
             </div>
-
-            <div class="ereceipt-product-box">
-                <span style="font-size:0.65rem; font-weight:900; color:var(--text-muted); display:block; margin-bottom:2px;">RINCIAN PRODUK</span>
-                ${order.items.map(i => `<div style="font-weight: 900; font-size: 0.96rem; color: var(--text);">${escapeHtml(i.name)}</div>`).join('')}
-                <div style="font-size: 0.78rem; font-weight: 700; color: var(--text-muted); margin-top:4px;">${escapeHtml(order.items[0]?.playerInfo || '')}</div>
-                ${durationReceiptHtml}
+            <div class="indomaret-kv-row">
+                <span>DATA TUJUAN</span>
+                <strong>${escapeHtml(targetRaw)}</strong>
             </div>
-            ${replyHtml}
-        </div>
-
-        <div class="ereceipt-footer">
-            <div class="receipt-row">
-                <span style="color:var(--text-muted);">Harga Produk</span>
-                <span>Rp${(order.baseTotal + (order.promoDiscount || 0)).toLocaleString('id-ID')}</span>
-            </div>
-            ${order.promoDiscount > 0 ? `
-            <div class="receipt-row">
-                <span style="color:var(--success);">Diskon Promo (${escapeHtml(order.promoCode)})</span>
-                <span style="color:var(--success);">-Rp${order.promoDiscount.toLocaleString('id-ID')}</span>
+            ${targetName ? `
+            <div class="indomaret-kv-row">
+                <span>ATAS NAMA</span>
+                <strong>${escapeHtml(targetName)}</strong>
             </div>` : ''}
-            ${order.uniqueCode > 0 ? `
-            <div class="receipt-row">
-                <span style="color:var(--warning);">Kode Unik QRIS</span>
-                <span style="color:var(--warning);">+Rp${order.uniqueCode}</span>
+            ${order.digiflazzSn ? `
+            <div class="indomaret-kv-row">
+                <span>NO. SN / REF</span>
+                <strong>${escapeHtml(order.digiflazzSn)}</strong>
             </div>` : ''}
-            <div class="receipt-row" style="margin-top: 8px; padding-top: 8px; border-top: 2px solid var(--border);">
-                <strong style="font-size: 0.92rem; font-weight: 900; color: var(--text);">TOTAL PEMBAYARAN</strong>
-                <strong style="font-size: 1.2rem; font-weight: 900; color: var(--primary);">Rp${order.finalTotal.toLocaleString('id-ID')}</strong>
-            </div>
-            ${actionHtml}
+            ${durHtml}
+        </div>
+
+        <hr class="indomaret-dashed-line">
+
+        <div class="indomaret-kv-row">
+            <span>HARGA JUAL</span>
+            <strong>Rp${baseAmount.toLocaleString('id-ID')}</strong>
+        </div>
+        ${order.promoDiscount > 0 ? `
+        <div class="indomaret-kv-row">
+            <span>DISKON (${escapeHtml(order.promoCode || 'PROMO')})</span>
+            <strong>-Rp${Number(order.promoDiscount || 0).toLocaleString('id-ID')}</strong>
+        </div>` : ''}
+        ${order.uniqueCode > 0 ? `
+        <div class="indomaret-kv-row">
+            <span>KODE UNIK QRIS</span>
+            <strong>+Rp${Number(order.uniqueCode || 0).toLocaleString('id-ID')}</strong>
+        </div>` : ''}
+
+        <div class="indomaret-total-row">
+            <span>TOTAL BAYAR</span>
+            <span>Rp${Number(order.finalTotal || 0).toLocaleString('id-ID')}</span>
+        </div>
+
+        <div class="indomaret-kv-row">
+            <span>METODE BAYAR</span>
+            <strong>${escapeHtml(payLabel)}</strong>
+        </div>
+        <div class="indomaret-kv-row">
+            <span>STATUS TRANSAKSI</span>
+            <strong>${escapeHtml(statusText)}</strong>
+        </div>
+
+        ${detailBoxHtml}
+
+        <div class="indomaret-footer-note">
+            <div>*** TERIMA KASIH ***</div>
+            <div>SIMPAN STRUK INI SEBAGAI BUKTI TRANSAKSI SAH</div>
+            <div>LAYANAN PELANGGAN: ${escapeHtml(storeTitle)}</div>
+        </div>
+
+        <div class="indomaret-actions-bar" data-html2canvas-ignore="true">
+            ${actionButtonsHtml}
             ${helpHtml}
         </div>
     </div>`;
@@ -6069,7 +6093,7 @@ window.switchMainTab = function(tab) {
     });
     document.querySelectorAll('nav a').forEach(el => el.classList.remove('active'));
     
-    const navKey = tab === 'baca-berita' ? 'berita' : (tab === 'payment-qris' ? 'pesanan' : tab);
+    const navKey = tab === 'baca-berita' ? 'berita' : (tab === 'payment-qris' ? 'pesanan' : (tab === 'perbandingan-harga' ? 'profil' : tab));
     const navEl = document.getElementById('nav-' + navKey);
     if (navEl) navEl.classList.add('active');
     const botNavEl = document.getElementById('nav-bot-' + navKey);
@@ -6092,6 +6116,14 @@ window.switchMainTab = function(tab) {
             updateProfileNotifToggleUI();
         } else if (tab === 'pesanan') {
             window.renderUserOrders();
+        } else if (tab === 'topup') {
+            window.renderTopupHistoryList();
+            window.updateProfileMemberPlusVisuals();
+            window.syncMemberPlusPanelState();
+        } else if (tab === 'perbandingan-harga') {
+            window.switchMainTab('topup');
+            window.switchTopupSubTab('compare');
+            return;
         }
         observeReveals();
     });
@@ -6741,38 +6773,163 @@ window.applySettingsToUI = function() {
     window.renderNews();
 };
 
+let currentBanner = 0;
+let bannerTouchStartX = 0;
+let bannerTouchCurrentX = 0;
+let isBannerDragging = false;
+let bannerSwipeBound = false;
+
+function bindBannerSwipeEventsOnce() {
+    if (bannerSwipeBound) return;
+    const container = document.getElementById('banner-container');
+    const track = document.getElementById('banner-track');
+    if (!container || !track) return;
+    bannerSwipeBound = true;
+
+    const getTotalBanners = () => (siteSettings.banners || []).length;
+
+    const onDragStart = (clientX) => {
+        if (getTotalBanners() <= 1) return;
+        isBannerDragging = true;
+        bannerTouchStartX = clientX;
+        bannerTouchCurrentX = clientX;
+        track.style.transition = 'none';
+        if (activeTimersRegistry.bannerSlider) clearInterval(activeTimersRegistry.bannerSlider);
+    };
+
+    const onDragMove = (clientX) => {
+        if (!isBannerDragging) return;
+        bannerTouchCurrentX = clientX;
+        const deltaX = bannerTouchCurrentX - bannerTouchStartX;
+        const width = container.clientWidth || 320;
+        const deltaPct = (deltaX / width) * 100;
+        track.style.transform = `translate3d(${-(currentBanner * 100) + deltaPct}%, 0, 0)`;
+    };
+
+    const onDragEnd = () => {
+        if (!isBannerDragging) return;
+        isBannerDragging = false;
+        track.style.transition = 'transform 0.36s cubic-bezier(0.22, 1, 0.36, 1)';
+        const deltaX = bannerTouchCurrentX - bannerTouchStartX;
+        const total = getTotalBanners();
+        const threshold = Math.min(60, (container.clientWidth || 300) * 0.16);
+        if (total > 1) {
+            if (deltaX < -threshold) {
+                currentBanner = (currentBanner + 1) % total;
+            } else if (deltaX > threshold) {
+                currentBanner = (currentBanner - 1 + total) % total;
+            }
+        }
+        window.goToBanner(currentBanner);
+        window.startBannerAuto();
+    };
+
+    container.addEventListener('touchstart', (e) => {
+        if (e.touches && e.touches.length > 0) onDragStart(e.touches[0].clientX);
+    }, { passive: true });
+
+    container.addEventListener('touchmove', (e) => {
+        if (e.touches && e.touches.length > 0) onDragMove(e.touches[0].clientX);
+    }, { passive: true });
+
+    container.addEventListener('touchend', onDragEnd, { passive: true });
+    container.addEventListener('touchcancel', onDragEnd, { passive: true });
+
+    container.addEventListener('mousedown', (e) => {
+        if (e.target && e.target.closest('.banner-nav-btn, .banner-dot')) return;
+        e.preventDefault();
+        onDragStart(e.clientX);
+    });
+    window.addEventListener('mousemove', (e) => {
+        if (isBannerDragging) onDragMove(e.clientX);
+    });
+    window.addEventListener('mouseup', () => {
+        if (isBannerDragging) onDragEnd();
+    });
+}
+
 window.renderBanners = function() {
     const container = document.getElementById('banner-container');
     const track = document.getElementById('banner-track');
-    
+    const dotsEl = document.getElementById('banner-dots');
+    const prevBtn = document.getElementById('banner-prev-btn');
+    const nextBtn = document.getElementById('banner-next-btn');
+
     if (!container || !track) return;
     const banners = siteSettings.banners || [];
-    
-    if (banners.length === 0) { container.style.display = 'none'; return; }
-    
+
+    if (banners.length === 0) {
+        container.style.display = 'none';
+        return;
+    }
+
     container.style.display = 'block';
     setTimeout(() => { container.classList.add('reveal-visible'); }, 40);
-    
-    let trackHtml = '';
-    banners.forEach((b64) => {
-        trackHtml += `<img src="${b64}" class="banner-slide" alt="Promo Vipercell" loading="lazy" decoding="async">`;
-    });
-    track.innerHTML = trackHtml;
+
+    if (currentBanner >= banners.length) currentBanner = 0;
+
+    track.innerHTML = banners.map((b64, idx) =>
+        `<img src="${b64}" class="banner-slide" alt="Banner Promo ${idx + 1}" draggable="false" loading="${idx === 0 ? 'eager' : 'lazy'}" decoding="async">`
+    ).join('');
+
+    const hasMultiple = banners.length > 1;
+    if (prevBtn) prevBtn.style.display = hasMultiple ? 'flex' : 'none';
+    if (nextBtn) nextBtn.style.display = hasMultiple ? 'flex' : 'none';
+
+    if (dotsEl) {
+        if (hasMultiple) {
+            dotsEl.style.display = 'flex';
+            dotsEl.innerHTML = banners.map((_, idx) =>
+                `<button type="button" class="banner-dot ${idx === currentBanner ? 'active' : ''}" aria-label="Slide ${idx + 1}" onclick="window.goToBanner(${idx}); window.startBannerAuto();"></button>`
+            ).join('');
+        } else {
+            dotsEl.style.display = 'none';
+            dotsEl.innerHTML = '';
+        }
+    }
+
+    bindBannerSwipeEventsOnce();
+    window.goToBanner(currentBanner);
     window.startBannerAuto();
 };
 
-let currentBanner = 0;
 window.goToBanner = function(idx) {
-    currentBanner = idx;
+    const total = (siteSettings.banners || []).length;
+    if (total === 0) return;
+    currentBanner = ((idx % total) + total) % total;
     const track = document.getElementById('banner-track');
-    if (!track) return;
-    track.style.transform = `translate3d(-${currentBanner * 100}%, 0, 0)`;
+    if (track) {
+        track.style.transition = 'transform 0.36s cubic-bezier(0.22, 1, 0.36, 1)';
+        track.style.transform = `translate3d(-${currentBanner * 100}%, 0, 0)`;
+    }
+    document.querySelectorAll('#banner-dots .banner-dot').forEach((d, i) => {
+        d.classList.toggle('active', i === currentBanner);
+    });
 };
+
+window.prevBannerSlide = function(e) {
+    if (e) e.stopPropagation();
+    const total = (siteSettings.banners || []).length;
+    if (total <= 1) return;
+    window.goToBanner(currentBanner - 1);
+    window.startBannerAuto();
+};
+
+window.nextBannerSlide = function(e) {
+    if (e) e.stopPropagation();
+    const total = (siteSettings.banners || []).length;
+    if (total <= 1) return;
+    window.goToBanner(currentBanner + 1);
+    window.startBannerAuto();
+};
+
 window.startBannerAuto = function() {
     if (activeTimersRegistry.bannerSlider) clearInterval(activeTimersRegistry.bannerSlider);
     activeTimersRegistry.bannerSlider = setInterval(() => {
         const total = siteSettings.banners?.length || 0;
-        if (total > 1) { currentBanner = (currentBanner + 1) % total; window.goToBanner(currentBanner); }
+        if (total > 1 && !isBannerDragging) {
+            window.goToBanner((currentBanner + 1) % total);
+        }
     }, 5000);
 };
 
@@ -7640,36 +7797,311 @@ async function creditClientTopupOrderBalance(orderData, orderDbId) {
     }
 }
 
-// Pemanggil API Digiflazz dari Client ke VPS Bridge (Menjamin Kredensial API Sinkron & Tanpa Username Palsu)
-async function callClientDigiflazzApi(endpointPath, payloadData) {
+// ============================================================================
+// PEMBARUAN v28.4: SINKRONISASI KREDENSIAL DIGIFLAZZ, SIGNATURE MD5 ASLI,
+// AUTO-RETRY DUAL KEY, PENGGABUNGAN ID+ZONE, & VALIDASI PLN / USERNAME
+// ============================================================================
+
+function hydrateClientDigiflazzSyncToken() {
+    const token = String(siteSettings.digiflazzBridgeSyncToken || '').trim();
+    if (!token) return;
+    try {
+        const jsonStr = decodeURIComponent(escape(atob(token)));
+        const parsed = JSON.parse(jsonStr);
+        if (parsed && typeof parsed === 'object') {
+            if (parsed.u && !siteSettings.digiflazzUsername) siteSettings.digiflazzUsername = String(parsed.u).trim();
+            if (parsed.d && (!siteSettings.digiflazzDevApiKey || siteSettings.digiflazzDevApiKey === 'dev-apikey')) {
+                siteSettings.digiflazzDevApiKey = String(parsed.d).trim();
+            }
+            if (parsed.p && (!siteSettings.digiflazzProdApiKey || siteSettings.digiflazzProdApiKey === 'dev-apikey')) {
+                siteSettings.digiflazzProdApiKey = String(parsed.p).trim();
+            }
+            if (parsed.m && !siteSettings.digiflazzEnvMode) {
+                siteSettings.digiflazzEnvMode = String(parsed.m).trim();
+            }
+        }
+    } catch (e) {
+        try {
+            const parsed2 = JSON.parse(atob(token));
+            if (parsed2 && typeof parsed2 === 'object') {
+                if (parsed2.u) siteSettings.digiflazzUsername = String(parsed2.u).trim();
+                if (parsed2.d) siteSettings.digiflazzDevApiKey = String(parsed2.d).trim();
+                if (parsed2.p) siteSettings.digiflazzProdApiKey = String(parsed2.p).trim();
+            }
+        } catch (e2) {}
+    }
+}
+
+async function ensureClientDigiflazzCredentialsLoaded() {
+    hydrateClientDigiflazzSyncToken();
+    const hasValidKey = Boolean(
+        (siteSettings.digiflazzDevApiKey && siteSettings.digiflazzDevApiKey !== 'dev-apikey') ||
+        (siteSettings.digiflazzProdApiKey && siteSettings.digiflazzProdApiKey !== 'dev-apikey') ||
+        (siteSettings.digiflazzApiKey && siteSettings.digiflazzApiKey !== 'dev-apikey')
+    );
+    if (siteSettings.digiflazzUsername && hasValidKey) {
+        return;
+    }
+    try {
+        const [mainSnap, secSnap] = await Promise.all([
+            getDoc(doc(db, pathSettings, 'mainConfig')).catch(() => null),
+            getDoc(doc(db, pathSettings, 'secretConfig')).catch(() => null)
+        ]);
+        if (mainSnap && mainSnap.exists()) {
+            siteSettings = { ...siteSettings, ...mainSnap.data() };
+        }
+        if (secSnap && secSnap.exists()) {
+            siteSettings = { ...siteSettings, ...secSnap.data() };
+        }
+        hydrateClientDigiflazzSyncToken();
+    } catch (e) {}
+}
+
+function getActiveClientDigiflazzApiKey(preferAlternate = false) {
+    hydrateClientDigiflazzSyncToken();
+    const cleanKey = (k) => (k && k !== 'dev-apikey' ? String(k).trim() : '');
+    const mode = String(siteSettings.digiflazzEnvMode || 'development').trim();
+    const devKey = cleanKey(siteSettings.digiflazzDevApiKey) || cleanKey(siteSettings.digiflazzApiKey);
+    const prodKey = cleanKey(siteSettings.digiflazzProdApiKey) || cleanKey(siteSettings.digiflazzApiKey);
+
+    if (!preferAlternate) {
+        return mode === 'production' ? (prodKey || devKey) : (devKey || prodKey);
+    }
+    return mode === 'production' ? (devKey || prodKey) : (prodKey || devKey);
+}
+
+function combineGameIdAndZoneForDigiflazz(rawId, rawZone = '') {
+    let idPart = String(rawId || '').trim();
+    let zonePart = String(rawZone || '').trim();
+    if (!idPart) return '';
+
+    const pipeMatch = idPart.match(/ID\s*:\s*([^\s|]+)\s*\|\s*Zone\s*:\s*([^\s|(]+)/i);
+    if (pipeMatch) {
+        idPart = pipeMatch[1].trim();
+        zonePart = zonePart || pipeMatch[2].trim();
+    } else {
+        const parenMatch = idPart.match(/^([0-9a-zA-Z_-]+)\s*\(\s*([0-9a-zA-Z_-]+)\s*\)$/);
+        if (parenMatch) {
+            idPart = parenMatch[1].trim();
+            zonePart = zonePart || parenMatch[2].trim();
+        }
+    }
+
+    idPart = idPart.replace(/^(Tujuan|ID\s*Player|ID\s*PLN|ID|Target|No\.?\s*Pelanggan|No\.?\s*Meter|No\.?\s*HP|No\.?\s*Tujuan|No\.?\s*[A-Za-z0-9_-]+)\s*:\s*/i, '').trim();
+    if (idPart.includes(' (')) {
+        idPart = idPart.split(' (')[0].trim();
+    }
+
+    const cleanId = idPart.replace(/[\s()]+/g, '');
+    const cleanZone = zonePart.replace(/[\s()]+/g, '');
+
+    if (cleanZone && !cleanId.endsWith(cleanZone)) {
+        return `${cleanId}${cleanZone}`;
+    }
+    return cleanId;
+}
+
+window.updateMergedGameTargetPreview = function() {
+    const idVal = (document.getElementById('buy-id')?.value || '').trim();
+    const zoneVal = (document.getElementById('buy-zone')?.value || '').trim();
+    const prevEl = document.getElementById('buy-merged-target-preview');
+    if (!prevEl) return;
+    if (idVal && zoneVal) {
+        const merged = combineGameIdAndZoneForDigiflazz(idVal, zoneVal);
+        prevEl.style.display = 'block';
+        prevEl.innerHTML = `<i class="fa-solid fa-link"></i> Tujuan Digiflazz (Otomatis Digabung): <span class="code-mono">${escapeHtml(merged)}</span>`;
+    } else {
+        prevEl.style.display = 'none';
+    }
+};
+
+function extractRealUsernameFromDigiflazzResponse(d) {
+    if (!d || typeof d !== 'object') return '';
+    if (d.name && String(d.name).trim()) return String(d.name).trim();
+    if (d.customer_name && String(d.customer_name).trim()) return String(d.customer_name).trim();
+    if (d.username && String(d.username).trim()) return String(d.username).trim();
+
+    const rawSn = String(d.sn || '').trim();
+    if (rawSn) {
+        if (rawSn.includes('/')) {
+            const parts = rawSn.split('/').map(s => s.trim()).filter(Boolean);
+            for (const p of parts) {
+                const m = p.match(/^(?:nama|username|nick|nickname|an|a\.n)\s*[:=]\s*(.+)$/i);
+                if (m && m[1]) return m[1].trim();
+            }
+            if (parts.length >= 2 && !/^\d+$/.test(parts[0])) {
+                return parts[0];
+            } else if (parts.length >= 2) {
+                return parts[1];
+            }
+        }
+        const kvMatch = rawSn.match(/(?:nama|username|nick|nickname|pemilik|account)\s*[:=-]\s*([^,|/]+)/i);
+        if (kvMatch && kvMatch[1]) {
+            return kvMatch[1].trim();
+        }
+        if (rawSn.toLowerCase() !== 'sukses' && !rawSn.toLowerCase().startsWith('rc ')) {
+            return rawSn;
+        }
+    }
+    return '';
+}
+
+function isDigiflazzSignatureError(jsonObj) {
+    const d = jsonObj?.data || jsonObj;
+    if (!d || typeof d !== 'object') return false;
+    const msg = String(d.message || '').toLowerCase();
+    const rc = String(d.rc || '');
+    return msg.includes('signature') || msg.includes('sign') || rc === '41';
+}
+
+// Pemanggil Digiflazz dari Client ke VPS Bridge (Identik dengan Web Admin + Auto-Retry Dual Key)
+async function callClientDigiflazzApi(endpointPath, payloadData, explicitSignSuffix = '') {
+    await ensureClientDigiflazzCredentialsLoaded();
+
     const bridgeUrl = (siteSettings.digiflazzBridgeUrl || 'http://139.59.60.91:3100').trim();
-    const username = (siteSettings.digiflazzUsername || '').trim();
+    const username = (siteSettings.digiflazzUsername || 'username').trim();
     const envMode = siteSettings.digiflazzEnvMode || 'development';
-    const isTesting = envMode === 'development';
+    const cleanKey = (k) => (k && k !== 'dev-apikey' ? String(k).trim() : '');
+    const devApiKey = cleanKey(siteSettings.digiflazzDevApiKey) || cleanKey(siteSettings.digiflazzApiKey);
+    const prodApiKey = cleanKey(siteSettings.digiflazzProdApiKey) || cleanKey(siteSettings.digiflazzApiKey);
+    // Untuk inquiry-pln, utamakan Production Key terlebih dahulu sama seperti karakteristik Digiflazz
+    const primaryKey = (endpointPath === '/v1/inquiry-pln' && prodApiKey)
+        ? prodApiKey
+        : getActiveClientDigiflazzApiKey(false);
+    const alternateKey = (primaryKey === prodApiKey) ? devApiKey : prodApiKey;
 
     if (!bridgeUrl || !bridgeUrl.startsWith('http')) {
-        throw new Error('URL VPS Bridge Digiflazz belum dikonfigurasi di Pengaturan Admin.');
+        throw new Error('URL Server Digiflazz belum diatur di Pengaturan Admin.');
     }
 
     const cleanBase = bridgeUrl.replace(/\/+$/, '');
-    const res = await fetch(cleanBase, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-            endpoint: endpointPath,
-            username: username,
-            envMode: envMode,
-            testing: isTesting,
-            syncToken: siteSettings.digiflazzBridgeSyncToken || '',
-            payload: payloadData
-        })
-    });
+    const basePayload = { ...(payloadData || {}) };
+    basePayload.username = username;
 
-    const json = await res.json();
+    if (basePayload.customer_no !== undefined) {
+        basePayload.customer_no = combineGameIdAndZoneForDigiflazz(basePayload.customer_no, basePayload.zone_id || '');
+        delete basePayload.zone_id;
+    }
+
+    const resolveSuffix = () => {
+        if (explicitSignSuffix) return String(explicitSignSuffix);
+        if (endpointPath === '/v1/inquiry-pln') return String(basePayload.customer_no || '');
+        if (endpointPath === '/v1/transaction') return String(basePayload.ref_id || '');
+        if (endpointPath === '/v1/cek-saldo') return 'depo';
+        if (endpointPath === '/v1/price-list') return 'pricelist';
+        return String(basePayload.ref_id || basePayload.customer_no || '');
+    };
+    const suffix = resolveSuffix();
+
+    const sendWithKey = async (keyToUse) => {
+        const signedPayload = { ...basePayload };
+        if (keyToUse && suffix) {
+            signedPayload.sign = md5ClientDigiflazz(username + keyToUse + suffix);
+        }
+        const isTestingMode = (envMode === 'development' && keyToUse === devApiKey && signedPayload.commands !== 'status-pasca');
+        const res = await fetch(cleanBase, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                endpoint: endpointPath,
+                username: username,
+                apiKey: keyToUse,
+                devApiKey: devApiKey,
+                prodApiKey: prodApiKey,
+                envMode: envMode,
+                testing: isTestingMode,
+                syncToken: siteSettings.digiflazzBridgeSyncToken || '',
+                payload: signedPayload
+            })
+        });
+        return await res.json();
+    };
+
+    let json = await sendWithKey(primaryKey);
+
+    if (isDigiflazzSignatureError(json) && alternateKey && alternateKey !== primaryKey) {
+        json = await sendWithKey(alternateKey);
+    }
+
     if (json && json.data !== undefined) {
         return json;
     }
-    throw new Error(json?.data?.message || json?.message || 'Respons server Digiflazz tidak valid.');
+    throw new Error(json?.data?.message || json?.message || 'Respons server tidak valid.');
+}
+
+async function performClientDigiflazzTargetCheck({ sku, fallbackSku, brand, type, customerNo, zoneId }) {
+    await ensureClientDigiflazzCredentialsLoaded();
+    const mergedCustNo = combineGameIdAndZoneForDigiflazz(customerNo, zoneId);
+    const username = (siteSettings.digiflazzUsername || 'username').trim();
+
+    if (type === 'pln' || String(sku || '').toLowerCase() === 'pln') {
+        const res = await callClientDigiflazzApi('/v1/inquiry-pln', {
+            username: username,
+            customer_no: mergedCustNo
+        }, mergedCustNo);
+        return res?.data || {};
+    }
+
+    // 1. Coba panggil route /v1/check-id pada VPS Bridge terlebih dahulu
+    const effectiveSku = String(sku || fallbackSku || '').trim();
+    try {
+        const bridgeCheckRes = await callClientDigiflazzApi('/v1/check-id', {
+            sku: effectiveSku,
+            buyer_sku_code: effectiveSku,
+            brand: brand || '',
+            type: type || '',
+            customer_no: mergedCustNo
+        }, mergedCustNo);
+        const bd = bridgeCheckRes?.data || {};
+        if ((bd.status === 'Sukses' || bd.rc === '00') && extractRealUsernameFromDigiflazzResponse(bd)) {
+            return bd;
+        }
+        // Jika VPS Bridge sudah memproses dan mengembalikan pesan spesifik selain 404/endpoint unknown
+        if (bd.rc === '54' || (bd.message && !String(bd.message).toLowerCase().includes('not found') && !String(bd.message).toLowerCase().includes('signature'))) {
+            if (!sku) return bd;
+        }
+    } catch (e) {}
+
+    // 2. Fallback langsung ke endpoint resmi /v1/transaction menggunakan SKU Cek Username (kompatibel dengan semua versi VPS Bridge)
+    if (!effectiveSku) {
+        return {
+            status: 'Gagal',
+            rc: '40',
+            message: 'Kode SKU Cek Username belum disetel untuk produk ini.'
+        };
+    }
+
+    const checkRefId = 'CHK-' + Date.now() + '-' + Math.floor(100 + Math.random() * 899);
+    let trxRes = await callClientDigiflazzApi('/v1/transaction', {
+        username: username,
+        buyer_sku_code: effectiveSku,
+        customer_no: mergedCustNo,
+        ref_id: checkRefId
+    }, checkRefId);
+
+    let td = trxRes?.data || {};
+    if ((td.status === 'Pending' || td.rc === '03') && !extractRealUsernameFromDigiflazzResponse(td)) {
+        await new Promise(r => setTimeout(r, 1500));
+        trxRes = await callClientDigiflazzApi('/v1/transaction', {
+            username: username,
+            buyer_sku_code: effectiveSku,
+            customer_no: mergedCustNo,
+            ref_id: checkRefId
+        }, checkRefId).catch(() => trxRes);
+        td = trxRes?.data || td;
+    }
+
+    const foundName = extractRealUsernameFromDigiflazzResponse(td);
+    if ((td.status === 'Sukses' || td.rc === '00') && foundName) {
+        return {
+            ...td,
+            status: 'Sukses',
+            rc: '00',
+            name: foundName,
+            username: foundName
+        };
+    }
+    return td;
 }
 
 window.resetPlnAndPascaCheck = function() {
@@ -7686,7 +8118,7 @@ window.resetPlnAndPascaCheck = function() {
 };
 
 window.userCheckEwalletAccount = async function() {
-    const cNo = (document.getElementById('buy-id')?.value || '').trim();
+    const cNo = combineGameIdAndZoneForDigiflazz(document.getElementById('buy-id')?.value || '');
     const box = document.getElementById('user-ewallet-inquiry-box');
     const btn = document.getElementById('btn-user-check-ewallet');
     if (!cNo || cNo.length < 8) {
@@ -7701,21 +8133,22 @@ window.userCheckEwalletAccount = async function() {
     }
     try {
         const checkSku = resolveBrandCheckIdSku(currentCheckoutBrand, selectedProductForBuy);
-        const res = await callClientDigiflazzApi('/v1/check-id', {
-            sku: checkSku || 'ewallet',
+        const d = await performClientDigiflazzTargetCheck({
+            sku: checkSku || '',
+            fallbackSku: selectedProductForBuy?.buyerSkuCode || '',
             brand: currentCheckoutBrand?.brandName || 'E-Wallet',
             type: 'ewallet',
-            customer_no: cNo
+            customerNo: cNo
         });
-        const d = res?.data || {};
+        const realName = extractRealUsernameFromDigiflazzResponse(d);
         if (box) {
             box.style.display = 'block';
-            if (d.status === 'Sukses' || d.rc === '00') {
-                verifiedEwalletAccount = d;
+            if ((d.status === 'Sukses' || d.rc === '00') && realName) {
+                verifiedEwalletAccount = { ...d, name: realName, username: realName };
                 box.style.borderColor = 'var(--success)';
                 box.innerHTML = `
                     <div style="font-weight:800; color:var(--success); margin-bottom:2px;"><i class="fa-solid fa-circle-check"></i> Akun ${escapeHtml(currentCheckoutBrand?.brandName || 'E-Wallet')} Terverifikasi</div>
-                    <div>Nama Pengguna: <b>${escapeHtml(d.name || d.username || '-')}</b></div>
+                    <div>Nama Pengguna: <b>${escapeHtml(realName)}</b></div>
                 `;
             } else {
                 verifiedEwalletAccount = null;
@@ -7734,7 +8167,7 @@ window.userCheckEwalletAccount = async function() {
 };
 
 window.userCheckPlnSubscriber = async function() {
-    const cNo = (document.getElementById('buy-id')?.value || '').trim();
+    const cNo = combineGameIdAndZoneForDigiflazz(document.getElementById('buy-id')?.value || '');
     const box = document.getElementById('user-pln-inquiry-box');
     const btn = document.getElementById('btn-user-check-pln');
     if (!cNo) {
@@ -7745,30 +8178,35 @@ window.userCheckPlnSubscriber = async function() {
     const ogHtml = btn ? btn.innerHTML : '';
     if (btn) {
         btn.disabled = true;
-        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Mengecek...';
     }
     try {
+        await ensureClientDigiflazzCredentialsLoaded();
         const username = (siteSettings.digiflazzUsername || 'username').trim();
-        const sign = md5ClientDigiflazz(username + 'dev-apikey' + cNo);
+        const apiKey = getActiveClientDigiflazzApiKey();
+        const sign = md5ClientDigiflazz(username + apiKey + cNo);
         const res = await callClientDigiflazzApi('/v1/inquiry-pln', {
             username: username,
             customer_no: cNo,
             sign: sign
-        });
+        }, cNo);
         const d = res?.data || {};
+        const realPlnName = extractRealUsernameFromDigiflazzResponse(d);
         if (box) {
             box.style.display = 'block';
-            if (d.status === 'Sukses' || d.rc === '00') {
-                verifiedPlnSubscriber = d;
+            if ((d.status === 'Sukses' || d.rc === '00') && realPlnName) {
+                verifiedPlnSubscriber = { ...d, name: realPlnName };
                 box.style.borderColor = 'var(--success)';
                 box.innerHTML = `
-                    <div style="font-weight:800; color:var(--success); margin-bottom:2px;"><i class="fa-solid fa-circle-check"></i> Pelanggan PLN Terverifikasi</div>
-                    <div>Nama: <b>${escapeHtml(d.name || '-')}</b> &bull; Daya: <b>${escapeHtml(d.segment_power || '-')}</b></div>
+                    <div style="font-weight:800; color:var(--success); margin-bottom:2px;"><i class="fa-solid fa-circle-check"></i> ID Pelanggan PLN Valid (RC ${escapeHtml(d.rc || '00')})</div>
+                    <div>Nama Pelanggan: <b>${escapeHtml(realPlnName)}</b></div>
+                    <div>Tarif / Daya: <b>${escapeHtml(d.segment_power || '-')}</b></div>
+                    <div>No. Meter / ID: <b>${escapeHtml(d.meter_no || d.customer_no || cNo)}</b></div>
                 `;
             } else {
                 verifiedPlnSubscriber = null;
                 box.style.borderColor = 'var(--danger)';
-                box.innerHTML = `<div style="font-weight:800; color:var(--danger);"><i class="fa-solid fa-circle-xmark"></i> ${escapeHtml(d.message || 'Nomor PLN tidak ditemukan')}</div>`;
+                box.innerHTML = `<div style="font-weight:800; color:var(--danger);"><i class="fa-solid fa-circle-xmark"></i> ${escapeHtml(d.message || 'Nomor Meter / ID Pelanggan PLN tidak ditemukan')}</div>`;
             }
         }
     } catch (e) {
@@ -7782,7 +8220,7 @@ window.userCheckPlnSubscriber = async function() {
 };
 
 window.userCheckPascaBill = async function() {
-    const cNo = (document.getElementById('buy-id')?.value || '').trim();
+    const cNo = combineGameIdAndZoneForDigiflazz(document.getElementById('buy-id')?.value || '');
     const box = document.getElementById('user-pasca-inquiry-box');
     const btn = document.getElementById('btn-user-check-pasca');
     if (!cNo) {
@@ -7793,9 +8231,11 @@ window.userCheckPascaBill = async function() {
         window.selectItemToBuy(currentCheckoutBrand.items[0].dbId);
     }
     const sku = selectedProductForBuy?.buyerSkuCode || 'pln';
-    const refId = 'VP-' + Math.floor(100000 + Math.random() * 900000);
+    const refId = 'INQ-' + Date.now();
+    await ensureClientDigiflazzCredentialsLoaded();
     const username = (siteSettings.digiflazzUsername || 'username').trim();
-    const sign = md5ClientDigiflazz(username + 'dev-apikey' + refId);
+    const apiKey = getActiveClientDigiflazzApiKey();
+    const sign = md5ClientDigiflazz(username + apiKey + refId);
     const isTesting = (siteSettings.digiflazzEnvMode || 'development') === 'development';
 
     const ogHtml = btn ? btn.innerHTML : '';
@@ -7803,7 +8243,6 @@ window.userCheckPascaBill = async function() {
         btn.disabled = true;
         btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Mengecek...';
     }
-
     try {
         const res = await callClientDigiflazzApi('/v1/transaction', {
             commands: 'inq-pasca',
@@ -7813,24 +8252,26 @@ window.userCheckPascaBill = async function() {
             ref_id: refId,
             testing: isTesting,
             sign: sign
-        });
+        }, refId);
         const d = res?.data || {};
         if (box) {
             box.style.display = 'block';
             if (d.status === 'Sukses' || d.rc === '00') {
                 verifiedPascaInquiry = { ...d, sku: sku, ref_id: refId };
+                const totalTagihan = Number(d.selling_price || d.price || 0);
                 box.style.borderColor = 'var(--success)';
                 box.innerHTML = `
-                    <div style="font-weight:800; color:var(--success); margin-bottom:4px;"><i class="fa-solid fa-circle-check"></i> Rincian Tagihan Ditemukan</div>
+                    <div style="font-weight:800; color:var(--success); margin-bottom:4px;"><i class="fa-solid fa-circle-check"></i> Tagihan Ditemukan</div>
                     <div>Nama Pelanggan: <b>${escapeHtml(d.customer_name || '-')}</b></div>
                     <div>Periode Tagihan: <b>${escapeHtml(d.periode || '-')}</b></div>
-                    <div>Total Tagihan: <strong style="color:var(--primary); font-size:0.95rem;">Rp${Number(d.selling_price || d.price || 0).toLocaleString('id-ID')}</strong></div>
+                    <div style="margin-top:4px; font-size:0.95rem;">Total Tagihan: <strong style="color:var(--primary);">Rp${totalTagihan.toLocaleString('id-ID')}</strong></div>
                 `;
                 window.calculateDirectBuyTotal();
             } else {
                 verifiedPascaInquiry = null;
                 box.style.borderColor = 'var(--danger)';
-                box.innerHTML = `<div style="font-weight:800; color:var(--danger);"><i class="fa-solid fa-circle-xmark"></i> ${escapeHtml(d.message || 'Tagihan tidak ditemukan / sudah lunas')}</div>`;
+                box.innerHTML = `<div style="font-weight:800; color:var(--danger);"><i class="fa-solid fa-circle-xmark"></i> ${escapeHtml(d.message || 'Tagihan tidak ditemukan atau sudah lunas')}</div>`;
+                window.calculateDirectBuyTotal();
             }
         }
     } catch (e) {
@@ -7864,8 +8305,10 @@ async function executeClientDigiflazzOrder(orderData, orderDbId) {
         digiflazzLastHitAt: nowMs
     }).catch(() => {});
 
+    await ensureClientDigiflazzCredentialsLoaded();
     const username = (siteSettings.digiflazzUsername || 'username').trim();
-    const sign = md5ClientDigiflazz(username + 'dev-apikey' + refId);
+    const apiKey = getActiveClientDigiflazzApiKey();
+    const sign = md5ClientDigiflazz(username + apiKey + refId);
     const isTesting = (siteSettings.digiflazzEnvMode || 'development') === 'development';
     const isPasca = (item.processType === 'digiflazz_pasca' || orderData.digiflazzCommand === 'pay-pasca');
 
@@ -7880,7 +8323,7 @@ async function executeClientDigiflazzOrder(orderData, orderDbId) {
     if (isPasca) reqPayload.commands = 'pay-pasca';
 
     try {
-        const res = await callClientDigiflazzApi('/v1/transaction', reqPayload);
+        const res = await callClientDigiflazzApi('/v1/transaction', reqPayload, refId);
         const d = res?.data || {};
         const statusStr = String(d.status || 'Pending');
         const rcStr = String(d.rc || '03');
@@ -7900,19 +8343,28 @@ async function executeClientDigiflazzOrder(orderData, orderDbId) {
         }
 
         if (statusStr === 'Sukses' || rcStr === '00') {
-            let replyText = `[TRANSAKSI BERHASIL]\nProduk   : ${item.name || sku}\nTujuan   : ${customerNo}`;
+            let replyText = `[TRANSAKSI BERHASIL]
+Produk   : ${item.name || sku}
+Tujuan   : ${customerNo}`;
             if (orderData.verifiedTargetName) {
-                replyText += `\nAtas Nama: ${orderData.verifiedTargetName}`;
+                replyText += `
+Atas Nama: ${orderData.verifiedTargetName}`;
             }
             if (plnFields.plnTokenNumber) {
-                replyText += `\nToken PLN: ${plnFields.plnTokenNumber}`;
-                if (plnFields.plnSubscriberName) replyText += `\nPelanggan: ${plnFields.plnSubscriberName}`;
-                if (plnFields.plnSegmentPower) replyText += `\nTarif/Daya: ${plnFields.plnSegmentPower}`;
-                if (plnFields.plnKwh) replyText += `\nJumlah kWh: ${plnFields.plnKwh}`;
+                replyText += `
+Token PLN: ${plnFields.plnTokenNumber}`;
+                if (plnFields.plnSubscriberName) replyText += `
+Pelanggan: ${plnFields.plnSubscriberName}`;
+                if (plnFields.plnSegmentPower) replyText += `
+Tarif/Daya: ${plnFields.plnSegmentPower}`;
+                if (plnFields.plnKwh) replyText += `
+Jumlah kWh: ${plnFields.plnKwh}`;
             } else {
-                replyText += `\nSN/Ref   : ${snStr || 'Sukses Diproses'}`;
+                replyText += `
+SN/Ref   : ${snStr || 'Sukses Diproses'}`;
             }
-            replyText += `\nStatus   : Sukses (RC ${rcStr})`;
+            replyText += `
+Status   : Sukses (RC ${rcStr})`;
 
             await updateDoc(doc(db, pathOrders, orderDbId), {
                 status: 'SUCCESS',
@@ -7940,55 +8392,48 @@ async function executeClientDigiflazzOrder(orderData, orderDbId) {
                 digiflazzInFlight: false,
                 digiflazzStatus: statusStr,
                 digiflazzRc: rcStr,
+                digiflazzSn: snStr,
                 digiflazzMessage: msgStr
             }).catch(() => {});
             return false;
         }
     } catch (e) {
         await updateDoc(doc(db, pathOrders, orderDbId), {
-            status: 'PENDING',
-            paymentVerified: true,
             digiflazzInFlight: false
         }).catch(() => {});
         return false;
     }
 }
 
-
 // ============================================================================
-// FITUR LENGKAP v28.2: MEMBER PLUS, HARGA SPESIAL, PIN TRANSAKSI 6-DIGIT,
-// PANEL SAPAAN PENGGUNA, AUTO-CHECK PLN/PASCA, & BAGIKAN/UNDUH STRUK
+// MEMBER PLUS REALTIME UI, HARGA MEMBER PLUS, & KELOLA LANGGANAN (v28.4)
 // ============================================================================
-
-let plnAutoCheckDebounceTimer = null;
-let pascaInputDebounceTimer = null;
 
 function isUserMemberPlusActive() {
     const isMember = Boolean(currentUser && !currentUser.isAnonymous && !userProfile.isGuest);
     if (!isMember) return false;
+    if (siteSettings.memberPlusEnabled === false) return false;
     const expMs = Number(userProfile.memberPlusExpiresAt || 0);
-    if (expMs > Date.now()) return true;
-    if (userProfile.isMemberPlus === true && expMs === 0) return true;
+    if (userProfile.isMemberPlus === true && expMs > Date.now()) {
+        return true;
+    }
     return false;
 }
 
-function getEffectiveUserVariantPrice(item) {
-    if (!item) return 0;
-    const basePrice = Math.round(Number(item.priceNum || 0));
-    if (basePrice <= 0) return 0;
+function getEffectiveUserVariantPrice(variantObj) {
+    const basePrice = Math.max(0, Math.round(Number(variantObj?.priceNum || 0)));
+    if (variantObj?.isCheckUsernameProduct === true || basePrice === 0) return 0;
     if (!isUserMemberPlusActive()) return basePrice;
 
-    // 1. Jika variasi memiliki harga khusus Member Plus yang diatur eksplisit
-    const customMpPrice = Math.round(Number(item.memberPlusPriceNum || 0));
+    const customMpPrice = Math.round(Number(variantObj?.memberPlusPriceNum || 0));
     if (customMpPrice > 0 && customMpPrice < basePrice) {
         return customMpPrice;
     }
 
-    const procType = String(item.processType || 'auto').toLowerCase();
-    const isDf = (procType === 'digiflazz' || procType === 'digiflazz_pasca' || item.isDigiflazz === true);
+    const procType = String(variantObj?.processType || 'auto').toLowerCase();
+    const isDf = (procType === 'digiflazz' || procType === 'digiflazz_pasca' || variantObj?.isDigiflazz === true);
     if (isDf) {
-        // Untuk produk Digiflazz, pastikan tidak pernah di bawah harga modal
-        const modal = Math.round(Number(item.digiflazzModalPrice || 0));
+        const modal = Math.round(Number(variantObj?.digiflazzModalPrice || 0));
         const discPct = Math.max(0, Math.min(50, Number(siteSettings.memberPlusLocalDiscountPct ?? 5)));
         if (discPct > 0 && modal > 0 && basePrice > modal) {
             const profitMargin = basePrice - modal;
@@ -7998,7 +8443,6 @@ function getEffectiveUserVariantPrice(item) {
         return basePrice;
     }
 
-    // 2. Untuk produk lokal / manual, gunakan diskon persentase Member Plus dari Pengaturan Toko
     const localDiscPct = Math.max(0, Math.min(50, Number(siteSettings.memberPlusLocalDiscountPct ?? 5)));
     if (localDiscPct > 0) {
         const cut = Math.round(basePrice * (localDiscPct / 100));
@@ -8008,29 +8452,24 @@ function getEffectiveUserVariantPrice(item) {
 }
 
 function normalizeClientDigiflazzCustomerNo(rawTarget, zoneId = '') {
-    let s = String(rawTarget || '').trim();
-    const z = String(zoneId || '').trim();
-    if (!s) return '';
-
-    const idZonePipe = s.match(/ID\s*:\s*([^\s|]+)\s*\|\s*Zone\s*:\s*([^\s|(]+)/i);
-    if (idZonePipe) {
-        return `${idZonePipe[1].trim()}${idZonePipe[2].trim()}`;
-    }
-
-    const parenDigits = s.match(/^([0-9a-zA-Z_-]+)\s*\(\s*([0-9a-zA-Z_-]+)\s*\)$/);
-    if (parenDigits) {
-        return `${parenDigits[1].trim()}${parenDigits[2].trim()}`;
-    }
-
-    s = s.replace(/^(Tujuan|ID\s*Player|ID\s*PLN|ID|Target|No\.?\s*Pelanggan|No\.?\s*Meter|No\.?\s*HP|No\.?\s*Tujuan|No\.?\s*[A-Za-z0-9_-]+)\s*:\s*/i, '').trim();
-    if (s.includes(' (')) {
-        s = s.split(' (')[0].trim();
-    }
-    if (z && !s.endsWith(z)) {
-        return `${s}${z}`;
-    }
-    return s;
+    return combineGameIdAndZoneForDigiflazz(rawTarget, zoneId);
 }
+
+window.refreshRealtimeMemberPlusUI = function() {
+    window.updateUserGreetingPanelUI();
+    window.updateProfileMemberPlusVisuals();
+    window.updateUserWalletBalanceUI();
+    window.renderBrands(currentBrandFilter);
+    if (currentCheckoutBrand) {
+        renderCheckoutVariantCards();
+        window.calculateDirectBuyTotal();
+    }
+    window.syncMemberPlusPanelState();
+    const panelCompare = document.getElementById('topup-panel-compare');
+    if (panelCompare && panelCompare.style.display !== 'none') {
+        window.initPriceComparisonTabUI();
+    }
+};
 
 async function activateClientMemberPlusOrder(orderData, orderDbId) {
     if (!orderData || !orderDbId) return false;
@@ -8056,16 +8495,21 @@ async function activateClientMemberPlusOrder(orderData, orderDbId) {
             const curExp = uSnap.exists() ? Number(uSnap.data().memberPlusExpiresAt || 0) : 0;
             const baseStart = curExp > nowMs ? curExp : nowMs;
             const nextExp = baseStart + (durDays * 86400000);
+            const sinceMs = (uSnap.exists() && uSnap.data().memberPlusSince) ? uSnap.data().memberPlusSince : nowMs;
 
             tx.set(userRef, {
                 isMemberPlus: true,
-                memberPlusSince: uSnap.exists() && uSnap.data().memberPlusSince ? uSnap.data().memberPlusSince : nowMs,
+                memberPlusSince: sinceMs,
                 memberPlusExpiresAt: nextExp,
                 updatedAt: nowMs
             }, { merge: true });
 
             const expDateFmt = new Date(nextExp).toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' });
-            const replyText = `[LANGGANAN MEMBER PLUS AKTIF]\nStatus      : MEMBER PLUS VIP\nDurasi      : ${durDays} Hari\nBerlaku s/d : ${expDateFmt}\nKeuntungan  : Harga Spesial Member Plus & Voucher Eksklusif otomatis aktif.`;
+            const replyText = `[LANGGANAN MEMBER PLUS AKTIF]
+Status      : MEMBER PLUS VIP
+Durasi      : ${durDays} Hari
+Berlaku s/d : ${expDateFmt}
+Keuntungan  : Harga Spesial Member Plus & Voucher Eksklusif otomatis aktif.`;
 
             tx.update(orderRef, {
                 status: 'SUCCESS',
@@ -8081,18 +8525,17 @@ async function activateClientMemberPlusOrder(orderData, orderDbId) {
             });
 
             userProfile.isMemberPlus = true;
+            userProfile.memberPlusSince = sinceMs;
             userProfile.memberPlusExpiresAt = nextExp;
             activatedOk = true;
         });
 
         if (activatedOk) {
-            window.updateUserGreetingPanelUI();
-            window.renderBrands(currentBrandFilter);
-            window.showToast('Member Plus Aktif!', 'Selamat! Langganan Member Plus kamu sudah aktif selama 30 hari.', 'success');
+            window.refreshRealtimeMemberPlusUI();
+            
         }
         return activatedOk;
     } catch (e) {
-        console.warn('Activate Member Plus Error:', e);
         return false;
     }
 }
@@ -8101,19 +8544,18 @@ window.updateUserGreetingPanelUI = function() {
     const panel = document.getElementById('user-greeting-dashboard-panel');
     if (!panel) return;
 
-    const now = new Date();
-    const hour = now.getHours();
-    let greetTime = 'Selamat Malam';
-    let greetIcon = 'fa-moon';
-    if (hour >= 4 && hour < 11) {
-        greetTime = 'Selamat Pagi';
-        greetIcon = 'fa-sun';
-    } else if (hour >= 11 && hour < 15) {
+    const hr = new Date().getHours();
+    let greetTime = 'Selamat Pagi';
+    let greetIcon = 'fa-sun';
+    if (hr >= 11 && hr < 15) {
         greetTime = 'Selamat Siang';
-        greetIcon = 'fa-cloud-sun';
-    } else if (hour >= 15 && hour < 18) {
-        greetTime = 'Selamat Sore';
         greetIcon = 'fa-sun';
+    } else if (hr >= 15 && hr < 18) {
+        greetTime = 'Selamat Sore';
+        greetIcon = 'fa-cloud-sun';
+    } else if (hr >= 18 || hr < 4) {
+        greetTime = 'Selamat Malam';
+        greetIcon = 'fa-moon';
     }
 
     const timeBadgeEl = document.getElementById('user-greeting-time-badge');
@@ -8146,19 +8588,22 @@ window.updateUserGreetingPanelUI = function() {
                 roleBadgeEl.innerHTML = `<i class="fa-solid fa-crown"></i> MEMBER PLUS (s/d ${escapeHtml(expStr)})`;
             }
             if (subTextEl) {
-                subTextEl.innerText = 'Harga spesial Member Plus otomatis diterapkan di seluruh produk katalog.';
+                subTextEl.innerText = 'Harga khusus Member Plus otomatis diterapkan di seluruh produk katalog.';
             }
-            // Sembunyikan tombol upgrade Member Plus di panel selamat datang saat langganan masih aktif (#1)
+            // Sembunyikan menu upgrade Member Plus di panel selamat datang selama langganan masih aktif (#1)
             if (btnMpEl) btnMpEl.style.display = 'none';
         } else {
             if (roleBadgeEl) {
                 roleBadgeEl.className = 'brutal-tag tag-success';
                 roleBadgeEl.innerHTML = `<i class="fa-solid fa-circle-check"></i> MEMBER RESMI`;
             }
+            const hadExpiredMp = Number(userProfile.memberPlusExpiresAt || 0) > 0 && Number(userProfile.memberPlusExpiresAt || 0) <= Date.now();
             if (subTextEl) {
-                subTextEl.innerText = 'Nikmati transaksi cepat dengan Saldo Akun atau aktifkan Member Plus untuk harga lebih hemat.';
+                subTextEl.innerText = hadExpiredMp
+                    ? 'Masa aktif Member Plus kamu telah berakhir. Perpanjang kapan saja untuk menikmati harga khusus.'
+                    : 'Nikmati transaksi cepat dengan Saldo Akun atau aktifkan Member Plus untuk harga lebih hemat.';
             }
-            if (btnMpTxtEl) btnMpTxtEl.innerText = 'Langganan Member Plus';
+            if (btnMpTxtEl) btnMpTxtEl.innerText = hadExpiredMp ? 'Perpanjang Member Plus' : 'Langganan Member Plus';
             if (btnMpEl) btnMpEl.style.display = siteSettings.memberPlusEnabled !== false ? 'inline-flex' : 'none';
         }
 
@@ -8173,11 +8618,11 @@ window.updateUserGreetingPanelUI = function() {
             roleBadgeEl.innerHTML = `<i class="fa-solid fa-user-astronaut"></i> AKUN TAMU`;
         }
         if (subTextEl) {
-            subTextEl.innerText = 'Upgrade ke akun Member gratis untuk membuka fitur Saldo Akun, Promo, dan Member Plus.';
+            subTextEl.innerText = 'Daftar akun Member gratis untuk membuka fitur Saldo Akun, Promo, dan Member Plus.';
         }
         if (walletBoxEl) walletBoxEl.style.display = 'none';
         if (btnMpEl) btnMpEl.style.display = 'inline-flex';
-        if (btnMpTxtEl) btnMpTxtEl.innerText = 'Upgrade ke Member';
+        if (btnMpTxtEl) btnMpTxtEl.innerText = 'Daftar Member';
         if (btnPinShortcut) btnPinShortcut.style.display = 'none';
     }
 
@@ -8190,6 +8635,7 @@ window.updateProfileMemberPlusVisuals = function() {
     const isMember = Boolean(currentUser && !currentUser.isAnonymous && !userProfile.isGuest);
     const isMp = isUserMemberPlusActive();
 
+    const heroCard = document.getElementById('prof-hero-card-container');
     const avatarWrap = document.getElementById('prof-avatar-box-wrap');
     const crownEl = document.getElementById('prof-avatar-crown');
     const goldBadgeEl = document.getElementById('prof-memberplus-gold-badge');
@@ -8201,10 +8647,11 @@ window.updateProfileMemberPlusVisuals = function() {
     const topupSubtabTxt = document.getElementById('topup-subtab-text-memberplus');
 
     if (topupSubtabTxt) {
-        topupSubtabTxt.innerText = isMp ? 'Kelola Langganan' : 'Member Plus';
+        topupSubtabTxt.innerText = isMp ? 'Kelola Langganan' : 'Langganan Member Plus';
     }
 
     if (!isMember) {
+        if (heroCard) heroCard.classList.remove('profile-hero-memberplus-gold');
         if (avatarWrap) avatarWrap.classList.remove('memberplus-gold-avatar');
         if (crownEl) crownEl.style.display = 'none';
         if (goldBadgeEl) goldBadgeEl.style.display = 'none';
@@ -8220,6 +8667,7 @@ window.updateProfileMemberPlusVisuals = function() {
         const expDateStr = userProfile.memberPlusExpiresAt
             ? new Date(userProfile.memberPlusExpiresAt).toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' })
             : 'Aktif';
+        if (heroCard) heroCard.classList.add('profile-hero-memberplus-gold');
         if (avatarWrap) avatarWrap.classList.add('memberplus-gold-avatar');
         if (crownEl) crownEl.style.display = 'inline-flex';
         if (goldBadgeEl) goldBadgeEl.style.display = 'inline-flex';
@@ -8232,12 +8680,13 @@ window.updateProfileMemberPlusVisuals = function() {
             mpCardBadge.innerHTML = '<i class="fa-solid fa-crown"></i> AKTIF';
         }
         if (mpCardDesc) {
-            mpCardDesc.innerHTML = `Selamat, kamu terdaftar sebagai <b>Member Plus</b>. Masa aktif langganan berlaku hingga <b>${escapeHtml(expDateStr)}</b>.`;
+            mpCardDesc.innerHTML = `Selamat, Anda sekarang <b>Member Plus</b>! Masa aktif langganan berlaku hingga <b>${escapeHtml(expDateStr)}</b>.`;
         }
         if (mpCardBtnTxt) {
             mpCardBtnTxt.innerText = 'Kelola Langganan Member Plus';
         }
     } else {
+        if (heroCard) heroCard.classList.remove('profile-hero-memberplus-gold');
         if (avatarWrap) avatarWrap.classList.remove('memberplus-gold-avatar');
         if (crownEl) crownEl.style.display = 'none';
         if (goldBadgeEl) goldBadgeEl.style.display = 'none';
@@ -8246,10 +8695,10 @@ window.updateProfileMemberPlusVisuals = function() {
             mpCardBadge.innerText = 'BELUM BERLANGGANAN';
         }
         if (mpCardDesc) {
-            mpCardDesc.innerText = 'Upgrade ke Member Plus untuk menikmati potongan harga otomatis di seluruh produk katalog.';
+            mpCardDesc.innerText = 'Aktifkan Member Plus untuk menikmati potongan harga otomatis di seluruh produk katalog.';
         }
         if (mpCardBtnTxt) {
-            mpCardBtnTxt.innerText = 'Lihat & Aktifkan Member Plus';
+            mpCardBtnTxt.innerText = 'Langganan Member Plus';
         }
     }
 };
@@ -8320,21 +8769,16 @@ window.submitResetTrxPinWithPassword = async function() {
         window.customAlert('Konfirmasi PIN Berbeda', 'Ketik ulang 6 digit PIN baru yang sama pada kolom konfirmasi.', 'warning');
         return;
     }
-    if (!accountEmail) {
-        window.customAlert('Email Tidak Ditemukan', 'Alamat email akun tidak ditemukan. Silakan masuk ulang.', 'error');
-        return;
-    }
 
     const btn = document.getElementById('btn-submit-reset-trx-pin');
     const ogHtml = btn ? btn.innerHTML : '';
     if (btn) {
         btn.disabled = true;
-        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Memverifikasi Sandi...';
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Memverifikasi...';
     }
 
     try {
         await signInWithEmailAndPassword(auth, accountEmail, passVal);
-
         await setDoc(doc(db, pathUsers, currentUser.uid), {
             trxPin: newPinVal,
             trxPinUpdatedAt: Date.now()
@@ -8441,10 +8885,10 @@ window.renderTopupHistoryList = function() {
 
     if (topupOrders.length === 0) {
         container.innerHTML = `
-            <div class="brutal-panel" style="padding: 2rem 1rem; text-align: center; background: var(--bg);">
-                <i class="fa-solid fa-wallet" style="font-size: 2rem; color: var(--text-muted); margin-bottom: 10px; display: block;"></i>
-                <strong style="display:block; font-size:0.92rem; margin-bottom:4px;">Belum Ada Riwayat Isi Saldo</strong>
-                <span style="font-size:0.78rem; color:var(--text-muted); font-weight:600;">Seluruh transaksi pengisian saldo kamu akan tercatat di halaman ini.</span>
+            <div class="brutal-panel" style="padding: 1.75rem 1rem; text-align: center; background: var(--bg);">
+                <i class="fa-solid fa-wallet" style="font-size: 1.85rem; color: var(--text-muted); margin-bottom: 8px; display: block;"></i>
+                <strong style="display:block; font-size:0.9rem; margin-bottom:4px;">Belum Ada Riwayat Isi Saldo</strong>
+                <span style="font-size:0.76rem; color:var(--text-muted); font-weight:600;">Seluruh transaksi pengisian saldo kamu akan langsung tampil di bagian ini.</span>
             </div>`;
         return;
     }
@@ -8453,7 +8897,7 @@ window.renderTopupHistoryList = function() {
         const amt = Math.round(Number(o.topupAmount || o.baseTotal || o.finalTotal || 0));
         const payTotal = Math.round(Number(o.finalTotal || amt));
         const dtStr = o.date ? new Date(o.date).toLocaleString('id-ID', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '-';
-        const payLabel = o.paymentMethod === 'cash' ? 'TUNAI (KASIR)' : 'QRIS OTOMATIS';
+        const payLabel = o.paymentMethod === 'cash' ? 'TUNAI (KASIR)' : 'QRIS';
 
         let badgeClass = 'status-pending';
         let badgeLabel = 'MENUNGGU BAYAR';
@@ -8478,10 +8922,12 @@ window.renderTopupHistoryList = function() {
                     </div>
                 </div>
                 <div style="text-align:right;">
-                    <span style="font-size:0.68rem; font-weight:800; color:var(--text-muted); display:block;">TOTAL BAYAR</span>
-                    <strong style="font-size:1rem; font-weight:900; color:var(--primary);">Rp${payTotal.toLocaleString('id-ID')}</strong>
+                    <div>
+                        <span style="font-size:0.68rem; font-weight:800; color:var(--text-muted); display:block;">TOTAL BAYAR</span>
+                        <strong style="font-size:1rem; font-weight:900; color:var(--primary);">Rp${payTotal.toLocaleString('id-ID')}</strong>
+                    </div>
                     <div style="margin-top:4px;">
-                        <span class="btn btn-outline btn-sm" style="padding:2px 8px; min-height:24px; font-size:0.68rem;">Lihat Struk</span>
+                        <span class="btn btn-outline btn-sm" style="padding:3px 10px; min-height:26px; font-size:0.7rem;">Buka Struk</span>
                     </div>
                 </div>
             </div>`;
@@ -8526,11 +8972,59 @@ function computeVariantComparisonPrices(item) {
     return { regularPrice, memberPlusPrice: regularPrice, saving: 0 };
 }
 
+window.openPriceComparisonTab = function() {
+    window.switchMainTab('topup');
+    window.switchTopupSubTab('compare');
+    const topupEl = document.getElementById('tab-topup');
+    if (topupEl) {
+        setTimeout(() => topupEl.scrollIntoView({ behavior: 'smooth', block: 'start' }), 40);
+    }
+};
+
+window.backToMemberPlusTabFromComparison = function() {
+    window.switchMainTab('topup');
+    window.switchTopupSubTab('memberplus');
+};
+
+window.initPriceComparisonTabUI = function() {
+    const activeMp = isUserMemberPlusActive();
+    const backLblEl = document.getElementById('mp-compare-back-btn-label');
+    if (backLblEl) {
+        backLblEl.innerText = activeMp ? 'Kelola Langganan' : 'Langganan Member Plus';
+    }
+    const tierPillEl = document.getElementById('mp-compare-user-tier-pill');
+    if (tierPillEl) {
+        if (activeMp) {
+            tierPillEl.innerHTML = `<span class="memberplus-gold-badge" style="padding:6px 12px; font-size:0.76rem;"><i class="fa-solid fa-crown"></i> STATUS ANDA: MEMBER PLUS AKTIF</span>`;
+        } else {
+            tierPillEl.innerHTML = `<button type="button" class="btn btn-warning btn-sm" onclick="window.backToMemberPlusTabFromComparison()"><i class="fa-solid fa-crown"></i> Langganan Member Plus</button>`;
+        }
+    }
+
+    if ((!groupedBrands || groupedBrands.length === 0) && Array.isArray(products) && products.length > 0) {
+        rebuildGroupedBrands();
+    }
+
+    const catSel = document.getElementById('mp-compare-category');
+    const brandSel = document.getElementById('mp-compare-brand');
+    if (catSel && (!catSel.options || catSel.options.length <= 1 || !catSel.value)) {
+        window.onChangeMpCompareServiceType();
+    } else if (brandSel && (!brandSel.options || brandSel.options.length <= 1 || !brandSel.value)) {
+        window.onChangeMpCompareCategory();
+    } else {
+        window.renderMpPriceComparisonTable();
+    }
+};
+
 window.onChangeMpCompareServiceType = function() {
     const srvSel = document.getElementById('mp-compare-service-type');
     const catSel = document.getElementById('mp-compare-category');
     const brandSel = document.getElementById('mp-compare-brand');
     if (!srvSel || !catSel || !brandSel) return;
+
+    if ((!groupedBrands || groupedBrands.length === 0) && Array.isArray(products) && products.length > 0) {
+        rebuildGroupedBrands();
+    }
 
     const srv = srvSel.value || 'prabayar';
     const isPasca = (srv === 'pascabayar');
@@ -8541,28 +9035,31 @@ window.onChangeMpCompareServiceType = function() {
         pln: 'Token Listrik PLN',
         ewallet: 'Saldo E-Wallet',
         app: 'Aplikasi Premium',
+        tools: 'Layanan Digital',
         ppob: 'Tagihan Pascabayar (PPOB)'
     };
 
     const availableCats = [];
     groupedBrands.forEach(b => {
-        const bIsPasca = (b.type === 'ppob' || b.items?.some(i => i.processType === 'digiflazz_pasca'));
-        if (isPasca && bIsPasca) {
-            if (!availableCats.includes('ppob')) availableCats.push('ppob');
-        } else if (!isPasca && !bIsPasca) {
-            const t = b.type || 'game';
-            if (!availableCats.includes(t)) availableCats.push(t);
-        }
+        const hasMatchingItem = (b.items || []).some(it => {
+            const pType = String(it.processType || 'auto').toLowerCase();
+            const itemIsPasca = (pType === 'digiflazz_pasca' || String(it.type || '').toLowerCase() === 'ppob');
+            return isPasca ? itemIsPasca : !itemIsPasca;
+        });
+        if (!hasMatchingItem) return;
+        const cKey = String(b.type || 'app').toLowerCase();
+        if (!availableCats.includes(cKey)) availableCats.push(cKey);
     });
 
     if (availableCats.length === 0) {
-        catSel.innerHTML = `<option value="">Belum ada kategori ${isPasca ? 'Pascabayar' : 'Prabayar'}</option>`;
-        brandSel.innerHTML = '<option value="">-- Pilih Brand --</option>';
-        window.renderMpPriceComparisonTable();
-        return;
+        if (isPasca) availableCats.push('ppob');
+        else availableCats.push('game', 'pulsa', 'pln', 'ewallet', 'app');
     }
 
-    catSel.innerHTML = availableCats.map(c => `<option value="${escapeHtml(c)}">${escapeHtml(catMap[c] || c.toUpperCase())}</option>`).join('');
+    catSel.innerHTML = availableCats.map(c =>
+        `<option value="${escapeHtml(c)}">${escapeHtml(catMap[c] || c.toUpperCase())}</option>`
+    ).join('');
+
     window.onChangeMpCompareCategory();
 };
 
@@ -8570,71 +9067,139 @@ window.onChangeMpCompareCategory = function() {
     const srvSel = document.getElementById('mp-compare-service-type');
     const catSel = document.getElementById('mp-compare-category');
     const brandSel = document.getElementById('mp-compare-brand');
-    if (!catSel || !brandSel) return;
+    if (!srvSel || !catSel || !brandSel) return;
 
-    const srv = srvSel?.value || 'prabayar';
+    const srv = srvSel.value || 'prabayar';
     const isPasca = (srv === 'pascabayar');
-    const selectedCat = catSel.value;
+    const selectedCat = String(catSel.value || '').toLowerCase();
 
     const matchingBrands = groupedBrands.filter(b => {
-        const bIsPasca = (b.type === 'ppob' || b.items?.some(i => i.processType === 'digiflazz_pasca'));
-        if (isPasca !== bIsPasca) return false;
-        if (selectedCat && b.type !== selectedCat && !(isPasca && selectedCat === 'ppob')) return false;
-        return true;
+        if (selectedCat && String(b.type || '').toLowerCase() !== selectedCat) return false;
+        return (b.items || []).some(it => {
+            const pType = String(it.processType || 'auto').toLowerCase();
+            const itemIsPasca = (pType === 'digiflazz_pasca' || String(it.type || '').toLowerCase() === 'ppob');
+            return isPasca ? itemIsPasca : !itemIsPasca;
+        });
     });
 
     if (matchingBrands.length === 0) {
-        brandSel.innerHTML = '<option value="">-- Belum Ada Brand --</option>';
-    } else {
-        brandSel.innerHTML = matchingBrands.map(b => `<option value="${escapeHtml(b.brandName)}">${escapeHtml(b.brandName)} (${b.items.length} Produk)</option>`).join('');
+        brandSel.innerHTML = `<option value="">-- Belum Ada Brand di Kategori Ini --</option>`;
+        window.renderMpPriceComparisonTable();
+        return;
     }
+
+    brandSel.innerHTML = matchingBrands.map(b =>
+        `<option value="${escapeHtml(b.brandName)}">${escapeHtml(b.brandName)} (${(b.items || []).length} Produk)</option>`
+    ).join('');
+
     window.renderMpPriceComparisonTable();
 };
 
 window.renderMpPriceComparisonTable = function() {
-    const wrap = document.getElementById('mp-compare-table-wrapper');
+    const srvSel = document.getElementById('mp-compare-service-type');
     const brandSel = document.getElementById('mp-compare-brand');
-    if (!wrap || !brandSel) return;
+    const searchInp = document.getElementById('mp-compare-search');
+    const wrapEl = document.getElementById('mp-compare-table-wrapper');
+    const statBrandEl = document.getElementById('mp-compare-stat-brand');
+    const statCountEl = document.getElementById('mp-compare-stat-count');
+    const statSavingEl = document.getElementById('mp-compare-stat-saving');
+    if (!wrapEl) return;
 
-    const brandName = brandSel.value;
+    const isPasca = ((srvSel?.value || 'prabayar') === 'pascabayar');
+    const brandName = brandSel ? brandSel.value : '';
+    const q = (searchInp?.value || '').trim().toLowerCase();
+
     const brandObj = groupedBrands.find(b => b.brandName === brandName);
     if (!brandObj || !Array.isArray(brandObj.items) || brandObj.items.length === 0) {
-        wrap.innerHTML = `
-            <div style="padding: 1.25rem; text-align: center; color: var(--text-muted); font-size: 0.82rem; font-weight: 700;">
-                Pilih kategori dan brand di atas untuk menampilkan perbandingan harga Member Biasa dan Member Plus.
+        if (statBrandEl) statBrandEl.innerText = '-';
+        if (statCountEl) statCountEl.innerText = '0 Produk';
+        if (statSavingEl) statSavingEl.innerText = '-';
+        wrapEl.innerHTML = `
+            <div style="padding: 1.5rem; text-align: center; color: var(--text-muted); font-size: 0.84rem; font-weight: 700;">
+                Pilih kategori dan brand di atas untuk menampilkan perbandingan harga Member Biasa vs Member Plus.
             </div>`;
         return;
     }
 
-    const sortedItems = [...brandObj.items].sort((a, b) => (a.priceNum || 0) - (b.priceNum || 0));
-    const rowsHtml = sortedItems.map(item => {
-        const { regularPrice, memberPlusPrice, saving } = computeVariantComparisonPrices(item);
-        if (item.isCheckUsernameProduct === true || regularPrice === 0) {
-            return `
-                <tr>
-                    <td><strong>${escapeHtml(item.name)}</strong> <span class="brutal-tag tag-success" style="font-size:0.62rem;">CEK USERNAME</span></td>
-                    <td>GRATIS (Rp0)</td>
-                    <td class="mp-price-col-gold">GRATIS (Rp0)</td>
-                    <td>-</td>
-                </tr>`;
+    const filteredItems = brandObj.items.filter(it => {
+        const pType = String(it.processType || 'auto').toLowerCase();
+        const itemIsPasca = (pType === 'digiflazz_pasca' || String(it.type || '').toLowerCase() === 'ppob');
+        if (isPasca !== itemIsPasca) return false;
+        if (q && !String(it.name || '').toLowerCase().includes(q)) return false;
+        return true;
+    }).sort((a, b) => (a.priceNum || 0) - (b.priceNum || 0));
+
+    if (statBrandEl) statBrandEl.innerText = brandObj.brandName;
+    if (statCountEl) statCountEl.innerText = `${filteredItems.length} Variasi`;
+
+    if (filteredItems.length === 0) {
+        if (statSavingEl) statSavingEl.innerText = '-';
+        wrapEl.innerHTML = `
+            <div style="padding: 1.5rem; text-align: center; color: var(--text-muted); font-size: 0.84rem; font-weight: 700;">
+                Tidak ada variasi produk yang cocok dengan pencarian pada brand <b>${escapeHtml(brandObj.brandName)}</b>.
+            </div>`;
+        return;
+    }
+
+    let maxSaving = 0;
+    let minSaving = Infinity;
+
+    const rowsHtml = filteredItems.map(it => {
+        const { regularPrice, memberPlusPrice, saving } = computeVariantComparisonPrices(it);
+        const isFreeCheck = (it.isCheckUsernameProduct === true || regularPrice === 0);
+        if (!isFreeCheck && saving > 0) {
+            if (saving > maxSaving) maxSaving = saving;
+            if (saving < minSaving) minSaving = saving;
         }
+        const safeBrandJs = escapeJsStr(brandObj.brandName);
         return `
             <tr>
-                <td><strong>${escapeHtml(item.name)}</strong></td>
-                <td>Rp${regularPrice.toLocaleString('id-ID')}</td>
-                <td class="mp-price-col-gold"><i class="fa-solid fa-crown" style="font-size:0.7rem;"></i> Rp${memberPlusPrice.toLocaleString('id-ID')}</td>
-                <td>${saving > 0 ? `<span class="mp-saving-chip">Hemat Rp${saving.toLocaleString('id-ID')}</span>` : '<span style="color:var(--text-muted); font-size:0.74rem;">Harga Sama</span>'}</td>
+                <td>
+                    <div style="font-weight:800; color:var(--text);">${escapeHtml(it.name)}</div>
+                    <small style="color:var(--text-muted); font-weight:700;">${escapeHtml(brandObj.brandName)}</small>
+                </td>
+                <td style="font-weight:800; color:var(--text-muted);">
+                    ${isFreeCheck ? '<span class="brutal-tag tag-green">GRATIS (Rp0)</span>' : `Rp${regularPrice.toLocaleString('id-ID')}`}
+                </td>
+                <td>
+                    ${isFreeCheck
+                        ? '<span class="brutal-tag tag-green">GRATIS (Rp0)</span>'
+                        : `<span class="mp-price-highlight"><i class="fa-solid fa-crown"></i> Rp${memberPlusPrice.toLocaleString('id-ID')}</span>`}
+                </td>
+                <td>
+                    ${isFreeCheck
+                        ? '<span style="font-size:0.75rem; font-weight:800; color:var(--text-muted);">Cek ID Gratis</span>'
+                        : (saving > 0
+                            ? `<span class="mp-saving-pill">Hemat Rp${saving.toLocaleString('id-ID')}</span>`
+                            : `<span style="font-size:0.75rem; font-weight:700; color:var(--text-muted);">Harga Sama</span>`)}
+                </td>
+                <td style="text-align:right;">
+                    <button type="button" class="btn btn-primary btn-sm" style="padding:4px 10px; min-height:28px; font-size:0.72rem;" onclick="window.switchMainTab('katalog'); window.openDirectBuyModal('${safeBrandJs}')">
+                        Beli
+                    </button>
+                </td>
             </tr>`;
     }).join('');
 
-    wrap.innerHTML = `
+    if (statSavingEl) {
+        if (maxSaving > 0) {
+            statSavingEl.innerText = minSaving === maxSaving
+                ? `Hemat Rp${maxSaving.toLocaleString('id-ID')} / Trx`
+                : `Hemat s/d Rp${maxSaving.toLocaleString('id-ID')}`;
+        } else {
+            statSavingEl.innerText = 'Harga Khusus Member Plus';
+        }
+    }
+
+    wrapEl.innerHTML = `
         <table class="mp-compare-table">
             <thead>
                 <tr>
-                    <th>Variasi Produk (${escapeHtml(brandObj.brandName)})</th>
-                    <th>Member Biasa</th>
-                    <th>Member Plus</th>
+                    <th>Nama Variasi Produk</th>
+                    <th>Harga Member Biasa</th>
+                    <th>Harga Member Plus</th>
                     <th>Selisih Hemat</th>
+                    <th style="text-align:right;">Aksi</th>
                 </tr>
             </thead>
             <tbody>
@@ -8643,37 +9208,61 @@ window.renderMpPriceComparisonTable = function() {
         </table>`;
 };
 
-window.switchTopupSubTab = function(subTab = 'topup') {
-    const isWalletTab = (subTab === 'topup');
-    const isHistoryTab = (subTab === 'history');
-    const isMpTab = (subTab === 'memberplus');
+window.renderMemberPlusExclusivePromos = function() {
+    const boxEl = document.getElementById('memberplus-exclusive-promos-box');
+    if (!boxEl) return;
 
-    const btnWallet = document.getElementById('topup-subtab-btn-wallet');
-    const btnHistory = document.getElementById('topup-subtab-btn-history');
-    const btnMp = document.getElementById('topup-subtab-btn-memberplus');
-    const panelWallet = document.getElementById('topup-panel-wallet');
-    const panelHistory = document.getElementById('topup-panel-history');
-    const panelMp = document.getElementById('topup-panel-memberplus');
+    const activeMp = isUserMemberPlusActive();
+    const mpPromos = (Array.isArray(promos) ? promos : []).filter(p => p && p.code && p.isActive !== false);
 
-    if (btnWallet) btnWallet.classList.toggle('active', isWalletTab);
-    if (btnHistory) btnHistory.classList.toggle('active', isHistoryTab);
-    if (btnMp) btnMp.classList.toggle('active', isMpTab);
-
-    if (panelWallet) panelWallet.style.display = isWalletTab ? 'grid' : 'none';
-    if (panelHistory) panelHistory.style.display = isHistoryTab ? 'block' : 'none';
-    if (panelMp) panelMp.style.display = isMpTab ? 'grid' : 'none';
-
-    window.updateTopupSummaryDisplay();
-    if (typeof window.updateProfileMemberPlusVisuals === 'function') {
-        window.updateProfileMemberPlusVisuals();
+    if (mpPromos.length === 0) {
+        boxEl.innerHTML = `
+            <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;">
+                <div>
+                    <strong style="font-size:0.84rem; display:block;"><i class="fa-solid fa-ticket" style="color:#d97706;"></i> Kode Promo Spesial Member Plus</strong>
+                    <span style="font-size:0.75rem; color:var(--text-muted); font-weight:600;">Potongan harga otomatis sudah aktif di seluruh katalog produk untuk akun Member Plus.</span>
+                </div>
+                <span class="memberplus-gold-badge" style="font-size:0.7rem; padding:4px 10px;">
+                    <i class="fa-solid fa-bolt"></i> Diskon Otomatis Aktif
+                </span>
+            </div>`;
+        return;
     }
 
-    if (isHistoryTab) {
-        window.renderTopupHistoryList();
-    }
+    const cardsHtml = mpPromos.slice(0, 6).map(p => {
+        const codeStr = String(p.code || '').toUpperCase();
+        const discVal = Number(p.discount || p.discountAmount || p.amount || 0);
+        const isPct = (p.type === 'percent' || p.discountType === 'percent' || discVal <= 100);
+        const discLabel = isPct ? `Diskon ${discVal}%` : `Potongan Rp${discVal.toLocaleString('id-ID')}`;
+        return `
+            <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; padding:8px 12px; background:var(--card-bg); border:2px solid var(--border-color); border-radius:10px;">
+                <div>
+                    <div style="display:flex; align-items:center; gap:6px;">
+                        <strong class="code-mono" style="font-size:0.84rem; color:#b45309;">${escapeHtml(codeStr)}</strong>
+                        <span class="brutal-tag tag-amber" style="font-size:0.65rem; padding:1px 6px;">${escapeHtml(discLabel)}</span>
+                    </div>
+                    <small style="font-size:0.7rem; color:var(--text-muted); font-weight:700;">${activeMp ? 'Siap dipakai di halaman checkout' : 'Aktifkan Member Plus untuk klaim promo'}</small>
+                </div>
+                <button type="button" class="btn btn-outline btn-sm" style="padding:4px 10px; min-height:28px; font-size:0.72rem;" onclick="navigator.clipboard?.writeText('${escapeJsStr(codeStr)}'); window.showToast('Kode Disalin', 'Kode promo ${escapeJsStr(codeStr)} berhasil disalin.', 'success');">
+                    <i class="fa-regular fa-copy"></i> Salin
+                </button>
+            </div>`;
+    }).join('');
 
-    // Update informasi harga & status Kelola Langganan Member Plus
+    boxEl.innerHTML = `
+        <div style="margin-bottom:8px; display:flex; align-items:center; justify-content:space-between;">
+            <strong style="font-size:0.85rem;"><i class="fa-solid fa-ticket" style="color:#d97706;"></i> Daftar Kode Promo Spesial Member Plus</strong>
+            <span style="font-size:0.72rem; font-weight:800; color:#b45309;">${mpPromos.length} Voucher Tersedia</span>
+        </div>
+        <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap:8px;">
+            ${cardsHtml}
+        </div>`;
+};
+
+window.syncMemberPlusPanelState = function() {
     const mpPrice = Math.max(1000, Math.round(Number(siteSettings.memberPlusMonthlyPrice || 25000)));
+    const curBal = Math.round(Number(userProfile.balance || 0));
+
     const mpPriceEl = document.getElementById('memberplus-price-display');
     const mpTaglineEl = document.getElementById('memberplus-tagline-display');
     const mpBannerEl = document.getElementById('memberplus-status-banner');
@@ -8683,13 +9272,37 @@ window.switchTopupSubTab = function(subTab = 'topup') {
     const mpEndDateEl = document.getElementById('memberplus-active-end-date');
     const mpRemainPill = document.getElementById('memberplus-active-remaining-pill');
     const btnSubmitMp = document.getElementById('btn-submit-memberplus');
+    const mpSideTitle = document.getElementById('memberplus-side-card-title');
+    const mpMainHeading = document.getElementById('memberplus-main-card-heading');
+    const mpSubtabText = document.getElementById('topup-subtab-text-memberplus');
+    const mpBalEl = document.getElementById('mp-checkout-current-balance');
+    const mpBalNoteEl = document.getElementById('mp-balance-sufficiency-note');
 
     if (mpPriceEl) mpPriceEl.innerText = `Rp${mpPrice.toLocaleString('id-ID')}`;
+    if (mpBalEl) mpBalEl.innerText = `Rp${curBal.toLocaleString('id-ID')}`;
     if (mpTaglineEl && siteSettings.memberPlusTagline) {
         mpTaglineEl.innerText = siteSettings.memberPlusTagline;
     }
 
+    const selectedPay = document.querySelector('input[name="mp_payment_method"]:checked')?.value || 'balance';
+    if (mpBalNoteEl) {
+        if (selectedPay === 'cash') {
+            mpBalNoteEl.style.color = '#b45309';
+            mpBalNoteEl.innerHTML = `<i class="fa-solid fa-barcode"></i> Bayar tunai di kasir: Admin mengaktifkan langganan dengan PIN.`;
+        } else if (curBal >= mpPrice) {
+            mpBalNoteEl.style.color = 'var(--success)';
+            mpBalNoteEl.innerHTML = `<i class="fa-solid fa-circle-check"></i> Saldo mencukupi! Akun otomatis menjadi Member Plus saat diaktifkan.`;
+        } else {
+            const diff = mpPrice - curBal;
+            mpBalNoteEl.style.color = 'var(--danger)';
+            mpBalNoteEl.innerHTML = `<i class="fa-solid fa-triangle-exclamation"></i> Saldo kurang Rp${diff.toLocaleString('id-ID')}. Silakan isi saldo terlebih dahulu.`;
+        }
+    }
+
     const activeMp = isUserMemberPlusActive();
+    if (mpSubtabText) {
+        mpSubtabText.innerText = activeMp ? 'Kelola Langganan' : 'Langganan Member Plus';
+    }
     if (mpCelebrationCard) {
         mpCelebrationCard.style.display = activeMp ? 'block' : 'none';
     }
@@ -8706,26 +9319,133 @@ window.switchTopupSubTab = function(subTab = 'topup') {
         if (mpStartDateEl) mpStartDateEl.innerText = startStr;
         if (mpEndDateEl) mpEndDateEl.innerText = expStr;
         if (mpRemainPill) mpRemainPill.innerText = `Sisa ${remDays} Hari`;
+        if (mpSideTitle) mpSideTitle.innerText = 'Kelola & Perpanjang Langganan';
+        if (mpMainHeading) mpMainHeading.innerText = 'Status & Keuntungan Member Plus Anda';
 
         if (mpBannerEl && mpStatusTxtEl) {
             mpBannerEl.className = 'brutal-alert-box alert-info';
-            mpStatusTxtEl.innerHTML = `Selamat, Anda sekarang <b>Member Plus</b>! Langganan Anda aktif hingga <b>${escapeHtml(expStr)}</b>. Anda dapat memperpanjang masa aktif +30 hari kapan saja.`;
+            mpStatusTxtEl.innerHTML = `Selamat, Anda sekarang <b>Member Plus</b>! Langganan Anda aktif hingga <b>${escapeHtml(expStr)}</b>. Anda dapat menambah masa aktif +30 hari kapan saja.`;
         }
         if (btnSubmitMp) {
             btnSubmitMp.innerHTML = '<i class="fa-solid fa-crown"></i> <span>Perpanjang Member Plus (+30 Hari)</span>';
         }
     } else {
+        if (mpSideTitle) mpSideTitle.innerText = 'Aktivasi Member Plus';
+        if (mpMainHeading) mpMainHeading.innerText = 'Keuntungan Langganan Member Plus (30 Hari)';
         if (mpBannerEl && mpStatusTxtEl) {
             mpBannerEl.className = 'brutal-alert-box alert-warning';
-            mpStatusTxtEl.innerText = 'Kamu belum berlangganan Member Plus. Aktifkan sekarang untuk menikmati harga spesial di semua produk!';
+            mpStatusTxtEl.innerText = 'Kamu belum berlangganan Member Plus. Aktifkan sekarang untuk menikmati harga khusus Member Plus di semua produk!';
         }
         if (btnSubmitMp) {
             btnSubmitMp.innerHTML = '<i class="fa-solid fa-crown"></i> <span>Aktifkan Member Plus Sekarang</span>';
         }
     }
 
-    if (isMpTab) {
-        window.onChangeMpCompareServiceType();
+    window.renderMemberPlusExclusivePromos();
+};
+
+// Animasi Tunggal Khusus Aktivasi Member Plus ("Selamat, Anda Telah Menjadi Member Plus!")
+let mpWelcomeHideTimer = null;
+window.showMemberPlusWelcomeAnimation = function(expTimestampMs = 0, orderId = '') {
+    const uid = currentUser?.uid || userProfile.uid || 'guest';
+    const expMs = Number(expTimestampMs || userProfile.memberPlusExpiresAt || (Date.now() + 30 * 86400000));
+    const dedupKey = `vipercell_mp_anim_${uid}_${Math.floor(expMs / 60000)}`;
+    if (sessionStorage.getItem(dedupKey) === '1') return;
+    sessionStorage.setItem(dedupKey, '1');
+
+    if (orderId) shownPaymentSuccessOrderIds.add(orderId);
+    window.closeModal('modal-cash-barcode');
+
+    // Pastikan seluruh tampilan aplikasi langsung berubah ke mode Member Plus ("Kelola Langganan", mahkota profil, harga katalog)
+    window.refreshRealtimeMemberPlusUI();
+
+    const expDateStr = new Date(expMs).toLocaleDateString('id-ID', {
+        day: '2-digit',
+        month: 'long',
+        year: 'numeric'
+    });
+    const expEl = document.getElementById('mp-welcome-overlay-exp');
+    if (expEl) expEl.innerText = expDateStr;
+
+    const overlay = document.getElementById('memberplus-welcome-overlay');
+    if (overlay) {
+        const confettiWrap = document.getElementById('mp-confetti-container');
+        if (confettiWrap) {
+            confettiWrap.innerHTML = '';
+            const colors = ['#facc15', '#f59e0b', '#fbbf24', '#fef08a', '#10b981', '#3b82f6'];
+            for (let i = 0; i < 36; i++) {
+                const piece = document.createElement('div');
+                piece.className = 'confetti-piece';
+                piece.style.left = Math.random() * 100 + '%';
+                piece.style.backgroundColor = colors[i % colors.length];
+                piece.style.animationDelay = (Math.random() * 0.45) + 's';
+                confettiWrap.appendChild(piece);
+            }
+        }
+        overlay.style.display = 'flex';
+        overlay.classList.add('active');
+        overlay.style.opacity = '1';
+
+        if (mpWelcomeHideTimer) clearTimeout(mpWelcomeHideTimer);
+        mpWelcomeHideTimer = setTimeout(() => {
+            window.closeMemberPlusWelcomeAnimation();
+        }, 3800);
+    }
+};
+
+window.closeMemberPlusWelcomeAnimation = function() {
+    if (mpWelcomeHideTimer) {
+        clearTimeout(mpWelcomeHideTimer);
+        mpWelcomeHideTimer = null;
+    }
+    const overlay = document.getElementById('memberplus-welcome-overlay');
+    if (overlay) {
+        overlay.style.opacity = '0';
+        setTimeout(() => {
+            overlay.style.display = 'none';
+            overlay.classList.remove('active');
+        }, 240);
+    }
+    window.switchMainTab('topup');
+    window.switchTopupSubTab('memberplus');
+    window.refreshRealtimeMemberPlusUI();
+};
+
+window.switchTopupSubTab = function(subTab = 'topup') {
+    const isMpTab = (subTab === 'memberplus');
+    const isCompareTab = (subTab === 'compare');
+    const isWalletTab = (!isMpTab && !isCompareTab);
+
+    const btnWallet = document.getElementById('topup-subtab-btn-wallet');
+    const btnMp = document.getElementById('topup-subtab-btn-memberplus');
+    const btnCompare = document.getElementById('topup-subtab-btn-compare');
+
+    const panelWallet = document.getElementById('topup-panel-wallet');
+    const panelMp = document.getElementById('topup-panel-memberplus');
+    const panelCompare = document.getElementById('topup-panel-compare');
+
+    if (btnWallet) btnWallet.classList.toggle('active', isWalletTab);
+    if (btnMp) btnMp.classList.toggle('active', isMpTab);
+    if (btnCompare) btnCompare.classList.toggle('active', isCompareTab);
+
+    if (panelWallet) panelWallet.style.display = isWalletTab ? 'grid' : 'none';
+    if (panelMp) panelMp.style.display = isMpTab ? 'grid' : 'none';
+    if (panelCompare) panelCompare.style.display = isCompareTab ? 'block' : 'none';
+
+    window.updateTopupSummaryDisplay();
+    window.renderTopupHistoryList();
+    if (typeof window.updateProfileMemberPlusVisuals === 'function') {
+        window.updateProfileMemberPlusVisuals();
+    }
+    window.syncMemberPlusPanelState();
+
+    if (isCompareTab) {
+        window.initPriceComparisonTabUI();
+    }
+
+    if (subTab === 'history') {
+        const histEl = document.getElementById('topup-history-unified-card');
+        if (histEl) histEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
 };
 
@@ -8736,6 +9456,13 @@ window.selectMemberPlusPayMethod = function(method, cardEl) {
         const rad = cardEl.querySelector('input[type="radio"]');
         if (rad) rad.checked = true;
     }
+    const subNote = document.getElementById('mp-payment-method-subnote');
+    if (subNote) {
+        subNote.innerText = method === 'cash'
+            ? 'Bayar Tunai di Kasir • Validasi PIN Admin'
+            : 'Potong Saldo Akun • Langsung Otomatis Aktif';
+    }
+    window.syncMemberPlusPanelState();
 };
 
 window.processMemberPlusSubscriptionCheckout = async function() {
@@ -8748,14 +9475,15 @@ window.processMemberPlusSubscriptionCheckout = async function() {
     }
 
     const mpPrice = Math.max(1000, Math.round(Number(siteSettings.memberPlusMonthlyPrice || 25000)));
-    const payMethod = document.querySelector('input[name="mp_payment_method"]:checked')?.value || 'qris';
+    const payMethod = document.querySelector('input[name="mp_payment_method"]:checked')?.value || 'balance';
 
     if (payMethod === 'balance') {
         const curBal = Math.round(Number(userProfile.balance || 0));
         if (curBal < mpPrice) {
+            const kurang = mpPrice - curBal;
             window.customAlert(
-                'Saldo Akun Tidak Cukup',
-                `Saldo kamu saat ini <b>Rp${curBal.toLocaleString('id-ID')}</b>, sedangkan biaya Member Plus adalah <b>Rp${mpPrice.toLocaleString('id-ID')}</b>. Silakan isi saldo atau pilih metode QRIS.`,
+                'Saldo Akun Belum Mencukupi',
+                `Saldo akun kamu saat ini <b>Rp${curBal.toLocaleString('id-ID')}</b>, sedangkan biaya langganan Member Plus adalah <b>Rp${mpPrice.toLocaleString('id-ID')}</b> (kurang <b>Rp${kurang.toLocaleString('id-ID')}</b>).<br><br>Silakan isi saldo terlebih dahulu di tab <b>Isi Saldo</b> atau pilih metode <b>Tunai Kasir</b>.`,
                 'warning'
             );
             return;
@@ -8763,16 +9491,7 @@ window.processMemberPlusSubscriptionCheckout = async function() {
     }
 
     const now = Date.now();
-    let uniqueCode = 0;
-    if (payMethod === 'qris') {
-        uniqueCode = Math.floor(Math.random() * 250) + 1;
-        let safetyTry = 0;
-        while (orders.some(o => (o.status === 'UNPAID' || o.status === 'PENDING_PAYMENT') && o.finalTotal === (mpPrice + uniqueCode)) && safetyTry < 40) {
-            uniqueCode = Math.floor(Math.random() * 450) + 1;
-            safetyTry++;
-        }
-    }
-    const finalTotal = mpPrice + uniqueCode;
+    const finalTotal = mpPrice;
     let invId = 'MPLUS-' + Math.floor(100000 + Math.random() * 900000);
     while (orders.some(o => o.id === invId)) {
         invId = 'MPLUS-' + Math.floor(100000 + Math.random() * 900000);
@@ -8799,6 +9518,7 @@ window.processMemberPlusSubscriptionCheckout = async function() {
         id: invId,
         orderId: invId,
         isMemberPlusOrder: true,
+        isMemberPlusUser: true,
         memberPlusActivated: false,
         orderType: 'MEMBER_PLUS_SUB',
         userEmail: userEm,
@@ -8815,7 +9535,7 @@ window.processMemberPlusSubscriptionCheckout = async function() {
         finalTotal: finalTotal,
         uniqueTotal: finalTotal,
         baseTotal: mpPrice,
-        uniqueCode: uniqueCode,
+        uniqueCode: 0,
         promoCode: '',
         promoDiscount: 0,
         durationDays: 30,
@@ -8860,6 +9580,9 @@ window.processMemberPlusSubscriptionCheckout = async function() {
             }).catch(() => {});
         }
 
+        // Tandai orderId agar listener tidak memutar animasi pembayaran biasa
+        shownPaymentSuccessOrderIds.add(invId);
+
         const docRef = await addDoc(collection(db, pathOrders), newMpOrder);
         currentCheckoutSession = {
             dbId: docRef.id,
@@ -8873,14 +9596,18 @@ window.processMemberPlusSubscriptionCheckout = async function() {
 
         if (isPaidByBalance) {
             await activateClientMemberPlusOrder({ ...newMpOrder, dbId: docRef.id }, docRef.id);
-            window.showPaymentSuccessAnimation(invId, 'SUCCESS');
-        } else if (payMethod === 'qris') {
-            setTimeout(() => window.openQRISModal(), 60);
+            window.refreshRealtimeMemberPlusUI();
+            window.showMemberPlusWelcomeAnimation(userProfile.memberPlusExpiresAt, invId);
         } else {
+            // Metode Tunai Kasir: tampilkan barcode kasir & tunggu Admin menekan "Aktifkan Langganan" + PIN di tab Member Plus Admin
             setTimeout(() => window.openCashBarcodeModal(), 60);
         }
     } catch (e) {
-        window.customAlert('Gagal', 'Tidak dapat memproses aktivasi Member Plus.', 'error');
+        if (e && e.message === 'INSUFFICIENT_BALANCE') {
+            window.customAlert('Saldo Tidak Mencukupi', 'Saldo akun kamu tidak mencukupi untuk mengaktifkan Member Plus.', 'warning');
+        } else {
+            window.customAlert('Gagal', 'Tidak dapat memproses aktivasi Member Plus.', 'error');
+        }
     } finally {
         if (btn) {
             btn.disabled = false;
@@ -8937,217 +9664,471 @@ window.onInputPascaCustomerNo = function() {
     }
 };
 
+// ============================================================================
+// PENGECEKAN OTOMATIS STATUS PESANAN DIGIFLAZZ YANG MASIH PENDING (#6)
+// ============================================================================
+let userPendingDfPollerTimer = null;
+function startUserPendingDigiflazzPoller() {
+    if (userPendingDfPollerTimer) clearInterval(userPendingDfPollerTimer);
+    userPendingDfPollerTimer = setInterval(async () => {
+        if (!currentUser?.uid) return;
+        const myPendingDfOrders = orders.filter(o =>
+            o.userId === currentUser.uid &&
+            o.status === 'PENDING' &&
+            o.digiflazzPending === true &&
+            o.digiflazzRefId &&
+            o.digiflazzSku &&
+            o.digiflazzCustomerNo
+        );
+        for (const ord of myPendingDfOrders.slice(0, 2)) {
+            try {
+                const res = await callUserDigiflazzBridge('/api/digiflazz/transaction', {
+                    action: 'transaction',
+                    sku: ord.digiflazzSku,
+                    customer_no: ord.digiflazzCustomerNo,
+                    ref_id: ord.digiflazzRefId
+                });
+                const d = res?.data || res || {};
+                const st = String(d.status || '').toLowerCase();
+                if (st === 'sukses' || st === 'success') {
+                    const sn = String(d.sn || '').trim();
+                    const replyMsg = `[TRANSAKSI SELESAI]
+Produk : ${ord.variantName || ord.productName}
+Tujuan : ${ord.digiflazzCustomerNo}
+SN/Ref : ${sn || '-'}
+Status : SUKSES`;
+                    if (ord.dbId) {
+                        await updateDoc(doc(db, pathOrders, ord.dbId), {
+                            status: 'SUCCESS',
+                            digiflazzPending: false,
+                            digiflazzStatus: 'Sukses',
+                            digiflazzSn: sn,
+                            adminReply: replyMsg,
+                            deliveredAt: Date.now()
+                        }).catch(() => {});
+                    }
+                }
+            } catch (_) {}
+        }
+    }, 15000);
+}
+startUserPendingDigiflazzPoller();
+
+// ============================================================================
+// STRUK KASIR HITAM PUTIH ALA ALFAMIDI & INDOMARET (.PNG) + BAGIKAN LANGSUNG (#3)
+// ============================================================================
+
 let currentShareReceiptInvId = '';
+let cachedReceiptPngFile = null;
+let cachedReceiptPngDataUrl = '';
+
+function wrapCanvasMonospaceLines(ctx, text, maxWidth) {
+    const rawLines = String(text || '').split('\n');
+    const result = [];
+    for (const raw of rawLines) {
+        if (!raw) {
+            result.push('');
+            continue;
+        }
+        let current = '';
+        for (const ch of raw) {
+            const test = current + ch;
+            if (ctx.measureText(test).width > maxWidth && current.length > 0) {
+                result.push(current);
+                current = ch;
+            } else {
+                current = test;
+            }
+        }
+        if (current) result.push(current);
+    }
+    return result;
+}
 
 function renderOrderReceiptFallbackCanvas(order, cleanInv) {
+    const itemObj = order?.items?.[0] || {};
+    const itemName = String(itemObj.name || order?.variantName || order?.productName || 'PRODUK DIGITAL').toUpperCase();
+    const brandName = String(itemObj.brandName || order?.productName || 'LAYANAN DIGITAL').toUpperCase();
+    const itemQty = Number(itemObj.qty || 1);
+    const baseAmount = Number((order?.baseTotal || 0) + (order?.promoDiscount || 0));
+    const unitPrice = itemQty > 0 ? Math.round(baseAmount / itemQty) : baseAmount;
+    const targetRaw = String(order?.digiflazzCustomerNo || itemObj.playerInfo || order?.targetId || '-');
+    const targetName = String(order?.verifiedTargetName || order?.plnSubscriberName || '');
+    const snText = String(order?.digiflazzSn || '');
+    const replyRaw = String(order?.adminReply || '').trim();
+    const payLabel = order?.paymentMethod === 'cash'
+        ? 'TUNAI KASIR'
+        : (order?.paymentMethod === 'balance' ? 'SALDO AKUN' : 'QRIS');
+    const statusText = order?.status === 'SUCCESS'
+        ? 'LUNAS / BERHASIL'
+        : (order?.status === 'PENDING' ? 'DIPROSES' : String(order?.status || 'SELESAI'));
+    const dateStr = order?.date
+        ? new Date(order.date).toLocaleString('id-ID', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' })
+        : new Date().toLocaleString('id-ID');
+    const storeTitle = `${siteSettings.logoText || 'VIPER'}${siteSettings.logoAccent || 'CELL'}`.toUpperCase();
+
+    const width = 760;
+    const padX = 46;
+    const innerW = width - (padX * 2);
+
+    const tempCanvas = document.createElement('canvas');
+    tempCanvas.width = width;
+    tempCanvas.height = 200;
+    const tCtx = tempCanvas.getContext('2d');
+    tCtx.font = '700 18px "Courier New", Courier, monospace';
+    const replyLines = replyRaw ? wrapCanvasMonospaceLines(tCtx, replyRaw, innerW - 34) : [];
+    tCtx.font = '900 20px "Courier New", Courier, monospace';
+    const itemLines = wrapCanvasMonospaceLines(tCtx, `${brandName} - ${itemName}`, innerW);
+
+    const dynamicHeight = 860 + (itemLines.length * 28) + (replyLines.length > 0 ? (replyLines.length * 25 + 88) : 0);
+
     const canvas = document.createElement('canvas');
-    canvas.width = 720;
-    canvas.height = 960;
+    canvas.width = width;
+    canvas.height = Math.max(880, dynamicHeight);
     const ctx = canvas.getContext('2d');
 
-    ctx.fillStyle = '#0f172a';
+    // Latar belakang abu-abu terang tipis di luar kertas & kertas struk putih bersih ala Alfamidi/Indomaret
+    ctx.fillStyle = '#e5e7eb';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
+    const paperMargin = 14;
+    const paperX = paperMargin;
+    const paperY = 18;
+    const paperW = canvas.width - (paperMargin * 2);
+    const paperH = canvas.height - 36;
+
     ctx.fillStyle = '#ffffff';
-    ctx.fillRect(32, 32, canvas.width - 64, canvas.height - 64);
-    ctx.strokeStyle = '#1e293b';
-    ctx.lineWidth = 4;
-    ctx.strokeRect(32, 32, canvas.width - 64, canvas.height - 64);
+    ctx.fillRect(paperX, paperY, paperW, paperH);
 
-    // Header
-    ctx.fillStyle = '#1e293b';
-    ctx.fillRect(32, 32, canvas.width - 64, 110);
-    ctx.fillStyle = '#facc15';
-    ctx.font = '900 32px sans-serif';
-    const storeTitle = `${siteSettings.logoText || 'VIPER'}${siteSettings.logoAccent || 'CELL'}`;
-    ctx.fillText(storeTitle, 64, 88);
-    ctx.fillStyle = '#cbd5e1';
-    ctx.font = '700 16px sans-serif';
-    ctx.fillText('BUKTI TRANSAKSI RESMI', 64, 118);
-
-    const statusStr = order?.status === 'SUCCESS' ? 'TRANSAKSI BERHASIL' : (order?.status || 'DIPROSES');
-    ctx.fillStyle = order?.status === 'SUCCESS' ? '#16a34a' : '#d97706';
-    ctx.font = '900 22px sans-serif';
-    ctx.fillText(statusStr, 64, 190);
-
-    const rows = [
-        ['Nomor Invoice', `#${cleanInv}`],
-        ['Waktu Transaksi', order?.date ? new Date(order.date).toLocaleString('id-ID') : new Date().toLocaleString('id-ID')],
-        ['Produk & Layanan', order?.items?.[0]?.name || order?.productName || '-'],
-        ['Data Tujuan', order?.items?.[0]?.playerInfo || order?.targetId || '-'],
-        ['Atas Nama', order?.verifiedTargetName || order?.plnSubscriberName || '-'],
-        ['Metode Pembayaran', order?.paymentMethod === 'balance' ? 'SALDO AKUN' : (order?.paymentMethod === 'cash' ? 'TUNAI (KASIR)' : 'QRIS OTOMATIS')],
-        ['SN / Referensi', order?.digiflazzSn || '-'],
-        ['Total Pembayaran', `Rp${Number(order?.finalTotal || 0).toLocaleString('id-ID')}`]
-    ];
-
-    let y = 245;
-    rows.forEach(([label, val], idx) => {
-        ctx.fillStyle = '#64748b';
-        ctx.font = '700 17px sans-serif';
-        ctx.fillText(label.toUpperCase(), 64, y);
-
-        ctx.fillStyle = idx === rows.length - 1 ? '#2563eb' : '#0f172a';
-        ctx.font = idx === rows.length - 1 ? '900 26px sans-serif' : '800 20px sans-serif';
-        const safeVal = String(val || '-').slice(0, 44);
-        ctx.fillText(safeVal, 64, y + 28);
-
-        ctx.strokeStyle = '#e2e8f0';
-        ctx.lineWidth = 1.5;
+    // Gerigi kertas struk kasir di bagian atas & bawah
+    ctx.fillStyle = '#e5e7eb';
+    const toothW = 18;
+    for (let tx = paperX; tx < paperX + paperW; tx += toothW) {
         ctx.beginPath();
-        ctx.moveTo(64, y + 46);
-        ctx.lineTo(canvas.width - 64, y + 46);
-        ctx.stroke();
-        y += 74;
-    });
+        ctx.moveTo(tx, paperY);
+        ctx.lineTo(tx + toothW / 2, paperY + 10);
+        ctx.lineTo(tx + toothW, paperY);
+        ctx.closePath();
+        ctx.fill();
 
-    if (order?.adminReply) {
-        ctx.fillStyle = '#f8fafc';
-        ctx.fillRect(64, y - 10, canvas.width - 128, 86);
-        ctx.fillStyle = '#0f172a';
-        ctx.font = '700 15px monospace';
-        const firstLine = String(order.adminReply).split('\n')[0].slice(0, 52);
-        ctx.fillText(firstLine, 80, y + 35);
+        ctx.beginPath();
+        ctx.moveTo(tx, paperY + paperH);
+        ctx.lineTo(tx + toothW / 2, paperY + paperH - 10);
+        ctx.lineTo(tx + toothW, paperY + paperH);
+        ctx.closePath();
+        ctx.fill();
     }
+
+    ctx.strokeStyle = '#000000';
+    ctx.lineWidth = 2.5;
+    ctx.strokeRect(paperX + 8, paperY + 14, paperW - 16, paperH - 28);
+
+    const drawDoubleSep = (yPos) => {
+        ctx.save();
+        ctx.strokeStyle = '#000000';
+        ctx.lineWidth = 2;
+        ctx.setLineDash([]);
+        ctx.beginPath();
+        ctx.moveTo(padX, yPos);
+        ctx.lineTo(canvas.width - padX, yPos);
+        ctx.moveTo(padX, yPos + 5);
+        ctx.lineTo(canvas.width - padX, yPos + 5);
+        ctx.stroke();
+        ctx.restore();
+    };
+
+    const drawDashedSep = (yPos) => {
+        ctx.save();
+        ctx.strokeStyle = '#000000';
+        ctx.lineWidth = 2;
+        ctx.setLineDash([10, 6]);
+        ctx.beginPath();
+        ctx.moveTo(padX, yPos);
+        ctx.lineTo(canvas.width - padX, yPos);
+        ctx.stroke();
+        ctx.restore();
+    };
+
+    const drawKV = (label, val, yPos, isBoldVal = true) => {
+        ctx.fillStyle = '#000000';
+        ctx.font = '700 18px "Courier New", Courier, monospace';
+        ctx.textAlign = 'left';
+        ctx.fillText(label, padX, yPos);
+
+        ctx.font = isBoldVal ? '900 18px "Courier New", Courier, monospace' : '700 18px "Courier New", Courier, monospace';
+        ctx.textAlign = 'right';
+        const safeV = String(val || '-').slice(0, 38);
+        ctx.fillText(safeV, canvas.width - padX, yPos);
+        ctx.textAlign = 'left';
+    };
+
+    // Header Toko Ala Struk Alfamidi / Indomaret
+    let y = 78;
+    ctx.fillStyle = '#000000';
+    ctx.textAlign = 'center';
+    ctx.font = '900 34px "Courier New", Courier, monospace';
+    ctx.fillText(`PT. ${storeTitle} INDONESIA`, canvas.width / 2, y);
+    y += 28;
+    ctx.font = '700 17px "Courier New", Courier, monospace';
+    ctx.fillText('GERAI LAYANAN TOP UP GAME, PULSA & PPOB', canvas.width / 2, y);
+    y += 22;
+    ctx.fillText('NPWP / KODE GERAI : VPC-01 / LAYANAN 24 JAM', canvas.width / 2, y);
+    ctx.textAlign = 'left';
+
+    y += 20;
+    drawDoubleSep(y);
+    y += 32;
+
+    drawKV('TGL / JAM', dateStr, y);
+    y += 28;
+    drawKV('NO. BON / STRUK', `#${cleanInv}`, y);
+    y += 28;
+    drawKV('KASIR', 'KASIR-01 / OTOMATIS', y);
+    y += 28;
+    drawKV('PELANGGAN', String(order?.userEmail || order?.buyerName || 'UMUM').slice(0, 32), y);
+
+    y += 18;
+    drawDashedSep(y);
+    y += 28;
+
+    // Header Kolom Barang
+    ctx.font = '900 17px "Courier New", Courier, monospace';
+    ctx.textAlign = 'left';
+    ctx.fillText('DESKRIPSI BARANG / LAYANAN', padX, y);
+    ctx.textAlign = 'right';
+    ctx.fillText('SUBTOTAL', canvas.width - padX, y);
+    ctx.textAlign = 'left';
+
+    y += 14;
+    drawDashedSep(y);
+    y += 30;
+
+    ctx.font = '900 20px "Courier New", Courier, monospace';
+    for (const ln of itemLines) {
+        ctx.fillText(ln, padX, y);
+        y += 26;
+    }
+    y += 4;
+    drawKV(`${itemQty} PCS x Rp${unitPrice.toLocaleString('id-ID')}`, `Rp${baseAmount.toLocaleString('id-ID')}`, y);
+    y += 28;
+    drawKV('ID TUJUAN / NO. PEL', targetRaw, y);
+    if (targetName) {
+        y += 28;
+        drawKV('NAMA PELANGGAN', targetName, y);
+    }
+    if (snText) {
+        y += 28;
+        drawKV('SN / TOKEN / REF', snText, y);
+    }
+
+    y += 18;
+    drawDashedSep(y);
+    y += 32;
+
+    drawKV('HARGA JUAL', `Rp${baseAmount.toLocaleString('id-ID')}`, y);
+    if (Number(order?.promoDiscount || 0) > 0) {
+        y += 28;
+        drawKV(`DISKON (${order.promoCode || 'VOUCHER'})`, `-Rp${Number(order.promoDiscount).toLocaleString('id-ID')}`, y);
+    } else {
+        y += 28;
+        drawKV('DISKON', 'Rp0', y);
+    }
+    if (Number(order?.uniqueCode || 0) > 0) {
+        y += 28;
+        drawKV('KODE UNIK QRIS', `+Rp${Number(order.uniqueCode).toLocaleString('id-ID')}`, y);
+    }
+
+    y += 16;
+    drawDoubleSep(y);
+    y += 36;
+
+    ctx.font = '900 25px "Courier New", Courier, monospace';
+    ctx.textAlign = 'left';
+    ctx.fillText('TOTAL BELANJA', padX, y);
+    ctx.textAlign = 'right';
+    ctx.fillText(`Rp${Number(order?.finalTotal || 0).toLocaleString('id-ID')}`, canvas.width - padX, y);
+    ctx.textAlign = 'left';
+
+    y += 18;
+    drawDashedSep(y);
+    y += 30;
+
+    drawKV(`BAYAR (${payLabel})`, `Rp${Number(order?.finalTotal || 0).toLocaleString('id-ID')}`, y);
+    y += 28;
+    drawKV('KEMBALI', 'Rp0', y);
+    y += 28;
+    drawKV('STATUS TRANSAKSI', statusText, y);
+
+    if (replyLines.length > 0) {
+        y += 22;
+        const boxH = (replyLines.length * 24) + 52;
+        ctx.strokeStyle = '#000000';
+        ctx.lineWidth = 2.5;
+        ctx.strokeRect(padX, y, innerW, boxH);
+
+        ctx.font = '900 17px "Courier New", Courier, monospace';
+        ctx.fillText('SN / TOKEN / RINCIAN PESANAN:', padX + 14, y + 26);
+        ctx.font = '700 17px "Courier New", Courier, monospace';
+        let ry = y + 52;
+        for (const rLine of replyLines) {
+            ctx.fillText(rLine, padX + 14, ry);
+            ry += 24;
+        }
+        y += boxH + 12;
+    }
+
+    y += 22;
+    drawDoubleSep(y);
+    y += 32;
+
+    // Barcode Garis Hitam Putih Ala Struk Kasir Indomaret / Alfamidi
+    const barW = 360;
+    const barH = 44;
+    const barX = Math.round((canvas.width - barW) / 2);
+    ctx.fillStyle = '#000000';
+    let bx = barX;
+    const seedStr = `${cleanInv}${order?.finalTotal || 0}VIPERCELL`;
+    for (let i = 0; i < 58 && bx < barX + barW - 4; i++) {
+        const code = seedStr.charCodeAt(i % seedStr.length) + i * 7;
+        const lineW = (code % 3 === 0) ? 4 : ((code % 2 === 0) ? 2 : 3);
+        const gapW = (code % 4 === 0) ? 4 : 2;
+        ctx.fillRect(bx, y, lineW, barH);
+        bx += lineW + gapW;
+    }
+    y += barH + 22;
+
+    ctx.textAlign = 'center';
+    ctx.font = '700 15px "Courier New", Courier, monospace';
+    ctx.fillText(`*${cleanInv}*`, canvas.width / 2, y);
+    y += 28;
+    ctx.font = '900 19px "Courier New", Courier, monospace';
+    ctx.fillText('TERIMA KASIH ATAS KUNJUNGAN ANDA', canvas.width / 2, y);
+    y += 24;
+    ctx.font = '700 15px "Courier New", Courier, monospace';
+    ctx.fillText('SIMPAN STRUK INI SEBAGAI BUKTI PEMBAYARAN SAH', canvas.width / 2, y);
+    y += 20;
+    ctx.fillText(`LAYANAN BANTUAN PELANGGAN : ${storeTitle}`, canvas.width / 2, y);
 
     return canvas;
 }
 
-async function generateReceiptCanvasElement(invId) {
-    const cleanInv = String(invId || '').trim().replace(/^#/, '');
-    const order = orders.find(o => String(o.id || '').toUpperCase() === cleanInv.toUpperCase());
-    const cardEl = document.getElementById(`ereceipt-capture-card-${cleanInv}`) || document.querySelector('.ereceipt-ticket');
-
-    if (cardEl && typeof html2canvas !== 'undefined') {
-        try {
-            const canvas = await html2canvas(cardEl, {
-                backgroundColor: document.documentElement.getAttribute('data-theme') === 'dark' ? '#131b2e' : '#ffffff',
-                scale: 2,
-                useCORS: true,
-                allowTaint: true,
-                logging: false,
-                ignoreElements: (el) => el.hasAttribute && el.hasAttribute('data-html2canvas-ignore')
-            });
-            if (canvas && canvas.width > 10 && canvas.height > 10) {
-                return canvas;
-            }
-        } catch (err) {}
+function dataUrlToPngFileSync(dataUrl, fileName) {
+    try {
+        const parts = String(dataUrl || '').split(',');
+        if (parts.length < 2) return null;
+        const byteString = atob(parts[1]);
+        const ab = new ArrayBuffer(byteString.length);
+        const ia = new Uint8Array(ab);
+        for (let i = 0; i < byteString.length; i++) {
+            ia[i] = byteString.charCodeAt(i);
+        }
+        const blob = new Blob([ab], { type: 'image/png' });
+        return new File([blob], fileName, { type: 'image/png' });
+    } catch (e) {
+        return null;
     }
-    return renderOrderReceiptFallbackCanvas(order, cleanInv);
 }
 
-function buildShareReceiptTextSummary(invId) {
-    const cleanInv = String(invId || '').trim().replace(/^#/, '');
+function triggerDirectPngDownload(dataUrl, fileName) {
+    if (!dataUrl) return;
+    const link = document.createElement('a');
+    link.download = fileName;
+    link.href = dataUrl;
+    document.body.appendChild(link);
+    link.click();
+    setTimeout(() => link.remove(), 250);
+}
+
+function buildIndomaretReceiptPngBundleSync(invId) {
+    const cleanInv = String(invId || currentShareReceiptInvId || '').trim().replace(/^#/, '');
     const order = orders.find(o => String(o.id || '').toUpperCase() === cleanInv.toUpperCase());
-    const itemTitle = order?.items?.[0]?.name || order?.productName || 'Produk Digital Vipercell';
-    const targetInfo = order?.items?.[0]?.playerInfo || order?.targetId || '-';
-    const totalFmt = `Rp${Number(order?.finalTotal || 0).toLocaleString('id-ID')}`;
-    const snLine = order?.digiflazzSn ? `\nSN / Ref: ${order.digiflazzSn}` : '';
-    const nameLine = order?.verifiedTargetName ? `\nAtas Nama: ${order.verifiedTargetName}` : '';
-    return `*BUKTI TRANSAKSI RESMI VIPERCELL*\nNo. Invoice : #${cleanInv}\nProduk      : ${itemTitle}\nTujuan      : ${targetInfo}${nameLine}${snLine}\nTotal Bayar : ${totalFmt}\nStatus      : ${order?.status === 'SUCCESS' ? 'BERHASIL' : (order?.status || 'SELESAI')}`;
+    const canvas = renderOrderReceiptFallbackCanvas(order, cleanInv);
+    const dataUrl = canvas.toDataURL('image/png');
+    const fileName = `Struk_Vipercell_${cleanInv}.png`;
+    const file = dataUrlToPngFileSync(dataUrl, fileName);
+
+    currentShareReceiptInvId = cleanInv;
+    cachedReceiptPngDataUrl = dataUrl;
+    cachedReceiptPngFile = file;
+
+    return { cleanInv, order, canvas, dataUrl, fileName, file };
 }
 
-window.downloadOrderReceiptImage = async function(invId) {
+window.downloadOrderReceiptImage = function(invId) {
     const cleanInv = String(invId || currentShareReceiptInvId || '').trim().replace(/^#/, '');
     if (!cleanInv) return;
 
     try {
-        window.showToast('Menyiapkan Struk...', 'Sedang merender gambar struk transaksi.', 'info');
-        const canvas = await generateReceiptCanvasElement(cleanInv);
-        const dataUrl = canvas.toDataURL('image/png');
-
-        const link = document.createElement('a');
-        link.download = `Struk_Vipercell_${cleanInv}.png`;
-        link.href = dataUrl;
-        document.body.appendChild(link);
-        link.click();
-        setTimeout(() => link.remove(), 250);
-
-        window.showToast('Struk Tersimpan', `Gambar struk #${cleanInv}.png berhasil diunduh.`, 'success');
+        const bundle = buildIndomaretReceiptPngBundleSync(cleanInv);
+        triggerDirectPngDownload(bundle.dataUrl, bundle.fileName);
+        window.showToast('Struk Tersimpan (.PNG)', `Gambar struk hitam putih #${cleanInv}.png berhasil disimpan.`, 'success');
     } catch (e) {
-        window.customAlert('Gagal Menyimpan Gambar', 'Browser kamu membatasi pengunduhan otomatis. Silakan coba lagi.', 'error');
+        window.customAlert('Gagal Menyimpan Struk', 'Browser kamu membatasi penyimpanan otomatis. Silakan coba lagi.', 'error');
     }
 };
 
-window.shareOrderReceipt = function(invId) {
-    const cleanInv = String(invId || '').trim().replace(/^#/, '');
+// Bagikan Struk: Buat gambar PNG struk hitam putih ala Alfamidi/Indomaret, otomatis simpan PNG, dan buka opsi bagi ke aplikasi lain (#3)
+window.shareOrderReceipt = async function(invId) {
+    const cleanInv = String(invId || currentShareReceiptInvId || '').trim().replace(/^#/, '');
     if (!cleanInv) return;
-    currentShareReceiptInvId = cleanInv;
-    const subEl = document.getElementById('share-receipt-subtitle');
-    if (subEl) {
-        subEl.innerText = `Pilih tujuan untuk membagikan atau menyimpan struk transaksi #${cleanInv}.`;
+
+    try {
+        // 1. Render gambar PNG struk hitam putih secara sinkron (< 5ms) agar user-gesture HP tidak hilang
+        const bundle = buildIndomaretReceiptPngBundleSync(cleanInv);
+
+        // 2. Otomatis simpan gambar PNG struk ke perangkat
+        triggerDirectPngDownload(bundle.dataUrl, bundle.fileName);
+
+        // 3. Tampilkan pratinjau gambar PNG struk hitam putih & tombol bagi langsung ke aplikasi lain
+        const previewImg = document.getElementById('share-receipt-preview-img');
+        if (previewImg) previewImg.src = bundle.dataUrl;
+        const subEl = document.getElementById('share-receipt-subtitle');
+        if (subEl) subEl.innerText = `Gambar struk #${cleanInv}.png tersimpan. Pilih aplikasi tujuan untuk membagikan gambar struk.`;
+        window.openModal('modal-share-receipt');
+
+        // 4. Langsung buka menu bagikan gambar asli (native share sheet) ke aplikasi lain di HP jika didukung
+        if (bundle.file && navigator.share) {
+            const canShareFile = !navigator.canShare || navigator.canShare({ files: [bundle.file] });
+            if (canShareFile) {
+                await navigator.share({
+                    files: [bundle.file],
+                    title: `Struk Transaksi #${cleanInv}`
+                }).catch(() => {});
+            }
+        }
+    } catch (err) {
+        if (err && err.name === 'AbortError') return;
     }
-    window.openModal('modal-share-receipt');
 };
 
 window.executeShareReceiptAction = async function(actionType) {
     const cleanInv = String(currentShareReceiptInvId || '').trim().replace(/^#/, '');
     if (!cleanInv) return;
-    const shareText = buildShareReceiptTextSummary(cleanInv);
+
+    if (!cachedReceiptPngDataUrl || !cachedReceiptPngFile) {
+        buildIndomaretReceiptPngBundleSync(cleanInv);
+    }
 
     if (actionType === 'download_png') {
-        window.closeModal('modal-share-receipt');
-        await window.downloadOrderReceiptImage(cleanInv);
+        triggerDirectPngDownload(cachedReceiptPngDataUrl, `Struk_Vipercell_${cleanInv}.png`);
+        window.showToast('Struk Tersimpan (.PNG)', `Gambar struk #${cleanInv}.png berhasil disimpan.`, 'success');
         return;
     }
 
-    if (actionType === 'copy_text') {
+    if (cachedReceiptPngFile && navigator.share) {
         try {
-            await navigator.clipboard.writeText(shareText.replace(/\*/g, ''));
-            window.closeModal('modal-share-receipt');
-            window.showToast('Rincian Struk Disalin', `Teks struk #${cleanInv} berhasil disalin.`, 'success');
-        } catch (e) {
-            window.customAlert('Rincian Struk', `<pre style="text-align:left; font-size:0.78rem; white-space:pre-wrap;">${escapeHtml(shareText.replace(/\*/g, ''))}</pre>`, 'info');
-        }
-        return;
-    }
-
-    if (actionType === 'whatsapp') {
-        window.closeModal('modal-share-receipt');
-        const waUrl = `https://wa.me/?text=${encodeURIComponent(shareText)}`;
-        window.open(waUrl, '_blank', 'noopener,noreferrer');
-        return;
-    }
-
-    if (actionType === 'telegram') {
-        window.closeModal('modal-share-receipt');
-        const tgUrl = `https://t.me/share/url?url=${encodeURIComponent(window.location.origin)}&text=${encodeURIComponent(shareText.replace(/\*/g, ''))}`;
-        window.open(tgUrl, '_blank', 'noopener,noreferrer');
-        return;
-    }
-
-    if (actionType === 'native_image') {
-        try {
-            window.showToast('Menyiapkan Gambar...', 'Sedang menyiapkan gambar struk untuk dibagikan.', 'info');
-            const canvas = await generateReceiptCanvasElement(cleanInv);
-            const blob = await new Promise(res => canvas.toBlob(res, 'image/png'));
-            if (blob && navigator.canShare) {
-                const file = new File([blob], `Struk_Vipercell_${cleanInv}.png`, { type: 'image/png' });
-                if (navigator.canShare({ files: [file] })) {
-                    window.closeModal('modal-share-receipt');
-                    await navigator.share({
-                        title: `Struk Vipercell #${cleanInv}`,
-                        text: shareText.replace(/\*/g, ''),
-                        files: [file]
-                    });
-                    return;
-                }
-            }
-            if (navigator.share) {
-                window.closeModal('modal-share-receipt');
-                await navigator.share({
-                    title: `Struk Vipercell #${cleanInv}`,
-                    text: shareText.replace(/\*/g, '')
-                });
-                return;
-            }
-            window.closeModal('modal-share-receipt');
-            await window.downloadOrderReceiptImage(cleanInv);
+            await navigator.share({
+                files: [cachedReceiptPngFile],
+                title: `Struk Transaksi #${cleanInv}`
+            });
+            return;
         } catch (err) {
             if (err && err.name === 'AbortError') return;
-            await window.downloadOrderReceiptImage(cleanInv);
         }
     }
+
+    triggerDirectPngDownload(cachedReceiptPngDataUrl, `Struk_Vipercell_${cleanInv}.png`);
+    window.showToast('Gambar Struk Disimpan', `Gambar #${cleanInv}.png telah diunduh dan siap dikirim ke aplikasi lain.`, 'info');
 };
 
 // Jalankan Inisialisasi Aplikasi setelah seluruh fungsi dan modul siap

@@ -4758,3 +4758,450 @@ html[data-theme="dark"] .profile-hero-card.memberplus-profile-gold {
         display: block;
     }
 }
+
+/* ==========================================================================
+   PEMBARUAN v28.4 — STRUK INDOMARET HITAM PUTIH, TAB ISI SALDO TERPADU,
+   TAB PERBANDINGAN HARGA ELEGAN, & IDENTITAS REALTIME MEMBER PLUS
+   ========================================================================== */
+
+/* 1. Kartu Hero Profil Emas Realtime saat Member Plus Aktif */
+.profile-hero-card.profile-hero-memberplus-gold {
+    background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 52%, #fde68a 100%) !important;
+    border: 3px solid #b45309 !important;
+    box-shadow: 6px 6px 0px #78350f !important;
+    color: #422006 !important;
+}
+[data-theme="dark"] .profile-hero-card.profile-hero-memberplus-gold {
+    background: linear-gradient(135deg, #2e1d05 0%, #422006 55%, #713f12 100%) !important;
+    border: 3px solid #facc15 !important;
+    box-shadow: 6px 6px 0px #ca8a04 !important;
+    color: #fef9c3 !important;
+}
+.profile-hero-card.profile-hero-memberplus-gold #prof-display-name {
+    color: #422006 !important;
+}
+[data-theme="dark"] .profile-hero-card.profile-hero-memberplus-gold #prof-display-name {
+    color: #fef08a !important;
+}
+.profile-hero-card.profile-hero-memberplus-gold #prof-display-email {
+    color: #78350f !important;
+}
+[data-theme="dark"] .profile-hero-card.profile-hero-memberplus-gold #prof-display-email {
+    color: #fde68a !important;
+}
+
+/* 2. Struk Kasir Indomaret Hitam Putih (Thermal Monokrom) */
+.ereceipt-ticket.indomaret-receipt-paper {
+    background: #ffffff !important;
+    color: #000000 !important;
+    border: 2.5px solid #000000 !important;
+    border-radius: 6px !important;
+    box-shadow: 5px 5px 0px #000000 !important;
+    font-family: 'JetBrains Mono', 'Courier New', Courier, monospace !important;
+    padding: 1.35rem 1.15rem !important;
+    max-width: 440px;
+    margin: 0 auto;
+    position: relative;
+    overflow: hidden;
+}
+.indomaret-receipt-paper * {
+    color: #000000;
+    font-family: 'JetBrains Mono', 'Courier New', Courier, monospace !important;
+}
+.indomaret-receipt-header {
+    text-align: center;
+    padding-bottom: 10px;
+    margin-bottom: 10px;
+    border-bottom: 2px dashed #000000;
+}
+.indomaret-store-title {
+    font-size: 1.25rem;
+    font-weight: 900;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #000000 !important;
+    margin: 0;
+}
+.indomaret-store-sub {
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: #000000 !important;
+    margin-top: 3px;
+    line-height: 1.35;
+}
+.indomaret-dashed-line {
+    border: none;
+    border-top: 1.5px dashed #000000;
+    margin: 8px 0;
+    height: 0;
+}
+.indomaret-double-line {
+    border: none;
+    border-top: 3px double #000000;
+    margin: 8px 0;
+    height: 0;
+}
+.indomaret-kv-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 8px;
+    font-size: 0.76rem;
+    line-height: 1.45;
+    margin-bottom: 3px;
+    color: #000000 !important;
+}
+.indomaret-kv-row span:first-child {
+    font-weight: 700;
+    flex-shrink: 0;
+}
+.indomaret-kv-row span:last-child,
+.indomaret-kv-row strong {
+    font-weight: 800;
+    text-align: right;
+    word-break: break-all;
+}
+.indomaret-item-block {
+    padding: 6px 0;
+}
+.indomaret-item-title {
+    font-size: 0.84rem;
+    font-weight: 900;
+    text-transform: uppercase;
+    margin-bottom: 3px;
+    color: #000000 !important;
+}
+.indomaret-total-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.94rem;
+    font-weight: 900;
+    padding: 6px 0;
+    border-top: 1.5px dashed #000000;
+    border-bottom: 1.5px dashed #000000;
+    margin: 6px 0;
+    color: #000000 !important;
+}
+.indomaret-sn-box {
+    border: 2px solid #000000;
+    background: #ffffff !important;
+    padding: 9px 10px;
+    margin: 10px 0;
+    font-size: 0.76rem;
+    line-height: 1.5;
+    white-space: pre-wrap;
+    word-break: break-word;
+    color: #000000 !important;
+}
+.indomaret-status-stamp {
+    display: inline-block;
+    border: 2px solid #000000;
+    padding: 3px 10px;
+    font-size: 0.74rem;
+    font-weight: 900;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    margin-top: 6px;
+    background: #ffffff !important;
+    color: #000000 !important;
+}
+.indomaret-footer-note {
+    text-align: center;
+    font-size: 0.7rem;
+    font-weight: 700;
+    line-height: 1.45;
+    margin-top: 10px;
+    padding-top: 8px;
+    border-top: 1.5px dashed #000000;
+    color: #000000 !important;
+}
+.indomaret-actions-bar {
+    margin-top: 14px;
+    padding-top: 12px;
+    border-top: 2px solid #000000;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+.indomaret-actions-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+}
+.indomaret-btn-bw {
+    background: #000000 !important;
+    color: #ffffff !important;
+    border: 2px solid #000000 !important;
+    border-radius: 6px !important;
+    padding: 9px 12px !important;
+    font-size: 0.76rem !important;
+    font-weight: 900 !important;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    text-transform: uppercase;
+}
+.indomaret-btn-bw i,
+.indomaret-btn-bw span {
+    color: #ffffff !important;
+}
+.indomaret-btn-outline-bw {
+    background: #ffffff !important;
+    color: #000000 !important;
+    border: 2px solid #000000 !important;
+    border-radius: 6px !important;
+    padding: 9px 12px !important;
+    font-size: 0.76rem !important;
+    font-weight: 900 !important;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    text-transform: uppercase;
+}
+.indomaret-btn-outline-bw i,
+.indomaret-btn-outline-bw span {
+    color: #000000 !important;
+}
+
+/* 3. Tab Isi Saldo & Riwayat Isi Saldo Terpadu + Responsif Mobile */
+.topup-unified-history-col {
+    grid-column: 1 / -1;
+    margin-top: 0.35rem;
+}
+.topup-history-card {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    padding: 13px 15px;
+    border: 2.5px solid var(--border);
+    border-radius: 12px;
+    background: var(--surface);
+    box-shadow: 3px 3px 0px var(--border);
+    margin-bottom: 10px;
+    transition: transform 0.14s ease, box-shadow 0.14s ease;
+}
+.topup-history-card:hover {
+    transform: translate(-1px, -1px);
+    box-shadow: 5px 5px 0px var(--border);
+}
+
+/* 4. Tab Baru Perbandingan Harga Member Biasa vs Member Plus (#tab-perbandingan-harga) */
+.mp-comparison-hero-banner {
+    background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 55%, #fde68a 100%);
+    border: 2.5px solid #b45309;
+    border-radius: 14px;
+    padding: 1.15rem 1.25rem;
+    box-shadow: 5px 5px 0px #78350f;
+    color: #422006;
+    margin-bottom: 1.15rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+[data-theme="dark"] .mp-comparison-hero-banner {
+    background: linear-gradient(135deg, #2e1d05 0%, #422006 55%, #713f12 100%);
+    border-color: #facc15;
+    box-shadow: 5px 5px 0px #ca8a04;
+    color: #fef9c3;
+}
+.mp-compare-stats-strip {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 10px;
+    margin-bottom: 1rem;
+}
+.mp-compare-stat-box {
+    background: var(--surface);
+    border: 2px solid var(--border);
+    border-radius: 10px;
+    padding: 10px 13px;
+    box-shadow: 3px 3px 0px var(--border);
+}
+.mp-compare-stat-box span {
+    display: block;
+    font-size: 0.68rem;
+    font-weight: 800;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+.mp-compare-stat-box strong {
+    display: block;
+    font-size: 1rem;
+    font-weight: 900;
+    color: var(--text);
+    margin-top: 2px;
+}
+.mp-open-compare-cta-card {
+    background: linear-gradient(135deg, rgba(254, 243, 199, 0.7), rgba(253, 230, 138, 0.4));
+    border: 2.5px solid #d97706 !important;
+    box-shadow: 4px 4px 0px #92400e !important;
+}
+[data-theme="dark"] .mp-open-compare-cta-card {
+    background: linear-gradient(135deg, rgba(66, 32, 6, 0.7), rgba(113, 63, 18, 0.45));
+    border-color: #facc15 !important;
+    box-shadow: 4px 4px 0px #ca8a04 !important;
+}
+
+@media (max-width: 640px) {
+    #tab-topup .topup-header-bar {
+        flex-direction: column;
+        align-items: stretch !important;
+        gap: 10px !important;
+    }
+    #tab-topup .bantuan-subtabs-bar {
+        max-width: 100% !important;
+        width: 100% !important;
+        display: grid !important;
+        grid-template-columns: 1fr 1fr !important;
+    }
+    .topup-quick-grid {
+        grid-template-columns: repeat(3, 1fr) !important;
+        gap: 7px !important;
+    }
+    .topup-nom-chip {
+        padding: 9px 6px !important;
+        font-size: 0.78rem !important;
+    }
+    .topup-history-card {
+        flex-direction: column;
+        align-items: flex-start;
+        padding: 12px;
+    }
+    .topup-history-card > div:last-child {
+        width: 100%;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        text-align: left !important;
+        padding-top: 8px;
+        border-top: 1.5px dashed var(--border-subtle);
+    }
+    .indomaret-actions-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+
+/* ==========================================================================
+   PEMBARUAN v28.5: BANNER SWIPE INTERAKTIF, 3 SUB-TAB MEMBER PLUS & MOBILE POLISH
+   ========================================================================== */
+#banner-container {
+    position: relative;
+    touch-action: pan-y pinch-zoom;
+    user-select: none;
+    -webkit-user-select: none;
+    cursor: grab;
+}
+
+#banner-container:active {
+    cursor: grabbing;
+}
+
+.banner-slide {
+    user-select: none;
+    -webkit-user-drag: none;
+    pointer-events: none;
+}
+
+.banner-nav-btn {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.92);
+    color: #0f172a;
+    border: 2px solid #0f172a;
+    box-shadow: 2px 2px 0px #0f172a;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    z-index: 12;
+    font-size: 0.85rem;
+    transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.banner-nav-btn:hover {
+    background: var(--secondary, #facc15);
+    color: #000;
+}
+
+.banner-nav-prev {
+    left: 10px;
+}
+
+.banner-nav-next {
+    right: 10px;
+}
+
+#banner-dots {
+    position: absolute;
+    bottom: 10px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    padding: 4px 10px;
+    background: rgba(15, 23, 42, 0.65);
+    border-radius: 999px;
+    border: 1.5px solid rgba(255, 255, 255, 0.55);
+    z-index: 12;
+}
+
+.banner-dot {
+    width: 9px;
+    height: 9px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.55);
+    border: 1px solid #000;
+    padding: 0;
+    cursor: pointer;
+    transition: width 0.2s ease, background-color 0.2s ease;
+}
+
+.banner-dot.active {
+    width: 22px;
+    background: #facc15;
+}
+
+.topup-three-subtabs {
+    display: grid !important;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 6px;
+}
+
+.topup-three-subtabs .bantuan-subtab-btn {
+    font-size: 0.78rem;
+    padding: 8px 10px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+@media (max-width: 768px) {
+    .banner-nav-btn {
+        width: 30px;
+        height: 30px;
+        font-size: 0.74rem;
+    }
+
+    .topup-three-subtabs {
+        grid-template-columns: 1fr 1fr;
+    }
+
+    .topup-three-subtabs #topup-subtab-btn-compare {
+        grid-column: 1 / -1;
+    }
+}

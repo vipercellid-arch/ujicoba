@@ -14,17 +14,31 @@ service cloud.firestore {
     }
 
     // =========================================================
-    // 1. KOLEKSI USERS (MEMBER & TAMU ANONIM + UPGRADE AKUN)
+    // 1. KOLEKSI USERS (MEMBER, MEMBER PLUS, PIN TRX & TAMU)
+    //    - Pengguna Tamu (Anonim) tidak diizinkan memiliki saldo (balance).
+    //    - Mendukung penyimpanan PIN Transaksi (trxPinHash), Member Plus, dan Auth Token untuk pembersihan 6 jam.
     // =========================================================
     match /users/{userId} {
-      allow read, create, update: if true;
+      allow read: if true;
+      allow create: if isAdmin() || (
+        request.auth != null &&
+        request.auth.uid == userId &&
+        (!('balance' in request.resource.data) || request.resource.data.balance == 0)
+      );
+      allow update: if isAdmin() || (
+        request.auth != null && (
+          request.auth.uid == userId ||
+          resource.data.uid == userId
+        ) && (
+          (request.resource.data.get('isAnonymous', false) == false && request.resource.data.get('isGuest', false) == false) ||
+          request.resource.data.get('balance', 0) == 0
+        )
+      );
       allow delete: if isAdmin() || request.auth != null;
     }
 
     // =========================================================
-    // 2. KOLEKSI ORDERS (PESANAN & VALIDASI QRIS OTOMATIS v27.9 DIRECT FIREBASE)
-    //    Mendukung perubahan status UNPAID -> PAID -> SUCCESS / PENDING
-    //    langsung dari Database Firebase & Auto-Delivery Web (Tanpa Apps Script)
+    // 2. KOLEKSI ORDERS (PESANAN, TOPUP SALDO, MEMBER PLUS, PLN, PASCA & DIGIFLAZZ)
     // =========================================================
     match /orders/{orderId} {
       allow read, create: if true;
@@ -51,18 +65,49 @@ service cloud.firestore {
           'emailSentAt',
           'notif_new',
           'notif_paid',
-          'notif_completed'
+          'notif_completed',
+          'isTopupOrder',
+          'isMemberPlusOrder',
+          'isMemberPlusUser',
+          'memberPlusActivated',
+          'orderType',
+          'topupAmount',
+          'balanceCredited',
+          'balanceCreditedAt',
+          'balanceRefunded',
+          'balanceRefundedAt',
+          'refundedToBalance',
+          'refundedAt',
+          'verifiedTargetName',
+          'targetAccountName',
+          'plnTokenNumber',
+          'plnSubscriberName',
+          'plnSegmentPower',
+          'plnKwh',
+          'customEwalletNominal',
+          'customEwalletAmount',
+          'adminFeeAmount',
+          'pascaBillDetails',
+          'digiflazzRefId',
+          'digiflazzSku',
+          'digiflazzCustomerNo',
+          'digiflazzStatus',
+          'digiflazzRc',
+          'digiflazzSn',
+          'digiflazzMessage',
+          'digiflazzLastHitAt',
+          'digiflazzPrice',
+          'digiflazzSellingPrice',
+          'digiflazzDesc',
+          'digiflazzCommand',
+          'digiflazzInFlight'
         ])
       );
       allow delete: if isAdmin();
     }
 
     // =========================================================
-    // 3. KOLEKSI STOCKS (GUDANG STOK LOKAL OTOMATIS 24 JAM)
-    //    - Read diizinkan agar Web User tahu ketersediaan stok lokal
-    //      saat di luar jam layanan Admin & bisa auto-deliver instan.
-    //    - Create & Delete hanya untuk Admin.
-    //    - Update kuota terpakai diizinkan saat pesanan lunas.
+    // 3. KOLEKSI STOCKS (GUDANG STOK LOKAL)
     // =========================================================
     match /stocks/{stockId} {
       allow read: if true;
@@ -82,7 +127,7 @@ service cloud.firestore {
     }
 
     // =========================================================
-    // 4. KOLEKSI PRODUCTS (KATALOG PRODUK & SINKRONISASI STOK)
+    // 4. KOLEKSI PRODUCTS (KATALOG PRODUK LOKAL & DIGIFLAZZ + SEMBUNYIKAN PRODUK/VARIAN)
     // =========================================================
     match /products/{productId} {
       allow read: if true;
@@ -92,13 +137,38 @@ service cloud.firestore {
           'stockVault',
           'exhaustedVault',
           'stockCount',
-          'soldOut'
+          'soldOut',
+          'isGangguan',
+          'isVariantGangguan',
+          'isHidden',
+          'isBrandHidden',
+          'memberPlusPriceNum',
+          'isCheckUsernameProduct',
+          'sellerProductStatus',
+          'buyerProductStatus'
         ])
       );
     }
 
     // =========================================================
-    // 5. KOLEKSI PROMOS (KODE PROMO MEMBER)
+    // 5. KOLEKSI DIGIFLAZZ_CATALOG, DIGIFLAZZ_DEPOSITS & BALANCE_LOGS
+    // =========================================================
+    match /digiflazz_catalog/{skuId} {
+      allow read: if true;
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /digiflazz_deposits/{depId} {
+      allow read, create, update, delete: if isAdmin();
+    }
+
+    match /balance_logs/{logId} {
+      allow read, create: if request.auth != null;
+      allow update, delete: if isAdmin();
+    }
+
+    // =========================================================
+    // 6. KOLEKSI PROMOS (KODE PROMO MEMBER & MEMBER PLUS)
     // =========================================================
     match /promos/{promoId} {
       allow read: if true;
@@ -112,12 +182,18 @@ service cloud.firestore {
     }
 
     // =========================================================
-    // 6. KOLEKSI SETTINGS (KONFIGURASI TOKO & SINYAL PEMBAYARAN)
+    // 7. KOLEKSI SETTINGS (KONFIGURASI TOKO & KREDENSIAL RAHASIA ADMIN)
     // =========================================================
+    match /settings/secretConfig {
+      allow read: if true;
+      allow create, update, delete: if isAdmin();
+    }
+
     match /settings/{settingId} {
       allow read: if true;
       allow create, delete: if isAdmin();
       allow update: if isAdmin() || (
+        settingId != 'secretConfig' &&
         request.resource.data.diff(resource.data).affectedKeys().hasOnly([
           'lastPaymentDetected',
           'lastPaymentTimestamp',
@@ -125,37 +201,29 @@ service cloud.firestore {
           'suggestionsList',
           'footerMarqueeShowPrice',
           'footerMarqueeShowStatus',
-          'footerMarqueeSpeed'
+          'footerMarqueeSpeed',
+          'digiflazzLastBalance'
         ])
       );
     }
 
     // =========================================================
-    // 7. KOLEKSI PAYMENT_MUTATIONS (MUTASI QRIS DARI MACRODROID + AUTO-CLEAN 1 JAM v27.9)
+    // 8. KOLEKSI PAYMENT_MUTATIONS, PRODUCT_SUGGESTIONS, DEVICE_LOCKS, REVIEWS & CHATS
     // =========================================================
     match /payment_mutations/{mutationId} {
       allow read, create, update, delete: if true;
     }
 
-    // =========================================================
-    // 8. KOLEKSI PRODUCT_SUGGESTIONS (SARAN PRODUK BARU)
-    // =========================================================
     match /product_suggestions/{suggestionId} {
       allow read, create: if true;
       allow update, delete: if isAdmin();
     }
 
-    // =========================================================
-    // 9. KOLEKSI DEVICE_LOCKS (KEAMANAN PERANGKAT & SESI TAMU)
-    // =========================================================
     match /device_locks/{deviceId} {
       allow read, create, update: if true;
       allow delete: if isAdmin() || request.auth != null;
     }
 
-    // =========================================================
-    // 10. KOLEKSI REVIEWS & CHATS (ULASAN & LIVE CHAT BANTUAN)
-    // =========================================================
     match /reviews/{reviewId} {
       allow read, create: if true;
       allow update, delete: if isAdmin();
@@ -169,6 +237,10 @@ service cloud.firestore {
     // =========================================================
     // RULES WORKSPACE / ARTIFACTS PATH (CADANGAN KOMPATIBILITAS)
     // =========================================================
+    match /artifacts/{appId}/public/data/settings/secretConfig {
+      allow read: if true;
+      allow create, update, delete: if isAdmin();
+    }
     match /artifacts/{appId}/public/data/users/{userId} {
       allow read, create, update: if true;
       allow delete: if isAdmin() || request.auth != null;
@@ -182,7 +254,16 @@ service cloud.firestore {
           'adminReply', 'autoDelivered', 'deliveredAt',
           'durationDays', 'subscriptionStartAt', 'subscriptionEndAt', 'subscriptionStatus',
           'userId', 'userEmail', 'emailSent', 'emailSending', 'emailSentAt',
-          'notif_new', 'notif_paid', 'notif_completed'
+          'notif_new', 'notif_paid', 'notif_completed',
+          'isTopupOrder', 'isMemberPlusOrder',
+          'isMemberPlusUser', 'memberPlusActivated', 'orderType', 'topupAmount',
+          'balanceCredited', 'balanceCreditedAt', 'balanceRefunded', 'balanceRefundedAt',
+          'refundedToBalance', 'refundedAt', 'verifiedTargetName', 'targetAccountName',
+          'plnTokenNumber', 'plnSubscriberName', 'plnSegmentPower', 'plnKwh',
+          'customEwalletNominal', 'customEwalletAmount', 'adminFeeAmount', 'pascaBillDetails',
+          'digiflazzRefId', 'digiflazzSku', 'digiflazzCustomerNo', 'digiflazzStatus',
+          'digiflazzRc', 'digiflazzSn', 'digiflazzMessage', 'digiflazzLastHitAt',
+          'digiflazzPrice', 'digiflazzSellingPrice', 'digiflazzDesc', 'digiflazzCommand', 'digiflazzInFlight'
         ])
       );
       allow delete: if isAdmin();
@@ -201,9 +282,21 @@ service cloud.firestore {
       allow create, delete: if isAdmin();
       allow update: if isAdmin() || (
         request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-          'stockVault', 'exhaustedVault', 'stockCount', 'soldOut'
+          'stockVault', 'exhaustedVault', 'stockCount', 'soldOut', 'isGangguan', 'isVariantGangguan', 'isHidden', 'isBrandHidden', 'memberPlusPriceNum',
+          'isCheckUsernameProduct', 'sellerProductStatus', 'buyerProductStatus'
         ])
       );
+    }
+    match /artifacts/{appId}/public/data/digiflazz_catalog/{skuId} {
+      allow read: if true;
+      allow create, update, delete: if isAdmin();
+    }
+    match /artifacts/{appId}/public/data/digiflazz_deposits/{depId} {
+      allow read, create, update, delete: if isAdmin();
+    }
+    match /artifacts/{appId}/public/data/balance_logs/{logId} {
+      allow read, create: if request.auth != null;
+      allow update, delete: if isAdmin();
     }
     match /artifacts/{appId}/public/data/promos/{promoId} {
       allow read: if true;
@@ -218,8 +311,10 @@ service cloud.firestore {
       allow read: if true;
       allow create, delete: if isAdmin();
       allow update: if isAdmin() || (
+        settingId != 'secretConfig' &&
         request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-          'lastPaymentDetected', 'lastPaymentTimestamp', 'lastPaymentMutation', 'suggestionsList', 'footerMarqueeShowPrice', 'footerMarqueeShowStatus', 'footerMarqueeSpeed'
+          'lastPaymentDetected', 'lastPaymentTimestamp', 'lastPaymentMutation', 'suggestionsList',
+          'footerMarqueeShowPrice', 'footerMarqueeShowStatus', 'footerMarqueeSpeed', 'digiflazzLastBalance'
         ])
       );
     }
