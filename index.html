@@ -126,7 +126,7 @@
         <button id="btn-close-pwa" type="button"></button>
     </div>
 
-    <!-- Notifikasi Toast Neo-Brutalism -->
+    <!-- Notifikasi Toast  -->
     <div id="toast-container" class="toast-container"></div>
 
     <!-- Kontainer Utama Toko -->
@@ -161,6 +161,11 @@
                 </div>
 
                 <div class="header-actions">
+                    <button id="header-wallet-btn" class="theme-pill-btn wallet-header-pill" style="display:none;" aria-label="Saldo Akun" onclick="window.openTopupBalanceModal()" title="Isi Saldo Akun">
+                        <i class="fa-solid fa-wallet text-primary"></i>
+                        <span id="header-balance-text" style="font-weight:800;">Rp0</span>
+                        <span class="wallet-plus-badge">+</span>
+                    </button>
                     <button id="btn-theme-toggle" class="theme-pill-btn" aria-label="Ganti Tema" onclick="window.toggleThemeWithTransition(event)" title="Ganti Tema">
                         <i class="fa-solid fa-sun" id="theme-icon"></i>
                         <span class="hide-mobile" id="theme-label-text">Tema</span>
@@ -193,6 +198,48 @@
             <div class="banner-slider-container" id="banner-container">
                 <div class="banner-track" id="banner-track"></div>
                 <div class="banner-dots" id="banner-dots" style="display:none !important;"></div>
+            </div>
+
+            <!-- Panel Sambutan Waktu, Saldo Akun & Pintasan Member Plus (#18) -->
+            <div id="user-greeting-dashboard-panel" class="user-greeting-neo-panel">
+                <div class="greeting-left-col">
+                    <div class="greeting-badge-row">
+                        <span class="greeting-time-pill" id="user-greeting-time-badge"><i class="fa-solid fa-sun"></i> SELAMAT DATANG</span>
+                        <span class="greeting-role-pill" id="user-greeting-role-badge">TAMU</span>
+                    </div>
+                    <h2 class="greeting-main-title">
+                        <span id="user-greeting-time-text">Selamat Pagi</span>, <span id="user-greeting-name-text" class="text-primary">Pelanggan</span>!
+                    </h2>
+                    <p class="greeting-sub-text" id="user-greeting-sub-text">
+                        Pilih produk digital, pulsa, token PLN, atau top up game pilihanmu dengan proses instan.
+                    </p>
+                </div>
+
+                <div class="greeting-right-col">
+                    <!-- Kotak Saldo Akun (Khusus Member) -->
+                    <div id="greeting-wallet-box" class="greeting-wallet-card" style="display: none;">
+                        <div class="greeting-wallet-meta">
+                            <span><i class="fa-solid fa-wallet text-primary"></i> SALDO AKUN</span>
+                            <strong id="greeting-wallet-amount">Rp0</strong>
+                        </div>
+                        <button type="button" class="btn btn-primary btn-sm" onclick="window.openTopupBalanceModal('topup')">
+                            <i class="fa-solid fa-circle-plus"></i> Isi Saldo
+                        </button>
+                    </div>
+
+                    <!-- Pintasan Langganan Member Plus / Upgrade Member -->
+                    <div class="greeting-actions-strip">
+                        <button type="button" id="btn-greeting-memberplus" class="btn btn-warning btn-sm" onclick="window.openTopupBalanceModal('memberplus')">
+                            <i class="fa-solid fa-crown"></i> <span id="btn-greeting-memberplus-text">Langganan Member Plus</span>
+                        </button>
+                        <button type="button" class="btn btn-outline btn-sm" onclick="window.switchMainTab('pesanan')">
+                            <i class="fa-solid fa-receipt"></i> Riwayat Trx
+                        </button>
+                        <button type="button" id="btn-greeting-pin-shortcut" class="btn btn-outline btn-sm" style="display: none;" onclick="window.switchMainTab('profil')">
+                            <i class="fa-solid fa-shield-halved text-success"></i> PIN Trx
+                        </button>
+                    </div>
+                </div>
             </div>
             
             <!-- Filter & Pencarian Katalog -->
@@ -229,6 +276,18 @@
                     </button>
                     <button aria-label="Game" class="tab-btn" data-filter="game" onclick="window.filterBrands('game', this)">
                         <i class="fa-solid fa-gamepad"></i> Game
+                    </button>
+                    <button aria-label="Pulsa & Data" class="tab-btn" data-filter="pulsa" onclick="window.filterBrands('pulsa', this)">
+                        <i class="fa-solid fa-signal"></i> Pulsa &amp; Data
+                    </button>
+                    <button aria-label="Listrik PLN" class="tab-btn" data-filter="pln" onclick="window.filterBrands('pln', this)">
+                        <i class="fa-solid fa-bolt"></i> Listrik PLN
+                    </button>
+                    <button aria-label="E-Wallet" class="tab-btn" data-filter="ewallet" onclick="window.filterBrands('ewallet', this)">
+                        <i class="fa-solid fa-wallet"></i> E-Wallet
+                    </button>
+                    <button aria-label="Tagihan" class="tab-btn" data-filter="ppob" onclick="window.filterBrands('ppob', this)">
+                        <i class="fa-solid fa-file-invoice-dollar"></i> Tagihan
                     </button>
                     <button aria-label="Tools" class="tab-btn" data-filter="tools" onclick="window.filterBrands('tools', this)">
                         <i class="fa-solid fa-screwdriver-wrench"></i> Tools &amp; Email
@@ -460,11 +519,19 @@
             <div id="anon-ttl-info-card" style="display:none !important;" aria-hidden="true"></div>
             <div id="guest-upgrade-banner-profile" style="display:none !important;" aria-hidden="true"></div>
             
-            <div class="profile-hero-card">
-                <div class="profile-avatar-box" id="prof-avatar-initial">V</div>
+            <div class="profile-hero-card" id="prof-hero-card-container">
+                <div class="profile-avatar-box" id="prof-avatar-box-wrap" style="position:relative;">
+                    <span id="prof-avatar-initial">V</span>
+                    <span id="prof-avatar-crown" class="profile-avatar-crown-badge" style="display:none;" title="Member Plus Aktif">
+                        <i class="fa-solid fa-crown"></i>
+                    </span>
+                </div>
                 <div class="profile-hero-info">
-                    <div class="profile-badge-row" style="display:flex; flex-wrap:wrap; gap:6px;">
+                    <div class="profile-badge-row" style="display:flex; flex-wrap:wrap; gap:6px; align-items:center;">
                         <span class="brutal-tag tag-success" id="prof-email-status">MEMBER</span>
+                        <span class="memberplus-gold-badge" id="prof-memberplus-gold-badge" style="display:none;">
+                            <i class="fa-solid fa-crown"></i> MEMBER PLUS
+                        </span>
                     </div>
                     <h3 id="prof-display-name">Memuat...</h3>
                     <p id="prof-display-email">-</p>
@@ -478,6 +545,27 @@
                     </button>
                     <button id="btn-prof-logout-member" class="btn btn-danger btn-sm" onclick="window.logoutUser()">
                         <i class="fa-solid fa-right-from-bracket"></i> <span id="text-btn-logout">Keluar</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- KARTU DOMPET SALDO AKUN (KHUSUS MEMBER LOGIN) -->
+            <div id="prof-wallet-card" class="brutal-panel wallet-profile-banner" style="margin-bottom: 1.25rem; display: none; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; border-color: var(--primary);">
+                <div style="display: flex; align-items: center; gap: 14px;">
+                    <div class="prof-stat-icon bg-accent-emerald" style="width: 52px; height: 52px; font-size: 1.35rem;">
+                        <i class="fa-solid fa-wallet"></i>
+                    </div>
+                    <div>
+                        <span style="font-size: 0.74rem; font-weight: 800; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em;">Saldo Akun Tersedia</span>
+                        <h3 id="prof-wallet-balance" style="font-size: 1.55rem; font-weight: 900; margin: 2px 0 0; color: var(--primary);">Rp0</h3>
+                    </div>
+                </div>
+                <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                    <button type="button" class="btn btn-primary btn-sm" onclick="window.openTopupBalanceModal()">
+                        <i class="fa-solid fa-circle-plus"></i> Isi Saldo (QRIS / Tunai)
+                    </button>
+                    <button type="button" class="btn btn-outline btn-sm" onclick="window.switchMainTab('pesanan')">
+                        <i class="fa-solid fa-clock-rotate-left"></i> Riwayat
                     </button>
                 </div>
             </div>
@@ -548,6 +636,57 @@
 
 
 
+                        <!-- Kartu Kelola Langganan Member Plus di Tab Profil -->
+                        <div id="prof-memberplus-manage-card" class="brutal-panel" style="display:none; margin-top: 1rem; padding: 1rem; background: var(--bg); border-color: #f59e0b;">
+                            <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; margin-bottom:8px;">
+                                <strong style="font-size:0.86rem; display:flex; align-items:center; gap:6px;">
+                                    <i class="fa-solid fa-crown" style="color:#f59e0b;"></i> <span id="prof-mp-card-title">Status Langganan Member Plus</span>
+                                </strong>
+                                <span id="prof-mp-card-badge" class="brutal-tag tag-amber">MEMBER BIASA</span>
+                            </div>
+                            <p id="prof-mp-card-desc" style="font-size:0.78rem; color:var(--text-muted); font-weight:600; margin-bottom:10px; line-height:1.45;">
+                                Nikmati potongan harga khusus Member Plus di seluruh katalog produk.
+                            </p>
+                            <button type="button" id="btn-prof-manage-memberplus" class="btn btn-warning btn-sm" style="width:100%;" onclick="window.openTopupBalanceModal('memberplus')">
+                                <i class="fa-solid fa-crown"></i> <span id="btn-prof-manage-memberplus-text">Kelola Langganan Member Plus</span>
+                            </button>
+                        </div>
+
+                        <!-- Pengaturan PIN Transaksi Saldo Akun (6 Digit) -->
+                        <div id="prof-trx-pin-card" class="brutal-panel" style="margin-top: 1rem; padding: 1rem; background: var(--bg); border-color: var(--primary);">
+                            <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px; margin-bottom:8px;">
+                                <strong style="font-size:0.86rem; display:flex; align-items:center; gap:6px;">
+                                    <i class="fa-solid fa-shield-halved text-primary"></i> PIN Transaksi Saldo (6 Digit)
+                                </strong>
+                                <span id="prof-pin-status-badge" class="brutal-tag tag-amber">BELUM DISETEL</span>
+                            </div>
+                            <p style="font-size:0.76rem; color:var(--text-muted); font-weight:600; margin-bottom:10px; line-height:1.45;">
+                                PIN ini wajib dimasukkan setiap kali kamu membeli produk menggunakan Saldo Akun.
+                            </p>
+                            <div id="prof-old-pin-group" class="form-group" style="display:none; margin-bottom:8px;">
+                                <label for="prof-old-trx-pin" style="font-size:0.75rem;">PIN Transaksi Lama</label>
+                                <input type="password" id="prof-old-trx-pin" class="form-control code-mono" maxlength="6" inputmode="numeric" placeholder="Masukkan 6 digit PIN lama">
+                            </div>
+                            <div class="grid-2col-form" style="gap:8px; margin-bottom:10px;">
+                                <div class="form-group" style="margin-bottom:0;">
+                                    <label for="prof-new-trx-pin" style="font-size:0.75rem;">PIN Baru (6 Angka)</label>
+                                    <input type="password" id="prof-new-trx-pin" class="form-control code-mono" maxlength="6" inputmode="numeric" placeholder="Contoh: 123456">
+                                </div>
+                                <div class="form-group" style="margin-bottom:0;">
+                                    <label for="prof-confirm-trx-pin" style="font-size:0.75rem;">Ulangi PIN Baru</label>
+                                    <input type="password" id="prof-confirm-trx-pin" class="form-control code-mono" maxlength="6" inputmode="numeric" placeholder="Konfirmasi 6 angka">
+                                </div>
+                            </div>
+                            <div style="display:flex; flex-direction:column; gap:8px;">
+                                <button type="button" id="btn-save-user-trx-pin" class="btn btn-primary btn-sm" style="width:100%;" onclick="window.saveUserTransactionPin()">
+                                    <i class="fa-solid fa-lock"></i> <span id="text-save-user-trx-pin">Simpan PIN Transaksi</span>
+                                </button>
+                                <button type="button" id="btn-forgot-user-trx-pin" class="btn btn-outline btn-sm" style="width:100%; display:none;" onclick="window.openForgotTrxPinModal()">
+                                    <i class="fa-solid fa-key"></i> Lupa PIN Transaksi? Reset dengan Kata Sandi Akun
+                                </button>
+                            </div>
+                        </div>
+
                         <div id="prof-security-member-box" style="margin-top: 1.1rem;">
                             <p style="font-size:0.84rem; color:var(--text-muted); margin-bottom: 0.8rem; line-height: 1.5;">
                                 Klik tombol di bawah untuk mengirimkan link ubah kata sandi langsung ke email akun kamu.
@@ -616,7 +755,7 @@
                             </div>
 
                             <!-- Step 2: Pilih Variasi -->
-                            <div class="checkout-step-card">
+                            <div class="checkout-step-card" id="checkout-step-02-card">
                                 <div class="step-header" style="justify-content: space-between; flex-wrap: wrap;">
                                     <div style="display:flex; align-items:center; gap:10px;">
                                         <span class="step-num">02</span>
@@ -686,10 +825,25 @@
                                     </div>
                                 </div>
                                 
+                                <!-- Box Input Nominal Bebas E-Wallet (Maks Rp500.000) (#14) -->
+                                <div id="buy-custom-ewallet-box" class="form-group" style="display:none; margin-top: 0.85rem; padding: 12px; border-radius: 10px; border: 2px solid var(--primary); background: rgba(37, 99, 235, 0.06);">
+                                    <label for="buy-custom-ewallet-amount" style="color:var(--primary); font-weight:900;"><i class="fa-solid fa-sliders"></i> Nominal Top Up E-Wallet (Rp) <span style="color:var(--danger)">*</span></label>
+                                    <div class="topup-quick-grid" style="margin: 6px 0 8px;">
+                                        <button type="button" class="topup-nom-chip" onclick="window.setCustomEwalletNominal(15000)">Rp15.000</button>
+                                        <button type="button" class="topup-nom-chip" onclick="window.setCustomEwalletNominal(25000)">Rp25.000</button>
+                                        <button type="button" class="topup-nom-chip" onclick="window.setCustomEwalletNominal(50000)">Rp50.000</button>
+                                        <button type="button" class="topup-nom-chip" onclick="window.setCustomEwalletNominal(100000)">Rp100.000</button>
+                                        <button type="button" class="topup-nom-chip" onclick="window.setCustomEwalletNominal(250000)">Rp250.000</button>
+                                        <button type="button" class="topup-nom-chip" onclick="window.setCustomEwalletNominal(500000)">Rp500.000</button>
+                                    </div>
+                                    <input type="number" id="buy-custom-ewallet-amount" class="form-control" value="50000" min="10000" max="500000" step="1000" placeholder="Rp10.000 - Rp500.000" style="font-weight:900; font-size:1rem;" oninput="window.onInputCustomEwalletAmount()">
+                                    <small id="buy-custom-ewallet-hint" style="display:block; margin-top:5px; font-size:0.73rem; font-weight:700; color:var(--text-muted);">Batas pengisian bebas nominal: Rp10.000 s/d Rp500.000</small>
+                                </div>
+
                                 <div id="buy-payment-method" class="form-group" style="margin-top: 1rem;">
                                     <label>Metode Pembayaran</label>
-                                    <div class="type-grid" style="grid-template-columns: 1fr 1fr; margin-top:6px;">
-                                        <label class="type-card active" onclick="window.selectPaymentUI('qris', this)" tabindex="0">
+                                    <div id="checkout-pay-grid" class="type-grid checkout-pay-3grid" style="grid-template-columns: repeat(2, 1fr); gap: 8px; margin-top:6px;">
+                                        <label class="type-card active" id="pay-card-qris" onclick="window.selectPaymentUI('qris', this)" tabindex="0">
                                             <input type="radio" name="payment_method" value="qris" checked style="display:none;">
                                             <div class="pay-method-head">
                                                 <i class="fa-solid fa-qrcode"></i>
@@ -697,8 +851,17 @@
                                             </div>
                                             <span class="pay-badge badge-green">Otomatis</span>
                                         </label>
+
+                                        <label class="type-card" id="pay-card-balance" style="display:none;" onclick="window.selectPaymentUI('balance', this)" tabindex="0">
+                                            <input type="radio" name="payment_method" value="balance" style="display:none;">
+                                            <div class="pay-method-head">
+                                                <i class="fa-solid fa-wallet"></i>
+                                                <strong>SALDO</strong>
+                                            </div>
+                                            <span class="pay-badge badge-green" id="checkout-balance-badge">Rp0</span>
+                                        </label>
                                         
-                                        <label class="type-card" onclick="window.selectPaymentUI('cash', this)" tabindex="0">
+                                        <label class="type-card" id="pay-card-cash" onclick="window.selectPaymentUI('cash', this)" tabindex="0">
                                             <input type="radio" name="payment_method" value="cash" style="display:none;">
                                             <div class="pay-method-head">
                                                 <i class="fa-solid fa-barcode"></i>
@@ -706,6 +869,11 @@
                                             </div>
                                             <span class="pay-badge badge-yellow">Kasir</span>
                                         </label>
+                                    </div>
+
+                                    <div id="balance-warning-msg" class="brutal-alert-box alert-info" style="display:none; margin-top:10px; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+                                        <span id="balance-warning-text"><i class="fa-solid fa-wallet"></i> Pembayaran instan menggunakan Saldo Akun tanpa kode unik.</span>
+                                        <button type="button" class="btn btn-primary btn-sm" style="padding:3px 10px; min-height:26px; font-size:0.72rem;" onclick="window.openTopupBalanceModal()">+ Isi Saldo</button>
                                     </div>
 
                                     <div id="cash-warning-msg" class="brutal-alert-box alert-warning" style="display:none; margin-top:10px;">
@@ -852,8 +1020,8 @@
 
                         <div class="qris-live-listener-box">
                             <div style="flex:1; min-width:0;">
-                                <strong><i class="fa-solid fa-bolt text-warning"></i> Verifikasi Otomatis Direct Firebase Aktif (v27.9)</strong>
-                                <span id="qris-live-watcher-text">Sistem mendeteksi pembayaranmu secara otomatis dalam hitungan detik tanpa perlu menekan tombol.</span>
+                                <strong><i class="fa-solid fa-bolt text-warning"></i> Verifikasi Pembayaran Otomatis</strong>
+                                <span id="qris-live-watcher-text">Status pesanan diperbarui secara otomatis segera setelah pembayaran diterima.</span>
                             </div>
                             <button type="button" id="btn-check-payment-now" class="btn btn-outline btn-sm" onclick="window.manualCheckQrisPaymentStatus()">
                                 <i class="fa-solid fa-rotate"></i> Cek Status
@@ -897,7 +1065,280 @@
             </div>
         </div>
 
-        <!-- TAB 7: HALAMAN LOGIN & DAFTAR NEO-BRUTALISM -->
+        
+        <!-- TAB 6C: ISI SALDO AKUN & LANGGANAN MEMBER PLUS (FULLSCREEN PANEL #10 & #12) -->
+        <div id="tab-topup" class="main-tab-content container" style="padding-top: 1.2rem;">
+            <div class="topup-fullscreen-wrapper">
+                <div class="flex-between align-center flex-wrap-gap" style="margin-bottom: 1.15rem; display:flex; justify-content:space-between; align-items:center; gap:10px;">
+                    <button type="button" class="btn btn-outline btn-sm" onclick="window.switchMainTab('katalog')">
+                        <i class="fa-solid fa-arrow-left"></i> Kembali ke Katalog
+                    </button>
+                    <div class="bantuan-subtabs-bar" style="margin: 0; max-width: 420px; width: 100%;">
+                        <button type="button" id="topup-subtab-btn-wallet" class="bantuan-subtab-btn active" onclick="window.switchTopupSubTab('topup')">
+                            <i class="fa-solid fa-wallet"></i> <span>Isi Saldo Akun</span>
+                        </button>
+                        <button type="button" id="topup-subtab-btn-history" class="bantuan-subtab-btn" onclick="window.switchTopupSubTab('history')">
+                            <i class="fa-solid fa-clock-rotate-left"></i> <span>Riwayat Isi Saldo</span>
+                        </button>
+                        <button type="button" id="topup-subtab-btn-memberplus" class="bantuan-subtab-btn" onclick="window.switchTopupSubTab('memberplus')">
+                            <i class="fa-solid fa-crown"></i> <span id="topup-subtab-text-memberplus">Member Plus</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- SUB-PANEL 1: ISI SALDO AKUN FULLSCREEN -->
+                <div id="topup-panel-wallet" class="checkout-split-grid">
+                    <div class="checkout-main-col">
+                        <div class="checkout-step-card">
+                            <div class="step-header">
+                                <span class="step-num"><i class="fa-solid fa-wallet"></i></span>
+                                <h4>Pilih Nominal Pengisian Saldo</h4>
+                            </div>
+
+                            <div class="brutal-alert-box alert-info" style="margin-bottom: 1rem; justify-content: space-between; align-items: center;">
+                                <span>Saldo Akun Kamu Saat Ini:</span>
+                                <strong id="topup-modal-current-balance" style="font-size: 1.2rem; color: var(--primary);">Rp0</strong>
+                            </div>
+
+                            <div class="form-group">
+                                <label>Pilih Nominal Cepat</label>
+                                <div class="topup-quick-grid">
+                                    <button type="button" class="topup-nom-chip" onclick="window.selectTopupPresetAmount(10000, this)">Rp10.000</button>
+                                    <button type="button" class="topup-nom-chip" onclick="window.selectTopupPresetAmount(20000, this)">Rp20.000</button>
+                                    <button type="button" class="topup-nom-chip active" onclick="window.selectTopupPresetAmount(50000, this)">Rp50.000</button>
+                                    <button type="button" class="topup-nom-chip" onclick="window.selectTopupPresetAmount(100000, this)">Rp100.000</button>
+                                    <button type="button" class="topup-nom-chip" onclick="window.selectTopupPresetAmount(250000, this)">Rp250.000</button>
+                                    <button type="button" class="topup-nom-chip" onclick="window.selectTopupPresetAmount(500000, this)">Rp500.000</button>
+                                </div>
+                            </div>
+
+                            <div class="form-group" style="margin-bottom:0;">
+                                <label for="topup-custom-amount">Atau Masukkan Nominal Lain (Rp) <span style="color:var(--danger)">*</span></label>
+                                <input type="number" id="topup-custom-amount" class="form-control" value="50000" min="1000" placeholder="Minimal Rp1.000" style="font-weight: 900; font-size: 1.1rem;" oninput="window.updateTopupSummaryDisplay()">
+                                <small style="font-size:0.74rem; color:var(--text-muted); font-weight:700; display:block; margin-top:5px;">Saldo masuk secara otomatis setelah pembayaran terverifikasi dan tidak memiliki masa kedaluwarsa.</small>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="checkout-side-col">
+                        <div class="checkout-step-card sticky-checkout-box">
+                            <div class="step-header">
+                                <span class="step-num">02</span>
+                                <h4>Metode Pembayaran</h4>
+                            </div>
+
+                            <div class="form-group">
+                                <div class="type-grid" style="grid-template-columns: 1fr 1fr; margin-top: 6px;">
+                                    <label class="type-card active" id="topup-pay-card-qris" onclick="window.selectTopupPaymentMethod('qris', this)">
+                                        <input type="radio" name="topup_payment_method" value="qris" checked style="display:none;">
+                                        <div class="pay-method-head">
+                                            <i class="fa-solid fa-qrcode"></i>
+                                            <strong>QRIS</strong>
+                                        </div>
+                                        <span class="pay-badge badge-green">Otomatis Masuk</span>
+                                    </label>
+                                    <label class="type-card" id="topup-pay-card-cash" onclick="window.selectTopupPaymentMethod('cash', this)">
+                                        <input type="radio" name="topup_payment_method" value="cash" style="display:none;">
+                                        <div class="pay-method-head">
+                                            <i class="fa-solid fa-barcode"></i>
+                                            <strong>TUNAI</strong>
+                                        </div>
+                                        <span class="pay-badge badge-yellow">Barcode Kasir</span>
+                                    </label>
+                                </div>
+                            </div>
+
+                            <div class="cart-total-box">
+                                <div>
+                                    <span class="total-label">NOMINAL ISI SALDO</span>
+                                    <div class="unique-code-info">Tanpa potongan biaya admin</div>
+                                </div>
+                                <div style="text-align:right;">
+                                    <span id="topup-summary-total-display" class="total-nominal">Rp50.000</span>
+                                </div>
+                            </div>
+
+                            <button type="button" id="btn-submit-topup-balance" class="btn btn-primary btn-checkout-submit" onclick="window.processTopupBalanceCheckout()">
+                                <i class="fa-solid fa-bolt"></i> <span>Lanjut Isi Saldo Sekarang</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SUB-PANEL 1B: RIWAYAT ISI SALDO AKUN -->
+                <div id="topup-panel-history" style="display: none;">
+                    <div class="checkout-step-card">
+                        <div class="step-header" style="justify-content: space-between; flex-wrap: wrap;">
+                            <div style="display:flex; align-items:center; gap:10px;">
+                                <span class="step-num"><i class="fa-solid fa-clock-rotate-left"></i></span>
+                                <div>
+                                    <h4>Riwayat Isi Saldo Akun</h4>
+                                    <p style="font-size:0.76rem; color:var(--text-muted); font-weight:600; margin:0;">Daftar seluruh transaksi pengisian saldo akun kamu beserta status pembayarannya.</p>
+                                </div>
+                            </div>
+                            <button type="button" class="btn btn-primary btn-sm" onclick="window.switchTopupSubTab('topup')">
+                                <i class="fa-solid fa-plus"></i> Isi Saldo Baru
+                            </button>
+                        </div>
+                        <div id="topup-history-list-container" style="margin-top: 0.75rem;"></div>
+                    </div>
+                </div>
+
+                <!-- SUB-PANEL 2: LANGGANAN & KELOLA MEMBER PLUS + TABEL PERBANDINGAN HARGA -->
+                <div id="topup-panel-memberplus" class="checkout-split-grid" style="display: none;">
+                    <div class="checkout-main-col">
+                        <!-- Banner Emas Khusus Saat Sudah Berlangganan Member Plus -->
+                        <div id="memberplus-active-celebration-card" class="memberplus-celebration-card" style="display: none; margin-bottom: 1.25rem;">
+                            <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin-bottom:8px;">
+                                <span class="memberplus-gold-badge" style="font-size:0.8rem; padding:5px 12px;">
+                                    <i class="fa-solid fa-crown"></i> MEMBER PLUS AKTIF
+                                </span>
+                                <span id="memberplus-active-remaining-pill" class="brutal-tag tag-amber" style="font-size:0.72rem;">Aktif</span>
+                            </div>
+                            <h3 style="margin:0 0 6px; font-size:1.15rem; font-weight:900;">Selamat, Anda Sekarang Member Plus!</h3>
+                            <p style="margin:0; font-size:0.82rem; font-weight:600; line-height:1.5; opacity:0.92;">
+                                Seluruh harga produk di katalog sudah otomatis menggunakan tarif khusus Member Plus.
+                            </p>
+                            <div class="memberplus-exp-meta-grid">
+                                <div class="memberplus-exp-meta-item">
+                                    <span>MULAI LANGGANAN</span>
+                                    <strong id="memberplus-active-start-date">-</strong>
+                                </div>
+                                <div class="memberplus-exp-meta-item">
+                                    <span>TANGGAL AKHIR LANGGANAN</span>
+                                    <strong id="memberplus-active-end-date">-</strong>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="checkout-step-card" style="border-color: var(--primary);">
+                            <div class="step-header">
+                                <span class="step-num" style="background: var(--secondary);"><i class="fa-solid fa-crown"></i></span>
+                                <h4 id="memberplus-main-card-heading">Keuntungan Langganan Member Plus (30 Hari)</h4>
+                            </div>
+
+                            <div id="memberplus-status-banner" class="brutal-alert-box alert-warning" style="margin-bottom: 1rem;">
+                                <i class="fa-solid fa-crown"></i>
+                                <span id="memberplus-status-text">Kamu belum berlangganan Member Plus. Aktifkan sekarang untuk menikmati harga spesial!</span>
+                            </div>
+
+                            <p id="memberplus-tagline-display" style="font-size:0.88rem; font-weight:700; color:var(--text-muted); margin-bottom:1rem;">
+                                Harga lebih hemat di semua produk, akses voucher eksklusif Member Plus, dan prioritas layanan.
+                            </p>
+
+                            <div class="auth-category-bento">
+                                <div class="auth-bento-item bento-amber">
+                                    <div class="bento-icon"><i class="fa-solid fa-tags"></i></div>
+                                    <div>
+                                        <strong>Harga Lebih Murah Otomatis</strong>
+                                        <span>Potongan harga langsung di produk aplikasi, top up game, pulsa, dan PPOB selama 30 hari penuh.</span>
+                                    </div>
+                                </div>
+                                <div class="auth-bento-item bento-blue">
+                                    <div class="bento-icon"><i class="fa-solid fa-ticket"></i></div>
+                                    <div>
+                                        <strong>Kode Promo Eksklusif Member Plus</strong>
+                                        <span>Klaim kode voucher khusus pelanggan Member Plus di halaman pembelian.</span>
+                                    </div>
+                                </div>
+                                <div class="auth-bento-item bento-emerald">
+                                    <div class="bento-icon"><i class="fa-solid fa-bolt"></i></div>
+                                    <div>
+                                        <strong>Badge Mahkota &amp; Prioritas Layanan</strong>
+                                        <span>Identitas Member Plus aktif di profil dan prioritas bantuan CS.</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- TABEL PERBANDINGAN HARGA MEMBER BIASA VS MEMBER PLUS PER BRAND -->
+                        <div class="checkout-step-card" style="margin-top: 1.25rem; border-color: #f59e0b;">
+                            <div class="step-header">
+                                <span class="step-num" style="background: linear-gradient(135deg, #fde047, #f59e0b); color:#422006;"><i class="fa-solid fa-scale-balanced"></i></span>
+                                <div>
+                                    <h4>Tabel Perbandingan Harga Member Biasa vs Member Plus</h4>
+                                    <p style="font-size:0.76rem; color:var(--text-muted); font-weight:600; margin:0;">Pilih jenis layanan, kategori, dan brand untuk melihat perbandingan harga per variasi produk.</p>
+                                </div>
+                            </div>
+
+                            <div class="mp-compare-filter-grid">
+                                <div class="form-group" style="margin-bottom:0;">
+                                    <label for="mp-compare-service-type" style="font-size:0.74rem; font-weight:800;">1. Jenis Layanan</label>
+                                    <select id="mp-compare-service-type" class="form-control" onchange="window.onChangeMpCompareServiceType()">
+                                        <option value="prabayar">Layanan Prabayar (Game, Pulsa, PLN, E-Wallet, Aplikasi)</option>
+                                        <option value="pascabayar">Layanan Pascabayar (Tagihan PPOB)</option>
+                                    </select>
+                                </div>
+                                <div class="form-group" style="margin-bottom:0;">
+                                    <label for="mp-compare-category" style="font-size:0.74rem; font-weight:800;">2. Pilih Kategori</label>
+                                    <select id="mp-compare-category" class="form-control" onchange="window.onChangeMpCompareCategory()">
+                                        <option value="">-- Pilih Kategori --</option>
+                                    </select>
+                                </div>
+                                <div class="form-group" style="margin-bottom:0;">
+                                    <label for="mp-compare-brand" style="font-size:0.74rem; font-weight:800;">3. Pilih Brand / Produk</label>
+                                    <select id="mp-compare-brand" class="form-control" onchange="window.renderMpPriceComparisonTable()">
+                                        <option value="">-- Pilih Brand --</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div id="mp-compare-table-wrapper" class="mp-compare-table-wrap">
+                                <div style="padding: 1.25rem; text-align: center; color: var(--text-muted); font-size: 0.82rem; font-weight: 700;">
+                                    Pilih kategori dan brand di atas untuk menampilkan perbandingan harga Member Biasa dan Member Plus.
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="checkout-side-col">
+                        <div class="checkout-step-card sticky-checkout-box">
+                            <div class="step-header">
+                                <span class="step-num">VIP</span>
+                                <h4>Aktivasi Member Plus</h4>
+                            </div>
+
+                            <div class="form-group">
+                                <label>Pilih Metode Pembayaran</label>
+                                <div class="type-grid" style="grid-template-columns: repeat(3, 1fr); gap:8px; margin-top: 6px;">
+                                    <label class="type-card active" onclick="window.selectMemberPlusPayMethod('qris', this)">
+                                        <input type="radio" name="mp_payment_method" value="qris" checked style="display:none;">
+                                        <div class="pay-method-head"><i class="fa-solid fa-qrcode"></i> <strong>QRIS</strong></div>
+                                        <span class="pay-badge badge-green">Instan</span>
+                                    </label>
+                                    <label class="type-card" onclick="window.selectMemberPlusPayMethod('balance', this)">
+                                        <input type="radio" name="mp_payment_method" value="balance" style="display:none;">
+                                        <div class="pay-method-head"><i class="fa-solid fa-wallet"></i> <strong>SALDO</strong></div>
+                                        <span class="pay-badge badge-green">Potong Saldo</span>
+                                    </label>
+                                    <label class="type-card" onclick="window.selectMemberPlusPayMethod('cash', this)">
+                                        <input type="radio" name="mp_payment_method" value="cash" style="display:none;">
+                                        <div class="pay-method-head"><i class="fa-solid fa-barcode"></i> <strong>TUNAI</strong></div>
+                                        <span class="pay-badge badge-yellow">Kasir</span>
+                                    </label>
+                                </div>
+                            </div>
+
+                            <div class="cart-total-box">
+                                <div>
+                                    <span class="total-label">BIAYA LANGGANAN (30 HARI)</span>
+                                    <div class="unique-code-info">Aktif otomatis 30 hari</div>
+                                </div>
+                                <div style="text-align:right;">
+                                    <span id="memberplus-price-display" class="total-nominal">Rp25.000</span>
+                                </div>
+                            </div>
+
+                            <button type="button" id="btn-submit-memberplus" class="btn btn-warning btn-checkout-submit" onclick="window.processMemberPlusSubscriptionCheckout()">
+                                <i class="fa-solid fa-crown"></i> <span>Aktifkan Member Plus Sekarang</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB 7: HALAMAN LOGIN & DAFTAR AKUN -->
         <div id="tab-auth" class="main-tab-content container">
             <div class="auth-neo-stage">
                 <div class="auth-neo-showcase">
@@ -1105,6 +1546,7 @@
                         <div class="footer-col-title">Metode Pembayaran</div>
                         <div class="footer-payment-badges">
                             <span class="pay-partner-pill"><i class="fa-solid fa-qrcode text-primary"></i> QRIS</span>
+                            <span class="pay-partner-pill"><i class="fa-solid fa-wallet text-success"></i> Saldo Akun</span>
                             <span class="pay-partner-pill"><i class="fa-solid fa-barcode text-warning"></i> Tunai</span>
                         </div>
                     </div>
@@ -1263,7 +1705,174 @@
         </div>
     </div>
 
-    <!-- POP-UP NOTIFIKASI ALERT & KONFIRMASI NEO-BRUTALIST -->
+    <!-- POP-UP MODAL 5: KONFIRMASI PESANAN & CEK USERNAME/ID OTOMATIS SEBELUM BAYAR -->
+    <div class="modal-overlay" id="modal-checkout-confirm">
+        <div class="modal-content" style="max-width: 480px;">
+            <div class="bottom-sheet-drag-handle"></div>
+            <div class="modal-header">
+                <h2><i class="fa-solid fa-shield-check text-primary"></i> Konfirmasi Pesanan</h2>
+                <button class="close-btn" aria-label="Tutup" onclick="window.closeModal('modal-checkout-confirm')">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <div id="chk-confirm-checkid-banner" class="brutal-alert-box alert-info" style="margin-bottom: 0.95rem; align-items: center; gap: 10px;">
+                <i class="fa-solid fa-spinner fa-spin" id="chk-confirm-checkid-icon"></i>
+                <div style="flex:1;">
+                    <strong id="chk-confirm-checkid-title" style="display:block; font-size:0.84rem;">Mengecek ID / Username Tujuan...</strong>
+                    <span id="chk-confirm-checkid-sub" style="font-size:0.75rem;">Mohon tunggu sebentar sebelum melanjutkan pembayaran.</span>
+                </div>
+            </div>
+
+            <div class="brutal-panel" style="padding: 0.95rem; margin-bottom: 1rem; background: var(--bg);">
+                <div class="qris-detail-row" style="padding: 6px 0; border-bottom: 1px dashed var(--border-subtle);">
+                    <span style="color:var(--text-muted); font-size:0.78rem;">Produk &amp; Layanan</span>
+                    <strong id="chk-confirm-product" style="font-size:0.84rem; text-align:right;">-</strong>
+                </div>
+                <div class="qris-detail-row" style="padding: 6px 0; border-bottom: 1px dashed var(--border-subtle);">
+                    <span style="color:var(--text-muted); font-size:0.78rem;">Variasi / Nominal</span>
+                    <strong id="chk-confirm-variant" style="font-size:0.84rem; text-align:right; color:var(--primary);">-</strong>
+                </div>
+                <div class="qris-detail-row" style="padding: 6px 0; border-bottom: 1px dashed var(--border-subtle);">
+                    <span style="color:var(--text-muted); font-size:0.78rem;">ID / Nomor Tujuan</span>
+                    <strong id="chk-confirm-target" class="code-mono" style="font-size:0.85rem; text-align:right;">-</strong>
+                </div>
+                <div class="qris-detail-row" id="chk-confirm-username-row" style="padding: 7px 0; border-bottom: 1px dashed var(--border-subtle);">
+                    <span style="color:var(--text-muted); font-size:0.78rem;">Username / Atas Nama</span>
+                    <strong id="chk-confirm-username" style="font-size:0.88rem; text-align:right; color:var(--success);">Mengecek...</strong>
+                </div>
+                <div class="qris-detail-row" id="chk-confirm-extra-row" style="display:none; padding: 6px 0; border-bottom: 1px dashed var(--border-subtle);">
+                    <span style="color:var(--text-muted); font-size:0.78rem;" id="chk-confirm-extra-label">Info Tambahan</span>
+                    <strong id="chk-confirm-extra-val" style="font-size:0.82rem; text-align:right;">-</strong>
+                </div>
+                <div class="qris-detail-row" style="padding: 6px 0; border-bottom: 1px dashed var(--border-subtle);">
+                    <span style="color:var(--text-muted); font-size:0.78rem;">Metode Pembayaran</span>
+                    <strong id="chk-confirm-paymethod" style="font-size:0.82rem; text-align:right;">-</strong>
+                </div>
+                <div class="qris-detail-row" style="padding: 8px 0 2px;">
+                    <span style="font-weight:900; font-size:0.85rem;">TOTAL BAYAR</span>
+                    <strong id="chk-confirm-total" style="font-size:1.15rem; font-weight:900; color:var(--primary);">Rp0</strong>
+                </div>
+            </div>
+
+            <!-- Kolom Verifikasi PIN Transaksi Saldo Akun (Muncul saat Metode Bayar = SALDO) -->
+            <div id="chk-confirm-pin-box" class="brutal-panel" style="display:none; padding: 0.9rem; margin-bottom: 1rem; border-color: var(--primary); background: var(--surface-elevated);">
+                <label for="chk-confirm-trx-pin" style="display:block; font-size:0.8rem; font-weight:900; margin-bottom:6px; color:var(--primary);">
+                    <i class="fa-solid fa-lock"></i> Masukkan 6 Digit PIN Transaksi Saldo
+                </label>
+                <input type="password" id="chk-confirm-trx-pin" class="form-control code-mono" maxlength="6" inputmode="numeric" placeholder="••••••" style="text-align:center; font-size:1.35rem; font-weight:900; letter-spacing:0.35em;" onkeypress="if(event.key === 'Enter') window.confirmAndExecuteCheckout()">
+                <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px; margin-top:6px;">
+                    <small id="chk-confirm-pin-helper" style="font-size:0.72rem; font-weight:700; color:var(--text-muted);">
+                        Masukkan PIN Transaksi untuk konfirmasi Saldo Akun.
+                    </small>
+                    <button type="button" class="btn btn-outline btn-sm" style="padding:2px 8px; min-height:24px; font-size:0.7rem;" onclick="window.openForgotTrxPinModal()">
+                        <i class="fa-solid fa-key"></i> Lupa PIN?
+                    </button>
+                </div>
+            </div>
+
+            <div style="display:flex; gap:10px;">
+                <button type="button" class="btn btn-outline" style="flex:1;" onclick="window.closeModal('modal-checkout-confirm')">
+                    Periksa Lagi
+                </button>
+                <button type="button" id="btn-confirm-proceed-pay" class="btn btn-primary" style="flex:1.4;" onclick="window.confirmAndExecuteCheckout()">
+                    <i class="fa-solid fa-check-circle"></i> <span>Lanjut Bayar</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- POP-UP MODAL 6: BAGIKAN STRUK TRANSAKSI (WA, TELEGRAM, GAMBAR PNG, SALIN TEKS) -->
+    <div class="modal-overlay" id="modal-share-receipt">
+        <div class="modal-content" style="max-width: 440px;">
+            <div class="bottom-sheet-drag-handle"></div>
+            <div class="modal-header">
+                <h2><i class="fa-solid fa-share-nodes text-primary"></i> Bagikan Struk Transaksi</h2>
+                <button class="close-btn" aria-label="Tutup" onclick="window.closeModal('modal-share-receipt')">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            <p id="share-receipt-subtitle" style="font-size:0.8rem; color:var(--text-muted); font-weight:700; margin-bottom:0.85rem;">
+                Pilih tujuan berbagi atau simpan gambar struk transaksi resmi ke perangkat kamu.
+            </p>
+            <div class="share-sheet-grid">
+                <button type="button" class="share-option-btn" onclick="window.executeShareReceiptAction('native_image')">
+                    <i class="fa-solid fa-image" style="background:rgba(37,99,235,0.12); color:var(--primary);"></i>
+                    <div>
+                        <strong>Bagikan Gambar Struk</strong>
+                        <span style="display:block; font-size:0.72rem; color:var(--text-muted); font-weight:600;">Kirim gambar struk ke aplikasi di HP kamu</span>
+                    </div>
+                </button>
+                <button type="button" class="share-option-btn" onclick="window.executeShareReceiptAction('whatsapp')">
+                    <i class="fa-brands fa-whatsapp" style="background:rgba(22,163,74,0.14); color:#16a34a;"></i>
+                    <div>
+                        <strong>Bagikan ke WhatsApp</strong>
+                        <span style="display:block; font-size:0.72rem; color:var(--text-muted); font-weight:600;">Kirim rincian struk langsung ke chat WhatsApp</span>
+                    </div>
+                </button>
+                <button type="button" class="share-option-btn" onclick="window.executeShareReceiptAction('telegram')">
+                    <i class="fa-brands fa-telegram" style="background:rgba(14,165,233,0.14); color:#0284c7;"></i>
+                    <div>
+                        <strong>Bagikan ke Telegram</strong>
+                        <span style="display:block; font-size:0.72rem; color:var(--text-muted); font-weight:600;">Teruskan rincian struk ke kontak Telegram</span>
+                    </div>
+                </button>
+                <button type="button" class="share-option-btn" onclick="window.executeShareReceiptAction('copy_text')">
+                    <i class="fa-regular fa-copy" style="background:rgba(245,158,11,0.15); color:#d97706;"></i>
+                    <div>
+                        <strong>Salin Rincian Struk</strong>
+                        <span style="display:block; font-size:0.72rem; color:var(--text-muted); font-weight:600;">Salin teks bukti transaksi ke papan klip</span>
+                    </div>
+                </button>
+                <button type="button" class="share-option-btn" onclick="window.executeShareReceiptAction('download_png')">
+                    <i class="fa-solid fa-download" style="background:rgba(16,185,129,0.14); color:#059669;"></i>
+                    <div>
+                        <strong>Simpan Gambar Struk (.PNG)</strong>
+                        <span style="display:block; font-size:0.72rem; color:var(--text-muted); font-weight:600;">Unduh file gambar struk resolusi tinggi</span>
+                    </div>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- POP-UP MODAL 7: LUPA PIN TRANSAKSI (VERIFIKASI KATA SANDI AKUN) -->
+    <div class="modal-overlay" id="modal-forgot-trx-pin">
+        <div class="modal-content" style="max-width: 440px;">
+            <div class="bottom-sheet-drag-handle"></div>
+            <div class="modal-header">
+                <h2><i class="fa-solid fa-key text-primary"></i> Reset PIN Transaksi</h2>
+                <button class="close-btn" aria-label="Tutup" onclick="window.closeModal('modal-forgot-trx-pin')">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            <div class="brutal-alert-box alert-info" style="margin-bottom:0.9rem;">
+                <i class="fa-solid fa-shield-halved"></i>
+                <span style="font-size:0.78rem; font-weight:700;">Demi keamanan saldo, masukkan <b>Kata Sandi Akun</b> kamu untuk menyetel ulang 6 digit PIN Transaksi baru.</span>
+            </div>
+            <div class="form-group">
+                <label for="reset-pin-account-password">Kata Sandi Akun <span style="color:var(--danger)">*</span></label>
+                <input type="password" id="reset-pin-account-password" class="form-control" placeholder="Masukkan kata sandi login akun kamu">
+            </div>
+            <div class="grid-2col-form" style="gap:8px; margin-bottom:1rem;">
+                <div class="form-group" style="margin-bottom:0;">
+                    <label for="reset-pin-new">PIN Baru (6 Angka) <span style="color:var(--danger)">*</span></label>
+                    <input type="password" id="reset-pin-new" class="form-control code-mono" maxlength="6" inputmode="numeric" placeholder="6 digit angka">
+                </div>
+                <div class="form-group" style="margin-bottom:0;">
+                    <label for="reset-pin-confirm">Ulangi PIN Baru <span style="color:var(--danger)">*</span></label>
+                    <input type="password" id="reset-pin-confirm" class="form-control code-mono" maxlength="6" inputmode="numeric" placeholder="Ulangi 6 angka">
+                </div>
+            </div>
+            <div style="display:flex; gap:8px;">
+                <button type="button" class="btn btn-outline" style="flex:1;" onclick="window.closeModal('modal-forgot-trx-pin')">Batal</button>
+                <button type="button" id="btn-submit-reset-trx-pin" class="btn btn-primary" style="flex:1.4;" onclick="window.submitResetTrxPinWithPassword()">
+                    <i class="fa-solid fa-check-circle"></i> <span>Simpan PIN Baru</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- POP-UP NOTIFIKASI ALERT & KONFIRMASI -->
     <div class="msg-overlay" id="custom-alert">
         <div class="msg-box">
             <div id="ca-icon" class="msg-icon info"><i class="fa-solid fa-circle-info"></i></div>
