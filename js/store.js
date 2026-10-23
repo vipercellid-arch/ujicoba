@@ -1138,7 +1138,7 @@ async function checkAndExpireAnonSessionIf6Hours() {
             } catch (delErr) {
                 try {
                     const tok = await auth.currentUser.getIdToken();
-                    await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:delete?key=AIzaSyD3nBBicctpG8Ceukny5uNHqFMQjZsVipU`, {
+                    await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:delete?key=AIzaSyBQGZjl7uj5CRiLWCvPQKjiK4HvIYnXSJg`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ idToken: tok })
@@ -4932,224 +4932,246 @@ function buildFullReceiptHTML(order) {
     const isCancelled = order.status === 'CANCELLED';
     const isFailed = order.status === 'FAILED' || order.status === 'EXPIRED' || isCancelled;
 
-    let statusText = 'MENUNGGU PEMBAYARAN';
-    if (isDeliveredSuccess) statusText = 'LUNAS / SELESAI';
-    else if (isPendingAdmin) statusText = 'LUNAS / SEDANG DIPROSES';
-    else if (isCancelled) statusText = 'DIBATALKAN';
-    else if (isFailed) statusText = order.status === 'EXPIRED' ? 'KEDALUWARSA' : 'GAGAL';
+    let sBadge = 'status-unpaid';
+    let sName = 'MENUNGGU PEMBAYARAN';
+    let heroClass = 'hero-unpaid';
+    let heroIcon = 'fa-hourglass-half';
+    let heroTitle = 'Menunggu Pembayaran';
+    let heroDesc = order.paymentMethod === 'cash'
+        ? 'Tunjukkan tiket barcode tunai kepada kasir untuk menyelesaikan pembayaran.'
+        : 'Selesaikan pembayaran sesuai nominal tepat agar pesanan segera diproses.';
+
+    if (isDeliveredSuccess) {
+        sBadge = 'status-success';
+        sName = 'TERKIRIM & SELESAI';
+        heroClass = 'hero-success';
+        heroIcon = 'fa-circle-check';
+        heroTitle = 'Pesanan Terkirim & Selesai';
+        heroDesc = 'Pembayaran telah diterima dan rincian pesanan sudah tersedia di bawah ini.';
+    } else if (isPendingAdmin) {
+        sBadge = 'status-pending';
+        sName = 'DIPROSES ADMIN (PENDING)';
+        heroClass = 'hero-pending';
+        heroIcon = 'fa-user-clock';
+        heroTitle = 'Pembayaran Diterima — Menunggu Dikirim Admin';
+        heroDesc = 'Pembayaran kamu sudah diterima. Pesanan sedang disiapkan dan segera dikirim.';
+    } else if (isCancelled) {
+        sBadge = 'status-cancelled';
+        sName = 'DIBATALKAN';
+        heroClass = 'hero-failed';
+        heroIcon = 'fa-ban';
+        heroTitle = 'Pesanan Dibatalkan';
+        heroDesc = 'Tagihan pesanan ini telah dibatalkan.';
+    } else if (isFailed) {
+        sBadge = 'status-failed';
+        sName = order.status === 'EXPIRED' ? 'WAKTU HABIS' : 'GAGAL';
+        heroClass = 'hero-failed';
+        heroIcon = 'fa-circle-xmark';
+        heroTitle = order.status === 'EXPIRED' ? 'Batas Waktu Pembayaran Habis' : 'Pesanan Gagal';
+        heroDesc = 'Silakan buat pesanan baru jika masih ingin melanjutkan pembelian.';
+    }
 
     const brandName = order.items?.[0]?.brandName || order.productName || '';
     const safeJsBrand = escapeJsStr(brandName);
     const itemObj = order.items?.[0] || {};
-    const itemName = itemObj.name || order.variantName || order.productName || 'Produk Digital';
-    const itemQty = Number(itemObj.qty || 1);
-    const baseAmount = Number((order.baseTotal || 0) + (order.promoDiscount || 0));
-    const unitPrice = itemQty > 0 ? Math.round(baseAmount / itemQty) : baseAmount;
     const targetRaw = order.digiflazzCustomerNo || itemObj.playerInfo || order.targetId || '-';
     const targetName = order.verifiedTargetName || order.plnSubscriberName || '';
     const payLabel = order.paymentMethod === 'cash'
         ? 'TUNAI (KASIR)'
-        : (order.paymentMethod === 'balance' ? 'SALDO AKUN' : 'QRIS');
+        : (order.paymentMethod === 'balance' ? 'SALDO AKUN' : 'QRIS OTOMATIS');
 
-    const dateFormatted = order.date
-        ? new Date(order.date).toLocaleString('id-ID', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' })
-        : new Date().toLocaleString('id-ID');
+    const step2Class = (isDeliveredSuccess || isPendingAdmin) ? 'done' : (isFailed ? 'failed' : 'active');
+    const step3Class = isDeliveredSuccess ? 'done' : (isPendingAdmin ? 'active' : '');
 
-    const storeTitle = `${siteSettings.logoText || 'VIPER'}${siteSettings.logoAccent || 'CELL'}`.toUpperCase();
-
-    const parsedPln = isDeliveredSuccess ? parsePlnTokenFromOrder(order) : null;
-    let plnThermalHtml = '';
-    if (parsedPln && parsedPln.token) {
-        const safeTokenJs = escapeJsStr(parsedPln.token);
-        plnThermalHtml = `
-        <div class="indomaret-sn-box">
-            <div style="text-align:center; font-weight:900; border-bottom:1.5px dashed #000; padding-bottom:4px; margin-bottom:6px;">
-                STRUK TOKEN LISTRIK PLN PRABAYAR
-            </div>
-            <div class="indomaret-kv-row"><span>ID PEL / METER</span><strong>${escapeHtml(order.digiflazzCustomerNo || order.targetId || '-')}</strong></div>
-            <div class="indomaret-kv-row"><span>NAMA PELANGGAN</span><strong>${escapeHtml(parsedPln.subscriberName || targetName || '-')}</strong></div>
-            <div class="indomaret-kv-row"><span>TARIF / DAYA</span><strong>${escapeHtml(parsedPln.segmentPower || '-')}</strong></div>
-            <div class="indomaret-kv-row"><span>JUMLAH KWH</span><strong>${escapeHtml(parsedPln.kwh || '-')}</strong></div>
-            <div style="margin-top:6px; padding-top:6px; border-top:1.5px dashed #000; text-align:center;">
-                <span style="font-size:0.68rem; font-weight:800; display:block;">NOMOR TOKEN (STROOM / TOKEN):</span>
-                <strong style="font-size:1.02rem; font-weight:900; letter-spacing:0.06em; display:block; margin-top:2px;">${escapeHtml(parsedPln.token)}</strong>
-            </div>
-            <div data-html2canvas-ignore="true" style="margin-top:8px;">
-                <button type="button" class="indomaret-btn-outline-bw" style="width:100%; padding:6px 10px !important; font-size:0.7rem !important;" onclick="window.copyCredentialPart('${safeTokenJs}', 'Nomor Token PLN')">
-                    <i class="fa-regular fa-copy"></i> <span>Salin Token PLN</span>
-                </button>
-            </div>
-        </div>`;
-    }
-
-    let detailBoxHtml = '';
-    if (isDeliveredSuccess && order.adminReply) {
-        const quickCopyButtonsHtml = buildQuickCopyCredentialButtons(order.adminReply);
-        detailBoxHtml = `
-        ${plnThermalHtml}
-        <div class="indomaret-sn-box">
-            <div style="font-weight:900; border-bottom:1.5px dashed #000; padding-bottom:4px; margin-bottom:6px;">
-                RINCIAN / SN / DATA PESANAN:
-            </div>
-            <div style="font-weight:700; white-space:pre-wrap; word-break:break-word;">${escapeHtml(order.adminReply)}</div>
-            <div data-html2canvas-ignore="true" style="margin-top:8px;">
-                ${quickCopyButtonsHtml}
-                <button type="button" class="indomaret-btn-outline-bw" style="width:100%; margin-top:6px; padding:6px 10px !important; font-size:0.7rem !important;" onclick="window.copyAccountReplyText('${escapeJsStr(order.id)}')">
-                    <i class="fa-regular fa-copy"></i> <span>Salin Rincian Pesanan</span>
-                </button>
-            </div>
-        </div>`;
-    }
-
-    let durHtml = '';
-    const durDays = order.durationDays || itemObj.durationDays || 0;
-    if (durDays > 0 && (isDeliveredSuccess || isPendingAdmin)) {
-        const endMs = order.subscriptionEndAt || (new Date(order.date).getTime() + durDays * 86400000);
-        const endFmt = new Date(endMs).toLocaleDateString('id-ID', { day: '2-digit', month: '2-digit', year: 'numeric' });
-        durHtml = `
-        <div class="indomaret-kv-row">
-            <span>MASA AKTIF</span>
-            <strong>${durDays} HARI (S/D ${escapeHtml(endFmt)})</strong>
-        </div>`;
-    }
-
-    let actionButtonsHtml = '';
+    let actionHtml = '';
     if (isUnpaid) {
         if (order.paymentMethod === 'cash') {
-            actionButtonsHtml = `
-            <div class="indomaret-actions-grid">
-                <button type="button" class="indomaret-btn-bw" onclick="window.resumePayment('${order.dbId}')">
-                    <i class="fa-solid fa-barcode"></i> <span>Barcode Tunai</span>
+            actionHtml = `
+            <div class="ereceipt-action-grid">
+                <button class="btn btn-warning" onclick="window.resumePayment('${order.dbId}')">
+                    <i class="fa-solid fa-barcode"></i> Buka Barcode Tunai
                 </button>
-                <button type="button" class="indomaret-btn-outline-bw" onclick="window.cancelActiveOrder('${order.dbId}')">
-                    <i class="fa-solid fa-ban"></i> <span>Batalkan</span>
+                <button class="btn btn-danger" onclick="window.cancelActiveOrder('${order.dbId}')">
+                    <i class="fa-solid fa-ban"></i> Batalkan
                 </button>
             </div>`;
         } else {
-            actionButtonsHtml = `
-            <div class="indomaret-actions-grid">
-                <button type="button" class="indomaret-btn-bw" onclick="window.resumePayment('${order.dbId}')">
-                    <i class="fa-solid fa-qrcode"></i> <span>Bayar QRIS</span>
+            actionHtml = `
+            <div class="ereceipt-action-grid">
+                <button class="btn btn-primary" onclick="window.resumePayment('${order.dbId}')">
+                    <i class="fa-solid fa-qrcode"></i> Lanjut Bayar QRIS
                 </button>
-                <button type="button" class="indomaret-btn-outline-bw" onclick="window.cancelActiveOrder('${order.dbId}')">
-                    <i class="fa-solid fa-ban"></i> <span>Batalkan</span>
+                <button class="btn btn-danger" onclick="window.cancelActiveOrder('${order.dbId}')">
+                    <i class="fa-solid fa-ban"></i> Batalkan
                 </button>
             </div>`;
         }
     } else {
         const alreadyReviewed = hasOrderBeenReviewed(order);
-        actionButtonsHtml = `
-        <div class="indomaret-actions-grid">
-            <button type="button" class="indomaret-btn-bw" onclick="window.shareOrderReceipt('${escapeJsStr(order.id)}')">
-                <i class="fa-solid fa-share-nodes"></i> <span>Bagikan Struk</span>
-            </button>
-            <button type="button" class="indomaret-btn-outline-bw" onclick="window.downloadOrderReceiptImage('${escapeJsStr(order.id)}')">
-                <i class="fa-solid fa-download"></i> <span>Simpan Struk</span>
-            </button>
-        </div>
-        ${(!alreadyReviewed && isDeliveredSuccess && brandName) ? `
-        <button type="button" class="indomaret-btn-outline-bw" style="width:100%;" onclick="window.goToReview('${safeJsBrand}', '${escapeJsStr(order.id)}')">
-            <i class="fa-solid fa-star"></i> <span>Beri Ulasan Produk</span>
-        </button>` : ''}
-        ${(isCancelled || order.status === 'EXPIRED' || order.status === 'FAILED') && brandName ? `
-        <button type="button" class="indomaret-btn-bw" style="width:100%;" onclick="window.closeModal('modal-order-detail'); window.openDirectBuyModal('${safeJsBrand}')">
-            <i class="fa-solid fa-rotate-right"></i> <span>Pesan Ulang Produk</span>
-        </button>` : ''}`;
+        actionHtml = `
+            <div class="ereceipt-action-grid" style="margin-top:0.9rem;">
+                <button type="button" class="btn btn-primary" onclick="window.shareOrderReceipt('${escapeJsStr(order.id)}')">
+                    <i class="fa-solid fa-share-nodes"></i> Bagikan Struk
+                </button>
+                <button type="button" class="btn btn-outline" onclick="window.downloadOrderReceiptImage('${escapeJsStr(order.id)}')">
+                    <i class="fa-solid fa-download"></i> Simpan Struk
+                </button>
+            </div>
+            ${(!alreadyReviewed && isDeliveredSuccess && brandName) ? `
+            <button type="button" class="btn btn-warning" style="width:100%; margin-top:0.65rem;" onclick="window.goToReview('${safeJsBrand}', '${escapeJsStr(order.id)}')">
+                <i class="fa-solid fa-star"></i> Beri Ulasan Produk
+            </button>` : (alreadyReviewed && isDeliveredSuccess ? `
+            <div style="margin-top:0.65rem; text-align:center; font-size:0.76rem; font-weight:800; color:var(--success); padding:7px; border:1.5px dashed var(--success); border-radius:8px;">
+                <i class="fa-solid fa-circle-check"></i> Terima kasih, pesanan ini sudah kamu ulas
+            </div>` : '')}
+            ${((isCancelled || order.status === 'EXPIRED' || order.status === 'FAILED') && brandName) ? `
+            <button type="button" class="btn btn-primary" style="width:100%; margin-top:0.65rem;" onclick="window.closeModal('modal-order-detail'); window.openDirectBuyModal('${safeJsBrand}')">
+                <i class="fa-solid fa-rotate-right"></i> Pesan Ulang Produk Ini
+            </button>` : ''}`;
+    }
+
+    let durationReceiptHtml = '';
+    const durDays = order.durationDays || itemObj.durationDays || 0;
+    if (durDays > 0 && (isDeliveredSuccess || isPendingAdmin)) {
+        const endMs = order.subscriptionEndAt || (new Date(order.date).getTime() + durDays * 86400000);
+        durationReceiptHtml = `
+            <div style="margin-top:8px; padding-top:8px; border-top:1.5px dashed var(--border-subtle); font-size:0.75rem; font-weight:800; color:var(--primary); display:flex; justify-content:space-between; flex-wrap:wrap;">
+                <span><i class="fa-regular fa-clock"></i> Masa Aktif: ${durDays} Hari</span>
+                <span>Berakhir: ${new Date(endMs).toLocaleDateString('id-ID', { day:'2-digit', month:'short', year:'numeric' })}</span>
+            </div>`;
+    }
+
+    const parsedPln = isDeliveredSuccess ? parsePlnTokenFromOrder(order) : null;
+    let plnCardHtml = '';
+    if (parsedPln && parsedPln.token) {
+        const safeTokenJs = escapeJsStr(parsedPln.token);
+        plnCardHtml = `
+        <div class="pln-token-highlight-card">
+            <div style="display:flex; justify-content:space-between; align-items:center; gap:8px; flex-wrap:wrap;">
+                <span style="font-size:0.76rem; font-weight:900; color:var(--text); display:flex; align-items:center; gap:6px;">
+                    <i class="fa-solid fa-bolt text-warning"></i> TOKEN LISTRIK PLN PRABAYAR
+                </span>
+                <button type="button" class="btn btn-warning btn-sm" style="padding:3px 10px; min-height:26px; font-size:0.7rem;" onclick="window.copyCredentialPart('${safeTokenJs}', 'Nomor Token PLN')">
+                    <i class="fa-regular fa-copy"></i> Salin Token
+                </button>
+            </div>
+            <div class="pln-token-digits-box">${escapeHtml(parsedPln.token)}</div>
+            <div class="pln-token-meta-grid">
+                <div><span>NAMA PELANGGAN</span><strong>${escapeHtml(parsedPln.subscriberName || targetName || '-')}</strong></div>
+                <div><span>TARIF / DAYA</span><strong>${escapeHtml(parsedPln.segmentPower || '-')}</strong></div>
+            </div>
+        </div>`;
+    }
+
+    let replyHtml = '';
+    if (isDeliveredSuccess && order.adminReply) {
+        const quickCopyButtonsHtml = buildQuickCopyCredentialButtons(order.adminReply);
+        replyHtml = `
+        ${plnCardHtml}
+        <div class="ereceipt-cred-vault">
+            <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px;">
+                <span style="font-weight: 900; color: var(--success); font-size: 0.82rem; display: flex; align-items: center; gap: 6px;">
+                    <i class="fa-solid fa-key"></i> RINCIAN AKUN / PESANAN TERKIRIM:
+                </span>
+                <button class="btn btn-outline btn-sm" style="padding:3px 10px; min-height:28px; font-size:0.7rem;" onclick="window.copyAccountReplyText('${escapeJsStr(order.id)}')">
+                    <i class="fa-regular fa-copy"></i> Salin Semua
+                </button>
+            </div>
+            ${quickCopyButtonsHtml}
+            <div class="ereceipt-cred-content">${escapeHtml(order.adminReply)}</div>
+        </div>`;
     }
 
     const helpHtml = generateHelpButtons(order.id, isPendingAdmin ? 'PENDING' : order.status, itemObj);
 
     return `
-    <div class="ereceipt-ticket indomaret-receipt-paper" id="ereceipt-capture-card-${escapeHtml(order.id)}">
-        <div class="indomaret-receipt-header">
-            <div class="indomaret-store-title">${escapeHtml(storeTitle)}</div>
-            <div class="indomaret-store-sub">GERAI LAYANAN PRODUK DIGITAL &amp; PPOB</div>
-            <div class="indomaret-store-sub">BUKTI TRANSAKSI RESMI PELANGGAN</div>
-        </div>
-
-        <div class="indomaret-kv-row">
-            <span>TGL / WAKTU</span>
-            <strong>${escapeHtml(dateFormatted)}</strong>
-        </div>
-        <div class="indomaret-kv-row">
-            <span>NO. STRUK</span>
-            <strong>#${escapeHtml(order.id)}</strong>
-        </div>
-        <div class="indomaret-kv-row">
-            <span>KASIR / LAYANAN</span>
-            <strong>ONLINE / OTOMATIS</strong>
-        </div>
-        <div class="indomaret-kv-row">
-            <span>PELANGGAN</span>
-            <strong>${escapeHtml(order.userEmail || order.buyerName || 'UMUM')}</strong>
-        </div>
-
-        <hr class="indomaret-dashed-line">
-
-        <div class="indomaret-item-block">
-            <div class="indomaret-item-title">${escapeHtml(itemName)}</div>
-            <div class="indomaret-kv-row">
-                <span>${itemQty} PCS x Rp${unitPrice.toLocaleString('id-ID')}</span>
-                <strong>Rp${baseAmount.toLocaleString('id-ID')}</strong>
+    <div class="ereceipt-ticket" id="ereceipt-capture-card-${escapeHtml(order.id)}">
+        <div class="ereceipt-top-banner">
+            <div>
+                <span style="font-size:0.65rem; font-weight:900; color:var(--text-muted); display:block; letter-spacing:0.04em;">ID TRANSAKSI</span>
+                <div class="ereceipt-inv-code">
+                    <span>#${escapeHtml(order.id)}</span>
+                    <button class="mini-copy-btn" onclick="navigator.clipboard.writeText('${escapeJsStr(order.id)}'); window.showToast('Disalin','ID Transaksi berhasil disalin','success');" title="Salin ID"><i class="fa-regular fa-copy"></i></button>
+                </div>
             </div>
-            <div class="indomaret-kv-row">
-                <span>DATA TUJUAN</span>
-                <strong>${escapeHtml(targetRaw)}</strong>
+            <span class="status-badge ${sBadge}">${sName}</span>
+        </div>
+
+        <div class="ereceipt-status-hero ${heroClass}">
+            <div class="ereceipt-status-hero-icon">
+                <i class="fa-solid ${heroIcon}"></i>
             </div>
-            ${targetName ? `
-            <div class="indomaret-kv-row">
-                <span>ATAS NAMA</span>
-                <strong>${escapeHtml(targetName)}</strong>
+            <div class="ereceipt-status-hero-text">
+                <strong>${escapeHtml(heroTitle)}</strong>
+                <span>${escapeHtml(heroDesc)}</span>
+            </div>
+        </div>
+
+        <div class="ereceipt-stepper">
+            <div class="estep-item done">
+                <div class="estep-dot"><i class="fa-solid fa-check"></i></div>
+                <span class="estep-label">1. Pesanan</span>
+            </div>
+            <div class="estep-item ${step2Class}">
+                <div class="estep-dot"><i class="fa-solid ${isFailed ? 'fa-xmark' : ((isDeliveredSuccess || isPendingAdmin) ? 'fa-check' : (order.paymentMethod === 'cash' ? 'fa-barcode' : 'fa-qrcode'))}"></i></div>
+                <span class="estep-label">2. Pembayaran</span>
+            </div>
+            <div class="estep-item ${step3Class}">
+                <div class="estep-dot"><i class="fa-solid ${isDeliveredSuccess ? 'fa-check' : 'fa-box-open'}"></i></div>
+                <span class="estep-label">3. ${isPendingAdmin ? 'Diproses Admin' : 'Selesai'}</span>
+            </div>
+        </div>
+
+        <div class="ereceipt-body">
+            <div class="ereceipt-meta-grid">
+                <div class="ereceipt-meta-cell">
+                    <span>WAKTU TRANSAKSI</span>
+                    <strong>${new Date(order.date).toLocaleString('id-ID', { day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' })}</strong>
+                </div>
+                <div class="ereceipt-meta-cell">
+                    <span>METODE BAYAR</span>
+                    <strong>${escapeHtml(payLabel)}</strong>
+                </div>
+                <div class="ereceipt-meta-cell">
+                    <span>TUJUAN / NOMOR</span>
+                    <strong>${escapeHtml(targetRaw)}</strong>
+                </div>
+                <div class="ereceipt-meta-cell">
+                    <span>PELANGGAN / EMAIL</span>
+                    <strong>${escapeHtml(targetName || order.userEmail || order.buyerName || '-')}</strong>
+                </div>
+            </div>
+
+            <div class="ereceipt-product-box">
+                <span style="font-size:0.65rem; font-weight:900; color:var(--text-muted); display:block; margin-bottom:2px;">ITEM PESANAN</span>
+                ${(order.items || []).map(i => `<div style="font-weight: 900; font-size: 0.96rem; color: var(--text);">${escapeHtml(i.name)}</div>`).join('')}
+                <div style="font-size: 0.78rem; font-weight: 700; color: var(--text-muted); margin-top:4px;">${escapeHtml(itemObj.playerInfo || targetRaw)}</div>
+                ${order.digiflazzSn ? `<div style="font-size:0.76rem; font-weight:800; color:var(--primary); margin-top:4px;">SN / Ref: <span class="code-mono">${escapeHtml(order.digiflazzSn)}</span></div>` : ''}
+                ${durationReceiptHtml}
+            </div>
+            ${replyHtml}
+        </div>
+
+        <div class="ereceipt-footer">
+            <div class="receipt-row">
+                <span style="color:var(--text-muted);">Harga Produk</span>
+                <span>Rp${Number((order.baseTotal || 0) + (order.promoDiscount || 0)).toLocaleString('id-ID')}</span>
+            </div>
+            ${order.promoDiscount > 0 ? `
+            <div class="receipt-row">
+                <span style="color:var(--success);">Diskon Promo (${escapeHtml(order.promoCode || 'PROMO')})</span>
+                <span style="color:var(--success);">-Rp${Number(order.promoDiscount || 0).toLocaleString('id-ID')}</span>
             </div>` : ''}
-            ${order.digiflazzSn ? `
-            <div class="indomaret-kv-row">
-                <span>NO. SN / REF</span>
-                <strong>${escapeHtml(order.digiflazzSn)}</strong>
+            ${order.uniqueCode > 0 ? `
+            <div class="receipt-row">
+                <span style="color:var(--warning);">Kode Unik QRIS</span>
+                <span style="color:var(--warning);">+Rp${Number(order.uniqueCode || 0).toLocaleString('id-ID')}</span>
             </div>` : ''}
-            ${durHtml}
-        </div>
-
-        <hr class="indomaret-dashed-line">
-
-        <div class="indomaret-kv-row">
-            <span>HARGA JUAL</span>
-            <strong>Rp${baseAmount.toLocaleString('id-ID')}</strong>
-        </div>
-        ${order.promoDiscount > 0 ? `
-        <div class="indomaret-kv-row">
-            <span>DISKON (${escapeHtml(order.promoCode || 'PROMO')})</span>
-            <strong>-Rp${Number(order.promoDiscount || 0).toLocaleString('id-ID')}</strong>
-        </div>` : ''}
-        ${order.uniqueCode > 0 ? `
-        <div class="indomaret-kv-row">
-            <span>KODE UNIK QRIS</span>
-            <strong>+Rp${Number(order.uniqueCode || 0).toLocaleString('id-ID')}</strong>
-        </div>` : ''}
-
-        <div class="indomaret-total-row">
-            <span>TOTAL BAYAR</span>
-            <span>Rp${Number(order.finalTotal || 0).toLocaleString('id-ID')}</span>
-        </div>
-
-        <div class="indomaret-kv-row">
-            <span>METODE BAYAR</span>
-            <strong>${escapeHtml(payLabel)}</strong>
-        </div>
-        <div class="indomaret-kv-row">
-            <span>STATUS TRANSAKSI</span>
-            <strong>${escapeHtml(statusText)}</strong>
-        </div>
-
-        ${detailBoxHtml}
-
-        <div class="indomaret-footer-note">
-            <div>*** TERIMA KASIH ***</div>
-            <div>SIMPAN STRUK INI SEBAGAI BUKTI TRANSAKSI SAH</div>
-            <div>LAYANAN PELANGGAN: ${escapeHtml(storeTitle)}</div>
-        </div>
-
-        <div class="indomaret-actions-bar" data-html2canvas-ignore="true">
-            ${actionButtonsHtml}
+            <div class="receipt-row" style="margin-top: 8px; padding-top: 8px; border-top: 2px solid var(--border);">
+                <strong style="font-size: 0.92rem; font-weight: 900; color: var(--text);">TOTAL PEMBAYARAN</strong>
+                <strong style="font-size: 1.2rem; font-weight: 900; color: var(--primary);">Rp${Number(order.finalTotal || 0).toLocaleString('id-ID')}</strong>
+            </div>
+            ${actionHtml}
             ${helpHtml}
         </div>
     </div>`;
@@ -9747,267 +9769,251 @@ function wrapCanvasMonospaceLines(ctx, text, maxWidth) {
 
 function renderOrderReceiptFallbackCanvas(order, cleanInv) {
     const itemObj = order?.items?.[0] || {};
-    const itemName = String(itemObj.name || order?.variantName || order?.productName || 'PRODUK DIGITAL').toUpperCase();
-    const brandName = String(itemObj.brandName || order?.productName || 'LAYANAN DIGITAL').toUpperCase();
-    const itemQty = Number(itemObj.qty || 1);
-    const baseAmount = Number((order?.baseTotal || 0) + (order?.promoDiscount || 0));
-    const unitPrice = itemQty > 0 ? Math.round(baseAmount / itemQty) : baseAmount;
-    const targetRaw = String(order?.digiflazzCustomerNo || itemObj.playerInfo || order?.targetId || '-');
-    const targetName = String(order?.verifiedTargetName || order?.plnSubscriberName || '');
-    const snText = String(order?.digiflazzSn || '');
-    const replyRaw = String(order?.adminReply || '').trim();
-    const payLabel = order?.paymentMethod === 'cash'
-        ? 'TUNAI KASIR'
+    const rawItemName = String(itemObj.exactItemName || itemObj.name || order?.variantName || order?.productName || 'PRODUK DIGITAL').trim();
+    const rawBrandName = String(itemObj.brandName || order?.productName || '').trim();
+    const itemType = String(itemObj.type || '').toLowerCase();
+
+    // Tentukan sub-judul layanan di bawah STRUK PEMBELIAN seperti pada gambar contoh ("Token Listrik", dll.)
+    let serviceSubtitle = 'Layanan Produk Digital';
+    if (order?.isMemberPlusOrder || order?.orderType === 'MEMBER_PLUS_SUB') {
+        serviceSubtitle = 'Langganan Member Plus';
+    } else if (order?.isTopupOrder || order?.orderType === 'TOPUP_BALANCE') {
+        serviceSubtitle = 'Isi Saldo Akun';
+    } else if (itemType === 'pln' || rawItemName.toUpperCase().includes('PLN') || rawBrandName.toUpperCase().includes('PLN')) {
+        serviceSubtitle = 'Token Listrik';
+    } else if (itemType === 'game') {
+        serviceSubtitle = 'Top Up Game';
+    } else if (itemType === 'pulsa') {
+        serviceSubtitle = 'Pulsa & Paket Data';
+    } else if (itemType === 'ewallet') {
+        serviceSubtitle = 'Saldo E-Wallet';
+    } else if (itemType === 'ppob' || itemObj.processType === 'digiflazz_pasca') {
+        serviceSubtitle = 'Tagihan Pascabayar';
+    } else if (itemType === 'app') {
+        serviceSubtitle = 'Aplikasi Premium';
+    } else if (rawBrandName) {
+        serviceSubtitle = rawBrandName;
+    }
+
+    const parsedPln = parsePlnTokenFromOrder(order);
+    let cleanTargetNo = String(order?.digiflazzCustomerNo || order?.targetId || itemObj.playerInfo || '-').trim();
+    cleanTargetNo = cleanTargetNo.replace(/^(Tujuan|ID\s*Player|ID\s*PLN|ID|Target|No\.?\s*Pelanggan|No\.?\s*Meter|No\.?\s*HP)\s*:\s*/i, '').trim();
+    if (cleanTargetNo.includes(' (')) {
+        cleanTargetNo = cleanTargetNo.split(' (')[0].trim();
+    }
+
+    const customerName = String(
+        parsedPln?.subscriberName ||
+        order?.verifiedTargetName ||
+        order?.plnSubscriberName ||
+        order?.buyerName ||
+        (order?.userEmail ? order.userEmail.split('@')[0] : 'PELANGGAN')
+    ).toUpperCase();
+
+    // Parse TARIF & DAYA untuk transaksi PLN
+    let tarifStr = '';
+    let dayaStr = '';
+    const segPowerRaw = String(parsedPln?.segmentPower || order?.plnSegmentPower || '').trim();
+    if (segPowerRaw) {
+        if (segPowerRaw.includes('/')) {
+            const spParts = segPowerRaw.split('/').map(s => s.trim()).filter(Boolean);
+            tarifStr = spParts[0] || '';
+            dayaStr = spParts.slice(1).join(' / ').replace(/^0+/, '') || '';
+        } else {
+            tarifStr = segPowerRaw;
+        }
+    }
+
+    // Format Tanggal seperti contoh: "15 Sep 2026, 22:45 WIT"
+    const dtObj = order?.date ? new Date(order.date) : new Date();
+    const monthsShort = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+    const dd = String(dtObj.getDate()).padStart(2, '0');
+    const mmm = monthsShort[dtObj.getMonth()] || 'Okt';
+    const yyyy = dtObj.getFullYear();
+    const hh = String(dtObj.getHours()).padStart(2, '0');
+    const min = String(dtObj.getMinutes()).padStart(2, '0');
+    const dateFormatted = `${dd} ${mmm} ${yyyy}, ${hh}:${min} WIT`;
+
+    const totalBayarStr = Number(order?.finalTotal || 0).toLocaleString('id-ID');
+    const payMethodShort = order?.paymentMethod === 'cash'
+        ? 'TUNAI'
         : (order?.paymentMethod === 'balance' ? 'SALDO AKUN' : 'QRIS');
-    const statusText = order?.status === 'SUCCESS'
-        ? 'LUNAS / BERHASIL'
+    const statusShort = order?.status === 'SUCCESS'
+        ? 'LUNAS'
         : (order?.status === 'PENDING' ? 'DIPROSES' : String(order?.status || 'SELESAI'));
-    const dateStr = order?.date
-        ? new Date(order.date).toLocaleString('id-ID', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' })
-        : new Date().toLocaleString('id-ID');
-    const storeTitle = `${siteSettings.logoText || 'VIPER'}${siteSettings.logoAccent || 'CELL'}`.toUpperCase();
+
+    // Susun baris key-value (Label 12 karakter + " : " + Nilai) persis seperti contoh struk gambar
+    const kvRows = [
+        { label: 'ID TRANSAKSI', value: String(cleanInv).replace(/^VP-/i, '') || cleanInv },
+        { label: 'PRODUK', value: rawItemName.replace(/\(x\d+\)/i, '').trim() },
+        { label: 'NOMOR', value: cleanTargetNo || '-' },
+        { label: 'NAMA PELANGG', value: customerName }
+    ];
+
+    if (tarifStr) {
+        kvRows.push({ label: 'TARIF', value: tarifStr });
+    }
+    if (dayaStr) {
+        kvRows.push({ label: 'DAYA', value: dayaStr });
+    }
+    if (parsedPln?.kwh && parsedPln.kwh !== '-') {
+        kvRows.push({ label: 'JML KWH', value: String(parsedPln.kwh) });
+    }
+    if (Number(order?.promoDiscount || 0) > 0) {
+        kvRows.push({ label: 'DISKON', value: `-${Number(order.promoDiscount).toLocaleString('id-ID')}` });
+    }
+    kvRows.push({ label: 'METODE BYR', value: payMethodShort });
+    kvRows.push({ label: 'STATUS', value: statusShort });
+    kvRows.push({ label: 'TOTAL BYR', value: totalBayarStr });
+
+    // Siapkan bagian bawah (Token / SN / Detail Akun) di tengah seperti contoh
+    let bottomCenterLabel = '';
+    let bottomCenterLines = [];
+
+    if (parsedPln && parsedPln.token) {
+        bottomCenterLabel = 'Token';
+        bottomCenterLines = [String(parsedPln.token).trim()];
+    } else if (order?.digiflazzSn) {
+        bottomCenterLabel = 'SN / Ref';
+        bottomCenterLines = [String(order.digiflazzSn).trim()];
+    } else if (order?.adminReply) {
+        bottomCenterLabel = 'Detail Pesanan';
+        const cleanedReply = String(order.adminReply)
+            .replace(/^Terima kasih telah berbelanja di Vipercell\.?\s*/i, '')
+            .trim();
+        bottomCenterLines = cleanedReply.split('\n').map(l => l.trim()).filter(Boolean).slice(0, 8);
+    }
 
     const width = 760;
-    const padX = 46;
+    const padX = 88;
     const innerW = width - (padX * 2);
+    const dashedLineStr = '------------------------------------';
 
     const tempCanvas = document.createElement('canvas');
     tempCanvas.width = width;
-    tempCanvas.height = 200;
+    tempCanvas.height = 100;
     const tCtx = tempCanvas.getContext('2d');
-    tCtx.font = '700 18px "Courier New", Courier, monospace';
-    const replyLines = replyRaw ? wrapCanvasMonospaceLines(tCtx, replyRaw, innerW - 34) : [];
-    tCtx.font = '900 20px "Courier New", Courier, monospace';
-    const itemLines = wrapCanvasMonospaceLines(tCtx, `${brandName} - ${itemName}`, innerW);
+    tCtx.font = '700 22px "Courier New", Courier, monospace';
 
-    const dynamicHeight = 860 + (itemLines.length * 28) + (replyLines.length > 0 ? (replyLines.length * 25 + 88) : 0);
+    const wrappedBottomLines = [];
+    for (const ln of bottomCenterLines) {
+        const wLines = wrapCanvasMonospaceLines(tCtx, ln, innerW - 20);
+        wrappedBottomLines.push(...wLines);
+    }
+
+    const rowHeight = 36;
+    const dynamicHeight = 460 + (kvRows.length * rowHeight) + (wrappedBottomLines.length > 0 ? (85 + wrappedBottomLines.length * 34) : 20);
 
     const canvas = document.createElement('canvas');
     canvas.width = width;
-    canvas.height = Math.max(880, dynamicHeight);
+    canvas.height = Math.max(680, dynamicHeight);
     const ctx = canvas.getContext('2d');
 
-    // Latar belakang abu-abu terang tipis di luar kertas & kertas struk putih bersih ala Alfamidi/Indomaret
-    ctx.fillStyle = '#e5e7eb';
+    // Latar luar putih bersih
+    ctx.fillStyle = '#ffffff';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    const paperMargin = 14;
-    const paperX = paperMargin;
-    const paperY = 18;
-    const paperW = canvas.width - (paperMargin * 2);
-    const paperH = canvas.height - 36;
+    // Bingkai kartu struk membulat halus seperti contoh Screenshot_20261023-230441.jpg
+    const cardX = 24;
+    const cardY = 24;
+    const cardW = canvas.width - 48;
+    const cardH = canvas.height - 48;
+    const radius = 32;
 
+    ctx.save();
+    ctx.beginPath();
+    ctx.moveTo(cardX + radius, cardY);
+    ctx.lineTo(cardX + cardW - radius, cardY);
+    ctx.quadraticCurveTo(cardX + cardW, cardY, cardX + cardW, cardY + radius);
+    ctx.lineTo(cardX + cardW, cardY + cardH - radius);
+    ctx.quadraticCurveTo(cardX + cardW, cardY + cardH, cardX + cardW - radius, cardY + cardH);
+    ctx.lineTo(cardX + radius, cardY + cardH);
+    ctx.quadraticCurveTo(cardX, cardY + cardH, cardX, cardY + cardH - radius);
+    ctx.lineTo(cardX, cardY + radius);
+    ctx.quadraticCurveTo(cardX, cardY, cardX + radius, cardY);
+    ctx.closePath();
     ctx.fillStyle = '#ffffff';
-    ctx.fillRect(paperX, paperY, paperW, paperH);
-
-    // Gerigi kertas struk kasir di bagian atas & bawah
-    ctx.fillStyle = '#e5e7eb';
-    const toothW = 18;
-    for (let tx = paperX; tx < paperX + paperW; tx += toothW) {
-        ctx.beginPath();
-        ctx.moveTo(tx, paperY);
-        ctx.lineTo(tx + toothW / 2, paperY + 10);
-        ctx.lineTo(tx + toothW, paperY);
-        ctx.closePath();
-        ctx.fill();
-
-        ctx.beginPath();
-        ctx.moveTo(tx, paperY + paperH);
-        ctx.lineTo(tx + toothW / 2, paperY + paperH - 10);
-        ctx.lineTo(tx + toothW, paperY + paperH);
-        ctx.closePath();
-        ctx.fill();
-    }
-
-    ctx.strokeStyle = '#000000';
+    ctx.fill();
     ctx.lineWidth = 2.5;
-    ctx.strokeRect(paperX + 8, paperY + 14, paperW - 16, paperH - 28);
+    ctx.strokeStyle = '#e2e8f0';
+    ctx.stroke();
+    ctx.restore();
 
-    const drawDoubleSep = (yPos) => {
-        ctx.save();
-        ctx.strokeStyle = '#000000';
-        ctx.lineWidth = 2;
-        ctx.setLineDash([]);
-        ctx.beginPath();
-        ctx.moveTo(padX, yPos);
-        ctx.lineTo(canvas.width - padX, yPos);
-        ctx.moveTo(padX, yPos + 5);
-        ctx.lineTo(canvas.width - padX, yPos + 5);
-        ctx.stroke();
-        ctx.restore();
-    };
-
-    const drawDashedSep = (yPos) => {
-        ctx.save();
-        ctx.strokeStyle = '#000000';
-        ctx.lineWidth = 2;
-        ctx.setLineDash([10, 6]);
-        ctx.beginPath();
-        ctx.moveTo(padX, yPos);
-        ctx.lineTo(canvas.width - padX, yPos);
-        ctx.stroke();
-        ctx.restore();
-    };
-
-    const drawKV = (label, val, yPos, isBoldVal = true) => {
-        ctx.fillStyle = '#000000';
-        ctx.font = '700 18px "Courier New", Courier, monospace';
-        ctx.textAlign = 'left';
-        ctx.fillText(label, padX, yPos);
-
-        ctx.font = isBoldVal ? '900 18px "Courier New", Courier, monospace' : '700 18px "Courier New", Courier, monospace';
-        ctx.textAlign = 'right';
-        const safeV = String(val || '-').slice(0, 38);
-        ctx.fillText(safeV, canvas.width - padX, yPos);
-        ctx.textAlign = 'left';
-    };
-
-    // Header Toko Ala Struk Alfamidi / Indomaret
-    let y = 78;
     ctx.fillStyle = '#000000';
+    ctx.textBaseline = 'alphabetic';
+
+    // 1. Header Kiri Atas: VIPERCELL / AMBON MALUKU INDONESIA / Tanggal & Jam
+    let y = 92;
+    ctx.textAlign = 'left';
+    ctx.font = '700 23px "Courier New", Courier, monospace';
+    ctx.fillText('VIPERCELL', padX, y);
+    y += 34;
+    ctx.font = '600 21px "Courier New", Courier, monospace';
+    ctx.fillText('AMBON MALUKU INDONESIA', padX, y);
+    y += 34;
+    ctx.fillText(dateFormatted, padX, y);
+
+    // 2. Garis Putus-putus Atas
+    y += 34;
+    ctx.font = '600 22px "Courier New", Courier, monospace';
+    ctx.fillText(dashedLineStr, padX, y);
+
+    // 3. Judul Tengah: STRUK PEMBELIAN & Sub-judul Kategori Layanan
+    y += 42;
     ctx.textAlign = 'center';
-    ctx.font = '900 34px "Courier New", Courier, monospace';
-    ctx.fillText(`PT. ${storeTitle} INDONESIA`, canvas.width / 2, y);
-    y += 28;
-    ctx.font = '700 17px "Courier New", Courier, monospace';
-    ctx.fillText('GERAI LAYANAN TOP UP GAME, PULSA & PPOB', canvas.width / 2, y);
-    y += 22;
-    ctx.fillText('NPWP / KODE GERAI : VPC-01 / LAYANAN 24 JAM', canvas.width / 2, y);
-    ctx.textAlign = 'left';
-
-    y += 20;
-    drawDoubleSep(y);
-    y += 32;
-
-    drawKV('TGL / JAM', dateStr, y);
-    y += 28;
-    drawKV('NO. BON / STRUK', `#${cleanInv}`, y);
-    y += 28;
-    drawKV('KASIR', 'KASIR-01 / OTOMATIS', y);
-    y += 28;
-    drawKV('PELANGGAN', String(order?.userEmail || order?.buyerName || 'UMUM').slice(0, 32), y);
-
-    y += 18;
-    drawDashedSep(y);
-    y += 28;
-
-    // Header Kolom Barang
-    ctx.font = '900 17px "Courier New", Courier, monospace';
-    ctx.textAlign = 'left';
-    ctx.fillText('DESKRIPSI BARANG / LAYANAN', padX, y);
-    ctx.textAlign = 'right';
-    ctx.fillText('SUBTOTAL', canvas.width - padX, y);
-    ctx.textAlign = 'left';
-
-    y += 14;
-    drawDashedSep(y);
-    y += 30;
-
-    ctx.font = '900 20px "Courier New", Courier, monospace';
-    for (const ln of itemLines) {
-        ctx.fillText(ln, padX, y);
-        y += 26;
-    }
-    y += 4;
-    drawKV(`${itemQty} PCS x Rp${unitPrice.toLocaleString('id-ID')}`, `Rp${baseAmount.toLocaleString('id-ID')}`, y);
-    y += 28;
-    drawKV('ID TUJUAN / NO. PEL', targetRaw, y);
-    if (targetName) {
-        y += 28;
-        drawKV('NAMA PELANGGAN', targetName, y);
-    }
-    if (snText) {
-        y += 28;
-        drawKV('SN / TOKEN / REF', snText, y);
-    }
-
-    y += 18;
-    drawDashedSep(y);
-    y += 32;
-
-    drawKV('HARGA JUAL', `Rp${baseAmount.toLocaleString('id-ID')}`, y);
-    if (Number(order?.promoDiscount || 0) > 0) {
-        y += 28;
-        drawKV(`DISKON (${order.promoCode || 'VOUCHER'})`, `-Rp${Number(order.promoDiscount).toLocaleString('id-ID')}`, y);
-    } else {
-        y += 28;
-        drawKV('DISKON', 'Rp0', y);
-    }
-    if (Number(order?.uniqueCode || 0) > 0) {
-        y += 28;
-        drawKV('KODE UNIK QRIS', `+Rp${Number(order.uniqueCode).toLocaleString('id-ID')}`, y);
-    }
-
-    y += 16;
-    drawDoubleSep(y);
+    ctx.font = '900 29px "Courier New", Courier, monospace';
+    ctx.fillText('STRUK PEMBELIAN', canvas.width / 2, y);
     y += 36;
+    ctx.font = '600 22px "Courier New", Courier, monospace';
+    ctx.fillText(serviceSubtitle, canvas.width / 2, y);
 
-    ctx.font = '900 25px "Courier New", Courier, monospace';
+    // 4. Garis Putus-putus Kedua
+    y += 34;
     ctx.textAlign = 'left';
-    ctx.fillText('TOTAL BELANJA', padX, y);
-    ctx.textAlign = 'right';
-    ctx.fillText(`Rp${Number(order?.finalTotal || 0).toLocaleString('id-ID')}`, canvas.width - padX, y);
-    ctx.textAlign = 'left';
+    ctx.font = '600 22px "Courier New", Courier, monospace';
+    ctx.fillText(dashedLineStr, padX, y);
 
-    y += 18;
-    drawDashedSep(y);
-    y += 30;
+    // 5. Daftar Rincian (Titik Dua ':' Sejajar Vertikal)
+    y += 38;
+    ctx.font = '600 21px "Courier New", Courier, monospace';
+    for (const row of kvRows) {
+        const paddedLabel = String(row.label || '').padEnd(12, ' ').slice(0, 12);
+        const safeVal = String(row.value || '-').slice(0, 26);
+        const lineText = `${paddedLabel} : ${safeVal}`;
+        ctx.fillText(lineText, padX, y);
+        y += rowHeight;
+    }
 
-    drawKV(`BAYAR (${payLabel})`, `Rp${Number(order?.finalTotal || 0).toLocaleString('id-ID')}`, y);
-    y += 28;
-    drawKV('KEMBALI', 'Rp0', y);
-    y += 28;
-    drawKV('STATUS TRANSAKSI', statusText, y);
+    // 6. Garis Putus-putus Ketiga
+    y += 4;
+    ctx.font = '600 22px "Courier New", Courier, monospace';
+    ctx.fillText(dashedLineStr, padX, y);
 
-    if (replyLines.length > 0) {
-        y += 22;
-        const boxH = (replyLines.length * 24) + 52;
-        ctx.strokeStyle = '#000000';
-        ctx.lineWidth = 2.5;
-        ctx.strokeRect(padX, y, innerW, boxH);
-
-        ctx.font = '900 17px "Courier New", Courier, monospace';
-        ctx.fillText('SN / TOKEN / RINCIAN PESANAN:', padX + 14, y + 26);
-        ctx.font = '700 17px "Courier New", Courier, monospace';
-        let ry = y + 52;
-        for (const rLine of replyLines) {
-            ctx.fillText(rLine, padX + 14, ry);
-            ry += 24;
+    // 7. Bagian Token / SN di Tengah
+    if (wrappedBottomLines.length > 0) {
+        y += 50;
+        ctx.textAlign = 'center';
+        ctx.font = '600 22px "Courier New", Courier, monospace';
+        ctx.fillText(bottomCenterLabel, canvas.width / 2, y);
+        y += 36;
+        ctx.font = '700 23px "Courier New", Courier, monospace';
+        for (const bLine of wrappedBottomLines) {
+            ctx.fillText(bLine, canvas.width / 2, y);
+            y += 34;
         }
-        y += boxH + 12;
+        y += 18;
+    } else {
+        y += 42;
     }
 
-    y += 22;
-    drawDoubleSep(y);
-    y += 32;
-
-    // Barcode Garis Hitam Putih Ala Struk Kasir Indomaret / Alfamidi
-    const barW = 360;
-    const barH = 44;
-    const barX = Math.round((canvas.width - barW) / 2);
-    ctx.fillStyle = '#000000';
-    let bx = barX;
-    const seedStr = `${cleanInv}${order?.finalTotal || 0}VIPERCELL`;
-    for (let i = 0; i < 58 && bx < barX + barW - 4; i++) {
-        const code = seedStr.charCodeAt(i % seedStr.length) + i * 7;
-        const lineW = (code % 3 === 0) ? 4 : ((code % 2 === 0) ? 2 : 3);
-        const gapW = (code % 4 === 0) ? 4 : 2;
-        ctx.fillRect(bx, y, lineW, barH);
-        bx += lineW + gapW;
-    }
-    y += barH + 22;
-
+    // 8. Footer "Terima kasih" & Garis Putus-putus Penutup
     ctx.textAlign = 'center';
-    ctx.font = '700 15px "Courier New", Courier, monospace';
-    ctx.fillText(`*${cleanInv}*`, canvas.width / 2, y);
-    y += 28;
-    ctx.font = '900 19px "Courier New", Courier, monospace';
-    ctx.fillText('TERIMA KASIH ATAS KUNJUNGAN ANDA', canvas.width / 2, y);
-    y += 24;
-    ctx.font = '700 15px "Courier New", Courier, monospace';
-    ctx.fillText('SIMPAN STRUK INI SEBAGAI BUKTI PEMBAYARAN SAH', canvas.width / 2, y);
-    y += 20;
-    ctx.fillText(`LAYANAN BANTUAN PELANGGAN : ${storeTitle}`, canvas.width / 2, y);
+    ctx.font = '600 22px "Courier New", Courier, monospace';
+    ctx.fillText('Terima kasih', canvas.width / 2, y);
+
+    y += 34;
+    ctx.textAlign = 'left';
+    ctx.fillText(dashedLineStr, padX, y);
 
     return canvas;
 }
