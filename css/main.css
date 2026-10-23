@@ -82,7 +82,7 @@ html[data-theme="dark"] {
 }
 
 /* ==========================================================================
-   RESET & LATAR BELAKANG NEO-BRUTALISM MATANG (#9 & #10)
+   RESET & LATAR BELAKANG NEO-BRUTALISM MATANG
    ========================================================================== */
 *, *::before, *::after {
     box-sizing: border-box;
@@ -156,7 +156,7 @@ a {
 }
 
 /* ==========================================================================
-   ANTI BOCOR KE TAB LOGIN SAAT SUDAH LOGIN (#7)
+   ANTI BOCOR KE TAB LOGIN SAAT SUDAH LOGIN
    ========================================================================== */
 body:not(.auth-locked) #tab-auth,
 html.has-saved-session body.preloader-locked #tab-auth {
@@ -401,7 +401,7 @@ header {
 }
 
 /* ==========================================================================
-   TRANSISI ANTAR TAB & PANEL SMOOTH MODERN (#15)
+   TRANSISI ANTAR TAB & PANEL SMOOTH MODERN
    ========================================================================== */
 .main-tab-content {
     display: none;
@@ -574,7 +574,7 @@ html[data-theme="dark"] .marquee-container.neo-brutal-marquee {
 }
 
 /* ==========================================================================
-   TOMBOL, FORM, DAN PANEL NEO-BRUTALISM (#12)
+   TOMBOL, FORM, DAN PANEL NEO-BRUTALISM
    ========================================================================== */
 .btn {
     display: inline-flex;
@@ -1062,7 +1062,7 @@ html[data-theme="dark"] .alert-info { background: rgba(59, 130, 246, 0.18); colo
 }
 
 /* ==========================================================================
-   PESANAN, LACAK TRANSAKSI & STRUK RINCIAN PESANAN MATANG (#1)
+   PESANAN, LACAK TRANSAKSI & STRUK RINCIAN PESANAN MATANG
    ========================================================================== */
 .track-single-box {
     display: flex;
@@ -1221,7 +1221,7 @@ html[data-theme="dark"] .alert-info { background: rgba(59, 130, 246, 0.18); colo
     color: var(--primary);
 }
 
-/* Status Badges Matang (#1) */
+/* Status Badges Matang */
 .status-badge {
     display: inline-flex;
     align-items: center;
@@ -1306,7 +1306,7 @@ html[data-theme="dark"] .alert-info { background: rgba(59, 130, 246, 0.18); colo
     transform: translate(1px, 1px);
 }
 
-/* Banner Penjelasan Status Pesanan yang Matang (#1) */
+/* Banner Penjelasan Status Pesanan yang Matang */
 .ereceipt-status-hero {
     display: flex;
     align-items: flex-start;
@@ -1738,7 +1738,7 @@ html[data-theme="dark"] .ereceipt-status-hero.hero-failed { background: rgba(239
     border-top: var(--brutal-border-thin);
 }
 
-/* Kartu Saran Produk (#14) */
+/* Kartu Saran Produk */
 .saran-brutal-card {
     border: var(--brutal-border-thick);
     box-shadow: var(--brutal-shadow-lg);
@@ -2626,7 +2626,7 @@ html[data-theme="dark"] .item-card.selected {
 }
 
 /* ==========================================================================
-   HALAMAN LOGIN & DAFTAR NEO-BRUTALISM RAME & MATANG (#12)
+   HALAMAN LOGIN & DAFTAR NEO-BRUTALISM RAME & MATANG
    ========================================================================== */
 .auth-neo-stage {
     display: grid;
@@ -2909,7 +2909,7 @@ html[data-theme="dark"] .item-card.selected {
 }
 
 /* ==========================================================================
-   MODAL POP-UP & NOTIFIKASI TOAST NEO-BRUTALISM MATANG (#13 & #15)
+   MODAL POP-UP & NOTIFIKASI TOAST NEO-BRUTALISM MATANG
    ========================================================================== */
 .modal-overlay,
 .msg-overlay {
@@ -3035,7 +3035,7 @@ html[data-theme="dark"] .item-card.selected {
     line-height: 1.5;
 }
 
-/* Toast Notification Neo-Brutalist Matang (#13) */
+/* Toast Notification Neo-Brutalist Matang */
 .toast-container {
     position: fixed;
     top: 16px;
@@ -3273,7 +3273,7 @@ html[data-theme="dark"] .toast-item {
 }
 
 /* ==========================================================================
-   FOOTER & NAVIGASI BAWAH MOBILE (#12)
+   FOOTER & NAVIGASI BAWAH MOBILE
    ========================================================================== */
 .footer-new {
     margin-top: auto;
@@ -3588,7 +3588,7 @@ html[data-theme="dark"] .bottom-nav {
     letter-spacing: 0.04em;
 }
 
-/* Marquee Fallback & Neo-Brutalist Bar (#2) */
+/* Marquee Fallback & Neo-Brutalist Bar */
 .marquee-container,
 .marquee-container.neo-brutal-marquee {
     display: flex;
@@ -3757,7 +3757,7 @@ html[data-theme="dark"] .marquee-container.neo-brutal-marquee {
 
 
 /* ==========================================================================
-   PEMBARUAN v27.3 — RUNNING TEXT UJUNG-KE-UJUNG, RUNNING TEXT BAWAH HITAM
+   RUNNING TEXT UJUNG-KE-UJUNG, RUNNING TEXT BAWAH HITAM
    GLOW MANIK-MANIK DI SEMUA TAB & OPTIMASI PERFORMA GOOGLE 90+
    ========================================================================== */
 
@@ -3807,7 +3807,7 @@ html[data-theme="dark"] .marquee-container.edge-to-edge-marquee {
     animation: neoMarqueeScroll var(--marquee-duration, 44s) linear infinite;
 }
 
-/* 2. Running Text Bawah: Struktur & Kehalusan Identik dengan Atas, Tema Hitam Elegan & Tidak Berhenti Saat Disentuh (#2) */
+/* 2. Running Text Bawah: Struktur & Kehalusan Identik dengan Atas, Tema Hitam Elegan & Tidak Berhenti Saat Disentuh */
 body.auth-locked .footer-divider-marquee-wrap {
     display: none !important;
 }
@@ -3870,7 +3870,7 @@ html[data-theme="dark"] .marquee-container.footer-dark-marquee {
     margin: 0 6px;
 }
 
-/* 3. Tombol Segarkan Katalog & Penyempurnaan UI Neo-Brutalism (#3 & #5) */
+/* 3. Tombol Segarkan Katalog & Penyempurnaan UI Neo-Brutalism */
 .catalog-refresh-btn {
     display: inline-flex;
     align-items: center;
@@ -3931,7 +3931,7 @@ html[data-theme="dark"] .marquee-container.footer-dark-marquee {
 }
 
 /* ============================================================================
- * PERBAIKAN v27.7 — BADGE HABIS KATALOG, INDIKATOR CHAT & JAM OPERASIONAL
+ * BADGE HABIS KATALOG, INDIKATOR CHAT & JAM OPERASIONAL
  * ============================================================================ */
 .brand-top-tag.tag-soldout {
     background: var(--danger) !important;
@@ -3976,7 +3976,7 @@ html[data-theme="dark"] .marquee-container.footer-dark-marquee {
 }
 
 /* ============================================================================
- * PEMBARUAN v27.8 — ISOLASI GPU COMPOSITOR LAYER RUNNING TEXT BAWAH ANTI-LAG
+ * ISOLASI GPU COMPOSITOR LAYER RUNNING TEXT BAWAH ANTI-LAG
  * SAAT PERPINDAHAN TAB (60/120FPS LOCKED)
  * ============================================================================ */
 .footer-divider-marquee-wrap {
@@ -4026,7 +4026,7 @@ html[data-theme="dark"] .marquee-container.footer-dark-marquee {
 
 
 /* ============================================================================
- * PEMBARUAN v27.9 — V27.9 ULTRA-FAST QRIS AUTO-VERIFY & STOREFRONT POLISH
+ * V27.9 ULTRA-FAST QRIS AUTO-VERIFY & STOREFRONT POLISH
  * ============================================================================ */
 .qris-live-listener-box {
     border: 2px solid var(--success);
@@ -4111,7 +4111,7 @@ html[data-theme="dark"] .marquee-container.footer-dark-marquee {
    ========================================================================== */
 /* #water-ripple-canvas dikendalikan dinamis melalui pengaturan waterRippleEnabled */
 
-/* Matikan efek goyang/transform pada container statis saat disentuh (#12) */
+/* Matikan efek goyang/transform pada container statis saat disentuh */
 .brutal-panel:hover,
 .checkout-step-card:hover,
 .prof-stat-card:hover,
@@ -4122,14 +4122,14 @@ html[data-theme="dark"] .marquee-container.footer-dark-marquee {
     transform: none !important;
 }
 
-/* Sembunyikan elemen dompet saldo secara mutlak jika bukan sesi Member (#4) */
+/* Sembunyikan elemen dompet saldo secara mutlak jika bukan sesi Member */
 body:not(.is-member-session) #header-wallet-btn,
 body:not(.is-member-session) #prof-wallet-card,
 body:not(.is-member-session) #pay-card-balance {
     display: none !important;
 }
 
-/* Badge Kategori Spesifik: Pulsa, PLN, E-Wallet, Tagihan (#11) */
+/* Badge Kategori Spesifik: Pulsa, PLN, E-Wallet, Tagihan */
 .tag-pulsa {
     background: #0284c7 !important;
     color: #ffffff !important;
@@ -4147,7 +4147,7 @@ body:not(.is-member-session) #pay-card-balance {
     color: #ffffff !important;
 }
 
-/* Badge Gangguan vs Stok Habis (#7) */
+/* Badge Gangguan vs Stok Habis */
 .proc-mode-gangguan {
     background: #ef4444 !important;
     color: #ffffff !important;
@@ -4160,7 +4160,7 @@ body:not(.is-member-session) #pay-card-balance {
     cursor: not-allowed;
 }
 
-/* Kartu Token PLN Prabayar 20-Digit di Struk Pembayaran (#9) */
+/* Kartu Token PLN Prabayar 20-Digit di Struk Pembayaran */
 .pln-token-highlight-card {
     margin-top: 12px;
     padding: 14px;
@@ -4228,8 +4228,35 @@ body:not(.is-member-session) #pay-card-balance {
 
 
 /* ==========================================================================
-   PANEL SAMBUTAN WAKTU, SALDO AKUN, MEMBER PLUS & STRUK BERLOGO RESMI
+   PANEL SAMBUTAN WAKTU, SALDO AKUN, MEMBER PLUS, TABEL PERBANDINGAN HARGA & STRUK
    ========================================================================== */
+
+/* Utilitas Tata Letak & Tipografi */
+.flex-between {
+    display: flex;
+    justify-content: space-between;
+}
+.align-center {
+    align-items: center;
+}
+.flex-wrap-gap {
+    flex-wrap: wrap;
+    gap: 10px;
+}
+.code-mono {
+    font-family: 'JetBrains Mono', 'Space Grotesk', monospace;
+}
+.tag-green {
+    background: var(--success) !important;
+    color: #0f172a !important;
+}
+
+/* Sembunyikan info saldo di samping tombol ganti tema header */
+#header-wallet-btn {
+    display: none !important;
+}
+
+/* Panel Selamat Datang Pengguna */
 .user-greeting-neo-panel {
     background: var(--surface);
     border: var(--brutal-border-thick);
@@ -4259,8 +4286,7 @@ body:not(.is-member-session) #pay-card-balance {
     margin-bottom: 6px;
 }
 
-.greeting-time-pill,
-.greeting-role-pill {
+.greeting-time-pill {
     display: inline-flex;
     align-items: center;
     gap: 5px;
@@ -4271,34 +4297,29 @@ body:not(.is-member-session) #pay-card-balance {
     font-weight: 900;
     border: 2px solid #0f172a;
     box-shadow: 2px 2px 0px #0f172a;
-}
-
-.greeting-time-pill {
     background: var(--secondary);
     color: #0f172a;
 }
 
 .greeting-role-pill {
-    background: var(--primary);
-    color: #ffffff;
-}
-
-.greeting-role-pill.role-member-plus {
-    background: linear-gradient(135deg, #facc15, #f59e0b);
-    color: #0f172a;
+    display: none !important;
 }
 
 .greeting-main-title {
+    font-family: var(--font-heading);
     font-size: 1.38rem;
     font-weight: 900;
     line-height: 1.22;
     margin-bottom: 4px;
+    color: var(--text);
 }
 
 .greeting-sub-text {
+    font-family: var(--font-main);
     font-size: 0.82rem;
     font-weight: 700;
     color: var(--text-muted);
+    line-height: 1.45;
 }
 
 .greeting-right-col {
@@ -4326,6 +4347,7 @@ body:not(.is-member-session) #pay-card-balance {
 
 .greeting-wallet-meta span {
     display: block;
+    font-family: var(--font-heading);
     font-size: 0.66rem;
     font-weight: 900;
     color: var(--text-muted);
@@ -4351,107 +4373,107 @@ body:not(.is-member-session) #pay-card-balance {
     margin: 0 auto;
 }
 
-/* Header Brand & Logo Resmi di Struk Pembelian (#16) */
-.ereceipt-brand-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 10px;
-    padding: 0.95rem 1.2rem;
-    background: #0f172a;
-    color: #ffffff;
-    border-bottom: 2.5px solid #0f172a;
+.topup-two-subtabs {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
 }
 
-.ereceipt-brand-identity {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-}
-
-.ereceipt-brand-logo {
-    width: 36px;
-    height: 36px;
-    border-radius: 9px;
-    border: 2px solid #facc15;
-    object-fit: cover;
-    background: #2563eb;
-}
-
-.ereceipt-brand-title {
+.topup-two-subtabs .bantuan-subtab-btn {
     font-family: var(--font-heading);
-    font-size: 1.1rem;
+    font-size: 0.82rem;
     font-weight: 900;
-    letter-spacing: -0.02em;
-    color: #ffffff;
+    padding: 9px 12px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
-.ereceipt-brand-title span {
-    background: #facc15;
-    color: #0f172a;
-    padding: 1px 6px;
-    margin-left: 3px;
-    border-radius: 5px;
-}
-
-.memberplus-price-strike {
-    text-decoration: line-through;
-    font-size: 0.72rem;
-    color: var(--text-muted);
-    margin-right: 5px;
-}
-
-.memberplus-saving-pill {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    padding: 2px 7px;
-    border-radius: 6px;
-    font-size: 0.62rem;
-    font-weight: 900;
-    background: #fef08a;
-    color: #854d0e;
-    border: 1.5px solid #0f172a;
-}
-
-@media (max-width: 680px) {
-    .greeting-right-col {
-        align-items: stretch;
-    }
-    .greeting-wallet-card {
-        max-width: none;
-    }
-    .greeting-actions-strip {
-        justify-content: flex-start;
-    }
+.bantuan-subtab-btn.memberplus-subtab-gold.active {
+    background: linear-gradient(135deg, #facc15, #f59e0b) !important;
+    color: #0f172a !important;
+    border-color: #0f172a !important;
 }
 
 /* ==========================================================================
-   PEMBARUAN v28.3 — MEMBER PLUS GOLD UI, BOTTOM SHEET KONFIRMASI MOBILE,
-   MODAL BAGIKAN STRUK, LUPA PIN, RIWAYAT ISI SALDO & TABEL PERBANDINGAN HARGA
+   IDENTITAS EMAS & MAHKOTA MEMBER PLUS (PROFIL, KATALOG, PANEL KELOLA LANGGANAN)
    ========================================================================== */
 
-/* 1. Sembunyikan info saldo di samping tombol ganti tema sesuai permintaan (#9) */
-#header-wallet-btn {
-    display: none !important;
+/* Lencana Emas Member Plus */
+.memberplus-gold-badge,
+.tag-memberplus-gold {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 11px;
+    border-radius: 999px;
+    background: linear-gradient(135deg, #fde047 0%, #facc15 50%, #f59e0b 100%) !important;
+    color: #0f172a !important;
+    border: 2px solid #0f172a !important;
+    box-shadow: 2px 2px 0px #0f172a !important;
+    font-family: var(--font-heading) !important;
+    font-size: 0.72rem;
+    font-weight: 900 !important;
+    letter-spacing: 0.03em;
+    line-height: 1.2;
+    text-transform: uppercase;
 }
 
-/* 2. Identitas Emas & Mahkota Member Plus di Tab Profil & Panel (#1) */
+.memberplus-gold-badge i,
+.tag-memberplus-gold i {
+    color: #78350f !important;
+}
+
+/* Kartu Hero Profil Emas Saat Member Plus Aktif */
+.profile-hero-card.profile-hero-memberplus-gold,
 .profile-hero-card.memberplus-profile-gold {
-    background: linear-gradient(135deg, rgba(250, 204, 21, 0.22), rgba(245, 158, 11, 0.08));
-    border-color: #d97706 !important;
-    box-shadow: 5px 5px 0px #b45309;
-}
-html[data-theme="dark"] .profile-hero-card.memberplus-profile-gold {
-    background: linear-gradient(135deg, rgba(250, 204, 21, 0.16), rgba(217, 119, 6, 0.1));
-    border-color: #facc15 !important;
-    box-shadow: 5px 5px 0px rgba(250, 204, 21, 0.35);
+    background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 52%, #fde68a 100%) !important;
+    border: 3px solid #b45309 !important;
+    box-shadow: 6px 6px 0px #78350f !important;
+    color: #422006 !important;
 }
 
+html[data-theme="dark"] .profile-hero-card.profile-hero-memberplus-gold,
+html[data-theme="dark"] .profile-hero-card.memberplus-profile-gold {
+    background: linear-gradient(135deg, #2e1d05 0%, #422006 55%, #713f12 100%) !important;
+    border: 3px solid #facc15 !important;
+    box-shadow: 6px 6px 0px #ca8a04 !important;
+    color: #fef9c3 !important;
+}
+
+.profile-hero-card.profile-hero-memberplus-gold #prof-display-name {
+    font-family: var(--font-heading) !important;
+    font-weight: 900 !important;
+    color: #422006 !important;
+}
+
+html[data-theme="dark"] .profile-hero-card.profile-hero-memberplus-gold #prof-display-name {
+    color: #fef08a !important;
+}
+
+.profile-hero-card.profile-hero-memberplus-gold #prof-display-email {
+    font-family: var(--font-main) !important;
+    font-weight: 700 !important;
+    color: #78350f !important;
+}
+
+html[data-theme="dark"] .profile-hero-card.profile-hero-memberplus-gold #prof-display-email {
+    color: #fde68a !important;
+}
+
+/* Avatar & Mahkota Emas di Profil */
 .profile-avatar-box {
     position: relative;
 }
 
+.profile-avatar-box.memberplus-gold-avatar {
+    background: linear-gradient(135deg, #fde047, #f59e0b) !important;
+    color: #0f172a !important;
+    border: 3px solid #0f172a !important;
+    box-shadow: 4px 4px 0px #0f172a !important;
+}
+
+.profile-avatar-crown-badge,
 .prof-avatar-crown-badge {
     position: absolute;
     top: -10px;
@@ -4459,7 +4481,7 @@ html[data-theme="dark"] .profile-hero-card.memberplus-profile-gold {
     width: 28px;
     height: 28px;
     border-radius: 50%;
-    background: linear-gradient(135deg, #facc15, #f59e0b);
+    background: linear-gradient(135deg, #fde047, #f59e0b);
     color: #0f172a;
     border: 2px solid #0f172a;
     box-shadow: 2px 2px 0px #0f172a;
@@ -4467,144 +4489,386 @@ html[data-theme="dark"] .profile-hero-card.memberplus-profile-gold {
     align-items: center;
     justify-content: center;
     font-size: 0.78rem;
-    z-index: 2;
+    z-index: 3;
 }
 
-.profile-hero-card.memberplus-profile-gold .prof-avatar-crown-badge {
-    display: inline-flex;
+.profile-badge-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    align-items: center;
+    margin-bottom: 4px;
 }
 
-.tag-memberplus-gold {
-    background: linear-gradient(135deg, #fde047, #f59e0b) !important;
-    color: #0f172a !important;
-    border: 2px solid #0f172a !important;
-    box-shadow: 2px 2px 0px #0f172a !important;
-    font-weight: 900 !important;
-}
-
+/* Kartu Sambutan Aktif di Dalam Tab Kelola Langganan */
+.memberplus-celebration-card,
 .memberplus-active-celebration-card {
-    background: linear-gradient(135deg, #fef08a 0%, #fde68a 55%, #fcd34d 100%);
-    color: #0f172a;
-    border: 3px solid #0f172a;
-    box-shadow: 5px 5px 0px #0f172a;
+    background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 55%, #fde68a 100%);
+    color: #422006;
+    border: 3px solid #b45309;
+    box-shadow: 5px 5px 0px #78350f;
     border-radius: 16px;
     padding: 1.25rem;
-    margin-bottom: 1.15rem;
+    margin-bottom: 1.25rem;
+    font-family: var(--font-main);
+}
+
+html[data-theme="dark"] .memberplus-celebration-card,
+html[data-theme="dark"] .memberplus-active-celebration-card {
+    background: linear-gradient(135deg, #2e1d05 0%, #422006 55%, #713f12 100%);
+    color: #fef9c3;
+    border-color: #facc15;
+    box-shadow: 5px 5px 0px #ca8a04;
+}
+
+.mp-celebration-title {
+    margin: 0 0 6px;
+    font-family: var(--font-heading);
+    font-size: 1.18rem;
+    font-weight: 900;
+    line-height: 1.25;
+    color: inherit;
+}
+
+.mp-celebration-sub {
+    margin: 0;
+    font-family: var(--font-main);
+    font-size: 0.84rem;
+    font-weight: 700;
+    line-height: 1.5;
+    opacity: 0.94;
+}
+
+.memberplus-exp-meta-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+    margin-top: 12px;
+}
+
+.memberplus-exp-meta-item {
+    background: rgba(255, 255, 255, 0.82);
+    border: 2px solid #b45309;
+    border-radius: 10px;
+    padding: 8px 12px;
+    box-shadow: 2px 2px 0px rgba(120, 53, 15, 0.35);
+}
+
+html[data-theme="dark"] .memberplus-exp-meta-item {
+    background: rgba(15, 23, 42, 0.72);
+    border-color: #facc15;
+}
+
+.memberplus-exp-meta-item span {
+    display: block;
+    font-family: var(--font-heading);
+    font-size: 0.65rem;
+    font-weight: 900;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: #92400e;
+    margin-bottom: 2px;
+}
+
+html[data-theme="dark"] .memberplus-exp-meta-item span {
+    color: #fde047;
+}
+
+.memberplus-exp-meta-item strong {
+    display: block;
+    font-family: var(--font-heading);
+    font-size: 0.88rem;
+    font-weight: 900;
+    color: #422006;
+}
+
+html[data-theme="dark"] .memberplus-exp-meta-item strong {
+    color: #ffffff;
+}
+
+/* Modal Animasi Selamat Datang Member Plus */
+.mp-welcome-celebration-modal {
+    max-width: 430px;
+    border: 3px solid #f59e0b !important;
+    background: linear-gradient(180deg, #fffbeb 0%, #fef3c7 100%) !important;
+    color: #422006 !important;
+    box-shadow: 8px 8px 0px #000000 !important;
+    font-family: var(--font-main);
+}
+
+.mp-welcome-meta-box {
+    background: rgba(255, 255, 255, 0.88);
+    border: 2px solid #d97706;
+    border-radius: 12px;
+    padding: 10px 14px;
+    margin: 12px 0 16px;
+    text-align: left;
+}
+
+.mp-welcome-meta-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+}
+
+.mp-welcome-meta-row span {
+    font-family: var(--font-heading);
+    font-size: 0.72rem;
+    font-weight: 800;
+    color: #92400e;
+}
+
+.mp-welcome-meta-row strong {
+    font-family: var(--font-heading);
+    font-size: 0.82rem;
+    font-weight: 900;
+    color: #422006;
+}
+
+/* Tata Letak Harga Member Plus di Kartu Variasi Katalog */
+.price-wrapper {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 6px;
+    padding-top: 8px;
+    border-top: 1.5px dashed var(--border-subtle);
+}
+
+.mp-variant-price-stack {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
+    line-height: 1.2;
+}
+
+.mp-variant-strike-row {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    flex-wrap: wrap;
+}
+
+.mp-variant-final-price {
+    font-family: var(--font-heading);
+    font-size: 0.96rem;
+    font-weight: 900;
+    color: var(--primary);
+}
+
+.mp-free-price-label {
+    font-family: var(--font-heading);
+    font-size: 0.9rem;
+    font-weight: 900;
+    color: var(--success);
 }
 
 .memberplus-price-strike {
     text-decoration: line-through;
     color: var(--text-muted);
-    font-size: 0.74rem;
+    font-family: var(--font-main);
+    font-size: 0.72rem;
     font-weight: 700;
-    margin-right: 6px;
 }
 
-.memberplus-saving-pill {
+.memberplus-saving-pill,
+.mp-saving-pill {
     display: inline-flex;
     align-items: center;
-    gap: 3px;
-    background: #facc15;
+    gap: 4px;
+    background: linear-gradient(135deg, #fde047, #facc15);
     color: #0f172a;
     border: 1.5px solid #0f172a;
     border-radius: 6px;
     padding: 1px 6px;
+    font-family: var(--font-heading);
     font-size: 0.62rem;
     font-weight: 900;
-    margin-left: 5px;
+    line-height: 1.2;
     vertical-align: middle;
 }
 
-/* 3. Panel Selamat Datang Pengguna (Greeting Panel) */
-.user-greeting-neo-panel {
-    background: var(--surface);
-    border: var(--brutal-border);
-    box-shadow: var(--brutal-shadow);
-    border-radius: var(--brutal-radius-lg);
-    padding: 1.2rem 1.35rem;
-    margin-bottom: 1.35rem;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    flex-wrap: wrap;
-    gap: 1rem;
-}
-
-.greeting-badge-row {
-    display: flex;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 8px;
-    margin-bottom: 6px;
-}
-
-.greeting-time-pill,
-.greeting-role-pill {
+.mp-price-highlight {
     display: inline-flex;
     align-items: center;
     gap: 5px;
-    padding: 3px 10px;
-    border-radius: 8px;
     font-family: var(--font-heading);
-    font-size: 0.68rem;
+    font-size: 0.88rem;
     font-weight: 900;
-    border: 2px solid #0f172a;
-    box-shadow: 2px 2px 0px #0f172a;
-    background: var(--secondary);
-    color: #0f172a;
+    color: #b45309;
+    background: rgba(250, 204, 21, 0.22);
+    border: 1.5px solid #d97706;
+    border-radius: 7px;
+    padding: 2px 8px;
 }
 
-.greeting-main-title {
-    font-size: 1.35rem;
-    font-weight: 900;
-    margin-bottom: 4px;
+html[data-theme="dark"] .mp-price-highlight {
+    color: #fde047;
+    background: rgba(250, 204, 21, 0.14);
+    border-color: #facc15;
 }
 
-.greeting-sub-text {
+/* ==========================================================================
+   PANEL TABEL PERBANDINGAN HARGA DI DALAM TAB MEMBER PLUS
+   ========================================================================== */
+.mp-comparison-hero-banner {
+    background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 55%, #fde68a 100%);
+    border: 2.5px solid #b45309;
+    border-radius: 14px;
+    padding: 1.15rem 1.25rem;
+    box-shadow: 5px 5px 0px #78350f;
+    color: #422006;
+    margin-bottom: 1.15rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+html[data-theme="dark"] .mp-comparison-hero-banner {
+    background: linear-gradient(135deg, #2e1d05 0%, #422006 55%, #713f12 100%);
+    border-color: #facc15;
+    box-shadow: 5px 5px 0px #ca8a04;
+    color: #fef9c3;
+}
+
+.mp-compare-hero-title {
+    margin: 0 0 4px;
+    font-family: var(--font-heading);
+    font-size: 1.25rem;
+    font-weight: 900;
+    line-height: 1.25;
+    color: inherit;
+}
+
+.mp-compare-hero-sub {
+    margin: 0;
+    font-family: var(--font-main);
     font-size: 0.82rem;
     font-weight: 700;
-    color: var(--text-muted);
+    opacity: 0.92;
+    line-height: 1.45;
 }
 
-.greeting-right-col {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-end;
-    gap: 10px;
+.mp-compare-filter-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 12px;
+    margin-bottom: 1rem;
 }
 
-.greeting-wallet-card {
-    display: flex;
-    align-items: center;
-    gap: 14px;
-    background: var(--surface-elevated);
-    border: var(--brutal-border-thin);
-    box-shadow: var(--brutal-shadow-sm);
-    border-radius: 12px;
-    padding: 8px 12px;
-}
-
-.greeting-wallet-meta span {
-    display: block;
-    font-size: 0.65rem;
-    font-weight: 900;
-    color: var(--text-muted);
-}
-
-.greeting-wallet-meta strong {
+.mp-compare-filter-grid label {
     font-family: var(--font-heading);
-    font-size: 1.1rem;
+    font-size: 0.74rem;
+    font-weight: 800;
+}
+
+.mp-compare-stats-strip {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 10px;
+    margin-bottom: 1rem;
+}
+
+.mp-compare-stat-box {
+    background: var(--surface);
+    border: 2px solid var(--border);
+    border-radius: 10px;
+    padding: 10px 13px;
+    box-shadow: 3px 3px 0px var(--border);
+}
+
+.mp-compare-stat-box span {
+    display: block;
+    font-family: var(--font-heading);
+    font-size: 0.68rem;
+    font-weight: 800;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.mp-compare-stat-box strong {
+    display: block;
+    font-family: var(--font-heading);
+    font-size: 1rem;
     font-weight: 900;
-    color: var(--primary);
+    color: var(--text);
+    margin-top: 2px;
 }
 
-.greeting-actions-strip {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
+.mp-open-compare-cta-card {
+    background: linear-gradient(135deg, rgba(254, 243, 199, 0.72), rgba(253, 230, 138, 0.45));
+    border: 2.5px solid #d97706 !important;
+    box-shadow: 4px 4px 0px #92400e !important;
 }
 
-/* 4. Header Identitas Toko di E-Receipt */
+html[data-theme="dark"] .mp-open-compare-cta-card {
+    background: linear-gradient(135deg, rgba(66, 32, 6, 0.72), rgba(113, 63, 18, 0.45));
+    border-color: #facc15 !important;
+    box-shadow: 4px 4px 0px #ca8a04 !important;
+}
+
+.mp-compare-table-wrap,
+.mp-comparison-table-wrap {
+    width: 100%;
+    overflow-x: auto;
+    border: 2px solid var(--border);
+    border-radius: 12px;
+    background: var(--surface);
+    box-shadow: 3px 3px 0px var(--border);
+    margin-top: 10px;
+}
+
+.mp-compare-table,
+.mp-comparison-table {
+    width: 100%;
+    border-collapse: collapse;
+    text-align: left;
+    min-width: 520px;
+    font-family: var(--font-main);
+}
+
+.mp-compare-table th,
+.mp-comparison-table th {
+    background: var(--surface-elevated);
+    padding: 11px 13px;
+    font-family: var(--font-heading);
+    font-size: 0.74rem;
+    font-weight: 900;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: var(--text);
+    border-bottom: 2px solid var(--border);
+}
+
+.mp-compare-table td,
+.mp-comparison-table td {
+    padding: 11px 13px;
+    font-family: var(--font-main);
+    font-size: 0.83rem;
+    font-weight: 700;
+    color: var(--text);
+    border-bottom: 1.5px solid var(--border-subtle);
+    vertical-align: middle;
+}
+
+.mp-compare-table tr:last-child td,
+.mp-comparison-table tr:last-child td {
+    border-bottom: none;
+}
+
+.mp-compare-table tbody tr:hover {
+    background: var(--surface-hover);
+}
+
+/* ==========================================================================
+   STRUK KASIR HITAM PUTIH & BAGIKAN STRUK
+   ========================================================================== */
 .ereceipt-brand-header {
     display: flex;
     align-items: center;
@@ -4646,44 +4910,230 @@ html[data-theme="dark"] .profile-hero-card.memberplus-profile-gold {
     border-radius: 6px;
 }
 
-/* 5. Tabel Perbandingan Harga Member Biasa vs Member Plus (#4) */
-.mp-comparison-table-wrap {
-    width: 100%;
-    overflow-x: auto;
-    border: var(--brutal-border-thin);
-    border-radius: 12px;
-    background: var(--surface);
-    margin-top: 10px;
+.ereceipt-ticket.indomaret-receipt-paper {
+    background: #ffffff !important;
+    color: #000000 !important;
+    border: 2.5px solid #000000 !important;
+    border-radius: 6px !important;
+    box-shadow: 5px 5px 0px #000000 !important;
+    font-family: 'JetBrains Mono', 'Courier New', Courier, monospace !important;
+    padding: 1.35rem 1.15rem !important;
+    max-width: 440px;
+    margin: 0 auto;
+    position: relative;
+    overflow: hidden;
 }
 
-.mp-comparison-table {
-    width: 100%;
-    border-collapse: collapse;
-    text-align: left;
-    min-width: 480px;
+.indomaret-receipt-paper * {
+    color: #000000;
+    font-family: 'JetBrains Mono', 'Courier New', Courier, monospace !important;
 }
 
-.mp-comparison-table th {
-    background: var(--surface-elevated);
-    padding: 10px 12px;
-    font-size: 0.74rem;
+.indomaret-receipt-header {
+    text-align: center;
+    padding-bottom: 10px;
+    margin-bottom: 10px;
+    border-bottom: 2px dashed #000000;
+}
+
+.indomaret-store-title {
+    font-size: 1.25rem;
+    font-weight: 900;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #000000 !important;
+    margin: 0;
+}
+
+.indomaret-store-sub {
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: #000000 !important;
+    margin-top: 3px;
+    line-height: 1.35;
+}
+
+.indomaret-dashed-line {
+    border: none;
+    border-top: 1.5px dashed #000000;
+    margin: 8px 0;
+    height: 0;
+}
+
+.indomaret-double-line {
+    border: none;
+    border-top: 3px double #000000;
+    margin: 8px 0;
+    height: 0;
+}
+
+.indomaret-kv-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 8px;
+    font-size: 0.76rem;
+    line-height: 1.45;
+    margin-bottom: 3px;
+    color: #000000 !important;
+}
+
+.indomaret-kv-row span:first-child {
+    font-weight: 700;
+    flex-shrink: 0;
+}
+
+.indomaret-kv-row strong {
+    font-weight: 800;
+    text-align: right;
+    word-break: break-all;
+}
+
+.indomaret-item-block {
+    padding: 6px 0;
+}
+
+.indomaret-item-title {
+    font-size: 0.84rem;
     font-weight: 900;
     text-transform: uppercase;
-    border-bottom: 2px solid var(--border);
+    margin-bottom: 3px;
+    color: #000000 !important;
 }
 
-.mp-comparison-table td {
-    padding: 10px 12px;
-    font-size: 0.83rem;
+.indomaret-total-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.94rem;
+    font-weight: 900;
+    padding: 6px 0;
+    border-top: 1.5px dashed #000000;
+    border-bottom: 1.5px dashed #000000;
+    margin: 6px 0;
+    color: #000000 !important;
+}
+
+.indomaret-sn-box {
+    border: 2px solid #000000;
+    background: #ffffff !important;
+    padding: 9px 10px;
+    margin: 10px 0;
+    font-size: 0.76rem;
+    line-height: 1.5;
+    white-space: pre-wrap;
+    word-break: break-word;
+    color: #000000 !important;
+}
+
+.indomaret-status-stamp {
+    display: inline-block;
+    border: 2px solid #000000;
+    padding: 3px 10px;
+    font-size: 0.74rem;
+    font-weight: 900;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    margin-top: 6px;
+    background: #ffffff !important;
+    color: #000000 !important;
+}
+
+.indomaret-footer-note {
+    text-align: center;
+    font-size: 0.7rem;
     font-weight: 700;
-    border-bottom: 1px solid var(--border-subtle);
+    line-height: 1.45;
+    margin-top: 10px;
+    padding-top: 8px;
+    border-top: 1.5px dashed #000000;
+    color: #000000 !important;
 }
 
-.mp-comparison-table tr:last-child td {
-    border-bottom: none;
+.indomaret-actions-bar {
+    margin-top: 14px;
+    padding-top: 12px;
+    border-top: 2px solid #000000;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
 }
 
-/* 6. Efek Loading Shimmer saat Cek Username / ID Pelanggan (#6) */
+.indomaret-actions-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+}
+
+.indomaret-btn-bw {
+    background: #000000 !important;
+    color: #ffffff !important;
+    border: 2px solid #000000 !important;
+    border-radius: 6px !important;
+    padding: 9px 12px !important;
+    font-size: 0.76rem !important;
+    font-weight: 900 !important;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    text-transform: uppercase;
+}
+
+.indomaret-btn-bw span,
+.indomaret-btn-bw i {
+    color: #ffffff !important;
+}
+
+.indomaret-btn-outline-bw {
+    background: #ffffff !important;
+    color: #000000 !important;
+    border: 2px solid #000000 !important;
+    border-radius: 6px !important;
+    padding: 9px 12px !important;
+    font-size: 0.76rem !important;
+    font-weight: 900 !important;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    text-transform: uppercase;
+}
+
+.indomaret-btn-outline-bw span,
+.indomaret-btn-outline-bw i {
+    color: #000000 !important;
+}
+
+/* ==========================================================================
+   TAB ISI SALDO & RIWAYAT TERPADU, BANNER GESER & POP-UP MOBILE
+   ========================================================================== */
+.topup-unified-history-col {
+    grid-column: 1 / -1;
+    margin-top: 0.35rem;
+}
+
+.topup-history-card {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    padding: 13px 15px;
+    border: 2.5px solid var(--border);
+    border-radius: 12px;
+    background: var(--surface);
+    box-shadow: 3px 3px 0px var(--border);
+    margin-bottom: 10px;
+    transition: transform 0.14s ease, box-shadow 0.14s ease;
+}
+
+.topup-history-card:hover {
+    transform: translate(-1px, -1px);
+    box-shadow: 5px 5px 0px var(--border);
+}
+
 .checkid-shimmer-badge {
     display: inline-flex;
     align-items: center;
@@ -4704,7 +5154,6 @@ html[data-theme="dark"] .profile-hero-card.memberplus-profile-gold {
     100% { background-position: -200% 0; }
 }
 
-/* 7. Bottom Sheet Pop-Up Konfirmasi di HP / Mobile Menempel di Sisi Bawah Layar (#8) */
 .bottom-sheet-drag-handle {
     display: none;
     width: 46px;
@@ -4714,387 +5163,8 @@ html[data-theme="dark"] .profile-hero-card.memberplus-profile-gold {
     margin: 0 auto 12px;
 }
 
-@media (max-width: 640px) {
-    .greeting-right-col {
-        align-items: stretch;
-        width: 100%;
-    }
-    .greeting-wallet-card {
-        justify-content: space-between;
-    }
-
-    #modal-checkout-confirm,
-    #modal-share-receipt,
-    #modal-forgot-trx-pin {
-        align-items: flex-end !important;
-        justify-content: center !important;
-        padding: 0 !important;
-    }
-
-    #modal-checkout-confirm .modal-content,
-    #modal-share-receipt .modal-content,
-    #modal-forgot-trx-pin .modal-content {
-        width: 100% !important;
-        max-width: 100% !important;
-        margin: 0 !important;
-        border-radius: 22px 22px 0 0 !important;
-        border-left: none !important;
-        border-right: none !important;
-        border-bottom: none !important;
-        box-shadow: 0 -6px 24px rgba(15, 23, 42, 0.32) !important;
-        padding: 1rem 1.15rem calc(1.35rem + env(safe-area-inset-bottom, 0px)) !important;
-        transform: translateY(100%) !important;
-        transition: transform 0.26s cubic-bezier(0.22, 1, 0.36, 1) !important;
-        max-height: 92dvh !important;
-    }
-
-    #modal-checkout-confirm.active .modal-content,
-    #modal-share-receipt.active .modal-content,
-    #modal-forgot-trx-pin.active .modal-content {
-        transform: translateY(0) !important;
-    }
-
-    .bottom-sheet-drag-handle {
-        display: block;
-    }
-}
-
-/* ==========================================================================
-   PEMBARUAN v28.4 — STRUK INDOMARET HITAM PUTIH, TAB ISI SALDO TERPADU,
-   TAB PERBANDINGAN HARGA ELEGAN, & IDENTITAS REALTIME MEMBER PLUS
-   ========================================================================== */
-
-/* 1. Kartu Hero Profil Emas Realtime saat Member Plus Aktif */
-.profile-hero-card.profile-hero-memberplus-gold {
-    background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 52%, #fde68a 100%) !important;
-    border: 3px solid #b45309 !important;
-    box-shadow: 6px 6px 0px #78350f !important;
-    color: #422006 !important;
-}
-[data-theme="dark"] .profile-hero-card.profile-hero-memberplus-gold {
-    background: linear-gradient(135deg, #2e1d05 0%, #422006 55%, #713f12 100%) !important;
-    border: 3px solid #facc15 !important;
-    box-shadow: 6px 6px 0px #ca8a04 !important;
-    color: #fef9c3 !important;
-}
-.profile-hero-card.profile-hero-memberplus-gold #prof-display-name {
-    color: #422006 !important;
-}
-[data-theme="dark"] .profile-hero-card.profile-hero-memberplus-gold #prof-display-name {
-    color: #fef08a !important;
-}
-.profile-hero-card.profile-hero-memberplus-gold #prof-display-email {
-    color: #78350f !important;
-}
-[data-theme="dark"] .profile-hero-card.profile-hero-memberplus-gold #prof-display-email {
-    color: #fde68a !important;
-}
-
-/* 2. Struk Kasir Indomaret Hitam Putih (Thermal Monokrom) */
-.ereceipt-ticket.indomaret-receipt-paper {
-    background: #ffffff !important;
-    color: #000000 !important;
-    border: 2.5px solid #000000 !important;
-    border-radius: 6px !important;
-    box-shadow: 5px 5px 0px #000000 !important;
-    font-family: 'JetBrains Mono', 'Courier New', Courier, monospace !important;
-    padding: 1.35rem 1.15rem !important;
-    max-width: 440px;
-    margin: 0 auto;
-    position: relative;
-    overflow: hidden;
-}
-.indomaret-receipt-paper * {
-    color: #000000;
-    font-family: 'JetBrains Mono', 'Courier New', Courier, monospace !important;
-}
-.indomaret-receipt-header {
-    text-align: center;
-    padding-bottom: 10px;
-    margin-bottom: 10px;
-    border-bottom: 2px dashed #000000;
-}
-.indomaret-store-title {
-    font-size: 1.25rem;
-    font-weight: 900;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    color: #000000 !important;
-    margin: 0;
-}
-.indomaret-store-sub {
-    font-size: 0.72rem;
-    font-weight: 700;
-    color: #000000 !important;
-    margin-top: 3px;
-    line-height: 1.35;
-}
-.indomaret-dashed-line {
-    border: none;
-    border-top: 1.5px dashed #000000;
-    margin: 8px 0;
-    height: 0;
-}
-.indomaret-double-line {
-    border: none;
-    border-top: 3px double #000000;
-    margin: 8px 0;
-    height: 0;
-}
-.indomaret-kv-row {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    gap: 8px;
-    font-size: 0.76rem;
-    line-height: 1.45;
-    margin-bottom: 3px;
-    color: #000000 !important;
-}
-.indomaret-kv-row span:first-child {
-    font-weight: 700;
-    flex-shrink: 0;
-}
-.indomaret-kv-row span:last-child,
-.indomaret-kv-row strong {
-    font-weight: 800;
-    text-align: right;
-    word-break: break-all;
-}
-.indomaret-item-block {
-    padding: 6px 0;
-}
-.indomaret-item-title {
-    font-size: 0.84rem;
-    font-weight: 900;
-    text-transform: uppercase;
-    margin-bottom: 3px;
-    color: #000000 !important;
-}
-.indomaret-total-row {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    font-size: 0.94rem;
-    font-weight: 900;
-    padding: 6px 0;
-    border-top: 1.5px dashed #000000;
-    border-bottom: 1.5px dashed #000000;
-    margin: 6px 0;
-    color: #000000 !important;
-}
-.indomaret-sn-box {
-    border: 2px solid #000000;
-    background: #ffffff !important;
-    padding: 9px 10px;
-    margin: 10px 0;
-    font-size: 0.76rem;
-    line-height: 1.5;
-    white-space: pre-wrap;
-    word-break: break-word;
-    color: #000000 !important;
-}
-.indomaret-status-stamp {
-    display: inline-block;
-    border: 2px solid #000000;
-    padding: 3px 10px;
-    font-size: 0.74rem;
-    font-weight: 900;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-    margin-top: 6px;
-    background: #ffffff !important;
-    color: #000000 !important;
-}
-.indomaret-footer-note {
-    text-align: center;
-    font-size: 0.7rem;
-    font-weight: 700;
-    line-height: 1.45;
-    margin-top: 10px;
-    padding-top: 8px;
-    border-top: 1.5px dashed #000000;
-    color: #000000 !important;
-}
-.indomaret-actions-bar {
-    margin-top: 14px;
-    padding-top: 12px;
-    border-top: 2px solid #000000;
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-}
-.indomaret-actions-grid {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 8px;
-}
-.indomaret-btn-bw {
-    background: #000000 !important;
-    color: #ffffff !important;
-    border: 2px solid #000000 !important;
-    border-radius: 6px !important;
-    padding: 9px 12px !important;
-    font-size: 0.76rem !important;
-    font-weight: 900 !important;
-    cursor: pointer;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 6px;
-    text-transform: uppercase;
-}
-.indomaret-btn-bw i,
-.indomaret-btn-bw span {
-    color: #ffffff !important;
-}
-.indomaret-btn-outline-bw {
-    background: #ffffff !important;
-    color: #000000 !important;
-    border: 2px solid #000000 !important;
-    border-radius: 6px !important;
-    padding: 9px 12px !important;
-    font-size: 0.76rem !important;
-    font-weight: 900 !important;
-    cursor: pointer;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 6px;
-    text-transform: uppercase;
-}
-.indomaret-btn-outline-bw i,
-.indomaret-btn-outline-bw span {
-    color: #000000 !important;
-}
-
-/* 3. Tab Isi Saldo & Riwayat Isi Saldo Terpadu + Responsif Mobile */
-.topup-unified-history-col {
-    grid-column: 1 / -1;
-    margin-top: 0.35rem;
-}
-.topup-history-card {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 12px;
-    padding: 13px 15px;
-    border: 2.5px solid var(--border);
-    border-radius: 12px;
-    background: var(--surface);
-    box-shadow: 3px 3px 0px var(--border);
-    margin-bottom: 10px;
-    transition: transform 0.14s ease, box-shadow 0.14s ease;
-}
-.topup-history-card:hover {
-    transform: translate(-1px, -1px);
-    box-shadow: 5px 5px 0px var(--border);
-}
-
-/* 4. Tab Baru Perbandingan Harga Member Biasa vs Member Plus (#tab-perbandingan-harga) */
-.mp-comparison-hero-banner {
-    background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 55%, #fde68a 100%);
-    border: 2.5px solid #b45309;
-    border-radius: 14px;
-    padding: 1.15rem 1.25rem;
-    box-shadow: 5px 5px 0px #78350f;
-    color: #422006;
-    margin-bottom: 1.15rem;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 12px;
-}
-[data-theme="dark"] .mp-comparison-hero-banner {
-    background: linear-gradient(135deg, #2e1d05 0%, #422006 55%, #713f12 100%);
-    border-color: #facc15;
-    box-shadow: 5px 5px 0px #ca8a04;
-    color: #fef9c3;
-}
-.mp-compare-stats-strip {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-    gap: 10px;
-    margin-bottom: 1rem;
-}
-.mp-compare-stat-box {
-    background: var(--surface);
-    border: 2px solid var(--border);
-    border-radius: 10px;
-    padding: 10px 13px;
-    box-shadow: 3px 3px 0px var(--border);
-}
-.mp-compare-stat-box span {
-    display: block;
-    font-size: 0.68rem;
-    font-weight: 800;
-    color: var(--text-muted);
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-}
-.mp-compare-stat-box strong {
-    display: block;
-    font-size: 1rem;
-    font-weight: 900;
-    color: var(--text);
-    margin-top: 2px;
-}
-.mp-open-compare-cta-card {
-    background: linear-gradient(135deg, rgba(254, 243, 199, 0.7), rgba(253, 230, 138, 0.4));
-    border: 2.5px solid #d97706 !important;
-    box-shadow: 4px 4px 0px #92400e !important;
-}
-[data-theme="dark"] .mp-open-compare-cta-card {
-    background: linear-gradient(135deg, rgba(66, 32, 6, 0.7), rgba(113, 63, 18, 0.45));
-    border-color: #facc15 !important;
-    box-shadow: 4px 4px 0px #ca8a04 !important;
-}
-
-@media (max-width: 640px) {
-    #tab-topup .topup-header-bar {
-        flex-direction: column;
-        align-items: stretch !important;
-        gap: 10px !important;
-    }
-    #tab-topup .bantuan-subtabs-bar {
-        max-width: 100% !important;
-        width: 100% !important;
-        display: grid !important;
-        grid-template-columns: 1fr 1fr !important;
-    }
-    .topup-quick-grid {
-        grid-template-columns: repeat(3, 1fr) !important;
-        gap: 7px !important;
-    }
-    .topup-nom-chip {
-        padding: 9px 6px !important;
-        font-size: 0.78rem !important;
-    }
-    .topup-history-card {
-        flex-direction: column;
-        align-items: flex-start;
-        padding: 12px;
-    }
-    .topup-history-card > div:last-child {
-        width: 100%;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        text-align: left !important;
-        padding-top: 8px;
-        border-top: 1.5px dashed var(--border-subtle);
-    }
-    .indomaret-actions-grid {
-        grid-template-columns: 1fr;
-    }
-}
-
-
-/* ==========================================================================
-   PEMBARUAN v28.5: BANNER SWIPE INTERAKTIF, 3 SUB-TAB MEMBER PLUS & MOBILE POLISH
-   ========================================================================== */
-#banner-container {
+/* Banner Geser Interaktif */
+#banner-slider {
     position: relative;
     touch-action: pan-y pinch-zoom;
     user-select: none;
@@ -5102,7 +5172,7 @@ html[data-theme="dark"] .profile-hero-card.memberplus-profile-gold {
     cursor: grab;
 }
 
-#banner-container:active {
+#banner-slider:active {
     cursor: grabbing;
 }
 
@@ -5134,7 +5204,7 @@ html[data-theme="dark"] .profile-hero-card.memberplus-profile-gold {
 
 .banner-nav-btn:hover {
     background: var(--secondary, #facc15);
-    color: #000;
+    color: #000000;
 }
 
 .banner-nav-prev {
@@ -5145,7 +5215,8 @@ html[data-theme="dark"] .profile-hero-card.memberplus-profile-gold {
     right: 10px;
 }
 
-#banner-dots {
+#banner-dots,
+.banner-dots {
     position: absolute;
     bottom: 10px;
     left: 50%;
@@ -5165,7 +5236,7 @@ html[data-theme="dark"] .profile-hero-card.memberplus-profile-gold {
     height: 9px;
     border-radius: 999px;
     background: rgba(255, 255, 255, 0.55);
-    border: 1px solid #000;
+    border: 1px solid #000000;
     padding: 0;
     cursor: pointer;
     transition: width 0.2s ease, background-color 0.2s ease;
@@ -5176,32 +5247,99 @@ html[data-theme="dark"] .profile-hero-card.memberplus-profile-gold {
     background: #facc15;
 }
 
-.topup-three-subtabs {
-    display: grid !important;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 6px;
-}
-
-.topup-three-subtabs .bantuan-subtab-btn {
-    font-size: 0.78rem;
-    padding: 8px 10px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
 @media (max-width: 768px) {
+    .greeting-right-col {
+        align-items: stretch;
+        width: 100%;
+    }
+    .greeting-wallet-card {
+        max-width: none;
+        justify-content: space-between;
+    }
+    .greeting-actions-strip {
+        justify-content: flex-start;
+    }
+    #tab-topup .topup-header-bar {
+        flex-direction: column;
+        align-items: stretch !important;
+        gap: 10px !important;
+    }
+    #tab-topup .bantuan-subtabs-bar {
+        max-width: 100% !important;
+        width: 100% !important;
+        display: grid !important;
+        grid-template-columns: 1fr 1fr !important;
+    }
+    .memberplus-exp-meta-grid {
+        grid-template-columns: 1fr;
+    }
+    .topup-quick-grid {
+        grid-template-columns: repeat(3, 1fr) !important;
+        gap: 7px !important;
+    }
+    .topup-nom-chip {
+        padding: 9px 6px !important;
+        font-size: 0.78rem !important;
+    }
+    .topup-history-card {
+        flex-direction: column;
+        align-items: flex-start;
+        padding: 12px;
+    }
+    .topup-history-card > div:last-child {
+        width: 100%;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        text-align: left !important;
+        padding-top: 8px;
+        border-top: 1.5px dashed var(--border-subtle);
+    }
+    .indomaret-actions-grid {
+        grid-template-columns: 1fr;
+    }
     .banner-nav-btn {
         width: 30px;
         height: 30px;
         font-size: 0.74rem;
     }
-
-    .topup-three-subtabs {
-        grid-template-columns: 1fr 1fr;
+    #modal-checkout-confirm,
+    #modal-share-receipt,
+    #modal-forgot-trx-pin {
+        align-items: flex-end !important;
+        justify-content: center !important;
+        padding: 0 !important;
     }
-
-    .topup-three-subtabs #topup-subtab-btn-compare {
-        grid-column: 1 / -1;
+    #modal-checkout-confirm .modal-content,
+    #modal-share-receipt .modal-content,
+    #modal-forgot-trx-pin .modal-content {
+        width: 100% !important;
+        max-width: 100% !important;
+        margin: 0 !important;
+        border-radius: 22px 22px 0 0 !important;
+        border-left: none !important;
+        border-right: none !important;
+        border-bottom: none !important;
+        box-shadow: 0 -6px 24px rgba(15, 23, 42, 0.32) !important;
+        padding: 1rem 1.15rem calc(1.35rem + env(safe-area-inset-bottom, 0px)) !important;
+        transform: translateY(100%) !important;
+        transition: transform 0.26s cubic-bezier(0.22, 1, 0.36, 1) !important;
+        max-height: 92dvh !important;
     }
+    #modal-checkout-confirm.active .modal-content,
+    #modal-share-receipt.active .modal-content,
+    #modal-forgot-trx-pin.active .modal-content {
+        transform: translateY(0) !important;
+    }
+    .bottom-sheet-drag-handle {
+        display: block;
+    }
+}
+
+.wallet-profile-banner {
+    background: var(--surface);
+    border: 2.5px solid var(--primary);
+    box-shadow: 4px 4px 0px var(--border);
+    border-radius: 14px;
+    padding: 1rem 1.2rem;
 }

@@ -24,7 +24,7 @@
     <link rel="shortcut icon" id="shortcut-favicon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' rx='116' fill='%232563eb' stroke='%230f172a' stroke-width='28'/%3E%3Cpath d='M298 88L136 288h116l-44 136 168-200H260l38-136z' fill='%23facc15' stroke='%230f172a' stroke-width='18' stroke-linejoin='round'/%3E%3C/svg%3E">
     <link rel="apple-touch-icon" id="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' rx='116' fill='%232563eb' stroke='%230f172a' stroke-width='28'/%3E%3Cpath d='M298 88L136 288h116l-44 136 168-200H260l38-136z' fill='%23facc15' stroke='%230f172a' stroke-width='18' stroke-linejoin='round'/%3E%3C/svg%3E">
     
-    <!-- Optimasi Preconnect & Non-Blocking Fonts untuk Skor Performa Google 90+ (#5) -->
+    <!-- Optimasi Preconnect & Non-Blocking Fonts untuk Skor Performa Google 90+ -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="preconnect" href="https://firestore.googleapis.com" crossorigin>
@@ -45,7 +45,7 @@
     <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js" defer></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" defer></script>
 
-    <!-- Deteksi Awal Tema & Sesi agar Tidak Bocor ke Tab Login & Mempercepat First Paint (#5) -->
+    <!-- Deteksi Awal Tema & Sesi agar Tidak Bocor ke Tab Login & Mempercepat First Paint -->
     <script>
         (function() {
             try {
@@ -80,7 +80,7 @@
     <!-- Efek Transisi Tema -->
     <div id="theme-transition-curtain"></div>
 
-    <!-- Layar Loading Awal Cepat Anti-Blocking LCP (#5) -->
+    <!-- Layar Loading Awal Cepat Anti-Blocking LCP -->
     <div id="app-preloader-overlay" class="preloader-overlay">
         <div class="preloader-simple-box">
             <div class="preloader-brand-tag"><i class="fa-solid fa-bolt"></i> VIPERCELL</div>
@@ -119,106 +119,94 @@
     </div>
 
     <!-- Animasi Khusus Aktivasi Member Plus (Hanya 1 Animasi Saat Langganan Aktif) -->
-    <div id="memberplus-welcome-overlay" class="modal-overlay" style="z-index: 99999999; display: none; flex-direction: column; justify-content: center; align-items: center; overflow: hidden; background: rgba(15, 23, 42, 0.88); backdrop-filter: blur(6px);">
-        <div id="mp-confetti-container" class="confetti-wrapper"></div>
-        <div class="brutal-success-card mp-welcome-celebration-modal" style="border: 3px solid #000; background: linear-gradient(145deg, #fffbeb 0%, #fef3c7 55%, #fde68a 100%); color: #422006; max-width: 430px; width: 92%; text-align: center; padding: 1.75rem 1.35rem; box-shadow: 8px 8px 0px #000;">
-            <div class="memberplus-gold-badge" style="margin: 0 auto 12px; display: inline-flex; font-size: 0.78rem; padding: 6px 14px; background: #000; color: #fde047; border: 2px solid #000;">
-                <i class="fa-solid fa-crown"></i> STATUS VIP AKTIF
+    <div id="memberplus-welcome-overlay" class="modal-overlay" style="z-index: 99999999; display: none; flex-direction: column; align-items: center; justify-content: center; background: rgba(10, 14, 23, 0.88); backdrop-filter: blur(6px);">
+        <div id="memberplus-confetti-box" class="confetti-wrapper"></div>
+        <div class="brutal-success-card mp-welcome-celebration-modal">
+            <div class="memberplus-gold-badge" style="margin: 0 auto 12px; display: inline-flex;">
+                <i class="fa-solid fa-crown"></i> MEMBER PLUS AKTIF
             </div>
-            <div style="width: 78px; height: 78px; margin: 0 auto 14px; border-radius: 50%; background: linear-gradient(135deg, #facc15, #ea580c); border: 3px solid #000; box-shadow: 4px 4px 0 #000; display: flex; align-items: center; justify-content: center; font-size: 2.2rem; color: #fff;">
+            <div class="checkmark-circle-large" style="background: linear-gradient(135deg, #facc15, #f59e0b); color: #422006; border-color: #422006; box-shadow: 4px 4px 0px #422006;">
                 <i class="fa-solid fa-crown"></i>
             </div>
-            <h2 style="font-size: 1.35rem; font-weight: 900; margin: 0 0 8px; color: #422006; line-height: 1.25;">
+            <h2 class="brutal-success-title" style="color: #422006; font-family: var(--font-heading);">
                 Selamat, Anda Telah Menjadi Member Plus!
             </h2>
-            <p id="mp-welcome-overlay-desc" style="font-size: 0.84rem; font-weight: 700; color: #78350f; margin: 0 0 14px; line-height: 1.45;">
-                Seluruh harga produk di katalog kini otomatis menggunakan harga khusus Member Plus dan kode promo spesial telah terbuka.
+            <p class="brutal-success-desc" style="color: #78350f; font-family: var(--font-main);">
+                Harga khusus Member Plus dan kode promo spesial kini aktif di akun Anda.
             </p>
-            <div style="background: rgba(255,255,255,0.85); border: 2px solid #000; border-radius: 12px; padding: 10px 12px; margin-bottom: 14px; text-align: left; font-size: 0.78rem; font-weight: 800; color: #422006;">
-                <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
-                    <span>STATUS AKUN:</span>
-                    <strong style="color:#b45309;"><i class="fa-solid fa-crown"></i> MEMBER PLUS</strong>
+            <div class="mp-welcome-meta-box">
+                <div class="mp-welcome-meta-row" style="margin-bottom: 6px;">
+                    <span>STATUS AKUN</span>
+                    <strong><i class="fa-solid fa-crown"></i> MEMBER PLUS</strong>
                 </div>
-                <div style="display:flex; justify-content:space-between;">
-                    <span>BERLAKU HINGGA:</span>
-                    <strong id="mp-welcome-overlay-exp">-</strong>
+                <div class="mp-welcome-meta-row">
+                    <span>BERLAKU HINGGA</span>
+                    <strong id="mp-welcome-exp-date">-</strong>
                 </div>
             </div>
-            <button type="button" class="btn btn-warning" style="width: 100%; font-weight: 900; border: 2.5px solid #000; box-shadow: 4px 4px 0 #000;" onclick="window.closeMemberPlusWelcomeAnimation()">
-                <i class="fa-solid fa-crown"></i> <span>Buka Kelola Langganan</span>
+            <button type="button" class="btn btn-warning" style="width: 100%; font-weight: 900; border: 2.5px solid #0f172a; box-shadow: 4px 4px 0px #0f172a; color: #0f172a;" onclick="window.closeMemberPlusWelcomeAnimation()">
+                <i class="fa-solid fa-crown"></i> <span>Kelola Langganan</span>
             </button>
         </div>
     </div>
 
-    <!-- Kompatibilitas PWA (Disembunyikan) -->
-    <div id="pwa-install-prompt" style="display:none !important;" aria-hidden="true">
-        <img id="pwa-prompt-logo" src="" alt="" style="display:none;">
-        <div id="pwa-prompt-fallback"></div>
-        <button id="btn-install-pwa" type="button"></button>
-        <button id="btn-close-pwa" type="button"></button>
-    </div>
-
-    <!-- Notifikasi Toast  -->
-    <div id="toast-container" class="toast-container"></div>
-
-    <!-- Kontainer Utama Toko -->
-    <div id="store-view">
-        <!-- Header & Navigasi Desktop -->
-        <header>
-            <div class="container nav-container">
-                <div class="logo-area" onclick="window.handleLogoClick()" role="button" aria-label="Ke Beranda">
-                    <img id="site-logo-img" src="" alt="Logo Vipercell" class="logo-img" width="38" height="38" style="display:none;" decoding="async">
-                    <span id="site-logo-text" class="logo-text">VIPER<span>CELL</span></span>
-                    <span id="store-status-badge" class="store-closed-badge">TUTUP</span>
-                </div>
-                
-                <div class="nav-right hide-mobile-nav" id="desktop-nav-wrapper">
-                    <nav class="desktop-pill-nav" aria-label="Navigasi Utama">
-                        <a onclick="window.switchMainTab('katalog')" id="nav-katalog" class="active" role="button" tabindex="0">
-                            <i class="fa-solid fa-store"></i> <span>Katalog</span>
-                        </a>
-                        <a onclick="window.switchMainTab('pesanan')" id="nav-pesanan" role="button" tabindex="0">
-                            <i class="fa-solid fa-receipt"></i> <span id="nav-text-pesanan-desk">Pesanan</span>
-                        </a>
-                        <a onclick="window.switchMainTab('berita')" id="nav-berita" role="button" tabindex="0">
-                            <i class="fa-solid fa-newspaper"></i> <span>Berita</span>
-                        </a>
-                        <a onclick="window.switchMainTab('bantuan')" id="nav-bantuan" role="button" tabindex="0">
-                            <i class="fa-solid fa-comments"></i> <span>Bantuan</span>
-                        </a>
-                        <a onclick="window.switchMainTab('profil')" id="nav-profil" role="button" tabindex="0">
-                            <i class="fa-solid fa-circle-user"></i> <span id="nav-text-profil-desk">Profil</span>
-                        </a>
-                    </nav>
-                </div>
-
-                <div class="header-actions">
-                    <button id="header-wallet-btn" class="theme-pill-btn wallet-header-pill" style="display:none;" aria-label="Saldo Akun" onclick="window.openTopupBalanceModal()" title="Isi Saldo Akun">
-                        <i class="fa-solid fa-wallet text-primary"></i>
-                        <span id="header-balance-text" style="font-weight:800;">Rp0</span>
-                        <span class="wallet-plus-badge">+</span>
-                    </button>
-                    <button id="btn-theme-toggle" class="theme-pill-btn" aria-label="Ganti Tema" onclick="window.toggleThemeWithTransition(event)" title="Ganti Tema">
-                        <i class="fa-solid fa-sun" id="theme-icon"></i>
-                        <span class="hide-mobile" id="theme-label-text">Tema</span>
-                    </button>
-                    <button id="btn-upgrade-guest-header" style="display:none !important;" aria-hidden="true"></button>
-                </div>
+    <!-- HEADER UTAMA -->
+    <header>
+        <div class="container nav-container">
+            <div class="logo-area" onclick="window.switchMainTab('katalog')">
+                <img id="site-logo-img" src="" alt="Logo" class="logo-img" style="display: none;">
+                <div class="logo-text" id="site-logo-text">VIPER<span>CELL</span></div>
+                <span id="store-status-badge" class="store-closed-badge">TUTUP</span>
             </div>
-        </header>
 
-        <!-- TAB 1: KATALOG PRODUK -->
-        <div id="tab-katalog" class="main-tab-content container" style="padding-top:0.85rem;">
-            <!-- Teks Berjalan Atas (Full Ujung ke Ujung Layar, Sangat Smooth & Tanpa Penghalang) -->
-            <div class="marquee-container neo-brutal-marquee edge-to-edge-marquee" id="marquee-interactive-bar">
-                <div class="marquee-wrapper">
-                    <div class="marquee-content" id="marquee-content">
-                        <span class="marquee-item-pill" onclick="window.handleMarqueeItemClick(0)">
-                            <span>Selamat datang di Vipercell! Pilih produk digital &amp; top up game di bawah ini.</span>
-                        </span>
+            <nav class="desktop-pill-nav hide-mobile-nav" aria-label="Navigasi Utama">
+                <a onclick="window.switchMainTab('katalog')" id="nav-katalog" class="active" role="button">
+                    <i class="fa-solid fa-store"></i> <span>Katalog</span>
+                </a>
+                <a onclick="window.switchMainTab('pesanan')" id="nav-pesanan" role="button">
+                    <i class="fa-solid fa-receipt"></i> <span id="nav-text-pesanan-desk">Pesanan</span>
+                </a>
+                <a onclick="window.switchMainTab('berita')" id="nav-berita" role="button">
+                    <i class="fa-solid fa-newspaper"></i> <span>Berita</span>
+                </a>
+                <a onclick="window.switchMainTab('bantuan')" id="nav-bantuan" role="button">
+                    <i class="fa-solid fa-comments"></i> <span>Bantuan</span>
+                </a>
+                <a onclick="window.switchMainTab('profil')" id="nav-profil" role="button">
+                    <i class="fa-solid fa-circle-user"></i> <span id="nav-text-profil-desk">Profil</span>
+                </a>
+            </nav>
+
+            <div class="header-actions">
+                <button id="header-wallet-btn" class="theme-pill-btn wallet-header-pill" style="display:none;" aria-label="Saldo Akun" onclick="window.openTopupBalanceModal('topup')">
+                    <i class="fa-solid fa-wallet text-primary"></i>
+                    <strong id="header-wallet-amount">Rp0</strong>
+                    <span class="wallet-plus-badge">+</span>
+                </button>
+                <button class="theme-pill-btn" onclick="window.toggleTheme()" aria-label="Ganti Tema">
+                    <i class="fa-solid fa-sun" id="theme-icon"></i>
+                    <span id="theme-label-text" class="hide-mobile">Terang</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <div class="app-layout-wrapper">
+        <main id="main-app-content">
+            <!-- TAB 1: KATALOG PRODUK UTAMA -->
+            <div id="tab-katalog" class="main-tab-content active container">
+                <!-- Running Text Atas -->
+                <div class="marquee-container neo-brutal-marquee edge-to-edge-marquee" id="marquee-interactive-bar">
+                    <div class="marquee-label">
+                        <span class="marquee-live-dot"></span>
+                        <span class="marquee-label-text">INFO</span>
+                    </div>
+                    <div class="marquee-wrapper">
+                        <div class="marquee-content" id="marquee-content">
+                            <span class="marquee-item-pill"><span>Selamat datang di Vipercell! Pilih produk digital &amp; top up game di bawah ini.</span></span>
+                        </div>
                     </div>
                 </div>
-            </div>
 
             <!-- Banner Jam Operasional -->
             <div id="operational-hours-banner" class="brutal-alert-box alert-warning" style="display:none; margin-bottom: 1.1rem;">
@@ -238,12 +226,11 @@
                 <div class="banner-dots" id="banner-dots"></div>
             </div>
 
-            <!-- Panel Sambutan Waktu, Saldo Akun & Pintasan Member Plus (#18) -->
+            <!-- Panel Sambutan Waktu, Saldo Akun & Pintasan Member Plus -->
             <div id="user-greeting-dashboard-panel" class="user-greeting-neo-panel">
                 <div class="greeting-left-col">
                     <div class="greeting-badge-row">
                         <span class="greeting-time-pill" id="user-greeting-time-badge"><i class="fa-solid fa-sun"></i> SELAMAT DATANG</span>
-                        <span class="greeting-role-pill" id="user-greeting-role-badge">TAMU</span>
                     </div>
                     <h2 class="greeting-main-title">
                         <span id="user-greeting-time-text">Selamat Pagi</span>, <span id="user-greeting-name-text" class="text-primary">Pelanggan</span>!
@@ -445,7 +432,7 @@
                 </div>
             </div>
 
-            <!-- SUB-TAB 2: SARAN PRODUK BARU (#1) -->
+            <!-- SUB-TAB 2: SARAN PRODUK BARU -->
             <div id="bantuan-panel-saran" class="saran-single-wrapper" style="display:none;">
                 <div class="brutal-panel saran-brutal-card">
                     <div class="saran-header-box">
@@ -863,7 +850,7 @@
                                     </div>
                                 </div>
                                 
-                                <!-- Box Input Nominal Bebas E-Wallet (Maks Rp500.000) (#14) -->
+                                <!-- Box Input Nominal Bebas E-Wallet (Maks Rp500.000) -->
                                 <div id="buy-custom-ewallet-box" class="form-group" style="display:none; margin-top: 0.85rem; padding: 12px; border-radius: 10px; border: 2px solid var(--primary); background: rgba(37, 99, 235, 0.06);">
                                     <label for="buy-custom-ewallet-amount" style="color:var(--primary); font-weight:900;"><i class="fa-solid fa-sliders"></i> Nominal Top Up E-Wallet (Rp) <span style="color:var(--danger)">*</span></label>
                                     <div class="topup-quick-grid" style="margin: 6px 0 8px;">
@@ -1111,15 +1098,12 @@
                     <button type="button" class="btn btn-outline btn-sm" onclick="window.switchMainTab('katalog')">
                         <i class="fa-solid fa-arrow-left"></i> Kembali ke Katalog
                     </button>
-                    <div class="bantuan-subtabs-bar topup-three-subtabs" style="margin: 0; max-width: 660px; width: 100%;">
+                    <div class="bantuan-subtabs-bar topup-two-subtabs" style="margin: 0; max-width: 520px; width: 100%;">
                         <button type="button" id="topup-subtab-btn-wallet" class="bantuan-subtab-btn active" onclick="window.switchTopupSubTab('topup')">
                             <i class="fa-solid fa-wallet"></i> <span>Isi Saldo &amp; Riwayat</span>
                         </button>
                         <button type="button" id="topup-subtab-btn-memberplus" class="bantuan-subtab-btn" onclick="window.switchTopupSubTab('memberplus')">
                             <i class="fa-solid fa-crown"></i> <span id="topup-subtab-text-memberplus">Langganan Member Plus</span>
-                        </button>
-                        <button type="button" id="topup-subtab-btn-compare" class="bantuan-subtab-btn" onclick="window.switchTopupSubTab('compare')">
-                            <i class="fa-solid fa-scale-balanced"></i> <span>Tabel Perbandingan Harga</span>
                         </button>
                     </div>
                 </div>
@@ -1223,212 +1207,214 @@
                 </div>
 
                 <!-- SUB-PANEL 2: LANGGANAN & KELOLA MEMBER PLUS -->
-                <div id="topup-panel-memberplus" class="checkout-split-grid" style="display: none;">
-                    <div class="checkout-main-col">
-                        <!-- Banner Emas Khusus Saat Sudah Berlangganan Member Plus -->
-                        <div id="memberplus-active-celebration-card" class="memberplus-celebration-card" style="display: none; margin-bottom: 1.25rem;">
-                            <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin-bottom:8px;">
-                                <span class="memberplus-gold-badge" style="font-size:0.8rem; padding:5px 12px;">
-                                    <i class="fa-solid fa-crown"></i> MEMBER PLUS AKTIF
+                <div id="topup-panel-memberplus" style="display: none;">
+                    <div id="memberplus-main-content-grid" class="checkout-split-grid">
+                        <div class="checkout-main-col">
+                            <!-- Banner Emas Khusus Saat Sudah Berlangganan Member Plus -->
+                            <div id="memberplus-active-celebration-card" class="memberplus-celebration-card" style="display: none; margin-bottom: 1.25rem;">
+                                <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:8px;">
+                                    <span class="memberplus-gold-badge">
+                                        <i class="fa-solid fa-crown"></i> MEMBER PLUS AKTIF
+                                    </span>
+                                    <span id="memberplus-active-remaining-pill" class="brutal-tag tag-amber" style="font-size:0.72rem;">Aktif</span>
+                                </div>
+                                <h3 class="mp-celebration-title">Selamat, Anda Sekarang Member Plus!</h3>
+                                <p class="mp-celebration-sub">
+                                    Harga khusus Member Plus telah aktif untuk akun Anda.
+                                </p>
+                                <div class="memberplus-exp-meta-grid">
+                                    <div class="memberplus-exp-meta-item">
+                                        <span>MULAI LANGGANAN</span>
+                                        <strong id="memberplus-active-start-date">-</strong>
+                                    </div>
+                                    <div class="memberplus-exp-meta-item">
+                                        <span>TANGGAL AKHIR LANGGANAN</span>
+                                        <strong id="memberplus-active-end-date">-</strong>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="checkout-step-card" style="border-color: var(--primary);">
+                                <div class="step-header">
+                                    <span class="step-num" style="background: var(--secondary); color: #0f172a;"><i class="fa-solid fa-crown"></i></span>
+                                    <h4 id="memberplus-main-card-heading">Keuntungan Langganan Member Plus (30 Hari)</h4>
+                                </div>
+
+                                <div id="memberplus-status-banner" class="brutal-alert-box alert-warning" style="margin-bottom: 1rem;">
+                                    <i class="fa-solid fa-crown"></i>
+                                    <span id="memberplus-status-text">Kamu belum berlangganan Member Plus. Aktifkan sekarang untuk menikmati harga spesial!</span>
+                                </div>
+
+                                <p id="memberplus-tagline-display" style="font-size:0.86rem; font-weight:700; color:var(--text-muted); margin-bottom:1rem; font-family:var(--font-main);">
+                                    Potongan harga di semua produk, akses kode promo Member Plus, dan prioritas layanan.
+                                </p>
+
+                                <div class="auth-category-bento">
+                                    <div class="auth-bento-item bento-amber">
+                                        <div class="bento-icon"><i class="fa-solid fa-tags"></i></div>
+                                        <div>
+                                            <strong>Harga Khusus Member Plus</strong>
+                                            <span>Potongan harga langsung di produk aplikasi, top up game, pulsa, dan tagihan PPOB selama 30 hari.</span>
+                                        </div>
+                                    </div>
+                                    <div class="auth-bento-item bento-blue">
+                                        <div class="bento-icon"><i class="fa-solid fa-ticket"></i></div>
+                                        <div>
+                                            <strong>Kode Promo Member Plus</strong>
+                                            <span>Gunakan voucher khusus pelanggan Member Plus di halaman pembelian.</span>
+                                        </div>
+                                    </div>
+                                    <div class="auth-bento-item bento-emerald">
+                                        <div class="bento-icon"><i class="fa-solid fa-crown"></i></div>
+                                        <div>
+                                            <strong>Tanda Member Plus</strong>
+                                            <span>Lencana mahkota emas di profil dan prioritas bantuan.</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Kotak Daftar Kode Promo Spesial Member Plus -->
+                                <div id="memberplus-exclusive-promos-box" class="brutal-panel" style="margin-top: 1rem; padding: 0.95rem; background: var(--bg); border-color: #d97706;"></div>
+                            </div>
+
+                            <!-- TOMBOL BUKA PANEL TABEL PERBANDINGAN HARGA DI DALAM TAB MEMBER PLUS -->
+                            <div class="checkout-step-card mp-open-compare-cta-card" style="margin-top: 1.25rem;">
+                                <div class="step-header" style="margin-bottom: 0.65rem;">
+                                    <span class="step-num" style="background: linear-gradient(135deg, #fde047, #f59e0b); color:#422006;"><i class="fa-solid fa-scale-balanced"></i></span>
+                                    <div>
+                                        <h4>Tabel Perbandingan Harga Member Biasa vs Member Plus</h4>
+                                        <p style="font-size:0.78rem; color:var(--text-muted); font-weight:600; margin:2px 0 0;">
+                                            Lihat selisih harga per variasi produk untuk layanan Prabayar maupun Pascabayar.
+                                        </p>
+                                    </div>
+                                </div>
+                                <button type="button" class="btn btn-warning" style="width: 100%; font-weight: 900;" onclick="window.openPriceComparisonTab()">
+                                    <i class="fa-solid fa-table-list"></i> <span>Buka Tabel Perbandingan Harga</span> <i class="fa-solid fa-arrow-right"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="checkout-side-col">
+                            <div class="checkout-step-card sticky-checkout-box">
+                                <div class="step-header">
+                                    <span class="step-num">VIP</span>
+                                    <h4 id="memberplus-side-card-title">Aktivasi Member Plus</h4>
+                                </div>
+
+                                <div class="brutal-alert-box alert-info" style="margin-bottom: 0.85rem; justify-content: space-between; align-items: center;">
+                                    <span>Saldo Akun Kamu:</span>
+                                    <strong id="mp-checkout-current-balance" style="font-size: 1.05rem; color: var(--primary);">Rp0</strong>
+                                </div>
+                                <div id="mp-balance-sufficiency-note" style="font-size: 0.76rem; font-weight: 800; margin-bottom: 0.9rem; color: var(--success);">
+                                    <i class="fa-solid fa-wallet"></i> Pembayaran menggunakan Saldo Akun langsung aktif.
+                                </div>
+
+                                <div class="form-group">
+                                    <label>Metode Pembayaran Langganan</label>
+                                    <div class="type-grid" style="grid-template-columns: repeat(2, 1fr); gap:8px; margin-top: 6px;">
+                                        <label class="type-card active" onclick="window.selectMemberPlusPayMethod('balance', this)">
+                                            <input type="radio" name="mp_payment_method" value="balance" checked style="display:none;">
+                                            <div class="pay-method-head"><i class="fa-solid fa-wallet"></i> <strong>SALDO AKUN</strong></div>
+                                            <span class="pay-badge badge-green">Langsung Aktif</span>
+                                        </label>
+                                        <label class="type-card" onclick="window.selectMemberPlusPayMethod('cash', this)">
+                                            <input type="radio" name="mp_payment_method" value="cash" style="display:none;">
+                                            <div class="pay-method-head"><i class="fa-solid fa-barcode"></i> <strong>TUNAI KASIR</strong></div>
+                                            <span class="pay-badge badge-yellow">Bayar di Kasir</span>
+                                        </label>
+                                    </div>
+                                    <small id="mp-payment-method-subnote" style="display:block; margin-top:6px; font-size:0.73rem; font-weight:700; color:var(--text-muted);">
+                                        Potong Saldo Akun • Langsung Aktif
+                                    </small>
+                                </div>
+
+                                <div class="cart-total-box">
+                                    <div>
+                                        <span class="total-label">BIAYA LANGGANAN (30 HARI)</span>
+                                        <div class="unique-code-info">Masa aktif 30 hari</div>
+                                    </div>
+                                    <div style="text-align:right;">
+                                        <span id="memberplus-price-display" class="total-nominal">Rp25.000</span>
+                                    </div>
+                                </div>
+
+                                <button type="button" id="btn-submit-memberplus" class="btn btn-warning btn-checkout-submit" onclick="window.processMemberPlusSubscriptionCheckout()">
+                                    <i class="fa-solid fa-crown"></i> <span>Aktifkan Member Plus Sekarang</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- PANEL TABEL PERBANDINGAN HARGA DI DALAM TAB MEMBER PLUS -->
+                    <div id="topup-panel-compare" style="display: none;">
+                        <div class="flex-between align-center flex-wrap-gap" style="margin-bottom: 1.15rem; display:flex; justify-content:space-between; align-items:center; gap:10px;">
+                            <button type="button" class="btn btn-outline btn-sm" onclick="window.backToMemberPlusTabFromComparison()">
+                                <i class="fa-solid fa-arrow-left"></i> Kembali ke <span id="mp-compare-back-btn-label">Langganan Member Plus</span>
+                            </button>
+                            <button type="button" class="btn btn-primary btn-sm" onclick="window.switchMainTab('katalog')">
+                                <i class="fa-solid fa-store"></i> Buka Katalog Produk
+                            </button>
+                        </div>
+
+                        <div class="mp-comparison-hero-banner">
+                            <div>
+                                <span class="memberplus-gold-badge" style="margin-bottom:8px; display:inline-flex;">
+                                    <i class="fa-solid fa-scale-balanced"></i> PERBANDINGAN HARGA
                                 </span>
-                                <span id="memberplus-active-remaining-pill" class="brutal-tag tag-amber" style="font-size:0.72rem;">Aktif</span>
+                                <h2 class="mp-compare-hero-title">Perbandingan Harga Member Biasa vs Member Plus</h2>
+                                <p class="mp-compare-hero-sub">
+                                    Pilih jenis layanan Prabayar atau Pascabayar, pilih kategori, lalu pilih brand untuk melihat daftar harga per variasi.
+                                </p>
                             </div>
-                            <h3 style="margin:0 0 6px; font-size:1.15rem; font-weight:900;">Selamat, Anda Sekarang Member Plus!</h3>
-                            <p style="margin:0; font-size:0.82rem; font-weight:600; line-height:1.5; opacity:0.92;">
-                                Seluruh harga produk di katalog sudah otomatis menggunakan harga khusus Member Plus.
-                            </p>
-                            <div class="memberplus-exp-meta-grid">
-                                <div class="memberplus-exp-meta-item">
-                                    <span>MULAI LANGGANAN</span>
-                                    <strong id="memberplus-active-start-date">-</strong>
-                                </div>
-                                <div class="memberplus-exp-meta-item">
-                                    <span>TANGGAL AKHIR LANGGANAN</span>
-                                    <strong id="memberplus-active-end-date">-</strong>
-                                </div>
-                            </div>
+                            <div id="mp-compare-user-tier-pill"></div>
                         </div>
 
-                        <div class="checkout-step-card" style="border-color: var(--primary);">
-                            <div class="step-header">
-                                <span class="step-num" style="background: var(--secondary);"><i class="fa-solid fa-crown"></i></span>
-                                <h4 id="memberplus-main-card-heading">Keuntungan Langganan Member Plus (30 Hari)</h4>
-                            </div>
-
-                            <div id="memberplus-status-banner" class="brutal-alert-box alert-warning" style="margin-bottom: 1rem;">
-                                <i class="fa-solid fa-crown"></i>
-                                <span id="memberplus-status-text">Kamu belum berlangganan Member Plus. Aktifkan sekarang untuk menikmati harga spesial!</span>
-                            </div>
-
-                            <p id="memberplus-tagline-display" style="font-size:0.88rem; font-weight:700; color:var(--text-muted); margin-bottom:1rem;">
-                                Harga lebih hemat di semua produk, akses voucher eksklusif Member Plus, dan prioritas layanan.
-                            </p>
-
-                            <div class="auth-category-bento">
-                                <div class="auth-bento-item bento-amber">
-                                    <div class="bento-icon"><i class="fa-solid fa-tags"></i></div>
-                                    <div>
-                                        <strong>Harga Lebih Murah Otomatis</strong>
-                                        <span>Potongan harga langsung di produk aplikasi, top up game, pulsa, dan PPOB selama 30 hari penuh.</span>
-                                    </div>
+                        <div class="checkout-step-card" style="border-color: #d97706;">
+                            <div class="mp-compare-filter-grid">
+                                <div class="form-group" style="margin-bottom:0;">
+                                    <label for="mp-compare-service-type">1. Pilih Jenis Layanan</label>
+                                    <select id="mp-compare-service-type" class="form-control" onchange="window.onChangeMpCompareServiceType()">
+                                        <option value="prabayar">Layanan Prabayar (Game, Pulsa, PLN, E-Wallet, Aplikasi)</option>
+                                        <option value="pascabayar">Layanan Pascabayar (Tagihan PPOB)</option>
+                                    </select>
                                 </div>
-                                <div class="auth-bento-item bento-blue">
-                                    <div class="bento-icon"><i class="fa-solid fa-ticket"></i></div>
-                                    <div>
-                                        <strong>Kode Promo Eksklusif Member Plus</strong>
-                                        <span>Klaim kode voucher khusus pelanggan Member Plus di halaman pembelian.</span>
-                                    </div>
+                                <div class="form-group" style="margin-bottom:0;">
+                                    <label for="mp-compare-category">2. Pilih Kategori</label>
+                                    <select id="mp-compare-category" class="form-control" onchange="window.onChangeMpCompareCategory()">
+                                        <option value="">-- Pilih Kategori --</option>
+                                    </select>
                                 </div>
-                                <div class="auth-bento-item bento-emerald">
-                                    <div class="bento-icon"><i class="fa-solid fa-bolt"></i></div>
-                                    <div>
-                                        <strong>Identitas Mahkota Emas &amp; Prioritas Layanan</strong>
-                                        <span>Tanda mahkota emas di profil dan prioritas bantuan CS.</span>
-                                    </div>
+                                <div class="form-group" style="margin-bottom:0;">
+                                    <label for="mp-compare-brand">3. Pilih Brand / Produk</label>
+                                    <select id="mp-compare-brand" class="form-control" onchange="window.renderMpPriceComparisonTable()">
+                                        <option value="">-- Pilih Brand --</option>
+                                    </select>
+                                </div>
+                                <div class="form-group" style="margin-bottom:0;">
+                                    <label for="mp-compare-search">4. Cari Nama Variasi</label>
+                                    <input type="text" id="mp-compare-search" class="form-control" placeholder="Ketik nama variasi..." oninput="window.renderMpPriceComparisonTable()">
                                 </div>
                             </div>
 
-                            <!-- Kotak Daftar Kode Promo Spesial Member Plus -->
-                            <div id="memberplus-exclusive-promos-box" class="brutal-panel" style="margin-top: 1rem; padding: 0.9rem; background: var(--bg); border-color: #d97706;"></div>
-                        </div>
-
-                        <!-- KARTU AKSES KE SUB-TAB KHUSUS PERBANDINGAN HARGA MEMBER BIASA VS MEMBER PLUS (#1) -->
-                        <div class="checkout-step-card mp-open-compare-cta-card" style="margin-top: 1.25rem;">
-                            <div class="step-header" style="margin-bottom: 0.65rem;">
-                                <span class="step-num" style="background: linear-gradient(135deg, #fde047, #f59e0b); color:#422006;"><i class="fa-solid fa-scale-balanced"></i></span>
-                                <div>
-                                    <h4>Perbandingan Harga Member Biasa vs Member Plus</h4>
-                                    <p style="font-size:0.77rem; color:var(--text-muted); font-weight:600; margin:2px 0 0;">
-                                        Lihat rincian selisih harga per variasi untuk layanan Prabayar maupun Pascabayar di tab khusus perbandingan harga.
-                                    </p>
+                            <div class="mp-compare-stats-strip">
+                                <div class="mp-compare-stat-box">
+                                    <span>BRAND TERPILIH</span>
+                                    <strong id="mp-compare-stat-brand">-</strong>
                                 </div>
-                            </div>
-                            <button type="button" class="btn btn-warning" style="width: 100%; font-weight: 900;" onclick="window.openPriceComparisonTab()">
-                                <i class="fa-solid fa-table-list"></i> <span>Buka Tabel Perbandingan Harga Member Biasa vs Member Plus</span> <i class="fa-solid fa-arrow-right"></i>
-                            </button>
-                        </div>
-                    </div>
-
-                    <div class="checkout-side-col">
-                        <div class="checkout-step-card sticky-checkout-box">
-                            <div class="step-header">
-                                <span class="step-num">VIP</span>
-                                <h4 id="memberplus-side-card-title">Aktivasi Member Plus</h4>
-                            </div>
-
-                            <div class="brutal-alert-box alert-info" style="margin-bottom: 0.85rem; justify-content: space-between; align-items: center;">
-                                <span>Saldo Akun Kamu:</span>
-                                <strong id="mp-checkout-current-balance" style="font-size: 1.05rem; color: var(--primary);">Rp0</strong>
-                            </div>
-                            <div id="mp-balance-sufficiency-note" style="font-size: 0.76rem; font-weight: 800; margin-bottom: 0.9rem; color: var(--success);">
-                                <i class="fa-solid fa-wallet"></i> Pembayaran menggunakan Saldo Akun langsung aktif otomatis.
-                            </div>
-
-                            <div class="form-group">
-                                <label>Metode Pembayaran Langganan</label>
-                                <div class="type-grid" style="grid-template-columns: repeat(2, 1fr); gap:8px; margin-top: 6px;">
-                                    <label class="type-card active" onclick="window.selectMemberPlusPayMethod('balance', this)">
-                                        <input type="radio" name="mp_payment_method" value="balance" checked style="display:none;">
-                                        <div class="pay-method-head"><i class="fa-solid fa-wallet"></i> <strong>SALDO AKUN</strong></div>
-                                        <span class="pay-badge badge-green">Langsung Aktif</span>
-                                    </label>
-                                    <label class="type-card" onclick="window.selectMemberPlusPayMethod('cash', this)">
-                                        <input type="radio" name="mp_payment_method" value="cash" style="display:none;">
-                                        <div class="pay-method-head"><i class="fa-solid fa-barcode"></i> <strong>TUNAI KASIR</strong></div>
-                                        <span class="pay-badge badge-yellow">Validasi PIN Admin</span>
-                                    </label>
+                                <div class="mp-compare-stat-box">
+                                    <span>JUMLAH VARIASI</span>
+                                    <strong id="mp-compare-stat-count">0 Produk</strong>
                                 </div>
-                                <small id="mp-payment-method-subnote" style="display:block; margin-top:6px; font-size:0.73rem; font-weight:700; color:var(--text-muted);">
-                                    Potong Saldo Akun • Langsung Otomatis Aktif
-                                </small>
-                            </div>
-
-                            <div class="cart-total-box">
-                                <div>
-                                    <span class="total-label">BIAYA LANGGANAN (30 HARI)</span>
-                                    <div class="unique-code-info">Masa aktif 30 hari penuh</div>
-                                </div>
-                                <div style="text-align:right;">
-                                    <span id="memberplus-price-display" class="total-nominal">Rp25.000</span>
+                                <div class="mp-compare-stat-box">
+                                    <span>HEMAT MEMBER PLUS</span>
+                                    <strong id="mp-compare-stat-saving" style="color: var(--success);">-</strong>
                                 </div>
                             </div>
 
-                            <button type="button" id="btn-submit-memberplus" class="btn btn-warning btn-checkout-submit" onclick="window.processMemberPlusSubscriptionCheckout()">
-                                <i class="fa-solid fa-crown"></i> <span>Aktifkan Member Plus Sekarang</span>
-                            </button>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- SUB-PANEL 3: TAB KHUSUS TABEL PERBANDINGAN HARGA MEMBER BIASA VS MEMBER PLUS (DI DALAM MENU MEMBER PLUS) (#1 & #2) -->
-                <div id="topup-panel-compare" style="display: none;">
-                    <div class="flex-between align-center flex-wrap-gap" style="margin-bottom: 1.15rem; display:flex; justify-content:space-between; align-items:center; gap:10px;">
-                        <button type="button" class="btn btn-outline btn-sm" onclick="window.backToMemberPlusTabFromComparison()">
-                            <i class="fa-solid fa-arrow-left"></i> Kembali ke <span id="mp-compare-back-btn-label">Langganan Member Plus</span>
-                        </button>
-                        <button type="button" class="btn btn-primary btn-sm" onclick="window.switchMainTab('katalog')">
-                            <i class="fa-solid fa-store"></i> Buka Katalog Produk
-                        </button>
-                    </div>
-
-                    <div class="mp-comparison-hero-banner">
-                        <div>
-                            <span class="memberplus-gold-badge" style="margin-bottom:6px; display:inline-flex;">
-                                <i class="fa-solid fa-scale-balanced"></i> TABEL PERBANDINGAN HARGA RESMI
-                            </span>
-                            <h2 style="margin:0 0 4px; font-size:1.3rem; font-weight:900;">Perbandingan Harga Member Biasa vs Member Plus</h2>
-                            <p style="margin:0; font-size:0.82rem; font-weight:700; opacity:0.9;">
-                                Pilih jenis layanan Prabayar atau Pascabayar, pilih kategori, lalu pilih brand untuk melihat rincian hemat di setiap variasi produk.
-                            </p>
-                        </div>
-                        <div id="mp-compare-user-tier-pill"></div>
-                    </div>
-
-                    <div class="checkout-step-card" style="border-color: #d97706;">
-                        <div class="mp-compare-filter-grid" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-bottom: 1rem;">
-                            <div class="form-group" style="margin-bottom:0;">
-                                <label for="mp-compare-service-type" style="font-size:0.75rem; font-weight:800;">1. Pilih Jenis Layanan</label>
-                                <select id="mp-compare-service-type" class="form-control" onchange="window.onChangeMpCompareServiceType()">
-                                    <option value="prabayar">Layanan Prabayar (Game, Pulsa, PLN, E-Wallet, Aplikasi)</option>
-                                    <option value="pascabayar">Layanan Pascabayar (Tagihan PPOB)</option>
-                                </select>
-                            </div>
-                            <div class="form-group" style="margin-bottom:0;">
-                                <label for="mp-compare-category" style="font-size:0.75rem; font-weight:800;">2. Pilih Kategori</label>
-                                <select id="mp-compare-category" class="form-control" onchange="window.onChangeMpCompareCategory()">
-                                    <option value="">-- Pilih Kategori --</option>
-                                </select>
-                            </div>
-                            <div class="form-group" style="margin-bottom:0;">
-                                <label for="mp-compare-brand" style="font-size:0.75rem; font-weight:800;">3. Pilih Brand / Produk</label>
-                                <select id="mp-compare-brand" class="form-control" onchange="window.renderMpPriceComparisonTable()">
-                                    <option value="">-- Pilih Brand --</option>
-                                </select>
-                            </div>
-                            <div class="form-group" style="margin-bottom:0;">
-                                <label for="mp-compare-search" style="font-size:0.75rem; font-weight:800;">4. Cari Nama Variasi</label>
-                                <input type="text" id="mp-compare-search" class="form-control" placeholder="Ketik nama variasi..." oninput="window.renderMpPriceComparisonTable()">
-                            </div>
-                        </div>
-
-                        <div class="mp-compare-stats-strip">
-                            <div class="mp-compare-stat-box">
-                                <span>BRAND TERPILIH</span>
-                                <strong id="mp-compare-stat-brand">-</strong>
-                            </div>
-                            <div class="mp-compare-stat-box">
-                                <span>JUMLAH VARIASI PRODUK</span>
-                                <strong id="mp-compare-stat-count">0 Produk</strong>
-                            </div>
-                            <div class="mp-compare-stat-box">
-                                <span>POTONGAN MEMBER PLUS</span>
-                                <strong id="mp-compare-stat-saving" style="color:var(--success);">Hemat Setiap Transaksi</strong>
-                            </div>
-                        </div>
-
-                        <div id="mp-compare-table-wrapper" class="mp-compare-table-wrap">
-                            <div style="padding: 1.25rem; text-align: center; color: var(--text-muted); font-size: 0.82rem; font-weight: 700;">
-                                Pilih kategori dan brand di atas untuk menampilkan perbandingan harga Member Biasa dan Member Plus.
+                            <div id="mp-compare-table-wrapper" class="mp-compare-table-wrap">
+                                <div style="padding: 1.5rem; text-align: center; color: var(--text-muted); font-size: 0.84rem; font-weight: 700;">
+                                    Pilih kategori dan brand di atas untuk menampilkan perbandingan harga Member Biasa dan Member Plus.
+                                </div>
                             </div>
                         </div>
                     </div>
