@@ -5016,11 +5016,14 @@ function buildFullReceiptHTML(order) {
         const alreadyReviewed = hasOrderBeenReviewed(order);
         actionHtml = `
             <div class="ereceipt-action-grid" style="margin-top:0.9rem;">
-                <button type="button" class="btn btn-primary" onclick="window.shareOrderReceipt('${escapeJsStr(order.id)}')">
+                <button type="button" class="btn btn-primary" onclick="window.printOrderReceiptBluetooth58mm('${escapeJsStr(order.id)}')">
+                    <i class="fa-solid fa-print"></i> Print Struk 58mm
+                </button>
+                <button type="button" class="btn btn-outline" onclick="window.shareOrderReceipt('${escapeJsStr(order.id)}')">
                     <i class="fa-solid fa-share-nodes"></i> Bagikan Struk
                 </button>
-                <button type="button" class="btn btn-outline" onclick="window.downloadOrderReceiptImage('${escapeJsStr(order.id)}')">
-                    <i class="fa-solid fa-download"></i> Simpan Struk
+                <button type="button" class="btn btn-outline" style="grid-column: 1 / -1;" onclick="window.downloadOrderReceiptImage('${escapeJsStr(order.id)}')">
+                    <i class="fa-solid fa-download"></i> Simpan Gambar Struk (.PNG)
                 </button>
             </div>
             ${(!alreadyReviewed && isDeliveredSuccess && brandName) ? `
@@ -5308,6 +5311,8 @@ window.renderUserOrders = function() {
     const activeMemberEmail = isMember ? (userProfile.email || currentUser?.email || '').toLowerCase() : '';
 
     let userOrders = orders.filter(o => {
+        const isMpSub = Boolean(o.isMemberPlusOrder === true || o.orderType === 'MEMBER_PLUS_SUB' || String(o.id || '').toUpperCase().startsWith('MPLUS-'));
+        if (isMpSub) return false;
         if (isMember) {
             const matchUid = effectiveUid && o.userId === effectiveUid;
             const matchEmail = activeMemberEmail && o.userEmail && o.userEmail.toLowerCase() === activeMemberEmail;
@@ -8054,169 +8059,47 @@ function extractRealUsernameFromDigiflazzResponse(d) {
     return '';
 }
 
-function buildLocalClientDigiflazzFallback(endpointPath, payloadData) {
-    const cNo = combineGameIdAndZoneForDigiflazz(payloadData?.customer_no || '', payloadData?.zone_id || '');
-    const sku = String(payloadData?.buyer_sku_code || payloadData?.sku || '').trim();
-    const refId = String(payloadData?.ref_id || ('REF-' + Date.now())).trim();
-    const cmd = String(payloadData?.commands || '').trim();
-
-    if (endpointPath === '/v1/cek-saldo') {
-        const bal = Number(siteSettings.digiflazzLastBalance || 1000000);
-        return { data: { deposit: bal > 0 ? bal : 1000000 } };
-    }
-
-    if (endpointPath === '/v1/inquiry-pln') {
-        if (cNo === '530000000003' || cNo.length < 8) {
-            return { data: { message: 'Nomor Tujuan Salah', status: 'Gagal', rc: '54', customer_no: cNo } };
-        }
-        return {
-            data: {
-                message: 'Transaksi Sukses',
-                status: 'Sukses',
-                rc: '00',
-                customer_no: cNo,
-                meter_no: cNo,
-                subscriber_id: cNo,
-                name: 'PELANGGAN PLN ' + cNo.slice(-4),
-                segment_power: 'R1 / 000001300 VA'
-            }
-        };
-    }
-
-    if (endpointPath === '/v1/check-id') {
-        if (!cNo || cNo.length < 4) {
-            return { data: { status: 'Gagal', rc: '54', message: 'Nomor atau ID Tujuan belum lengkap' } };
-        }
-        const labelPrefix = String(payloadData?.brand || payloadData?.type || 'USER').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8) || 'USER';
-        const vName = `${labelPrefix}_${cNo.slice(-4)}`;
-        return {
-            data: {
-                status: 'Sukses',
-                rc: '00',
-                customer_no: cNo,
-                name: vName,
-                username: vName,
-                sn: vName
-            }
-        };
-    }
-
-    if (endpointPath === '/v1/transaction') {
-        if (cmd === 'inq-pasca' || cmd === 'pay-pasca' || cmd === 'status-pasca') {
-            if (cNo.endsWith('03') || cNo.endsWith('27') || cNo.endsWith('02') || cNo.length < 6) {
-                return { data: { ref_id: refId, customer_no: cNo, buyer_sku_code: sku, message: 'Tagihan Tidak Ditemukan', status: 'Gagal', rc: '54' } };
-            }
-            const isPay = (cmd === 'pay-pasca' || cmd === 'status-pasca');
-            return {
-                data: {
-                    ref_id: refId,
-                    customer_no: cNo,
-                    customer_name: 'PELANGGAN ' + cNo.slice(-4),
-                    buyer_sku_code: sku,
-                    admin: 2500,
-                    message: 'Transaksi Sukses',
-                    status: 'Sukses',
-                    rc: '00',
-                    sn: isPay ? ('PASCA-REF-' + Math.floor(10000000 + Math.random() * 90000000)) : '',
-                    periode: '202610',
-                    buyer_last_saldo: Math.max(0, Number(siteSettings.digiflazzLastBalance || 1000000) - 52500),
-                    price: 50000,
-                    selling_price: 52500,
-                    desc: {
-                        tarif: 'R1',
-                        daya: 1300,
-                        lembar_tagihan: 1,
-                        detail: [{ periode: '202610', nilai_tagihan: '50000', admin: '2500', denda: '0' }]
-                    }
-                }
-            };
-        }
-
-        if (cNo === '087800001232') {
-            return {
-                data: {
-                    ref_id: refId,
-                    customer_no: cNo,
-                    buyer_sku_code: sku,
-                    message: 'Transaksi Gagal',
-                    status: 'Gagal',
-                    rc: '02',
-                    sn: '',
-                    buyer_last_saldo: Number(siteSettings.digiflazzLastBalance || 1000000),
-                    price: 10000
-                }
-            };
-        }
-        if (cNo === '087800001233' || cNo === '087800001234') {
-            return {
-                data: {
-                    ref_id: refId,
-                    customer_no: cNo,
-                    buyer_sku_code: sku,
-                    message: 'Transaksi Pending',
-                    status: 'Pending',
-                    rc: '03',
-                    sn: '',
-                    buyer_last_saldo: Math.max(0, Number(siteSettings.digiflazzLastBalance || 1000000) - 10000),
-                    price: 10000
-                }
-            };
-        }
-
-        const isCheckIdCall = refId.startsWith('CHK-') || sku.toLowerCase().includes('cek') || sku.toLowerCase().includes('check');
-        const generatedSn = isCheckIdCall
-            ? `USER_${cNo.slice(-4)}`
-            : (sku.toLowerCase().startsWith('pln')
-                ? `${Math.floor(1000 + Math.random()*9000)}-${Math.floor(1000 + Math.random()*9000)}-${Math.floor(1000 + Math.random()*9000)}-${Math.floor(1000 + Math.random()*9000)}-${Math.floor(1000 + Math.random()*9000)}/PELANGGAN ${cNo.slice(-4)}/R1/1300VA/14,2KWH`
-                : `SN${Date.now().toString().slice(-8)}${Math.floor(100 + Math.random() * 899)}`);
-
-        return {
-            data: {
-                ref_id: refId,
-                customer_no: cNo,
-                buyer_sku_code: sku,
-                name: isCheckIdCall ? generatedSn : undefined,
-                username: isCheckIdCall ? generatedSn : undefined,
-                message: 'Transaksi Sukses',
-                status: 'Sukses',
-                rc: '00',
-                sn: generatedSn,
-                buyer_last_saldo: Math.max(0, Number(siteSettings.digiflazzLastBalance || 1000000) - 10000),
-                price: 10000
-            }
-        };
-    }
-
-    return { data: { status: 'Sukses', rc: '00', message: 'Transaksi Sukses' } };
-}
-
 async function postJsonToBridgeUrl(targetUrl, bodyObj) {
     const bodyStr = JSON.stringify(bodyObj);
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 9000);
+    const timer = setTimeout(() => controller.abort(), 14000);
     try {
-        // Gunakan text/plain terlebih dahulu agar menjadi CORS Simple Request (tanpa preflight OPTIONS yang sering gagal di IP VPS)
         const res = await fetch(targetUrl, {
             method: 'POST',
-            headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+            },
             body: bodyStr,
             signal: controller.signal
         });
         clearTimeout(timer);
-        return await res.json();
+        const text = await res.text();
+        let parsed = null;
+        try { parsed = JSON.parse(text); } catch (_) {}
+        if (parsed && typeof parsed === 'object') {
+            return parsed;
+        }
+        throw new Error(`Respons server bridge tidak valid (HTTP ${res.status})`);
     } catch (firstErr) {
         clearTimeout(timer);
         const controller2 = new AbortController();
-        const timer2 = setTimeout(() => controller2.abort(), 7000);
+        const timer2 = setTimeout(() => controller2.abort(), 12000);
         try {
             const res2 = await fetch(targetUrl, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 'Content-Type': 'text/plain;charset=utf-8' },
                 body: bodyStr,
                 signal: controller2.signal
             });
             clearTimeout(timer2);
-            return await res2.json();
+            const text2 = await res2.text();
+            let parsed2 = null;
+            try { parsed2 = JSON.parse(text2); } catch (_) {}
+            if (parsed2 && typeof parsed2 === 'object') {
+                return parsed2;
+            }
+            throw new Error(`Respons server bridge tidak valid (HTTP ${res2.status})`);
         } catch (secondErr) {
             clearTimeout(timer2);
             throw secondErr;
@@ -8228,7 +8111,7 @@ async function callClientDigiflazzApi(endpointPath, payloadData, explicitSignSuf
     await ensureClientDigiflazzCredentialsLoaded();
 
     const bridgeUrl = (siteSettings.digiflazzBridgeUrl || 'http://139.59.60.91:3100').trim();
-    const username = (siteSettings.digiflazzUsername || 'username').trim();
+    const username = (siteSettings.digiflazzUsername || '').trim();
     const envMode = siteSettings.digiflazzEnvMode || 'development';
     const cleanKey = (k) => (k && k !== 'dev-apikey' ? String(k).trim() : '');
     const devApiKey = cleanKey(siteSettings.digiflazzDevApiKey) || cleanKey(siteSettings.digiflazzApiKey);
@@ -8240,7 +8123,9 @@ async function callClientDigiflazzApi(endpointPath, payloadData, explicitSignSuf
 
     const cleanBase = bridgeUrl.replace(/\/+$/, '');
     const basePayload = { ...(payloadData || {}) };
-    basePayload.username = username;
+    if (username) {
+        basePayload.username = username;
+    }
 
     if (basePayload.customer_no !== undefined) {
         basePayload.customer_no = combineGameIdAndZoneForDigiflazz(basePayload.customer_no, basePayload.zone_id || '');
@@ -8253,24 +8138,41 @@ async function callClientDigiflazzApi(endpointPath, payloadData, explicitSignSuf
         if (endpointPath === '/v1/transaction') return String(basePayload.ref_id || '');
         if (endpointPath === '/v1/cek-saldo') return 'depo';
         if (endpointPath === '/v1/price-list') return 'pricelist';
+        if (endpointPath === '/v1/deposit') return 'deposit';
         return String(basePayload.ref_id || basePayload.customer_no || '');
     };
     const suffix = resolveSuffix();
 
     const candidateUrls = [];
     if (cleanBase && cleanBase.startsWith('http')) {
-        candidateUrls.push(cleanBase);
-        if (!cleanBase.endsWith('/api/digiflazz')) {
+        if (cleanBase.endsWith('/api/digiflazz')) {
+            candidateUrls.push(cleanBase);
+            candidateUrls.push(cleanBase.replace(/\/api\/digiflazz$/, ''));
+        } else {
             candidateUrls.push(cleanBase + '/api/digiflazz');
+            candidateUrls.push(cleanBase);
         }
+    }
+
+    if (candidateUrls.length === 0) {
+        throw new Error('URL Server Bridge Digiflazz belum dikonfigurasi.');
     }
 
     const sendWithKey = async (keyToUse) => {
         const signedPayload = { ...basePayload };
-        if (keyToUse && suffix) {
+        if (username && keyToUse && suffix) {
             signedPayload.sign = md5ClientDigiflazz(username + keyToUse + suffix);
         }
-        const isTestingMode = (envMode === 'development' && keyToUse === devApiKey && signedPayload.commands !== 'status-pasca');
+        const isTestingMode = Boolean(
+            envMode === 'development' &&
+            (!prodApiKey || keyToUse === devApiKey) &&
+            signedPayload.commands !== 'status-pasca'
+        );
+        if (endpointPath === '/v1/transaction' && signedPayload.commands !== 'status-pasca') {
+            if (isTestingMode) signedPayload.testing = true;
+            else delete signedPayload.testing;
+        }
+
         const reqBody = {
             endpoint: endpointPath,
             username: username,
@@ -8287,37 +8189,34 @@ async function callClientDigiflazzApi(endpointPath, payloadData, explicitSignSuf
         for (const u of candidateUrls) {
             try {
                 const jsonRes = await postJsonToBridgeUrl(u, reqBody);
-                if (jsonRes && (jsonRes.data !== undefined || jsonRes.ok !== undefined)) {
+                if (jsonRes && jsonRes.ok === false && jsonRes.data === undefined) {
+                    lastErr = new Error(jsonRes.message || 'Gagal menghubungi Digiflazz Bridge.');
+                    continue;
+                }
+                if (jsonRes && jsonRes.data !== undefined) {
                     return jsonRes;
                 }
             } catch (err) {
                 lastErr = err;
             }
         }
-        throw lastErr || new Error('Bridge unreachable');
+        throw lastErr || new Error('Tidak dapat terhubung ke Server Bridge Digiflazz.');
     };
 
-    try {
-        let json = await sendWithKey(primaryKey);
-        if (isDigiflazzSignatureError(json) && alternateKey && alternateKey !== primaryKey) {
-            json = await sendWithKey(alternateKey);
-        }
-        if (json && json.data !== undefined) {
-            return json;
-        }
-    } catch (networkErr) {
-        // Fallback otomatis jika koneksi ke VPS Bridge terblokir Mixed Content (HTTPS->HTTP) atau jaringan belum merespons
-        await new Promise(r => setTimeout(r, 280));
-        return buildLocalClientDigiflazzFallback(endpointPath, basePayload);
+    let json = await sendWithKey(primaryKey);
+    if (isDigiflazzSignatureError(json) && alternateKey && alternateKey !== primaryKey) {
+        json = await sendWithKey(alternateKey);
     }
-
-    return buildLocalClientDigiflazzFallback(endpointPath, basePayload);
+    if (json && json.data !== undefined) {
+        return json;
+    }
+    throw new Error(json?.message || 'Respons Digiflazz tidak ditemukan.');
 }
 
 async function performClientDigiflazzTargetCheck({ sku, fallbackSku, brand, type, customerNo, zoneId }) {
     await ensureClientDigiflazzCredentialsLoaded();
     const mergedCustNo = combineGameIdAndZoneForDigiflazz(customerNo, zoneId);
-    const username = (siteSettings.digiflazzUsername || 'username').trim();
+    const username = (siteSettings.digiflazzUsername || '').trim();
 
     if (type === 'pln' || String(sku || '').toLowerCase() === 'pln') {
         const res = await callClientDigiflazzApi('/v1/inquiry-pln', {
@@ -8341,17 +8240,18 @@ async function performClientDigiflazzTargetCheck({ sku, fallbackSku, brand, type
             return bd;
         }
         if (bd.rc === '54' || (bd.message && !String(bd.message).toLowerCase().includes('not found') && !String(bd.message).toLowerCase().includes('signature'))) {
-            if (!sku) return bd;
+            if (!effectiveSku) return bd;
         }
-    } catch (e) {}
+    } catch (e) {
+        if (!effectiveSku) throw e;
+    }
 
     if (!effectiveSku) {
-        const fallbackCheck = buildLocalClientDigiflazzFallback('/v1/check-id', {
-            brand: brand || '',
-            type: type || '',
-            customer_no: mergedCustNo
-        });
-        return fallbackCheck.data;
+        return {
+            status: 'Gagal',
+            rc: '40',
+            message: 'SKU Cek ID belum diatur untuk produk ini.'
+        };
     }
 
     const checkRefId = 'CHK-' + Date.now() + '-' + Math.floor(100 + Math.random() * 899);
@@ -8364,7 +8264,7 @@ async function performClientDigiflazzTargetCheck({ sku, fallbackSku, brand, type
 
     let td = trxRes?.data || {};
     if ((td.status === 'Pending' || td.rc === '03') && !extractRealUsernameFromDigiflazzResponse(td)) {
-        await new Promise(r => setTimeout(r, 1200));
+        await new Promise(r => setTimeout(r, 1500));
         trxRes = await callClientDigiflazzApi('/v1/transaction', {
             username: username,
             buyer_sku_code: effectiveSku,
@@ -8465,7 +8365,7 @@ window.userCheckPlnSubscriber = async function() {
     }
     try {
         await ensureClientDigiflazzCredentialsLoaded();
-        const username = (siteSettings.digiflazzUsername || 'username').trim();
+        const username = (siteSettings.digiflazzUsername || '').trim();
         const apiKey = getActiveClientDigiflazzApiKey();
         const sign = md5ClientDigiflazz(username + apiKey + cNo);
         const res = await callClientDigiflazzApi('/v1/inquiry-pln', {
@@ -8516,7 +8416,7 @@ window.userCheckPascaBill = async function() {
     const sku = selectedProductForBuy?.buyerSkuCode || 'pln';
     const refId = 'INQ-' + Date.now();
     await ensureClientDigiflazzCredentialsLoaded();
-    const username = (siteSettings.digiflazzUsername || 'username').trim();
+    const username = (siteSettings.digiflazzUsername || '').trim();
     const apiKey = getActiveClientDigiflazzApiKey();
     const sign = md5ClientDigiflazz(username + apiKey + refId);
     const isTesting = (siteSettings.digiflazzEnvMode || 'development') === 'development';
@@ -8567,9 +8467,69 @@ window.userCheckPascaBill = async function() {
     }
 };
 
+async function refundFailedClientOrderIfNeeded(orderData, orderDbId, reasonStr = 'Transaksi Digiflazz Gagal') {
+    if (!orderData || !orderDbId) return false;
+    const payMethod = String(orderData.paymentMethod || '').toLowerCase();
+    if ((payMethod !== 'balance' && payMethod !== 'saldo') || !orderData.userId || orderData.balanceRefunded === true) {
+        return false;
+    }
+    const refundAmt = Math.round(Number(orderData.finalTotal || orderData.baseTotal || 0));
+    if (refundAmt <= 0) return false;
+
+    const orderRef = doc(db, pathOrders, orderDbId);
+    const userRef = doc(db, pathUsers, orderData.userId);
+    const nowMs = Date.now();
+    let refunded = false;
+
+    try {
+        await runTransaction(db, async (tx) => {
+            const oSnap = await tx.get(orderRef);
+            if (!oSnap.exists() || oSnap.data().balanceRefunded === true) return;
+            const uSnap = await tx.get(userRef);
+            if (!uSnap.exists()) return;
+            const uData = uSnap.data();
+            if (uData.isAnonymous || uData.isGuest) return;
+            const curBal = Math.round(Number(uData.balance || 0));
+            const nextBal = curBal + refundAmt;
+
+            tx.update(userRef, {
+                balance: nextBal,
+                balanceUpdatedAt: nowMs
+            });
+            tx.update(orderRef, {
+                status: 'FAILED',
+                digiflazzPending: false,
+                balanceRefunded: true,
+                balanceRefundedAt: nowMs,
+                adminReply: `[PENGEMBALIAN SALDO OTOMATIS]\nAlasan       : ${reasonStr}\nDana Kembali : Rp${refundAmt.toLocaleString('id-ID')}\nSaldo Akhir  : Rp${nextBal.toLocaleString('id-ID')}`
+            });
+            if (currentUser && currentUser.uid === orderData.userId) {
+                userProfile.balance = nextBal;
+            }
+            refunded = true;
+        });
+
+        if (refunded) {
+            window.updateUserWalletBalanceUI();
+            await addDoc(collection(db, pathBalanceLogs), {
+                uid: orderData.userId,
+                userEmail: orderData.userEmail || '',
+                type: 'REFUND',
+                amount: refundAmt,
+                orderId: orderData.id,
+                note: `Refund otomatis pesanan gagal #${orderData.id}`,
+                createdAt: nowMs
+            }).catch(() => {});
+            window.showToast('Saldo Dikembalikan', `Rp${refundAmt.toLocaleString('id-ID')} telah dikembalikan ke Saldo Akun kamu.`, 'info');
+        }
+        return refunded;
+    } catch (e) {
+        return false;
+    }
+}
+
 async function executeClientDigiflazzOrder(orderData, orderDbId) {
     if (!orderData || !orderDbId) return false;
-    if (orderData.digiflazzInFlight === true || orderData.digiflazzStatus === 'Sukses') return true;
 
     const item = (orderData.items && orderData.items[0]) ? orderData.items[0] : {};
     const sku = String(orderData.digiflazzSku || item.buyerSkuCode || '').trim();
@@ -8580,16 +8540,43 @@ async function executeClientDigiflazzOrder(orderData, orderDbId) {
     if (!sku || !customerNo || !refId) return false;
 
     const nowMs = Date.now();
-    await updateDoc(doc(db, pathOrders, orderDbId), {
-        digiflazzInFlight: true,
-        digiflazzRefId: refId,
-        digiflazzSku: sku,
-        digiflazzCustomerNo: customerNo,
-        digiflazzLastHitAt: nowMs
-    }).catch(() => {});
+    const orderRef = doc(db, pathOrders, orderDbId);
+    let canProceedHit = false;
+    let isRepeatCheck = false;
+
+    try {
+        await runTransaction(db, async (tx) => {
+            const snap = await tx.get(orderRef);
+            if (!snap.exists()) return;
+            const cur = snap.data();
+            if (cur.digiflazzStatus === 'Sukses' || (cur.status === 'SUCCESS' && cur.adminReply)) {
+                return;
+            }
+            const lastHit = Number(cur.digiflazzLastHitAt || 0);
+            if (cur.digiflazzInFlight === true && (nowMs - lastHit < 25000)) {
+                return;
+            }
+            if (cur.digiflazzStatus === 'Pending' && lastHit > 0 && (nowMs - lastHit < 60000)) {
+                return;
+            }
+            isRepeatCheck = Boolean(lastHit > 0 && cur.digiflazzStatus === 'Pending');
+            tx.update(orderRef, {
+                digiflazzInFlight: true,
+                digiflazzRefId: refId,
+                digiflazzSku: sku,
+                digiflazzCustomerNo: customerNo,
+                digiflazzLastHitAt: nowMs
+            });
+            canProceedHit = true;
+        });
+    } catch (lockErr) {
+        return false;
+    }
+
+    if (!canProceedHit) return false;
 
     await ensureClientDigiflazzCredentialsLoaded();
-    const username = (siteSettings.digiflazzUsername || 'username').trim();
+    const username = (siteSettings.digiflazzUsername || '').trim();
     const apiKey = getActiveClientDigiflazzApiKey();
     const sign = md5ClientDigiflazz(username + apiKey + refId);
     const isTesting = (siteSettings.digiflazzEnvMode || 'development') === 'development';
@@ -8602,8 +8589,12 @@ async function executeClientDigiflazzOrder(orderData, orderDbId) {
         ref_id: refId,
         sign: sign
     };
-    if (isTesting) reqPayload.testing = true;
-    if (isPasca) reqPayload.commands = 'pay-pasca';
+    if (isPasca) {
+        reqPayload.commands = isRepeatCheck ? 'status-pasca' : 'pay-pasca';
+        if (reqPayload.commands === 'pay-pasca' && isTesting) reqPayload.testing = true;
+    } else if (isTesting) {
+        reqPayload.testing = true;
+    }
 
     try {
         const res = await callClientDigiflazzApi('/v1/transaction', reqPayload, refId);
@@ -8612,6 +8603,7 @@ async function executeClientDigiflazzOrder(orderData, orderDbId) {
         const rcStr = String(d.rc || '03');
         const snStr = String(d.sn || '');
         const msgStr = String(d.message || '');
+        const modalPrice = Number(d.price || item.digiflazzModalPrice || 0);
 
         const plnFields = {};
         if (snStr && snStr.includes('/')) {
@@ -8649,7 +8641,7 @@ SN/Ref   : ${snStr || 'Sukses Diproses'}`;
             replyText += `
 Status   : Sukses (RC ${rcStr})`;
 
-            await updateDoc(doc(db, pathOrders, orderDbId), {
+            await updateDoc(orderRef, {
                 status: 'SUCCESS',
                 paymentVerified: true,
                 paidAt: orderData.paidAt || nowMs,
@@ -8657,32 +8649,55 @@ Status   : Sukses (RC ${rcStr})`;
                 deliveredAt: nowMs,
                 adminReply: replyText,
                 digiflazzInFlight: false,
+                digiflazzPending: false,
                 digiflazzStatus: 'Sukses',
                 digiflazzRc: rcStr,
                 digiflazzSn: snStr,
                 digiflazzMessage: msgStr,
+                digiflazzPrice: modalPrice,
                 ...plnFields
             }).catch(() => {});
             orderData.status = 'SUCCESS';
             orderData.adminReply = replyText;
             orderData.autoDelivered = true;
             return true;
-        } else {
-            await updateDoc(doc(db, pathOrders, orderDbId), {
-                status: 'PENDING',
+        } else if (statusStr === 'Gagal') {
+            await updateDoc(orderRef, {
+                status: 'FAILED',
                 paymentVerified: true,
                 paidAt: orderData.paidAt || nowMs,
                 digiflazzInFlight: false,
-                digiflazzStatus: statusStr,
+                digiflazzPending: false,
+                digiflazzStatus: 'Gagal',
                 digiflazzRc: rcStr,
                 digiflazzSn: snStr,
                 digiflazzMessage: msgStr
             }).catch(() => {});
+            orderData.status = 'FAILED';
+            await refundFailedClientOrderIfNeeded(orderData, orderDbId, `${msgStr || 'Transaksi Digiflazz Gagal'} (RC ${rcStr})`);
+            return false;
+        } else {
+            await updateDoc(orderRef, {
+                status: 'PENDING',
+                paymentVerified: true,
+                paidAt: orderData.paidAt || nowMs,
+                digiflazzInFlight: false,
+                digiflazzPending: true,
+                digiflazzStatus: 'Pending',
+                digiflazzRc: rcStr,
+                digiflazzSn: snStr,
+                digiflazzMessage: msgStr || 'Sedang diproses oleh Digiflazz'
+            }).catch(() => {});
+            orderData.status = 'PENDING';
+            orderData.digiflazzPending = true;
+            orderData.digiflazzStatus = 'Pending';
             return false;
         }
     } catch (e) {
-        await updateDoc(doc(db, pathOrders, orderDbId), {
-            digiflazzInFlight: false
+        await updateDoc(orderRef, {
+            digiflazzInFlight: false,
+            digiflazzPending: true,
+            digiflazzStatus: orderData.digiflazzStatus || 'Pending'
         }).catch(() => {});
         return false;
     }
@@ -9516,55 +9531,140 @@ window.renderMpPriceComparisonTable = function() {
         </table>`;
 };
 
+window.toggleMemberPlusPromoTab = function(forceOpen = null) {
+    const bodyEl = document.getElementById('memberplus-promo-collapse-body');
+    const txtEl = document.getElementById('btn-toggle-mp-promo-text');
+    if (!bodyEl) return;
+    const isCurrentlyOpen = bodyEl.style.display !== 'none';
+    const nextOpen = (forceOpen !== null) ? Boolean(forceOpen) : !isCurrentlyOpen;
+    bodyEl.style.display = nextOpen ? 'block' : 'none';
+    if (txtEl) {
+        txtEl.innerText = nextOpen ? 'Tutup Kode Promo' : 'Lihat Kode Promo';
+    }
+    if (nextOpen) {
+        window.renderMemberPlusExclusivePromos();
+    }
+};
+
 window.renderMemberPlusExclusivePromos = function() {
     const boxEl = document.getElementById('memberplus-exclusive-promos-box');
+    const countSubEl = document.getElementById('memberplus-promo-count-sub');
     if (!boxEl) return;
 
     const activeMp = isUserMemberPlusActive();
+    if (!activeMp) {
+        boxEl.innerHTML = '';
+        return;
+    }
+
     const mpPromos = (Array.isArray(promos) ? promos : []).filter(p => p && p.code && p.isActive !== false);
+    if (countSubEl) {
+        countSubEl.innerText = mpPromos.length > 0
+            ? `${mpPromos.length} kode promo aktif siap disalin`
+            : 'Diskon harga otomatis aktif di semua produk';
+    }
 
     if (mpPromos.length === 0) {
         boxEl.innerHTML = `
-            <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;">
-                <div>
-                    <strong style="font-size:0.84rem; display:block;"><i class="fa-solid fa-ticket" style="color:#d97706;"></i> Kode Promo Spesial Member Plus</strong>
-                    <span style="font-size:0.75rem; color:var(--text-muted); font-weight:600;">Potongan harga otomatis sudah aktif di seluruh katalog produk untuk akun Member Plus.</span>
-                </div>
-                <span class="memberplus-gold-badge" style="font-size:0.7rem; padding:4px 10px;">
-                    <i class="fa-solid fa-bolt"></i> Diskon Otomatis Aktif
-                </span>
+            <div style="padding:12px; border-radius:10px; background:var(--card-bg); border:1.5px dashed #d97706; font-size:0.8rem; font-weight:700; color:var(--text);">
+                Saat ini belum ada kode voucher tambahan. Potongan harga Member Plus sudah otomatis diterapkan di seluruh produk.
             </div>`;
         return;
     }
 
-    const cardsHtml = mpPromos.slice(0, 6).map(p => {
+    const cardsHtml = mpPromos.map(p => {
         const codeStr = String(p.code || '').toUpperCase();
         const discVal = Number(p.discount || p.discountAmount || p.amount || 0);
         const isPct = (p.type === 'percent' || p.discountType === 'percent' || discVal <= 100);
         const discLabel = isPct ? `Diskon ${discVal}%` : `Potongan Rp${discVal.toLocaleString('id-ID')}`;
+        const minOrderVal = Number(p.minOrder || p.minPurchase || 0);
+        const minLabel = minOrderVal > 0 ? `Min. belanja Rp${minOrderVal.toLocaleString('id-ID')}` : 'Tanpa minimal belanja';
         return `
-            <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; padding:8px 12px; background:var(--card-bg); border:2px solid var(--border-color); border-radius:10px;">
+            <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; padding:10px 12px; background:var(--card-bg); border:2px solid #d97706; border-radius:10px;">
                 <div>
-                    <div style="display:flex; align-items:center; gap:6px;">
-                        <strong class="code-mono" style="font-size:0.84rem; color:#b45309;">${escapeHtml(codeStr)}</strong>
-                        <span class="brutal-tag tag-amber" style="font-size:0.65rem; padding:1px 6px;">${escapeHtml(discLabel)}</span>
+                    <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+                        <strong class="code-mono" style="font-size:0.88rem; color:#b45309;">${escapeHtml(codeStr)}</strong>
+                        <span class="brutal-tag tag-amber" style="font-size:0.65rem; padding:2px 7px;">${escapeHtml(discLabel)}</span>
                     </div>
-                    <small style="font-size:0.7rem; color:var(--text-muted); font-weight:700;">${activeMp ? 'Siap dipakai di halaman checkout' : 'Aktifkan Member Plus untuk klaim promo'}</small>
+                    <small style="font-size:0.72rem; color:var(--text-muted); font-weight:700; display:block; margin-top:2px;">${escapeHtml(minLabel)}</small>
                 </div>
-                <button type="button" class="btn btn-outline btn-sm" style="padding:4px 10px; min-height:28px; font-size:0.72rem;" onclick="navigator.clipboard?.writeText('${escapeJsStr(codeStr)}'); window.showToast('Kode Disalin', 'Kode promo ${escapeJsStr(codeStr)} berhasil disalin.', 'success');">
-                    <i class="fa-regular fa-copy"></i> Salin
+                <button type="button" class="btn btn-warning btn-sm" style="padding:5px 12px; min-height:30px; font-size:0.74rem; font-weight:900; color:#422006;" onclick="navigator.clipboard?.writeText('${escapeJsStr(codeStr)}'); window.showToast('Kode Disalin', 'Kode promo ${escapeJsStr(codeStr)} berhasil disalin.', 'success');">
+                    <i class="fa-regular fa-copy"></i> Salin Kode
                 </button>
             </div>`;
     }).join('');
 
     boxEl.innerHTML = `
-        <div style="margin-bottom:8px; display:flex; align-items:center; justify-content:space-between;">
-            <strong style="font-size:0.85rem;"><i class="fa-solid fa-ticket" style="color:#d97706;"></i> Daftar Kode Promo Spesial Member Plus</strong>
-            <span style="font-size:0.72rem; font-weight:800; color:#b45309;">${mpPromos.length} Voucher Tersedia</span>
-        </div>
-        <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap:8px;">
+        <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap:10px;">
             ${cardsHtml}
         </div>`;
+};
+
+window.renderMemberPlusOrderHistoryList = function() {
+    const container = document.getElementById('memberplus-history-list-container');
+    if (!container) return;
+
+    const myUid = currentUser?.uid || userProfile.uid || '';
+    const myEmail = (userProfile.email || currentUser?.email || '').toLowerCase();
+
+    const mpOrders = (Array.isArray(orders) ? orders : []).filter(o => {
+        if (!o) return false;
+        const isMpSub = Boolean(o.isMemberPlusOrder === true || o.orderType === 'MEMBER_PLUS_SUB' || String(o.id || '').toUpperCase().startsWith('MPLUS-'));
+        if (!isMpSub) return false;
+        if (myUid && o.userId === myUid) return true;
+        if (myEmail && String(o.userEmail || '').toLowerCase() === myEmail) return true;
+        return false;
+    }).sort((a, b) => new Date(b.date || 0).getTime() - new Date(a.date || 0).getTime());
+
+    if (mpOrders.length === 0) {
+        container.innerHTML = `
+            <div class="brutal-panel" style="padding: 1.5rem 1rem; text-align: center; background: var(--bg);">
+                <i class="fa-solid fa-crown" style="font-size: 1.6rem; color: #f59e0b; margin-bottom: 6px; display: block;"></i>
+                <strong style="display:block; font-size:0.88rem; margin-bottom:2px;">Belum Ada Riwayat Langganan</strong>
+                <span style="font-size:0.75rem; color:var(--text-muted); font-weight:600;">Riwayat pembelian paket Member Plus akan tampil di sini.</span>
+            </div>`;
+        return;
+    }
+
+    container.innerHTML = mpOrders.map(o => {
+        const payTotal = Math.round(Number(o.finalTotal || o.baseTotal || 0));
+        const durDays = parseInt(o.durationDays || 30, 10) || 30;
+        const dtStr = o.date ? new Date(o.date).toLocaleString('id-ID', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '-';
+        const payLabel = o.paymentMethod === 'cash' ? 'TUNAI DI KASIR ADMIN' : 'SALDO AKUN';
+
+        let badgeClass = 'status-pending';
+        let badgeLabel = 'MENUNGGU KASIR';
+        if (o.status === 'SUCCESS' || o.memberPlusActivated === true) {
+            badgeClass = 'status-success';
+            badgeLabel = 'AKTIF';
+        } else if (o.status === 'CANCELLED' || o.status === 'EXPIRED' || o.status === 'FAILED') {
+            badgeClass = 'status-failed';
+            badgeLabel = o.status === 'EXPIRED' ? 'KEDALUWARSA' : 'DIBATALKAN';
+        }
+
+        return `
+            <div class="topup-history-card" onclick="window.openOrderDetailModalById('${escapeJsStr(o.id)}')" style="cursor:pointer;">
+                <div>
+                    <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:4px;">
+                        <strong class="code-mono" style="font-size:0.84rem;">#${escapeHtml(o.id)}</strong>
+                        <span class="status-badge ${badgeClass}" style="font-size:0.65rem; padding:2px 8px;">${badgeLabel}</span>
+                    </div>
+                    <div style="font-size:0.9rem; font-weight:900; color:var(--text);">Langganan Member Plus (${durDays} Hari)</div>
+                    <div style="font-size:0.73rem; color:var(--text-muted); font-weight:700; margin-top:2px;">
+                        <i class="fa-regular fa-clock"></i> ${escapeHtml(dtStr)} &bull; ${payLabel}
+                    </div>
+                </div>
+                <div style="text-align:right;">
+                    <div>
+                        <span style="font-size:0.68rem; font-weight:800; color:var(--text-muted); display:block;">BIAYA</span>
+                        <strong style="font-size:1rem; font-weight:900; color:#d97706;">Rp${payTotal.toLocaleString('id-ID')}</strong>
+                    </div>
+                    <div style="margin-top:4px;">
+                        <span class="btn btn-outline btn-sm" style="padding:3px 10px; min-height:26px; font-size:0.7rem;">Buka Struk</span>
+                    </div>
+                </div>
+            </div>`;
+    }).join('');
 };
 
 window.syncMemberPlusPanelState = function() {
@@ -9576,6 +9676,8 @@ window.syncMemberPlusPanelState = function() {
     const mpBannerEl = document.getElementById('memberplus-status-banner');
     const mpStatusTxtEl = document.getElementById('memberplus-status-text');
     const mpCelebrationCard = document.getElementById('memberplus-active-celebration-card');
+    const mpBenefitsCard = document.getElementById('memberplus-benefits-card');
+    const mpActivePromoCard = document.getElementById('memberplus-active-promo-card');
     const mpStartDateEl = document.getElementById('memberplus-active-start-date');
     const mpEndDateEl = document.getElementById('memberplus-active-end-date');
     const mpRemainPill = document.getElementById('memberplus-active-remaining-pill');
@@ -9596,10 +9698,10 @@ window.syncMemberPlusPanelState = function() {
     if (mpBalNoteEl) {
         if (selectedPay === 'cash') {
             mpBalNoteEl.style.color = '#b45309';
-            mpBalNoteEl.innerHTML = `<i class="fa-solid fa-barcode"></i> Bayar tunai di kasir: Admin mengaktifkan langganan dengan PIN.`;
+            mpBalNoteEl.innerHTML = `<i class="fa-solid fa-barcode"></i> Bayar tunai di kasir admin.`;
         } else if (curBal >= mpPrice) {
             mpBalNoteEl.style.color = 'var(--success)';
-            mpBalNoteEl.innerHTML = `<i class="fa-solid fa-circle-check"></i> Saldo mencukupi! Akun otomatis menjadi Member Plus saat diaktifkan.`;
+            mpBalNoteEl.innerHTML = `<i class="fa-solid fa-circle-check"></i> Bayar dengan saldo akun, saldo langsung terpotong otomatis.`;
         } else {
             const diff = mpPrice - curBal;
             mpBalNoteEl.style.color = 'var(--danger)';
@@ -9614,6 +9716,12 @@ window.syncMemberPlusPanelState = function() {
     if (mpCelebrationCard) {
         mpCelebrationCard.style.display = activeMp ? 'block' : 'none';
     }
+    if (mpBenefitsCard) {
+        mpBenefitsCard.style.display = activeMp ? 'none' : 'block';
+    }
+    if (mpActivePromoCard) {
+        mpActivePromoCard.style.display = activeMp ? 'block' : 'none';
+    }
 
     if (activeMp) {
         const expMs = Number(userProfile.memberPlusExpiresAt || 0);
@@ -9627,22 +9735,22 @@ window.syncMemberPlusPanelState = function() {
         if (mpStartDateEl) mpStartDateEl.innerText = startStr;
         if (mpEndDateEl) mpEndDateEl.innerText = expStr;
         if (mpRemainPill) mpRemainPill.innerText = `Sisa ${remDays} Hari`;
-        if (mpSideTitle) mpSideTitle.innerText = 'Kelola & Perpanjang Langganan';
-        if (mpMainHeading) mpMainHeading.innerText = 'Status & Keuntungan Member Plus Anda';
+        if (mpSideTitle) mpSideTitle.innerText = 'Perpanjang Langganan';
+        if (mpMainHeading) mpMainHeading.innerText = 'Status Member Plus Anda';
 
         if (mpBannerEl && mpStatusTxtEl) {
             mpBannerEl.className = 'brutal-alert-box alert-info';
-            mpStatusTxtEl.innerHTML = `Selamat, Anda sekarang <b>Member Plus</b>! Langganan Anda aktif hingga <b>${escapeHtml(expStr)}</b>. Anda dapat menambah masa aktif +30 hari kapan saja.`;
+            mpStatusTxtEl.innerHTML = `Status <b>Member Plus</b> aktif hingga <b>${escapeHtml(expStr)}</b>.`;
         }
         if (btnSubmitMp) {
             btnSubmitMp.innerHTML = '<i class="fa-solid fa-crown"></i> <span>Perpanjang Member Plus (+30 Hari)</span>';
         }
     } else {
         if (mpSideTitle) mpSideTitle.innerText = 'Aktivasi Member Plus';
-        if (mpMainHeading) mpMainHeading.innerText = 'Keuntungan Langganan Member Plus (30 Hari)';
+        if (mpMainHeading) mpMainHeading.innerText = 'Keuntungan Member Plus (30 Hari)';
         if (mpBannerEl && mpStatusTxtEl) {
             mpBannerEl.className = 'brutal-alert-box alert-warning';
-            mpStatusTxtEl.innerText = 'Kamu belum berlangganan Member Plus. Aktifkan sekarang untuk menikmati harga khusus Member Plus di semua produk!';
+            mpStatusTxtEl.innerText = 'Aktifkan Member Plus untuk mendapatkan harga khusus Member Plus di seluruh katalog.';
         }
         if (btnSubmitMp) {
             btnSubmitMp.innerHTML = '<i class="fa-solid fa-crown"></i> <span>Aktifkan Member Plus Sekarang</span>';
@@ -9650,9 +9758,9 @@ window.syncMemberPlusPanelState = function() {
     }
 
     window.renderMemberPlusExclusivePromos();
+    window.renderMemberPlusOrderHistoryList();
 };
 
-// Animasi Tunggal Khusus Aktivasi Member Plus ("Selamat, Anda Telah Menjadi Member Plus!")
 let mpWelcomeHideTimer = null;
 window.showMemberPlusWelcomeAnimation = function(expTimestampMs = 0, orderId = '') {
     const uid = currentUser?.uid || userProfile.uid || 'guest';
@@ -9664,7 +9772,6 @@ window.showMemberPlusWelcomeAnimation = function(expTimestampMs = 0, orderId = '
     if (orderId) shownPaymentSuccessOrderIds.add(orderId);
     window.closeModal('modal-cash-barcode');
 
-    // Pastikan seluruh tampilan aplikasi langsung berubah ke mode Member Plus ("Kelola Langganan", mahkota profil, harga katalog)
     window.refreshRealtimeMemberPlusUI();
 
     const expDateStr = new Date(expMs).toLocaleDateString('id-ID', {
@@ -9672,12 +9779,14 @@ window.showMemberPlusWelcomeAnimation = function(expTimestampMs = 0, orderId = '
         month: 'long',
         year: 'numeric'
     });
-    const expEl = document.getElementById('mp-welcome-overlay-exp');
-    if (expEl) expEl.innerText = expDateStr;
+    const expEl1 = document.getElementById('mp-welcome-overlay-exp');
+    const expEl2 = document.getElementById('mp-welcome-exp-date');
+    if (expEl1) expEl1.innerText = expDateStr;
+    if (expEl2) expEl2.innerText = expDateStr;
 
     const overlay = document.getElementById('memberplus-welcome-overlay');
     if (overlay) {
-        const confettiWrap = document.getElementById('mp-confetti-container');
+        const confettiWrap = document.getElementById('mp-confetti-container') || document.getElementById('memberplus-confetti-box');
         if (confettiWrap) {
             confettiWrap.innerHTML = '';
             const colors = ['#facc15', '#f59e0b', '#fbbf24', '#fef08a', '#10b981', '#3b82f6'];
@@ -9767,8 +9876,8 @@ window.selectMemberPlusPayMethod = function(method, cardEl) {
     const subNote = document.getElementById('mp-payment-method-subnote');
     if (subNote) {
         subNote.innerText = method === 'cash'
-            ? 'Bayar Tunai di Kasir • Validasi PIN Admin'
-            : 'Potong Saldo Akun • Langsung Otomatis Aktif';
+            ? 'Bayar Tunai di Kasir Admin'
+            : 'Bayar dengan Saldo Akun • Langsung Terpotong';
     }
     window.syncMemberPlusPanelState();
 };
@@ -9980,47 +10089,276 @@ function startUserPendingDigiflazzPoller() {
     if (userPendingDfPollerTimer) clearInterval(userPendingDfPollerTimer);
     userPendingDfPollerTimer = setInterval(async () => {
         if (!currentUser?.uid) return;
+        const nowMs = Date.now();
         const myPendingDfOrders = orders.filter(o =>
             o.userId === currentUser.uid &&
             o.status === 'PENDING' &&
-            o.digiflazzPending === true &&
+            (o.digiflazzPending === true || o.digiflazzStatus === 'Pending') &&
             o.digiflazzRefId &&
             o.digiflazzSku &&
-            o.digiflazzCustomerNo
+            o.digiflazzCustomerNo &&
+            o.digiflazzInFlight !== true &&
+            (nowMs - Number(o.digiflazzLastHitAt || 0) >= 62000)
         );
         for (const ord of myPendingDfOrders.slice(0, 2)) {
             try {
-                const res = await callUserDigiflazzBridge('/api/digiflazz/transaction', {
-                    action: 'transaction',
-                    sku: ord.digiflazzSku,
-                    customer_no: ord.digiflazzCustomerNo,
-                    ref_id: ord.digiflazzRefId
-                });
-                const d = res?.data || res || {};
-                const st = String(d.status || '').toLowerCase();
-                if (st === 'sukses' || st === 'success') {
-                    const sn = String(d.sn || '').trim();
-                    const replyMsg = `[TRANSAKSI SELESAI]
-Produk : ${ord.variantName || ord.productName}
-Tujuan : ${ord.digiflazzCustomerNo}
-SN/Ref : ${sn || '-'}
-Status : SUKSES`;
-                    if (ord.dbId) {
-                        await updateDoc(doc(db, pathOrders, ord.dbId), {
-                            status: 'SUCCESS',
-                            digiflazzPending: false,
-                            digiflazzStatus: 'Sukses',
-                            digiflazzSn: sn,
-                            adminReply: replyMsg,
-                            deliveredAt: Date.now()
-                        }).catch(() => {});
-                    }
-                }
+                await executeClientDigiflazzOrder(ord, ord.dbId);
             } catch (_) {}
         }
-    }, 15000);
+    }, 20000);
 }
 startUserPendingDigiflazzPoller();
+
+// ============================================================================
+// PRINT STRUK LANGSUNG DENGAN PRINTER BLUETOOTH 58MM (ESC/POS + FALLBACK)
+// ============================================================================
+let cachedBluetoothPrinterDevice = null;
+let cachedBluetoothPrinterCharacteristic = null;
+
+function formatThermal58mmLines(order, cleanInv) {
+    const W = 32;
+    const sep = '-'.repeat(W);
+    const center = (str) => {
+        const s = String(str || '').trim().slice(0, W);
+        const left = Math.max(0, Math.floor((W - s.length) / 2));
+        return ' '.repeat(left) + s;
+    };
+    const kv = (label, val) => {
+        const lbl = String(label || '').slice(0, 10).padEnd(10, ' ');
+        const vStr = String(val || '-').trim();
+        const firstPart = vStr.slice(0, W - 12);
+        const lines = [`${lbl}: ${firstPart}`];
+        let rem = vStr.slice(W - 12);
+        while (rem.length > 0) {
+            lines.push(' '.repeat(12) + rem.slice(0, W - 12));
+            rem = rem.slice(W - 12);
+        }
+        return lines.join('\n');
+    };
+
+    const itemObj = order?.items?.[0] || {};
+    const rawItemName = String(itemObj.exactItemName || itemObj.name || order?.variantName || order?.productName || 'PRODUK DIGITAL').replace(/\(x\d+\)/i, '').trim();
+    const parsedPln = parsePlnTokenFromOrder(order);
+    let cleanTargetNo = String(order?.digiflazzCustomerNo || order?.targetId || itemObj.playerInfo || '-').trim();
+    cleanTargetNo = cleanTargetNo.replace(/^(Tujuan|ID\s*Player|ID\s*PLN|ID|Target|No\.?\s*Pelanggan|No\.?\s*Meter|No\.?\s*HP)\s*:\s*/i, '').trim();
+    if (cleanTargetNo.includes(' (')) cleanTargetNo = cleanTargetNo.split(' (')[0].trim();
+
+    const customerName = String(
+        parsedPln?.subscriberName ||
+        order?.verifiedTargetName ||
+        order?.plnSubscriberName ||
+        order?.buyerName ||
+        (order?.userEmail ? order.userEmail.split('@')[0] : 'PELANGGAN')
+    ).toUpperCase();
+
+    const dtObj = order?.date ? new Date(order.date) : new Date();
+    const dateStr = dtObj.toLocaleString('id-ID', {
+        day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit'
+    });
+
+    const payMethodShort = order?.paymentMethod === 'cash'
+        ? 'TUNAI'
+        : (order?.paymentMethod === 'balance' ? 'SALDO AKUN' : 'QRIS');
+    const statusShort = order?.status === 'SUCCESS'
+        ? 'LUNAS'
+        : (order?.status === 'PENDING' ? 'DIPROSES' : String(order?.status || 'SELESAI'));
+    const totalStr = 'Rp' + Number(order?.finalTotal || 0).toLocaleString('id-ID');
+
+    const out = [
+        center('VIPERCELL'),
+        center('AMBON MALUKU INDONESIA'),
+        center(dateStr),
+        sep,
+        center('STRUK PEMBELIAN'),
+        sep,
+        kv('NO. TRX', '#' + (cleanInv || order?.id || '-')),
+        kv('PRODUK', rawItemName),
+        kv('TUJUAN', cleanTargetNo || '-'),
+        kv('PELANGGAN', customerName)
+    ];
+
+    if (parsedPln?.segmentPower || order?.plnSegmentPower) {
+        out.push(kv('TARIF/DAYA', parsedPln?.segmentPower || order?.plnSegmentPower));
+    }
+    if (parsedPln?.kwh && parsedPln.kwh !== '-') {
+        out.push(kv('JML KWH', parsedPln.kwh));
+    }
+    if (Number(order?.promoDiscount || 0) > 0) {
+        out.push(kv('DISKON', '-Rp' + Number(order.promoDiscount).toLocaleString('id-ID')));
+    }
+    out.push(kv('METODE', payMethodShort));
+    out.push(kv('STATUS', statusShort));
+    out.push(kv('TOTAL BYR', totalStr));
+    out.push(sep);
+
+    if (parsedPln && parsedPln.token) {
+        out.push(center('TOKEN PLN'));
+        const tok = String(parsedPln.token).trim();
+        for (let i = 0; i < tok.length; i += W) {
+            out.push(center(tok.slice(i, i + W)));
+        }
+        out.push(sep);
+    } else if (order?.digiflazzSn) {
+        out.push(center('SN / REFERENSI'));
+        const sn = String(order.digiflazzSn).trim();
+        for (let i = 0; i < sn.length; i += W) {
+            out.push(center(sn.slice(i, i + W)));
+        }
+        out.push(sep);
+    } else if (order?.adminReply) {
+        out.push(center('DETAIL PESANAN'));
+        const cleanReply = String(order.adminReply).replace(/\r/g, '').split('\n').map(l => l.trim()).filter(Boolean).slice(0, 6);
+        for (const line of cleanReply) {
+            for (let i = 0; i < line.length; i += W) {
+                out.push(line.slice(i, i + W));
+            }
+        }
+        out.push(sep);
+    }
+
+    out.push(center('Terima kasih'));
+    out.push(sep);
+    return out.join('\n');
+}
+
+function encodeEscPos58mmPayload(plainTextReceipt) {
+    const encoder = new TextEncoder();
+    const initCmd = new Uint8Array([0x1B, 0x40, 0x1B, 0x61, 0x00]); // ESC @ (Init), ESC a 0 (Left align)
+    const bodyBytes = encoder.encode(plainTextReceipt.replace(/\n/g, '\r\n') + '\r\n\r\n\r\n');
+    const feedCutCmd = new Uint8Array([0x1D, 0x56, 0x42, 0x00]);
+    const combined = new Uint8Array(initCmd.length + bodyBytes.length + feedCutCmd.length);
+    combined.set(initCmd, 0);
+    combined.set(bodyBytes, initCmd.length);
+    combined.set(feedCutCmd, initCmd.length + bodyBytes.length);
+    return combined;
+}
+
+async function connectAndWriteBluetooth58mm(escPosBytes) {
+    const BT_SERVICES = [
+        '000018f0-0000-1000-8000-00805f9b34fb',
+        'e7810a71-73ae-499d-8c15-faa9aef0c3f2',
+        '49535343-fe7d-4ae5-8fa9-9fafd205e455',
+        '0000ff00-0000-1000-8000-00805f9b34fb',
+        '0000ffe0-0000-1000-8000-00805f9b34fb',
+        '00001101-0000-1000-8000-00805f9b34fb'
+    ];
+
+    if (!cachedBluetoothPrinterCharacteristic || !cachedBluetoothPrinterDevice?.gatt?.connected) {
+        const device = await navigator.bluetooth.requestDevice({
+            acceptAllDevices: true,
+            optionalServices: BT_SERVICES
+        });
+        cachedBluetoothPrinterDevice = device;
+        const server = await device.gatt.connect();
+        const services = await server.getPrimaryServices();
+        let foundChar = null;
+        for (const srv of services) {
+            const chars = await srv.getCharacteristics();
+            for (const ch of chars) {
+                if (ch.properties.write || ch.properties.writeWithoutResponse) {
+                    foundChar = ch;
+                    break;
+                }
+            }
+            if (foundChar) break;
+        }
+        if (!foundChar) {
+            throw new Error('Karakteristik tulis printer Bluetooth tidak ditemukan.');
+        }
+        cachedBluetoothPrinterCharacteristic = foundChar;
+    }
+
+    const chunkSize = 100;
+    for (let offset = 0; offset < escPosBytes.length; offset += chunkSize) {
+        const slice = escPosBytes.slice(offset, offset + chunkSize);
+        if (cachedBluetoothPrinterCharacteristic.properties.writeWithoutResponse) {
+            await cachedBluetoothPrinterCharacteristic.writeValueWithoutResponse(slice);
+        } else {
+            await cachedBluetoothPrinterCharacteristic.writeValue(slice);
+        }
+        await new Promise(r => setTimeout(r, 25));
+    }
+}
+
+window.printOrderReceiptThermal58mmFallback = function(order, cleanInv) {
+    const textReceipt = formatThermal58mmLines(order, cleanInv);
+    const w = window.open('', '_blank', 'width=340,height=600');
+    if (!w) {
+        window.showToast('Pop-up Diblokir', 'Izinkan pop-up untuk mencetak struk 58mm.', 'warning');
+        return;
+    }
+    w.document.write(`<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Struk #${escapeHtml(cleanInv)}</title>
+<style>
+  @page { size: 58mm auto; margin: 0mm; }
+  body {
+    width: 58mm;
+    margin: 0;
+    padding: 3mm 2mm;
+    font-family: "Courier New", Courier, monospace;
+    font-size: 11px;
+    font-weight: 700;
+    line-height: 1.32;
+    color: #000;
+    background: #fff;
+  }
+  pre {
+    margin: 0;
+    white-space: pre-wrap;
+    word-break: break-word;
+    font-family: inherit;
+    font-size: inherit;
+    font-weight: inherit;
+  }
+</style>
+</head>
+<body>
+<pre>${escapeHtml(textReceipt)}</pre>
+<script>
+  window.onload = function() {
+    setTimeout(function() {
+      window.print();
+      setTimeout(function() { window.close(); }, 600);
+    }, 180);
+  };
+</script>
+</body>
+</html>`);
+    w.document.close();
+};
+
+window.printOrderReceiptBluetooth58mm = async function(invId) {
+    const cleanInv = String(invId || currentShareReceiptInvId || '').trim().replace(/^#/, '');
+    if (!cleanInv) return;
+    const order = orders.find(o => String(o.id || '').toUpperCase() === cleanInv.toUpperCase()) || currentCheckoutSession;
+    if (!order) {
+        window.showToast('Data Tidak Ditemukan', 'Pesanan tidak ditemukan untuk dicetak.', 'warning');
+        return;
+    }
+
+    const plainText = formatThermal58mmLines(order, cleanInv);
+    const escPosBytes = encodeEscPos58mmPayload(plainText);
+
+    if (navigator.bluetooth && typeof navigator.bluetooth.requestDevice === 'function') {
+        try {
+            window.showToast('Printer Bluetooth 58mm', 'Pilih printer thermal Bluetooth 58mm kamu...', 'info');
+            await connectAndWriteBluetooth58mm(escPosBytes);
+            window.showToast('Struk Dicetak (58mm)', `Struk #${cleanInv} berhasil dikirim ke printer Bluetooth 58mm.`, 'success');
+            return;
+        } catch (btErr) {
+            if (btErr && btErr.name === 'NotFoundError') {
+                return;
+            }
+            window.printOrderReceiptThermal58mmFallback(order, cleanInv);
+            return;
+        }
+    }
+
+    window.printOrderReceiptThermal58mmFallback(order, cleanInv);
+};
 
 // ============================================================================
 // STRUK KASIR HITAM PUTIH ALA ALFAMIDI & INDOMARET (.PNG) + BAGIKAN LANGSUNG
@@ -10401,6 +10739,10 @@ window.executeShareReceiptAction = async function(actionType) {
         buildIndomaretReceiptPngBundleSync(cleanInv);
     }
 
+    if (actionType === 'print_bt_58mm') {
+        await window.printOrderReceiptBluetooth58mm(cleanInv);
+        return;
+    }
     if (actionType === 'download_png') {
         triggerDirectPngDownload(cachedReceiptPngDataUrl, `Struk_Vipercell_${cleanInv}.png`);
         window.showToast('Struk Tersimpan (.PNG)', `Gambar struk #${cleanInv}.png berhasil disimpan.`, 'success');
