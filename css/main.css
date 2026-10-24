@@ -5461,3 +5461,225 @@ html[data-theme="dark"] .mp-open-compare-cta-card {
         gap: 9px !important;
     }
 }
+
+
+/* === PEMBARUAN v28.7: TOP-CENTER TOAST, LAYER WATER RIPPLE, BOTTOM-SHEET MOBILE & PROFIL LIPAT === */
+html, body {
+    max-width: 100%;
+    overflow-x: hidden !important;
+}
+
+/* 1. Efek Sentuhan Air Murni di Layer Latar Belakang (Tidak Naik ke Footer) */
+#water-ripple-canvas {
+    position: fixed !important;
+    inset: 0 !important;
+    width: 100vw !important;
+    height: 100dvh !important;
+    pointer-events: none !important;
+    z-index: -1 !important;
+}
+
+.footer-new,
+.footer-divider-marquee-wrap,
+#footer-marquee-section,
+.bottom-nav,
+.navbar {
+    position: relative !important;
+    z-index: 6 !important;
+}
+
+/* 6. Posisi Notifikasi Toast di Atas-Tengah (Top-Center) */
+#toast-container,
+.toast-container {
+    position: fixed !important;
+    top: 14px !important;
+    left: 50% !important;
+    right: auto !important;
+    bottom: auto !important;
+    transform: translateX(-50%) !important;
+    width: min(92vw, 410px) !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    gap: 8px !important;
+    z-index: 99999 !important;
+    pointer-events: none !important;
+}
+
+.toast-item {
+    width: 100% !important;
+    pointer-events: auto !important;
+    transform: translateY(-18px) scale(0.96) !important;
+    opacity: 0 !important;
+    transition: transform 0.22s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.22s ease !important;
+}
+
+.toast-item.show {
+    transform: translateY(0) scale(1) !important;
+    opacity: 1 !important;
+}
+
+/* 7. Sembunyikan Tombol Panah Banner (Langsung Geser / Swipe) */
+.banner-nav-btn,
+#banner-prev-btn,
+#banner-next-btn {
+    display: none !important;
+}
+
+.banner-slider-container {
+    touch-action: pan-y pinch-zoom;
+    cursor: grab;
+}
+.banner-slider-container:active {
+    cursor: grabbing;
+}
+
+/* 12. Panel Lipat (Accordion) di Tab Profil */
+.prof-accordion-trigger {
+    width: 100%;
+    padding: 0.95rem 1.05rem;
+    background: var(--surface);
+    border: none;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    cursor: pointer;
+    color: var(--text);
+    font-family: var(--font-main);
+    transition: background 0.15s ease;
+}
+.prof-accordion-trigger:hover {
+    background: var(--bg);
+}
+.prof-accordion-chevron {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    transition: transform 0.22s ease;
+}
+
+/* 17. Chip Riwayat Nomor / ID Tujuan Terakhir */
+.recent-targets-strip {
+    margin-top: 8px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+.recent-targets-label {
+    font-size: 0.7rem;
+    font-weight: 800;
+    color: var(--text-muted);
+}
+.recent-targets-chips {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+.recent-target-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 4px 10px;
+    border-radius: 999px;
+    border: 1.5px solid var(--border-color);
+    background: var(--surface);
+    color: var(--text);
+    font-size: 0.72rem;
+    font-weight: 800;
+    cursor: pointer;
+    box-shadow: 0 2px 0 var(--border-color);
+}
+.recent-target-chip:active {
+    transform: translateY(1px);
+    box-shadow: none;
+}
+
+/* 9 & 14. Bottom-Sheet Pembayaran Mobile Saat Pilih Varian */
+.mobile-checkout-sheet-backdrop {
+    display: none;
+}
+.mobile-sheet-drag-handle,
+.mobile-only-close-sheet {
+    display: none !important;
+}
+
+@media (max-width: 768px) {
+    .mobile-checkout-sheet-backdrop {
+        position: fixed;
+        inset: 0;
+        background: rgba(15, 23, 42, 0.58);
+        backdrop-filter: blur(2px);
+        z-index: 989;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.24s ease;
+        display: block;
+    }
+    .mobile-checkout-sheet-backdrop.active {
+        opacity: 1;
+        pointer-events: auto;
+    }
+
+    #checkout-side-col-sheet {
+        position: fixed !important;
+        left: 0 !important;
+        right: 0 !important;
+        bottom: 0 !important;
+        z-index: 990 !important;
+        width: 100% !important;
+        max-width: 100vw !important;
+        transform: translateY(108%) !important;
+        transition: transform 0.28s cubic-bezier(0.22, 1, 0.36, 1) !important;
+        pointer-events: none !important;
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+
+    #checkout-side-col-sheet.mobile-sheet-open {
+        transform: translateY(0) !important;
+        pointer-events: auto !important;
+    }
+
+    #checkout-side-col-sheet #checkout-step-03-card {
+        border-radius: 22px 22px 0 0 !important;
+        border-bottom: none !important;
+        margin: 0 !important;
+        padding: 12px 16px calc(18px + env(safe-area-inset-bottom, 0px)) 16px !important;
+        max-height: 84dvh !important;
+        overflow-y: auto !important;
+        box-shadow: 0 -8px 28px rgba(0, 0, 0, 0.28) !important;
+        background: var(--surface) !important;
+    }
+
+    .mobile-sheet-drag-handle {
+        display: block !important;
+        width: 44px;
+        height: 5px;
+        border-radius: 99px;
+        background: var(--border-subtle);
+        margin: 2px auto 10px auto;
+        cursor: pointer;
+    }
+
+    .mobile-only-close-sheet {
+        display: inline-flex !important;
+        width: 32px !important;
+        height: 32px !important;
+    }
+
+    /* Pastikan seluruh kartu & grid tidak pernah melewati layar HP */
+    .checkout-wrapper,
+    .checkout-split-grid,
+    .checkout-main-col,
+    .checkout-step-card,
+    .item-selection-grid {
+        max-width: 100% !important;
+        box-sizing: border-box !important;
+    }
+
+    .item-selection-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+        gap: 8px !important;
+    }
+}

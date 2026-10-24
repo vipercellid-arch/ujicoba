@@ -224,6 +224,12 @@ const DARK_RIPPLE_COLORS = [
 
 function spawnWaterRippleAt(clientX, clientY, isClick = false) {
     if (siteSettings.waterRippleEnabled === false) return;
+    try {
+        const hitEl = document.elementFromPoint(clientX, clientY);
+        if (hitEl && hitEl.closest('footer, .footer-new, #footer-marquee-section, .bottom-nav, .navbar, .mobile-checkout-sheet-backdrop, #checkout-side-col-sheet.mobile-sheet-open')) {
+            return;
+        }
+    } catch (_) {}
     const canvas = waterRippleEngine.canvas || document.getElementById('water-ripple-canvas');
     if (!canvas) return;
     if (!waterRippleEngine.ctx) {
@@ -1080,9 +1086,13 @@ function listenDeletedAccountStatus(uid) {
 
             userProfile.balance = Math.round(Number(uData.balance || 0));
             if (uData.trxPin !== undefined) userProfile.trxPin = uData.trxPin;
-            if (uData.isMemberPlus !== undefined) userProfile.isMemberPlus = uData.isMemberPlus;
+            if (uData.memberPlusRevokedAt !== undefined) userProfile.memberPlusRevokedAt = Number(uData.memberPlusRevokedAt || 0);
+            if (uData.isMemberPlus !== undefined) userProfile.isMemberPlus = Boolean(uData.isMemberPlus);
             if (uData.memberPlusSince !== undefined) userProfile.memberPlusSince = uData.memberPlusSince;
-            if (uData.memberPlusExpiresAt !== undefined) userProfile.memberPlusExpiresAt = uData.memberPlusExpiresAt;
+            if (uData.memberPlusExpiresAt !== undefined) userProfile.memberPlusExpiresAt = Number(uData.memberPlusExpiresAt || 0);
+            if (uData.isMemberPlus === false) {
+                userProfile.memberPlusExpiresAt = 0;
+            }
 
             const nowMpActive = isUserMemberPlusActive();
             const newExpMs = Number(userProfile.memberPlusExpiresAt || 0);
@@ -1100,6 +1110,12 @@ function listenDeletedAccountStatus(uid) {
                 if (typeof window.showMemberPlusWelcomeAnimation === 'function') {
                     window.showMemberPlusWelcomeAnimation(newExpMs);
                 }
+            } else if (initialUserDocLoaded && wasMpActive && !nowMpActive) {
+                window.refreshRealtimeMemberPlusUI();
+                window.showToast('Status Member Plus Berakhir', 'Status langganan Member Plus pada akun kamu telah dinonaktifkan.', 'warning');
+            } else if (initialUserDocLoaded && wasMpActive && !nowMpActive) {
+                window.refreshRealtimeMemberPlusUI();
+                window.showToast('Status Member Plus Berakhir', 'Status langganan Member Plus pada akun kamu telah dinonaktifkan.', 'warning');
             }
             initialUserDocLoaded = true;
 
@@ -1918,7 +1934,7 @@ async function tryAutoDeliverOrderFromVault(orderData, orderDbId) {
         // 2. Jika produk menggunakan jalur Otomatis Digiflazz (Prabayar / Pascabayar)
         if (procType === 'digiflazz' || procType === 'digiflazz_pasca' || item.isDigiflazz === true || Boolean(item.buyerSkuCode || orderData.digiflazzSku)) {
             if (siteSettings.digiflazzAutoHitOnPaid !== false) {
-                const dfOk = await executeClientDigiflazzOrder(orderData, orderDbId);
+                const dfOk = await enqueueClientDigiflazzOrder(orderData, orderDbId);
                 return dfOk;
             }
             return false;
@@ -3743,6 +3759,29 @@ window.openDirectBuyModal = function(brandName) {
         selectedProductForBuy = brandObj.items[0];
     }
 
+    // Sembunyikan pilih jumlah (qty) jika produk adalah produk Digiflazz
+    const isDfBrandDefault = Boolean(
+        firstItem.isDigiflazz === true ||
+        firstItem.processType === 'digiflazz' ||
+        firstItem.processType === 'digiflazz_pasca' ||
+        firstItem.processType === 'ewallet_custom' ||
+        firstItem.buyerSkuCode
+    );
+    const qtyBarEl = document.getElementById('buy-qty-control-bar');
+    if (qtyBarEl) {
+        qtyBarEl.style.display = isDfBrandDefault ? 'none' : 'flex';
+    }
+
+    // Render chip riwayat nomor/ID tujuan terakhir (1-klik isi otomatis)
+    window.renderRecentTargetChipsForBrand(brandObj, inpType);
+
+    // Tutup bottom-sheet pembayaran mobile terlebih dahulu sampai user memilih variasi (kecuali pascabayar)
+    if (isPascaBrand) {
+        window.openMobilePaymentSheet();
+    } else {
+        window.closeMobilePaymentSheet();
+    }
+
     window.calculateDirectBuyTotal();
     window.renderReviewsUI();
     window.switchMainTab('checkout');
@@ -3816,20 +3855,39 @@ window.selectItemToBuy = function(dbId) {
 
     const qtyInput = document.getElementById('buy-qty');
     const qtySub = document.getElementById('buy-qty-subtext');
+    const qtyBar = document.getElementById('buy-qty-control-bar');
+    const isDfVariant = Boolean(
+        selectedProductForBuy.isDigiflazz === true ||
+        procType === 'digiflazz' ||
+        procType === 'digiflazz_pasca' ||
+        procType === 'ewallet_custom' ||
+        selectedProductForBuy.buyerSkuCode
+    );
 
-    if (procType === 'ewallet_custom') {
-        qtyInput.value = 1;
-        if (qtySub) qtySub.innerText = '1x Transaksi Bebas Nominal';
-    } else if (typeof availQuota === 'number' && availQuota < 999) {
-        if (qtySub) qtySub.innerText = `Tersedia ${availQuota} stok`;
-        if (parseInt(qtyInput.value) > availQuota) {
-            qtyInput.value = Math.max(1, availQuota);
+    if (isDfVariant) {
+        if (qtyInput) qtyInput.value = 1;
+        if (qtyBar) qtyBar.style.display = 'none';
+    } else {
+        if (qtyBar) qtyBar.style.display = 'flex';
+        if (typeof availQuota === 'number' && availQuota < 999) {
+            if (qtySub) qtySub.innerText = `Tersedia ${availQuota} stok`;
+            if (parseInt(qtyInput.value) > availQuota) {
+                qtyInput.value = Math.max(1, availQuota);
+            }
+        } else if (qtySub) {
+            qtySub.innerText = 'Kuantitas item';
         }
-    } else if (qtySub) {
-        qtySub.innerText = 'Kuantitas item';
     }
-    
+
+    const mobVarLbl = document.getElementById('mobile-selected-variant-label');
+    if (mobVarLbl) {
+        const effPrice = getEffectiveUserVariantPrice(selectedProductForBuy);
+        mobVarLbl.style.display = 'block';
+        mobVarLbl.innerText = `${selectedProductForBuy.name} • Rp${effPrice.toLocaleString('id-ID')}`;
+    }
+
     window.calculateDirectBuyTotal();
+    window.openMobilePaymentSheet();
 };
 
 window.selectPaymentUI = function(val, el) {
@@ -4592,6 +4650,14 @@ window.confirmAndExecuteCheckout = async function() {
     }
 
     saveActiveSessionContact(p.emailInput);
+    if (p.pidVal && currentCheckoutBrand) {
+        window.saveRecentTargetForBrand(currentCheckoutBrand.type, currentCheckoutBrand.brandName, p.pidVal, p.zolVal || '');
+    }
+    window.closeMobilePaymentSheet();
+    if (p.pidVal && currentCheckoutBrand) {
+        window.saveRecentTargetForBrand(currentCheckoutBrand.type, currentCheckoutBrand.brandName, p.pidVal, p.zolVal || '');
+    }
+    window.closeMobilePaymentSheet();
 
     let uniqueCode = 0;
     if (paymentMethod === 'qris' && p.baseTotal > 0) {
@@ -5231,7 +5297,10 @@ function buildCompactOrderItemHTML(order) {
         </div>
         <div class="order-compact-right">
             <span class="order-compact-price">Rp${(order.finalTotal || 0).toLocaleString('id-ID')}</span>
-            <span class="order-tap-hint">Rincian <i class="fa-solid fa-chevron-right"></i></span>
+            <div style="display:flex; align-items:center; gap:6px; margin-top:3px;">
+                ${!isUnpaid && item.brandName && !order.isTopupOrder && !order.isMemberPlusOrder ? `<button type="button" class="btn btn-primary btn-sm" style="padding:2px 8px; min-height:22px; font-size:0.64rem;" onclick="event.stopPropagation(); window.reorderFromHistory('${escapeJsStr(order.id)}')"><i class="fa-solid fa-rotate-right"></i> Beli Lagi</button>` : ''}
+                <span class="order-tap-hint">Rincian <i class="fa-solid fa-chevron-right"></i></span>
+            </div>
         </div>
     </div>`;
 }
@@ -8711,18 +8780,22 @@ function isUserMemberPlusActive() {
     const isMember = Boolean(currentUser && !currentUser.isAnonymous && !userProfile.isGuest);
     if (!isMember) return false;
     if (siteSettings.memberPlusEnabled === false) return false;
+    if (userProfile.isMemberPlus === false) return false;
+
     const expMs = Number(userProfile.memberPlusExpiresAt || 0);
     if (expMs > Date.now()) {
         return true;
     }
-    if (userProfile.isMemberPlus === true && expMs === 0) {
+    if (userProfile.isMemberPlus === true && expMs === 0 && !userProfile.memberPlusRevokedAt) {
         return true;
     }
-    if (Array.isArray(orders) && orders.length > 0) {
+    if (userProfile.isMemberPlus === undefined && Array.isArray(orders) && orders.length > 0) {
         const myUid = currentUser?.uid || userProfile?.uid || '';
         const myEmail = String(userProfile?.email || currentUser?.email || '').toLowerCase();
         const activeSubOrder = orders.find(o =>
             o && o.status === 'SUCCESS' &&
+            o.memberPlusActivated !== false &&
+            o.subscriptionStatus !== 'REVOKED' &&
             (o.isMemberPlusOrder === true || o.orderType === 'MEMBER_PLUS_SUB') &&
             Number(o.subscriptionEndAt || 0) > Date.now() &&
             ((myUid && o.userId === myUid) || (myEmail && String(o.userEmail || '').toLowerCase() === myEmail))
@@ -8820,6 +8893,7 @@ async function activateClientMemberPlusOrder(orderData, orderDbId) {
                 isMemberPlus: true,
                 memberPlusSince: sinceMs,
                 memberPlusExpiresAt: nextExp,
+                memberPlusRevokedAt: 0,
                 updatedAt: nowMs
             }, { merge: true });
 
@@ -9532,14 +9606,18 @@ window.renderMpPriceComparisonTable = function() {
 };
 
 window.toggleMemberPlusPromoTab = function(forceOpen = null) {
-    const bodyEl = document.getElementById('memberplus-promo-collapse-body');
-    const txtEl = document.getElementById('btn-toggle-mp-promo-text');
+    const bodyEl = document.getElementById('memberplus-exclusive-promos-tab-body') || document.getElementById('memberplus-promo-collapse-body');
+    const txtEl = document.getElementById('text-toggle-mp-promos') || document.getElementById('btn-toggle-mp-promo-text');
+    const iconEl = document.getElementById('icon-toggle-mp-promos');
     if (!bodyEl) return;
     const isCurrentlyOpen = bodyEl.style.display !== 'none';
     const nextOpen = (forceOpen !== null) ? Boolean(forceOpen) : !isCurrentlyOpen;
     bodyEl.style.display = nextOpen ? 'block' : 'none';
     if (txtEl) {
         txtEl.innerText = nextOpen ? 'Tutup Kode Promo' : 'Lihat Kode Promo';
+    }
+    if (iconEl) {
+        iconEl.className = nextOpen ? 'fa-solid fa-chevron-up' : 'fa-solid fa-chevron-down';
     }
     if (nextOpen) {
         window.renderMemberPlusExclusivePromos();
@@ -9557,46 +9635,69 @@ window.renderMemberPlusExclusivePromos = function() {
         return;
     }
 
-    const mpPromos = (Array.isArray(promos) ? promos : []).filter(p => p && p.code && p.isActive !== false);
+    const todayIso = new Date().toISOString().slice(0, 10);
+    const mpPromos = (Array.isArray(promos) ? promos : []).filter(p => {
+        if (!p || !p.code) return false;
+        if (p.active === false || p.isActive === false) return false;
+        if (p.expiryDate && p.expiryDate < todayIso) return false;
+        if (p.maxUses && Number(p.usedCount || 0) >= Number(p.maxUses)) return false;
+        return true;
+    });
+
     if (countSubEl) {
         countSubEl.innerText = mpPromos.length > 0
-            ? `${mpPromos.length} kode promo aktif siap disalin`
-            : 'Diskon harga otomatis aktif di semua produk';
+            ? `${mpPromos.length} kode promo aktif tersedia untuk Member Plus`
+            : 'Diskon harga otomatis aktif di seluruh produk';
     }
 
     if (mpPromos.length === 0) {
         boxEl.innerHTML = `
             <div style="padding:12px; border-radius:10px; background:var(--card-bg); border:1.5px dashed #d97706; font-size:0.8rem; font-weight:700; color:var(--text);">
-                Saat ini belum ada kode voucher tambahan. Potongan harga Member Plus sudah otomatis diterapkan di seluruh produk.
+                Saat ini belum ada kode promo tambahan. Potongan harga Member Plus otomatis aktif di seluruh katalog.
             </div>`;
         return;
     }
 
-    const cardsHtml = mpPromos.map(p => {
+    const rowsHtml = mpPromos.map(p => {
         const codeStr = String(p.code || '').toUpperCase();
-        const discVal = Number(p.discount || p.discountAmount || p.amount || 0);
-        const isPct = (p.type === 'percent' || p.discountType === 'percent' || discVal <= 100);
-        const discLabel = isPct ? `Diskon ${discVal}%` : `Potongan Rp${discVal.toLocaleString('id-ID')}`;
+        const discVal = Number(p.amount || p.discount || p.discountAmount || 0);
+        const isPct = (p.type === 'percent' || p.discountType === 'percent');
+        const discLabel = isPct ? `${discVal}%` : `Rp${discVal.toLocaleString('id-ID')}`;
         const minOrderVal = Number(p.minOrder || p.minPurchase || 0);
-        const minLabel = minOrderVal > 0 ? `Min. belanja Rp${minOrderVal.toLocaleString('id-ID')}` : 'Tanpa minimal belanja';
+        const minLabel = minOrderVal > 0 ? `Rp${minOrderVal.toLocaleString('id-ID')}` : 'Tanpa Minimal';
+        const brandTarget = (!p.targetBrand || p.targetBrand === 'all') ? 'Semua Produk' : p.targetBrand;
         return `
-            <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; padding:10px 12px; background:var(--card-bg); border:2px solid #d97706; border-radius:10px;">
-                <div>
-                    <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
-                        <strong class="code-mono" style="font-size:0.88rem; color:#b45309;">${escapeHtml(codeStr)}</strong>
-                        <span class="brutal-tag tag-amber" style="font-size:0.65rem; padding:2px 7px;">${escapeHtml(discLabel)}</span>
-                    </div>
-                    <small style="font-size:0.72rem; color:var(--text-muted); font-weight:700; display:block; margin-top:2px;">${escapeHtml(minLabel)}</small>
-                </div>
-                <button type="button" class="btn btn-warning btn-sm" style="padding:5px 12px; min-height:30px; font-size:0.74rem; font-weight:900; color:#422006;" onclick="navigator.clipboard?.writeText('${escapeJsStr(codeStr)}'); window.showToast('Kode Disalin', 'Kode promo ${escapeJsStr(codeStr)} berhasil disalin.', 'success');">
-                    <i class="fa-regular fa-copy"></i> Salin Kode
-                </button>
-            </div>`;
+            <tr>
+                <td>
+                    <strong class="code-mono" style="font-size:0.86rem; color:#b45309; background:rgba(245,158,11,0.14); padding:3px 8px; border-radius:6px; border:1px solid #d97706;">${escapeHtml(codeStr)}</strong>
+                </td>
+                <td><span class="brutal-tag tag-amber" style="font-size:0.68rem;">Hemat ${escapeHtml(discLabel)}</span></td>
+                <td style="font-size:0.76rem; font-weight:700;">${escapeHtml(minLabel)}</td>
+                <td style="font-size:0.76rem; font-weight:700;">${escapeHtml(brandTarget)}</td>
+                <td style="text-align:right;">
+                    <button type="button" class="btn btn-warning btn-sm" style="padding:4px 10px; min-height:28px; font-size:0.72rem; font-weight:900; color:#422006;" onclick="navigator.clipboard?.writeText('${escapeJsStr(codeStr)}'); window.showToast('Kode Disalin', 'Kode promo ${escapeJsStr(codeStr)} berhasil disalin.', 'success');">
+                        <i class="fa-regular fa-copy"></i> Salin
+                    </button>
+                </td>
+            </tr>`;
     }).join('');
 
     boxEl.innerHTML = `
-        <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap:10px;">
-            ${cardsHtml}
+        <div class="mp-compare-table-wrap" style="margin-top:4px;">
+            <table class="mp-compare-table">
+                <thead>
+                    <tr>
+                        <th>Kode Promo</th>
+                        <th>Potongan</th>
+                        <th>Min. Belanja</th>
+                        <th>Produk</th>
+                        <th style="text-align:right;">Aksi</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${rowsHtml}
+                </tbody>
+            </table>
         </div>`;
 };
 
@@ -10764,6 +10865,271 @@ window.executeShareReceiptAction = async function(actionType) {
     triggerDirectPngDownload(cachedReceiptPngDataUrl, `Struk_Vipercell_${cleanInv}.png`);
     window.showToast('Gambar Struk Disimpan', `Gambar #${cleanInv}.png telah diunduh dan siap dikirim ke aplikasi lain.`, 'info');
 };
+
+// ============================================================================
+// PEMBARUAN v28.7: ANTRIAN TRANSAKSI, PROGRESS TOAST, BOTTOM-SHEET MOBILE,
+// PANEL PROFIL LIPAT, RIWAYAT NOMOR TUJUAN, & TOMBOL BELI LAGI
+// ============================================================================
+
+const clientDigiflazzQueue = [];
+let clientDigiflazzWorkerActive = false;
+
+async function enqueueClientDigiflazzOrder(orderData, orderDbId) {
+    return new Promise((resolve) => {
+        clientDigiflazzQueue.push({ orderData, orderDbId, resolve });
+        processClientDigiflazzQueue();
+    });
+}
+
+async function processClientDigiflazzQueue() {
+    if (clientDigiflazzWorkerActive || clientDigiflazzQueue.length === 0) return;
+    clientDigiflazzWorkerActive = true;
+    while (clientDigiflazzQueue.length > 0) {
+        const task = clientDigiflazzQueue.shift();
+        if (!task) continue;
+        try {
+            const ok = await executeClientDigiflazzOrder(task.orderData, task.orderDbId);
+            // Jika masih Pending setelah hit pertama, jadwalkan pengecekan cepat ke-2 setelah 61 detik
+            if (!ok && task.orderDbId) {
+                setTimeout(async () => {
+                    const latestOrd = orders.find(o => o.dbId === task.orderDbId);
+                    if (latestOrd && latestOrd.status === 'PENDING' && latestOrd.digiflazzStatus === 'Pending') {
+                        await executeClientDigiflazzOrder(latestOrd, task.orderDbId).catch(() => {});
+                    }
+                }, 61500);
+            }
+            task.resolve(ok);
+        } catch (_) {
+            task.resolve(false);
+        }
+        if (clientDigiflazzQueue.length > 0) {
+            await new Promise(r => setTimeout(r, 180));
+        }
+    }
+    clientDigiflazzWorkerActive = false;
+}
+
+// Progress Toast di Atas-Tengah (Otomatis Hilang Saat Selesai)
+window.showProgressToast = function(toastId, title, msg, pct = 15) {
+    const container = document.getElementById('toast-container');
+    if (!container) return;
+    const domId = `prog-toast-${toastId}`;
+    let toast = document.getElementById(domId);
+    const safePct = Math.max(5, Math.min(100, Math.round(Number(pct || 0))));
+    if (!toast) {
+        toast = document.createElement('div');
+        toast.id = domId;
+        toast.className = 'toast-item toast-info show';
+        toast.style.pointerEvents = 'auto';
+        toast.innerHTML = `
+            <div class="toast-icon"><i class="fa-solid fa-spinner fa-spin"></i></div>
+            <div class="toast-content" style="width:100%;">
+                <div style="display:flex; justify-content:space-between; align-items:center; gap:8px;">
+                    <h4 class="prog-toast-title">${escapeHtml(title)}</h4>
+                    <span class="prog-toast-pct" style="font-size:0.72rem; font-weight:900; color:var(--primary);">${safePct}%</span>
+                </div>
+                <p class="prog-toast-msg">${escapeHtml(msg)}</p>
+                <div style="width:100%; height:5px; background:var(--border-subtle); border-radius:99px; overflow:hidden; margin-top:5px;">
+                    <div class="prog-toast-fill" style="height:100%; width:${safePct}%; background:var(--primary); transition:width 0.22s ease;"></div>
+                </div>
+            </div>
+        `;
+        container.appendChild(toast);
+    } else {
+        const tEl = toast.querySelector('.prog-toast-title');
+        const mEl = toast.querySelector('.prog-toast-msg');
+        const pEl = toast.querySelector('.prog-toast-pct');
+        const fEl = toast.querySelector('.prog-toast-fill');
+        if (tEl) tEl.innerText = title;
+        if (mEl) mEl.innerText = msg;
+        if (pEl) pEl.innerText = `${safePct}%`;
+        if (fEl) fEl.style.width = `${safePct}%`;
+    }
+};
+
+window.finishProgressToast = function(toastId, doneTitle = '', doneMsg = '', type = 'success') {
+    const domId = `prog-toast-${toastId}`;
+    const toast = document.getElementById(domId);
+    if (toast) {
+        const pEl = toast.querySelector('.prog-toast-pct');
+        const fEl = toast.querySelector('.prog-toast-fill');
+        if (pEl) pEl.innerText = '100%';
+        if (fEl) fEl.style.width = '100%';
+        setTimeout(() => {
+            toast.classList.remove('show');
+            setTimeout(() => toast.remove(), 200);
+        }, 260);
+    }
+    if (doneTitle) {
+        window.showToast(doneTitle, doneMsg, type);
+    }
+};
+
+// Panel Lipat (Accordion) di Tab Profil User
+window.toggleProfileSectionPanel = function(bodyId, chevronId) {
+    const targetBody = document.getElementById(bodyId);
+    const targetChev = document.getElementById(chevronId);
+    if (!targetBody) return;
+    const isOpening = targetBody.style.display === 'none';
+
+    document.querySelectorAll('#tab-profil .prof-accordion-body').forEach(el => {
+        el.style.display = 'none';
+    });
+    document.querySelectorAll('#tab-profil .prof-accordion-chevron').forEach(ic => {
+        ic.style.transform = 'rotate(0deg)';
+    });
+
+    if (isOpening) {
+        targetBody.style.display = 'block';
+        if (targetChev) targetChev.style.transform = 'rotate(180deg)';
+    }
+};
+
+// Bottom-Sheet Pembayaran Mobile Saat Memilih Varian
+window.openMobilePaymentSheet = function() {
+    const sheet = document.getElementById('checkout-side-col-sheet');
+    const backdrop = document.getElementById('mobile-checkout-sheet-backdrop');
+    if (!sheet) return;
+    if (window.innerWidth <= 768) {
+        sheet.classList.add('mobile-sheet-open');
+        if (backdrop) backdrop.classList.add('active');
+    }
+};
+
+window.closeMobilePaymentSheet = function() {
+    const sheet = document.getElementById('checkout-side-col-sheet');
+    const backdrop = document.getElementById('mobile-checkout-sheet-backdrop');
+    if (sheet) sheet.classList.remove('mobile-sheet-open');
+    if (backdrop) backdrop.classList.remove('active');
+};
+
+// Riwayat Nomor / ID Tujuan Terakhir (1-Klik Isi Otomatis)
+window.saveRecentTargetForBrand = function(type, brandName, pidVal, zolVal = '') {
+    const cleanId = String(pidVal || '').trim();
+    if (!cleanId || cleanId.length < 3) return;
+    const key = `vipercell_recent_targets_${String(type || 'all').toLowerCase()}`;
+    try {
+        const raw = localStorage.getItem(key);
+        let list = raw ? JSON.parse(raw) : [];
+        if (!Array.isArray(list)) list = [];
+        list = list.filter(x => !(x.id === cleanId && (x.zone || '') === String(zolVal || '').trim()));
+        list.unshift({
+            id: cleanId,
+            zone: String(zolVal || '').trim(),
+            brand: brandName || '',
+            ts: Date.now()
+        });
+        localStorage.setItem(key, JSON.stringify(list.slice(0, 5)));
+    } catch (_) {}
+};
+
+window.applyRecentTargetChip = function(idVal, zoneVal = '') {
+    const idInp = document.getElementById('buy-id');
+    const zoneInp = document.getElementById('buy-zone');
+    if (idInp) {
+        idInp.value = idVal;
+        idInp.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+    if (zoneInp && zoneVal) {
+        zoneInp.value = zoneVal;
+        zoneInp.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+    window.showToast('Tujuan Diisi', `Nomor/ID ${idVal}${zoneVal ? ` (${zoneVal})` : ''} berhasil diisi.`, 'info');
+};
+
+window.renderRecentTargetChipsForBrand = function(brandObj, inpType) {
+    const fieldsBox = document.getElementById('buy-detail-fields');
+    if (!fieldsBox || !brandObj || inpType === 'none') return;
+    const key = `vipercell_recent_targets_${String(brandObj.type || 'all').toLowerCase()}`;
+    let list = [];
+    try {
+        list = JSON.parse(localStorage.getItem(key) || '[]');
+    } catch (_) {}
+    if (!Array.isArray(list) || list.length === 0) return;
+
+    const chipsHtml = list.slice(0, 4).map(item => {
+        const label = item.zone ? `${item.id} (${item.zone})` : item.id;
+        return `<button type="button" class="recent-target-chip" onclick="window.applyRecentTargetChip('${escapeJsStr(item.id)}', '${escapeJsStr(item.zone || '')}')">
+            <i class="fa-solid fa-clock-rotate-left"></i> <span>${escapeHtml(label)}</span>
+        </button>`;
+    }).join('');
+
+    const wrap = document.createElement('div');
+    wrap.className = 'recent-targets-strip';
+    wrap.innerHTML = `<span class="recent-targets-label">Terakhir dipakai:</span><div class="recent-targets-chips">${chipsHtml}</div>`;
+    fieldsBox.appendChild(wrap);
+};
+
+// Tombol "Beli Lagi" 1-Klik dari Riwayat Pesanan
+window.reorderFromHistory = function(invId) {
+    const cleanInv = String(invId || '').trim().replace(/^#/, '').toUpperCase();
+    const ord = orders.find(o => String(o.id || '').toUpperCase() === cleanInv);
+    if (!ord) return;
+    const item = (ord.items && ord.items[0]) ? ord.items[0] : {};
+    const brandName = item.brandName || ord.productName || '';
+    if (!brandName) return;
+
+    window.closeModal('modal-order-detail');
+    window.openDirectBuyModal(brandName);
+
+    setTimeout(() => {
+        const rawTarget = String(ord.digiflazzCustomerNo || ord.targetId || item.playerInfo || '').trim();
+        const idZoneMatch = rawTarget.match(/ID\s*:\s*([^\s|]+)\s*\|\s*Zone\s*:\s*([^\s|(]+)/i);
+        const parenMatch = rawTarget.match(/^([0-9a-zA-Z_-]+)\s*\(\s*([0-9a-zA-Z_-]+)\s*\)$/);
+        const idInp = document.getElementById('buy-id');
+        const zoneInp = document.getElementById('buy-zone');
+
+        if (idZoneMatch && idInp) {
+            idInp.value = idZoneMatch[1].trim();
+            if (zoneInp) zoneInp.value = idZoneMatch[2].trim();
+            idInp.dispatchEvent(new Event('input', { bubbles: true }));
+        } else if (parenMatch && idInp && zoneInp) {
+            idInp.value = parenMatch[1].trim();
+            zoneInp.value = parenMatch[2].trim();
+            idInp.dispatchEvent(new Event('input', { bubbles: true }));
+        } else if (idInp) {
+            let cleanT = rawTarget.replace(/^(Tujuan|ID\s*Player|ID\s*PLN|ID|Target|No\.?\s*Pelanggan|No\.?\s*Meter|No\.?\s*HP|No\.?\s*[^:]+)\s*:\s*/i, '').trim();
+            if (cleanT.includes(' (')) cleanT = cleanT.split(' (')[0].trim();
+            if (cleanT && !cleanT.includes('@')) {
+                idInp.value = cleanT;
+                idInp.dispatchEvent(new Event('input', { bubbles: true }));
+            }
+        }
+
+        if (item.productDbId) {
+            const matchedVar = currentCheckoutBrand?.items?.find(x => x.dbId === item.productDbId || x.name === item.exactItemName);
+            if (matchedVar) {
+                window.selectItemToBuy(matchedVar.dbId);
+            }
+        }
+    }, 120);
+};
+
+// Indikator Loading Otomatis pada Tombol Aksi
+document.addEventListener('click', (e) => {
+    const btn = e.target && e.target.closest ? e.target.closest('button.btn') : null;
+    if (!btn || btn.disabled || btn.dataset.loadingActive === '1') return;
+    const onclickAttr = String(btn.getAttribute('onclick') || '');
+    const isAsyncAction = /saveUserProfile|saveUserTransactionPin|sendProfileResetPassword|trackOrder|applyPromoDirect|refreshCatalogData|refreshOrderData|userCheckPlnSubscriber|userCheckPascaBill|userCheckEwalletAccount/.test(onclickAttr);
+    if (!isAsyncAction) return;
+
+    btn.dataset.loadingActive = '1';
+    const prevHtml = btn.innerHTML;
+    btn.style.opacity = '0.85';
+    const hasSpinner = prevHtml.includes('fa-spin');
+    if (!hasSpinner) {
+        btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> ` + prevHtml;
+    }
+    setTimeout(() => {
+        if (btn.dataset.loadingActive === '1') {
+            btn.dataset.loadingActive = '0';
+            btn.style.opacity = '';
+            if (!btn.disabled && btn.innerHTML.includes('fa-spinner')) {
+                btn.innerHTML = prevHtml;
+            }
+        }
+    }, 950);
+}, true);
 
 // Jalankan Inisialisasi Aplikasi setelah seluruh fungsi dan modul siap
 if (document.readyState === 'loading') {
