@@ -822,22 +822,27 @@
                         <!-- Kolom Kanan / Bottom-Sheet Pembayaran Mobile -->
                         <div class="checkout-side-col" id="checkout-side-col-sheet">
                             <div class="checkout-step-card sticky-checkout-box" id="checkout-step-03-card">
-                                <div class="mobile-sheet-drag-handle" onclick="window.closeMobilePaymentSheet()"></div>
-                                <div class="step-header" style="justify-content:space-between;">
-                                    <div style="display:flex; align-items:center; gap:10px;">
-                                        <span class="step-num">03</span>
-                                        <div>
-                                            <h4 style="margin:0;">Pembayaran</h4>
-                                            <small id="mobile-selected-variant-label" style="font-size:0.74rem; font-weight:800; color:var(--primary); display:none;"></small>
+                                <!-- Header Panel Pembayaran Tetap (Tidak Ikut Bergeser Saat Digulir) -->
+                                <div class="sheet-sticky-top-bar">
+                                    <div class="mobile-sheet-drag-handle" onclick="window.closeMobilePaymentSheet()"></div>
+                                    <div class="step-header" style="justify-content:space-between; margin-bottom:0;">
+                                        <div style="display:flex; align-items:center; gap:10px; min-width:0;">
+                                            <span class="step-num">03</span>
+                                            <div style="min-width:0;">
+                                                <h4 style="margin:0;">Pembayaran</h4>
+                                                <small id="mobile-selected-variant-label" style="font-size:0.74rem; font-weight:800; color:var(--primary); display:none; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;"></small>
+                                            </div>
                                         </div>
+                                        <button type="button" id="btn-close-mobile-pay-sheet" class="btn-icon-only mobile-only-close-sheet" onclick="window.closeMobilePaymentSheet()" aria-label="Tutup Panel Pembayaran">
+                                            <i class="fa-solid fa-xmark"></i>
+                                        </button>
                                     </div>
-                                    <button type="button" id="btn-close-mobile-pay-sheet" class="btn-icon-only mobile-only-close-sheet" onclick="window.closeMobilePaymentSheet()" aria-label="Tutup Panel Pembayaran">
-                                        <i class="fa-solid fa-xmark"></i>
-                                    </button>
                                 </div>
 
-                                <!-- Validasi Otomatis Username / ID Pelanggan Langsung di Panel Pembayaran -->
-                                <div id="sheet-target-validation-box" class="sheet-target-validation-card" style="display:none;"></div>
+                                <!-- Isi Panel Pembayaran yang Dapat Digulir Mulus -->
+                                <div class="sheet-scrollable-content" id="checkout-sheet-scroll-body">
+                                    <!-- Validasi Otomatis Username / ID Pelanggan Langsung di Panel Pembayaran -->
+                                    <div id="sheet-target-validation-box" class="sheet-target-validation-card" style="display:none;"></div>
                                 
                                 <div class="qty-control-bar" id="buy-qty-control-bar">
                                     <div>
@@ -957,6 +962,7 @@
                                 <button aria-label="Beli Sekarang" id="btn-process-buy" class="btn btn-primary btn-checkout-submit" onclick="window.processDirectCheckout()" disabled>
                                     <i class="fa-solid fa-cart-shopping"></i> <span id="btn-process-text">Pilih Variasi</span>
                                 </button>
+                                </div>
                             </div>
                         </div>
                     </div>

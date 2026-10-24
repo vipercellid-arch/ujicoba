@@ -407,25 +407,20 @@ header {
     display: none;
     padding: 1.5rem 1.15rem 3rem;
     opacity: 0;
-    transform: translate3d(0, 6px, 0);
-    contain: layout style;
 }
 
 .main-tab-content.active {
     display: block;
     opacity: 1;
-    transform: translate3d(0, 0, 0);
-    animation: tabSmoothEnter 0.18s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+    animation: tabSmoothEnter 0.18s ease-out forwards;
 }
 
 @keyframes tabSmoothEnter {
     0% {
         opacity: 0;
-        transform: translate3d(0, 6px, 0);
     }
     100% {
         opacity: 1;
-        transform: translate3d(0, 0, 0);
     }
 }
 
@@ -6006,5 +6001,192 @@ body.mobile-sheet-locked {
         -webkit-overflow-scrolling: touch !important;
         max-height: 86dvh !important;
         padding: 12px 14px calc(20px + env(safe-area-inset-bottom, 0px)) 14px !important;
+    }
+}
+
+
+/* ==========================================================================
+   PEMBARUAN MATANG PANEL PEMBAYARAN MOBILE (STICKY HEADER + SMOOTH SCROLL),
+   ANIMASI CEK TAGIHAN PASCABAYAR, & INDIKATOR TOMBOL AKTIF DI SETIAP TOMBOL
+   ========================================================================== */
+
+/* Desktop: Header & Body di dalam kartu pembayaran tampil menyatu normal */
+.sheet-sticky-top-bar {
+    margin-bottom: 1rem;
+}
+
+.sheet-scrollable-content {
+    display: block;
+}
+
+/* Indikator Tekan & Bekerja di Setiap Tombol (Semua Tombol Memiliki Umpan Balik Aktif) */
+button,
+.btn,
+.type-card,
+.item-card,
+.brand-card,
+.bantuan-subtab-btn,
+.tab-btn,
+.topup-nom-chip,
+.recent-target-chip {
+    position: relative;
+    transition: transform 0.14s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.14s ease, filter 0.14s ease;
+}
+
+.btn-tap-pressed {
+    transform: translateY(2px) scale(0.985) !important;
+    filter: brightness(0.96);
+}
+
+.btn-working-indicator {
+    pointer-events: none;
+    overflow: hidden !important;
+}
+
+.btn-working-indicator::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    bottom: 0;
+    height: 3.5px;
+    width: 45%;
+    background: linear-gradient(90deg, rgba(255,255,255,0.2), #facc15, #ffffff, rgba(255,255,255,0.2));
+    border-radius: 99px;
+    animation: btnBottomWorkBar 0.75s infinite ease-in-out;
+}
+
+@keyframes btnBottomWorkBar {
+    0% { left: -45%; width: 40%; }
+    50% { left: 30%; width: 55%; }
+    100% { left: 100%; width: 40%; }
+}
+
+/* Efek Muncul Mulus (Smooth Reveal) Hasil Cek Tagihan Pascabayar */
+@keyframes pascaSmoothReveal {
+    0% {
+        opacity: 0;
+        transform: translateY(10px) scale(0.985);
+    }
+    100% {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+.pasca-smooth-enter {
+    animation: pascaSmoothReveal 0.28s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+@media (max-width: 768px) {
+    /* Hapus kuncian touch-action: none pada body agar panel pembayaran di dalamnya bebas digulir mulus */
+    body.mobile-sheet-locked {
+        overflow: hidden !important;
+        touch-action: auto !important;
+    }
+
+    /* Backdrop gelap di belakang panel pembayaran (menutup ~18% bagian atas layar agar tidak memenuhi layar) */
+    #mobile-checkout-sheet-backdrop {
+        position: fixed !important;
+        inset: 0 !important;
+        width: 100vw !important;
+        height: 100dvh !important;
+        background: rgba(15, 23, 42, 0.62) !important;
+        backdrop-filter: blur(2.5px) !important;
+        z-index: 9985 !important;
+        touch-action: none !important;
+    }
+
+    /* Container Bottom-Sheet Pembayaran selalu menempel di viewport layar HP (bukan dokumen) */
+    #checkout-side-col-sheet {
+        position: fixed !important;
+        left: 0 !important;
+        right: 0 !important;
+        bottom: 0 !important;
+        top: auto !important;
+        width: 100vw !important;
+        max-width: 100vw !important;
+        z-index: 9990 !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        transform: translate3d(0, 105%, 0) !important;
+        transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1) !important;
+        pointer-events: none !important;
+    }
+
+    #checkout-side-col-sheet.mobile-sheet-open {
+        transform: translate3d(0, 0, 0) !important;
+        pointer-events: auto !important;
+    }
+
+    /* Kartu Panel Pembayaran terbuka dari bawah ke atas hingga maks 82% tinggi layar (tidak menutupi seluruh layar) */
+    #checkout-side-col-sheet #checkout-step-03-card {
+        display: flex !important;
+        flex-direction: column !important;
+        width: 100% !important;
+        max-height: 82dvh !important;
+        min-height: 48dvh !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        border-radius: 22px 22px 0 0 !important;
+        border-top: 3px solid var(--border) !important;
+        border-left: none !important;
+        border-right: none !important;
+        border-bottom: none !important;
+        background: var(--surface) !important;
+        box-shadow: 0 -10px 32px rgba(15, 23, 42, 0.35) !important;
+        overflow: hidden !important;
+    }
+
+    /* Header Panel Pembayaran (Nama Panel & Tombol X) Tetap di Atas dan Tidak Ikut Bergeser Saat Digulir */
+    #checkout-side-col-sheet .sheet-sticky-top-bar {
+        flex: 0 0 auto !important;
+        position: relative !important;
+        z-index: 10 !important;
+        background: var(--surface) !important;
+        padding: 10px 16px 12px 16px !important;
+        margin: 0 !important;
+        border-bottom: 2px solid var(--border-subtle) !important;
+        box-shadow: 0 2px 8px rgba(15, 23, 42, 0.06) !important;
+        touch-action: none !important;
+    }
+
+    #checkout-side-col-sheet .mobile-sheet-drag-handle {
+        display: block !important;
+        width: 46px !important;
+        height: 5px !important;
+        border-radius: 99px !important;
+        background: var(--border-subtle) !important;
+        margin: 0 auto 10px auto !important;
+    }
+
+    #checkout-side-col-sheet #btn-close-mobile-pay-sheet {
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        width: 36px !important;
+        height: 36px !important;
+        border-radius: 10px !important;
+        border: 2px solid var(--border) !important;
+        background: var(--bg) !important;
+        color: var(--text) !important;
+        font-size: 1rem !important;
+        flex-shrink: 0 !important;
+        box-shadow: 2px 2px 0px var(--border) !important;
+    }
+
+    #checkout-side-col-sheet #btn-close-mobile-pay-sheet:active {
+        transform: translate(1px, 1px) !important;
+        box-shadow: none !important;
+    }
+
+    /* Area Isi Pembayaran yang Dapat Digulir Mulus dari Atas ke Bawah */
+    #checkout-side-col-sheet .sheet-scrollable-content {
+        flex: 1 1 auto !important;
+        overflow-y: auto !important;
+        overflow-x: hidden !important;
+        -webkit-overflow-scrolling: touch !important;
+        overscroll-behavior: contain !important;
+        touch-action: pan-y !important;
+        padding: 14px 16px calc(24px + env(safe-area-inset-bottom, 0px)) 16px !important;
     }
 }
