@@ -38,7 +38,7 @@
     <noscript><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"></noscript>
     
     <!-- Stylesheet Utama -->
-    <link rel="stylesheet" href="css/main.css?v=28.8">
+    <link rel="stylesheet" href="css/main.css?v=28.9">
     
     <!-- Library QR Code, Barcode & Unduh Struk (Defer Non-Blocking) -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js" defer></script>
@@ -164,10 +164,10 @@
                 <a onclick="window.switchMainTab('katalog')" id="nav-katalog" class="active" role="button">
                     <i class="fa-solid fa-store"></i> <span>Katalog</span>
                 </a>
-                <a onclick="window.switchMainTab('topup')" id="nav-topup" role="button">
+                <a onclick="window.switchMainTab('topup')" id="nav-topup" role="button" style="display:none !important;" aria-hidden="true">
                     <i class="fa-solid fa-wallet"></i> <span>Isi Saldo</span>
                 </a>
-                <a onclick="window.switchMainTab('memberplus')" id="nav-memberplus" role="button">
+                <a onclick="window.switchMainTab('memberplus')" id="nav-memberplus" role="button" style="display:none !important;" aria-hidden="true">
                     <i class="fa-solid fa-crown"></i> <span>Member Plus</span>
                 </a>
                 <a onclick="window.switchMainTab('pesanan')" id="nav-pesanan" role="button">
@@ -240,21 +240,29 @@
                 </div>
 
                 <div class="greeting-right-col">
-                    <!-- Kotak Saldo Akun (Khusus Member) -->
-                    <div id="greeting-wallet-box" class="greeting-wallet-card" style="display: none;">
+                    <!-- Kotak Saldo Akun (Khusus Member - Klik untuk Cek Saldo & Isi Saldo) -->
+                    <div id="greeting-wallet-box" class="greeting-wallet-card" style="display: none; cursor: pointer;" onclick="window.switchMainTab('topup')" title="Klik untuk Cek Saldo & Riwayat Saldo">
                         <div class="greeting-wallet-meta">
                             <span><i class="fa-solid fa-wallet text-primary"></i> SALDO AKUN</span>
                             <strong id="greeting-wallet-amount">Rp0</strong>
                         </div>
-                        <button type="button" class="btn btn-primary btn-sm" onclick="window.switchMainTab('topup')">
-                            <i class="fa-solid fa-circle-plus"></i> Isi Saldo
-                        </button>
+                        <div style="display:flex; gap:6px; align-items:center;">
+                            <button type="button" class="btn btn-outline btn-sm" style="padding:5px 9px; font-size:0.72rem;" onclick="event.stopPropagation(); window.openTopupBalanceModal('history')">
+                                <i class="fa-solid fa-clock-rotate-left"></i> Cek Saldo
+                            </button>
+                            <button type="button" class="btn btn-primary btn-sm" onclick="event.stopPropagation(); window.switchMainTab('topup')">
+                                <i class="fa-solid fa-circle-plus"></i> Isi Saldo
+                            </button>
+                        </div>
                     </div>
 
-                    <!-- Pintasan Langganan Member Plus / Upgrade Member -->
+                    <!-- Pintasan Langganan Member Plus / Cek Saldo / Riwayat -->
                     <div class="greeting-actions-strip">
-                        <button type="button" id="btn-greeting-memberplus" class="btn btn-warning btn-sm" onclick="window.switchMainTab('memberplus')">
+                        <button type="button" id="btn-greeting-memberplus" class="btn btn-warning btn-sm" onclick="window.openMemberPlusDashboardFromGreeting()">
                             <i class="fa-solid fa-crown"></i> <span id="btn-greeting-memberplus-text">Langganan Member Plus</span>
+                        </button>
+                        <button type="button" id="btn-greeting-check-balance" class="btn btn-outline btn-sm" style="display: none;" onclick="window.switchMainTab('topup')">
+                            <i class="fa-solid fa-wallet text-primary"></i> <span>Saldo Akun</span>
                         </button>
                         <button type="button" class="btn btn-outline btn-sm" onclick="window.switchMainTab('pesanan')">
                             <i class="fa-solid fa-receipt"></i> Riwayat Trx
@@ -1723,10 +1731,10 @@
         <a onclick="window.switchMainTab('katalog')" id="nav-bot-katalog" class="active" role="button">
             <i class="fa-solid fa-store"></i><span>Katalog</span>
         </a>
-        <a onclick="window.switchMainTab('topup')" id="nav-bot-topup" role="button">
+        <a onclick="window.switchMainTab('topup')" id="nav-bot-topup" role="button" style="display:none !important;" aria-hidden="true">
             <i class="fa-solid fa-wallet"></i><span>Saldo</span>
         </a>
-        <a onclick="window.switchMainTab('memberplus')" id="nav-bot-memberplus" role="button">
+        <a onclick="window.switchMainTab('memberplus')" id="nav-bot-memberplus" role="button" style="display:none !important;" aria-hidden="true">
             <i class="fa-solid fa-crown"></i><span>Member+</span>
         </a>
         <a onclick="window.switchMainTab('pesanan')" id="nav-bot-pesanan" role="button">
@@ -1854,75 +1862,100 @@
 
     <!-- POP-UP MODAL 5: KONFIRMASI PESANAN & CEK USERNAME/ID OTOMATIS SEBELUM BAYAR -->
     <div class="modal-overlay" id="modal-checkout-confirm">
-        <div class="modal-content" style="max-width: 480px;">
+        <div class="modal-content dana-pin-capable-modal" style="max-width: 460px;">
             <div class="bottom-sheet-drag-handle"></div>
-            <div class="modal-header">
-                <h2><i class="fa-solid fa-shield-check text-primary"></i> Konfirmasi Pesanan</h2>
-                <button class="close-btn" aria-label="Tutup" onclick="window.closeModal('modal-checkout-confirm')">
-                    <i class="fa-solid fa-xmark"></i>
-                </button>
-            </div>
 
-            <div id="chk-confirm-checkid-banner" class="brutal-alert-box alert-info" style="margin-bottom: 0.95rem; align-items: center; gap: 10px;">
-                <i class="fa-solid fa-spinner fa-spin" id="chk-confirm-checkid-icon"></i>
-                <div style="flex:1;">
-                    <strong id="chk-confirm-checkid-title" style="display:block; font-size:0.84rem;">Mengecek ID / Username Tujuan...</strong>
-                    <span id="chk-confirm-checkid-sub" style="font-size:0.75rem;">Mohon tunggu sebentar sebelum melanjutkan pembayaran.</span>
-                </div>
-            </div>
-
-            <div class="brutal-panel" style="padding: 0.95rem; margin-bottom: 1rem; background: var(--bg);">
-                <div class="qris-detail-row" style="padding: 6px 0; border-bottom: 1px dashed var(--border-subtle);">
-                    <span style="color:var(--text-muted); font-size:0.78rem;">Produk &amp; Layanan</span>
-                    <strong id="chk-confirm-product" style="font-size:0.84rem; text-align:right;">-</strong>
-                </div>
-                <div class="qris-detail-row" style="padding: 6px 0; border-bottom: 1px dashed var(--border-subtle);">
-                    <span style="color:var(--text-muted); font-size:0.78rem;">Variasi / Nominal</span>
-                    <strong id="chk-confirm-variant" style="font-size:0.84rem; text-align:right; color:var(--primary);">-</strong>
-                </div>
-                <div class="qris-detail-row" style="padding: 6px 0; border-bottom: 1px dashed var(--border-subtle);">
-                    <span style="color:var(--text-muted); font-size:0.78rem;">ID / Nomor Tujuan</span>
-                    <strong id="chk-confirm-target" class="code-mono" style="font-size:0.85rem; text-align:right;">-</strong>
-                </div>
-                <div class="qris-detail-row" id="chk-confirm-username-row" style="padding: 7px 0; border-bottom: 1px dashed var(--border-subtle);">
-                    <span style="color:var(--text-muted); font-size:0.78rem;">Username / Atas Nama</span>
-                    <strong id="chk-confirm-username" style="font-size:0.88rem; text-align:right; color:var(--success);">Mengecek...</strong>
-                </div>
-                <div class="qris-detail-row" id="chk-confirm-extra-row" style="display:none; padding: 6px 0; border-bottom: 1px dashed var(--border-subtle);">
-                    <span style="color:var(--text-muted); font-size:0.78rem;" id="chk-confirm-extra-label">Info Tambahan</span>
-                    <strong id="chk-confirm-extra-val" style="font-size:0.82rem; text-align:right;">-</strong>
-                </div>
-                <div class="qris-detail-row" style="padding: 6px 0; border-bottom: 1px dashed var(--border-subtle);">
-                    <span style="color:var(--text-muted); font-size:0.78rem;">Metode Pembayaran</span>
-                    <strong id="chk-confirm-paymethod" style="font-size:0.82rem; text-align:right;">-</strong>
-                </div>
-                <div class="qris-detail-row" style="padding: 8px 0 2px;">
-                    <span style="font-weight:900; font-size:0.85rem;">TOTAL BAYAR</span>
-                    <strong id="chk-confirm-total" style="font-size:1.15rem; font-weight:900; color:var(--primary);">Rp0</strong>
-                </div>
-            </div>
-
-            <!-- Panel PIN M-Banking 6 Titik & Keypad Angka Interaktif -->
-            <div id="chk-confirm-pin-box" class="mbanking-pin-panel" style="display:none; margin-bottom: 1rem;">
-                <div class="mbanking-pin-header">
-                    <span class="mbanking-pin-badge"><i class="fa-solid fa-shield-halved"></i> PIN TRANSAKSI SALDO</span>
-                    <button type="button" class="btn btn-outline btn-sm" style="padding:2px 8px; min-height:24px; font-size:0.68rem;" onclick="window.openForgotTrxPinModal()">
-                        <i class="fa-solid fa-key"></i> Lupa PIN?
+            <!-- TAHAP 1: KONFIRMASI RINCIAN PESANAN -->
+            <div id="chk-confirm-stage-details">
+                <div class="modal-header">
+                    <h2><i class="fa-solid fa-shield-check text-primary"></i> Konfirmasi Pesanan</h2>
+                    <button class="close-btn" aria-label="Tutup" onclick="window.closeModal('modal-checkout-confirm')">
+                        <i class="fa-solid fa-xmark"></i>
                     </button>
                 </div>
-                <input type="password" id="chk-confirm-trx-pin" maxlength="6" inputmode="none" autocomplete="off" style="position:absolute; opacity:0; pointer-events:none; width:1px; height:1px;">
-                <div id="chk-pin-dots-row" class="mbanking-pin-dots" onclick="window.focusMbankingPinPad()">
-                    <span class="pin-dot"></span>
-                    <span class="pin-dot"></span>
-                    <span class="pin-dot"></span>
-                    <span class="pin-dot"></span>
-                    <span class="pin-dot"></span>
-                    <span class="pin-dot"></span>
+
+                <div id="chk-confirm-checkid-banner" class="brutal-alert-box alert-info" style="margin-bottom: 0.95rem; align-items: center; gap: 10px;">
+                    <i class="fa-solid fa-spinner fa-spin" id="chk-confirm-checkid-icon"></i>
+                    <div style="flex:1;">
+                        <strong id="chk-confirm-checkid-title" style="display:block; font-size:0.84rem;">Mengecek ID / Username Tujuan...</strong>
+                        <span id="chk-confirm-checkid-sub" style="font-size:0.75rem;">Mohon tunggu sebentar.</span>
+                    </div>
                 </div>
-                <small id="chk-confirm-pin-helper" class="mbanking-pin-helper">
-                    Ketik 6 digit PIN menggunakan tombol angka di bawah atau keyboard fisik
-                </small>
-                <div class="mbanking-keypad-grid">
+
+                <div class="brutal-panel" style="padding: 0.95rem; margin-bottom: 1.1rem; background: var(--bg);">
+                    <div class="qris-detail-row" style="padding: 6px 0; border-bottom: 1px dashed var(--border-subtle);">
+                        <span style="color:var(--text-muted); font-size:0.78rem;">Produk &amp; Layanan</span>
+                        <strong id="chk-confirm-product" style="font-size:0.84rem; text-align:right;">-</strong>
+                    </div>
+                    <div class="qris-detail-row" style="padding: 6px 0; border-bottom: 1px dashed var(--border-subtle);">
+                        <span style="color:var(--text-muted); font-size:0.78rem;">Variasi / Nominal</span>
+                        <strong id="chk-confirm-variant" style="font-size:0.84rem; text-align:right; color:var(--primary);">-</strong>
+                    </div>
+                    <div class="qris-detail-row" style="padding: 6px 0; border-bottom: 1px dashed var(--border-subtle);">
+                        <span style="color:var(--text-muted); font-size:0.78rem;">ID / Nomor Tujuan</span>
+                        <strong id="chk-confirm-target" class="code-mono" style="font-size:0.85rem; text-align:right;">-</strong>
+                    </div>
+                    <div class="qris-detail-row" id="chk-confirm-username-row" style="padding: 7px 0; border-bottom: 1px dashed var(--border-subtle);">
+                        <span style="color:var(--text-muted); font-size:0.78rem;">Username / Atas Nama</span>
+                        <strong id="chk-confirm-username" style="font-size:0.88rem; text-align:right; color:var(--success);">Mengecek...</strong>
+                    </div>
+                    <div class="qris-detail-row" id="chk-confirm-extra-row" style="display:none; padding: 6px 0; border-bottom: 1px dashed var(--border-subtle);">
+                        <span style="color:var(--text-muted); font-size:0.78rem;" id="chk-confirm-extra-label">Info Tambahan</span>
+                        <strong id="chk-confirm-extra-val" style="font-size:0.82rem; text-align:right;">-</strong>
+                    </div>
+                    <div class="qris-detail-row" style="padding: 6px 0; border-bottom: 1px dashed var(--border-subtle);">
+                        <span style="color:var(--text-muted); font-size:0.78rem;">Metode Pembayaran</span>
+                        <strong id="chk-confirm-paymethod" style="font-size:0.82rem; text-align:right;">-</strong>
+                    </div>
+                    <div class="qris-detail-row" style="padding: 8px 0 2px;">
+                        <span style="font-weight:900; font-size:0.85rem;">TOTAL BAYAR</span>
+                        <strong id="chk-confirm-total" style="font-size:1.15rem; font-weight:900; color:var(--primary);">Rp0</strong>
+                    </div>
+                </div>
+
+                <div style="display:flex; gap:10px;">
+                    <button type="button" class="btn btn-outline" style="flex:1;" onclick="window.closeModal('modal-checkout-confirm')">
+                        Periksa Lagi
+                    </button>
+                    <button type="button" id="btn-confirm-proceed-pay" class="btn btn-primary" style="flex:1.4;" onclick="window.confirmAndExecuteCheckout()">
+                        <i class="fa-solid fa-check-circle"></i> <span>Lanjut Bayar</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- TAHAP 2: LAYAR PENUH MASUKKAN PIN ALA DANA (TANPA RINCIAN PESANAN DI ATASNYA) -->
+            <div id="chk-confirm-pin-box" class="dana-fullscreen-pin-stage" style="display:none;">
+                <div class="dana-pin-topbar">
+                    <button type="button" class="dana-pin-back-btn" onclick="window.backFromFullPinStageToDetails()" aria-label="Kembali">
+                        <i class="fa-solid fa-arrow-left"></i> <span>Kembali</span>
+                    </button>
+                    <span class="dana-pin-brand-pill"><i class="fa-solid fa-shield-halved"></i> VIPERCELL PIN</span>
+                    <button type="button" class="dana-pin-forgot-link" onclick="window.openForgotTrxPinModal()">
+                        Lupa PIN?
+                    </button>
+                </div>
+
+                <div class="dana-pin-center-hero">
+                    <div class="dana-pin-lock-badge">
+                        <i class="fa-solid fa-lock"></i>
+                    </div>
+                    <h3 class="dana-pin-main-title">Masukkan PIN Kamu</h3>
+                    <div class="dana-pin-amount-pill" id="chk-pin-fullscreen-amount-pill">Rp0</div>
+                    <input type="password" id="chk-confirm-trx-pin" maxlength="6" inputmode="none" autocomplete="off" style="position:absolute; opacity:0; pointer-events:none; width:1px; height:1px;">
+                    <div id="chk-pin-dots-row" class="mbanking-pin-dots dana-style-dots" onclick="window.focusMbankingPinPad()">
+                        <span class="pin-dot"></span>
+                        <span class="pin-dot"></span>
+                        <span class="pin-dot"></span>
+                        <span class="pin-dot"></span>
+                        <span class="pin-dot"></span>
+                        <span class="pin-dot"></span>
+                    </div>
+                    <small id="chk-confirm-pin-helper" class="mbanking-pin-helper">
+                        Masukkan 6 digit PIN Transaksi Saldo Akun
+                    </small>
+                </div>
+
+                <div class="mbanking-keypad-grid dana-style-keypad">
                     <button type="button" class="mbanking-key-btn" onclick="window.pressUserPinKeypad('1')">1</button>
                     <button type="button" class="mbanking-key-btn" onclick="window.pressUserPinKeypad('2')">2</button>
                     <button type="button" class="mbanking-key-btn" onclick="window.pressUserPinKeypad('3')">3</button>
@@ -1936,15 +1969,6 @@
                     <button type="button" class="mbanking-key-btn" onclick="window.pressUserPinKeypad('0')">0</button>
                     <button type="button" class="mbanking-key-btn key-fn" onclick="window.pressUserPinKeypad('BACK')" title="Hapus 1 Angka"><i class="fa-solid fa-delete-left"></i></button>
                 </div>
-            </div>
-
-            <div style="display:flex; gap:10px;">
-                <button type="button" class="btn btn-outline" style="flex:1;" onclick="window.closeModal('modal-checkout-confirm')">
-                    Periksa Lagi
-                </button>
-                <button type="button" id="btn-confirm-proceed-pay" class="btn btn-primary" style="flex:1.4;" onclick="window.confirmAndExecuteCheckout()">
-                    <i class="fa-solid fa-check-circle"></i> <span>Lanjut Bayar</span>
-                </button>
             </div>
         </div>
     </div>
@@ -2044,7 +2068,7 @@
     </div>
 
     <!-- Script Utama Web User -->
-    <script type="module" src="js/store.js?v=28.8"></script>
+    <script type="module" src="js/store.js?v=28.9"></script>
 
     <script>
         if ('serviceWorker' in navigator) {
