@@ -806,7 +806,7 @@ async function initializeAppWithLoader() {
     if (themeLbl) themeLbl.innerText = savedTheme === 'dark' ? 'Gelap' : 'Terang';
 
     const savedSessionMode = localStorage.getItem('vipercell_active_session_mode');
-    const hasSavedSession = (savedSessionMode === 'member' || savedSessionMode === 'guest');
+    const hasSavedSession = (savedSessionMode === 'member');
 
     if (hasSavedSession) {
         document.documentElement.classList.add('has-saved-session');
@@ -877,30 +877,6 @@ async function initializeAppWithLoader() {
                 setAuthGateLock(false);
                 window.renderBrands(currentBrandFilter);
                 window.switchMainTab('katalog');
-            } else {
-                setAuthGateLock(true);
-            }
-        } else if (sessionMode === 'guest') {
-            const expired6h = await checkAndExpireAnonSessionIf6Hours();
-            if (!expired6h) {
-                const guestUidToUse = boundLegacyGuestUid || (initialUser?.isAnonymous ? initialUser.uid : `anon_${currentDeviceId}_${Date.now().toString(36).slice(-4)}`);
-                const userObjToSync = {
-                    uid: guestUidToUse,
-                    isAnonymous: true,
-                    email: ''
-                };
-                await syncUserProfileFromAuth(userObjToSync);
-
-                const restricted = await checkRealtimeAccountRestriction(false);
-                if (!restricted) {
-                    localStorage.setItem('vipercell_active_session_mode', 'guest');
-                    setAuthGateLock(false);
-                    window.renderBrands(currentBrandFilter);
-                    window.switchMainTab('katalog');
-                    startSilentAnonSixHourCleanup();
-                } else {
-                    setAuthGateLock(true);
-                }
             } else {
                 setAuthGateLock(true);
             }
@@ -1210,6 +1186,11 @@ function startSilentAnonSixHourCleanup() {
 // LOGIN ANONIM / TAMU
 // ==========================================
 window.processAnonymousLogin = async function() {
+    window.switchAuthTab('login');
+    window.showToast('Khusus Member', 'Silakan masuk atau daftar akun Member untuk berbelanja.', 'info');
+    return;
+};
+window._legacyProcessAnonymousLoginUnused = async function() {
     const btnGuest = document.getElementById('auth-guest-btn');
     const ogHtml = btnGuest ? btnGuest.innerHTML : '';
     if (btnGuest) {
@@ -1667,15 +1648,7 @@ function setupAuthStateListener() {
                 setAuthGateLock(false);
                 if (wasLocked) window.switchMainTab('katalog');
             }
-        } else if (user && user.isAnonymous && sessionMode === 'guest') {
-            await syncUserProfileFromAuth(user);
-            const restricted = await checkRealtimeAccountRestriction(false);
-            if (!restricted) {
-                const wasLocked = document.body.classList.contains('auth-locked');
-                setAuthGateLock(false);
-                if (wasLocked) window.switchMainTab('katalog');
-            }
-        } else if (!user && sessionMode !== 'guest') {
+        } else {
             userProfile = { uid: '', name: '', email: '', isGuest: true, isAnonymous: true };
             setAuthGateLock(true);
         }
@@ -3644,23 +3617,21 @@ window.openDirectBuyModal = function(brandName) {
             ${extraDesc}
             <div class="form-group" style="margin-bottom:0;">
                 <label for="buy-id">${escapeHtml(customLbl)} <span style="color:var(--danger)">*</span></label>
-                <input type="text" id="buy-id" class="form-control" placeholder="${escapeHtml(customPh)}" required>
+                <input type="text" id="buy-id" class="form-control" placeholder="${escapeHtml(customPh)}" autocomplete="off" required oninput="window.onInputTargetFieldChange()">
             </div>`;
     } else if (inpType === 'pln_token' || brandObj.type === 'pln') {
         fields.innerHTML = `
             ${extraDesc}
             <div class="form-group" style="margin-bottom:0;">
                 <label for="buy-id">Nomor Meter / ID Pelanggan PLN <span style="color:var(--danger)">*</span></label>
-                <input type="tel" id="buy-id" class="form-control" placeholder="Masukkan Nomor Meter / ID Pelanggan PLN" required oninput="window.onInputTargetFieldChange()">
-                <small style="font-size:0.72rem; color:var(--text-muted); display:block; margin-top:4px;">Masukkan Nomor Meter / ID PLN lalu pilih nominal token di bawah. Nama pelanggan akan tervalidasi otomatis di panel pembayaran.</small>
+                <input type="tel" inputmode="numeric" pattern="[0-9]*" id="buy-id" class="form-control code-mono" maxlength="16" placeholder="Masukkan Nomor Meter / ID Pelanggan PLN" autocomplete="off" required oninput="window.sanitizeNumericTargetInput(this, false); window.onInputTargetFieldChange()">
             </div>`;
     } else if (inpType === 'ewallet_no' || brandObj.type === 'ewallet') {
         fields.innerHTML = `
             ${extraDesc}
             <div class="form-group" style="margin-bottom:0;">
                 <label for="buy-id">Nomor HP / Akun ${escapeHtml(brandObj.brandName)} <span style="color:var(--danger)">*</span></label>
-                <input type="tel" id="buy-id" class="form-control" placeholder="Contoh: 081234567890" required oninput="window.onInputTargetFieldChange()">
-                <small style="font-size:0.72rem; color:var(--text-muted); display:block; margin-top:4px;">Masukkan nomor tujuan lalu pilih nominal di bawah. Akun ${escapeHtml(brandObj.brandName)} tervalidasi otomatis di panel pembayaran.</small>
+                <input type="tel" inputmode="numeric" pattern="[0-9]*" id="buy-id" class="form-control code-mono" maxlength="16" placeholder="Contoh: 081234567890" autocomplete="off" required oninput="window.sanitizeNumericTargetInput(this, true); window.onInputTargetFieldChange()">
             </div>`;
     } else if (inpType === 'pasca_no' || brandObj.type === 'ppob' || firstItem.processType === 'digiflazz_pasca') {
         const pascaSelectHtml = brandObj.items.length > 1
@@ -3676,7 +3647,7 @@ window.openDirectBuyModal = function(brandName) {
             ${pascaSelectHtml}
             <div class="form-group" style="margin-bottom:0;">
                 <label for="buy-id">Nomor Pelanggan / ID Tagihan ${escapeHtml(brandObj.brandName)} <span style="color:var(--danger)">*</span></label>
-                <input type="text" id="buy-id" class="form-control" placeholder="Masukkan Nomor Pelanggan / ID Tagihan" required oninput="window.onInputPascaCustomerNo()">
+                <input type="tel" inputmode="numeric" pattern="[0-9]*" id="buy-id" class="form-control code-mono" maxlength="22" placeholder="Masukkan Nomor Pelanggan / ID Tagihan" autocomplete="off" required oninput="window.sanitizeNumericTargetInput(this, false); window.onInputPascaCustomerNo()">
                 <button type="button" id="btn-user-check-pasca" class="btn btn-primary" style="width:100%; margin-top:10px; font-weight:900; display:flex; align-items:center; justify-content:center; gap:8px;" onclick="window.userCheckPascaBill()">
                     <i class="fa-solid fa-magnifying-glass-dollar"></i> <span>Cek Tagihan Sekarang</span>
                 </button>
@@ -3690,7 +3661,7 @@ window.openDirectBuyModal = function(brandName) {
                     <label for="buy-id" style="margin-bottom:0;">Nomor HP Tujuan <span style="color:var(--danger)">*</span></label>
                     <span id="buy-operator-badge" class="operator-detect-pill" style="display:none;"></span>
                 </div>
-                <input type="tel" id="buy-id" class="form-control" placeholder="Contoh: 081234567890" required oninput="window.onInputPhoneDetectOperator()">
+                <input type="tel" inputmode="numeric" pattern="[0-9]*" id="buy-id" class="form-control code-mono" maxlength="16" placeholder="Contoh: 081234567890" autocomplete="off" required oninput="window.sanitizeNumericTargetInput(this, true); window.onInputPhoneDetectOperator(); window.onInputTargetFieldChange()">
             </div>`;
     } else if (brandObj.type === 'game' || (brandObj.type === 'tools' && inpType && inpType !== 'none')) {
         if (inpType === 'id_only') {
@@ -3698,15 +3669,14 @@ window.openDirectBuyModal = function(brandName) {
                 ${extraDesc}
                 <div class="form-group" style="margin-bottom:0;">
                     <label for="buy-id">ID Player / UID Tujuan <span style="color:var(--danger)">*</span></label>
-                    <input type="text" id="buy-id" class="form-control" placeholder="Masukkan ID Player" required oninput="window.onInputTargetFieldChange()">
-                    <small style="font-size:0.72rem; color:var(--text-muted); display:block; margin-top:4px;">Masukkan ID Player lalu pilih item di bawah. Username game akan dicek otomatis di panel pembayaran.</small>
+                    <input type="tel" inputmode="numeric" pattern="[0-9]*" id="buy-id" class="form-control code-mono" maxlength="24" placeholder="Masukkan ID Player (Angka)" autocomplete="off" required oninput="window.sanitizeNumericTargetInput(this, false); window.onInputTargetFieldChange()">
                 </div>`;
         } else if (inpType === 'custom' || inpType === 'roblox') {
             fields.innerHTML = `
                 ${extraDesc}
                 <div class="form-group" style="margin-bottom:0;">
                     <label for="buy-id">Username / Email / Link Tujuan <span style="color:var(--danger)">*</span></label>
-                    <input type="text" id="buy-id" class="form-control" placeholder="Masukkan data tujuan" required oninput="window.onInputTargetFieldChange()">
+                    <input type="text" id="buy-id" class="form-control" placeholder="Masukkan data tujuan" autocomplete="off" required oninput="window.onInputTargetFieldChange()">
                 </div>`;
         } else {
             fields.innerHTML = `
@@ -3714,15 +3684,14 @@ window.openDirectBuyModal = function(brandName) {
                 <div style="display:grid; grid-template-columns: 2fr 1fr; gap:10px;">
                     <div class="form-group" style="margin-bottom:0;">
                         <label for="buy-id">ID Player <span style="color:var(--danger)">*</span></label>
-                        <input type="text" id="buy-id" class="form-control" placeholder="ID Player" required oninput="window.updateMergedGameTargetPreview(); window.onInputTargetFieldChange();">
+                        <input type="tel" inputmode="numeric" pattern="[0-9]*" id="buy-id" class="form-control code-mono" maxlength="20" placeholder="ID Player" autocomplete="off" required oninput="window.sanitizeNumericTargetInput(this, false); window.updateMergedGameTargetPreview(); window.onInputTargetFieldChange();">
                     </div>
                     <div class="form-group" style="margin-bottom:0;">
                         <label for="buy-zone">Zone / Server</label>
-                        <input type="text" id="buy-zone" class="form-control" placeholder="Zone / Server" oninput="window.updateMergedGameTargetPreview(); window.onInputTargetFieldChange();">
+                        <input type="tel" inputmode="numeric" pattern="[0-9]*" id="buy-zone" class="form-control code-mono" maxlength="10" placeholder="Zone" autocomplete="off" oninput="window.sanitizeNumericTargetInput(this, false); window.updateMergedGameTargetPreview(); window.onInputTargetFieldChange();">
                     </div>
                 </div>
-                <div id="buy-merged-target-preview" style="display:none; margin-top:6px; font-size:0.74rem; font-weight:800; color:var(--primary);"></div>
-                <small style="font-size:0.72rem; color:var(--text-muted); display:block; margin-top:5px;">Masukkan ID &amp; Zone lalu pilih item di bawah. Username akun game akan tervalidasi otomatis di panel pembayaran.</small>`;
+                <div id="buy-merged-target-preview" style="display:none; margin-top:6px; font-size:0.74rem; font-weight:800; color:var(--primary);"></div>`;
         }
     } else {
         fields.innerHTML = `
@@ -3752,8 +3721,8 @@ window.openDirectBuyModal = function(brandName) {
         if (memberAutofillBadge) memberAutofillBadge.style.display = 'none';
     }
     
-    const defaultPayCard = document.querySelector('input[name="payment_method"][value="qris"]');
-    if (defaultPayCard) window.selectPaymentUI('qris', defaultPayCard.parentElement);
+    const defaultPayCard = document.querySelector('input[name="payment_method"][value="balance"]');
+    if (defaultPayCard) window.selectPaymentUI('balance', defaultPayCard.parentElement);
     
     const isPascaBrand = Boolean(inpType === 'pasca_no' || brandObj.type === 'ppob' || firstItem.processType === 'digiflazz_pasca');
     const step02Card = document.getElementById('checkout-step-02-card');
@@ -3922,27 +3891,15 @@ window.selectItemToBuy = function(dbId) {
 };
 
 window.selectPaymentUI = function(val, el) {
-    const isMember = Boolean(currentUser && !currentUser.isAnonymous && !userProfile.isGuest);
-    // Proteksi mutlak: Tamu/Anonim tidak pernah boleh memilih metode pembayaran SALDO
-    if (val === 'balance' && !isMember) {
-        const qrisCard = document.getElementById('pay-card-qris');
-        if (qrisCard) window.selectPaymentUI('qris', qrisCard);
-        return;
-    }
-
     document.querySelectorAll('input[name="payment_method"]').forEach(input => { input.parentElement.classList.remove('active'); });
-    if (el) {
-        el.classList.add('active');
-        const rad = el.querySelector('input');
+    const balCard = document.getElementById('pay-card-balance') || el;
+    if (balCard) {
+        balCard.classList.add('active');
+        const rad = balCard.querySelector('input');
         if (rad) rad.checked = true;
     }
-    
-    const cashWarn = document.getElementById('cash-warning-msg');
-    if (cashWarn) cashWarn.style.display = val === 'cash' ? 'flex' : 'none';
-
     const balWarn = document.getElementById('balance-warning-msg');
-    if (balWarn) balWarn.style.display = (val === 'balance' && isMember) ? 'flex' : 'none';
-    
+    if (balWarn) balWarn.style.display = 'flex';
     window.calculateDirectBuyTotal();
 };
 
@@ -4099,7 +4056,7 @@ window.calculateDirectBuyTotal = function() {
     document.getElementById('buy-total-price').innerText = `Rp${baseTotal.toLocaleString('id-ID')}`;
 
     const isMember = Boolean(currentUser && !currentUser.isAnonymous && !userProfile.isGuest);
-    const selectedPayMethod = document.querySelector('input[name="payment_method"]:checked')?.value || 'qris';
+    const selectedPayMethod = 'balance';
     const userBal = Math.round(Number(userProfile.balance || 0));
     const balWarnText = document.getElementById('balance-warning-text');
     if (selectedPayMethod === 'balance' && isMember && balWarnText) {
@@ -4219,7 +4176,7 @@ window.processDirectCheckout = async function() {
         return; 
     }
 
-    const paymentMethod = document.querySelector('input[name="payment_method"]:checked')?.value || 'qris';
+    const paymentMethod = 'balance';
     if (paymentMethod === 'balance' && !isMember) {
         window.customAlert('Khusus Member', 'Pembayaran menggunakan Saldo Akun hanya tersedia untuk Member yang sudah masuk.', 'warning');
         return;
@@ -4400,6 +4357,12 @@ window.openCheckoutConfirmWithAutoCheckId = async function() {
     }
     if (pinInpEl) {
         pinInpEl.value = '';
+        if (typeof window.syncMbankingPinDotsUI === 'function') window.syncMbankingPinDotsUI();
+    }
+    const helperPinEl = document.getElementById('chk-confirm-pin-helper');
+    if (helperPinEl) {
+        helperPinEl.style.color = 'var(--text-muted)';
+        helperPinEl.innerText = 'Ketik 6 digit PIN menggunakan tombol angka di bawah atau keyboard fisik';
     }
     window.openModal('modal-checkout-confirm');
 
@@ -4613,6 +4576,113 @@ window.openCheckoutConfirmWithAutoCheckId = async function() {
     }
 };
 
+// ============================================================================
+// KEAMANAN PIN M-BANKING 6 TITIK, PROTEKSI BRUTE-FORCE (5X SALAH KUNCI 3 MENIT),
+// ANTI-DUPLIKAT 15 DETIK, & ANTI-MANIPULASI HARGA (v28.8)
+// ============================================================================
+let lastOrderDedupMap = new Map();
+
+window.sanitizeNumericTargetInput = function(inpEl, normalizeIndoPhone = false) {
+    if (!inpEl) return;
+    let raw = String(inpEl.value || '').replace(/[^0-9]/g, '');
+    if (normalizeIndoPhone && raw.length >= 4) {
+        if (raw.startsWith('628')) {
+            raw = '08' + raw.slice(3);
+        } else if (raw.startsWith('6208')) {
+            raw = '08' + raw.slice(4);
+        }
+    }
+    if (inpEl.value !== raw) {
+        inpEl.value = raw;
+    }
+};
+
+window.syncMbankingPinDotsUI = function() {
+    const inp = document.getElementById('chk-confirm-trx-pin');
+    const row = document.getElementById('chk-pin-dots-row');
+    if (!inp || !row) return;
+    const val = String(inp.value || '').replace(/[^0-9]/g, '').slice(0, 6);
+    if (inp.value !== val) inp.value = val;
+    const dots = row.querySelectorAll('.pin-dot');
+    dots.forEach((d, idx) => {
+        d.classList.toggle('filled', idx < val.length);
+    });
+};
+
+window.focusMbankingPinPad = function() {
+    const inp = document.getElementById('chk-confirm-trx-pin');
+    if (inp) inp.focus();
+};
+
+window.pressUserPinKeypad = function(key) {
+    const inp = document.getElementById('chk-confirm-trx-pin');
+    if (!inp) return;
+    let cur = String(inp.value || '').replace(/[^0-9]/g, '');
+    if (key === 'CLEAR') {
+        cur = '';
+    } else if (key === 'BACK') {
+        cur = cur.slice(0, -1);
+    } else if (/^[0-9]$/.test(key) && cur.length < 6) {
+        cur += key;
+    }
+    inp.value = cur;
+    window.syncMbankingPinDotsUI();
+    if (cur.length === 6) {
+        const btnProceed = document.getElementById('btn-confirm-proceed-pay');
+        if (btnProceed && !btnProceed.disabled) {
+            setTimeout(() => window.confirmAndExecuteCheckout(), 120);
+        }
+    }
+};
+
+document.addEventListener('keydown', (e) => {
+    const modal = document.getElementById('modal-checkout-confirm');
+    const pinBox = document.getElementById('chk-confirm-pin-box');
+    if (!modal || !modal.classList.contains('active') || !pinBox || pinBox.style.display === 'none') return;
+    if (e.target && ['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target.tagName) && e.target.id !== 'chk-confirm-trx-pin') return;
+    if (/^[0-9]$/.test(e.key)) {
+        e.preventDefault();
+        window.pressUserPinKeypad(e.key);
+    } else if (e.key === 'Backspace') {
+        e.preventDefault();
+        window.pressUserPinKeypad('BACK');
+    } else if (e.key === 'Escape') {
+        window.closeModal('modal-checkout-confirm');
+    } else if (e.key === 'Enter') {
+        e.preventDefault();
+        window.confirmAndExecuteCheckout();
+    }
+});
+
+function checkUserPinBruteForceLock(uid) {
+    if (!uid) return 0;
+    const lockUntil = Number(localStorage.getItem(`vipercell_pin_lock_until_${uid}`) || 0);
+    if (lockUntil > Date.now()) {
+        return Math.ceil((lockUntil - Date.now()) / 1000);
+    }
+    return 0;
+}
+
+function recordUserPinAttemptResult(uid, isSuccess) {
+    if (!uid) return { lockedSec: 0, remainingTries: 5 };
+    const failKey = `vipercell_pin_fails_${uid}`;
+    const lockKey = `vipercell_pin_lock_until_${uid}`;
+    if (isSuccess) {
+        localStorage.removeItem(failKey);
+        localStorage.removeItem(lockKey);
+        return { lockedSec: 0, remainingTries: 5 };
+    }
+    const fails = (parseInt(localStorage.getItem(failKey) || '0', 10) || 0) + 1;
+    if (fails >= 5) {
+        const lockUntil = Date.now() + (3 * 60 * 1000);
+        localStorage.setItem(lockKey, String(lockUntil));
+        localStorage.setItem(failKey, '0');
+        return { lockedSec: 180, remainingTries: 0 };
+    }
+    localStorage.setItem(failKey, String(fails));
+    return { lockedSec: 0, remainingTries: Math.max(0, 5 - fails) };
+}
+
 window.confirmAndExecuteCheckout = async function() {
     if (isProcessingCheckout || !pendingConfirmedCheckoutPayload || !selectedProductForBuy) return;
     const p = pendingConfirmedCheckoutPayload;
@@ -4632,12 +4702,74 @@ window.confirmAndExecuteCheckout = async function() {
         return;
     }
 
+    const activeUidForPin = currentUser?.uid || userProfile.uid || '';
+    const lockedSecNow = checkUserPinBruteForceLock(activeUidForPin);
+    if (lockedSecNow > 0) {
+        window.customAlert('PIN Dikunci Sementara', `Terlalu banyak percobaan PIN salah. Silakan tunggu <b>${lockedSecNow} detik</b> lagi sebelum mencoba kembali.`, 'error');
+        return;
+    }
+
     if (p.paymentMethod === 'balance') {
-        const savedUserPin = String(userProfile.trxPin || localStorage.getItem(`vipercell_trx_pin_${currentUser?.uid || ''}`) || '').trim();
+        const savedUserPin = String(userProfile.trxPin || localStorage.getItem(`vipercell_trx_pin_${activeUidForPin}`) || '').trim();
         const enteredPin = (document.getElementById('chk-confirm-trx-pin')?.value || '').trim();
-        if (!enteredPin || enteredPin !== savedUserPin) {
-            window.customAlert('PIN Transaksi Salah', 'PIN Transaksi 6 digit yang kamu masukkan tidak sesuai.', 'error');
+        if (!enteredPin || enteredPin.length < 6) {
+            const dotsRow = document.getElementById('chk-pin-dots-row');
+            if (dotsRow) {
+                dotsRow.classList.remove('pin-error-shake');
+                void dotsRow.offsetWidth;
+                dotsRow.classList.add('pin-error-shake');
+            }
+            window.showToast('Masukkan 6 Digit PIN', 'Ketik lengkap 6 digit PIN Transaksi kamu.', 'warning');
             return;
+        }
+        if (enteredPin !== savedUserPin) {
+            const attemptRes = recordUserPinAttemptResult(activeUidForPin, false);
+            const inpPin = document.getElementById('chk-confirm-trx-pin');
+            if (inpPin) inpPin.value = '';
+            window.syncMbankingPinDotsUI();
+            const dotsRow = document.getElementById('chk-pin-dots-row');
+            if (dotsRow) {
+                dotsRow.classList.remove('pin-error-shake');
+                void dotsRow.offsetWidth;
+                dotsRow.classList.add('pin-error-shake');
+            }
+            const helperEl = document.getElementById('chk-confirm-pin-helper');
+            if (attemptRes.lockedSec > 0) {
+                if (helperEl) {
+                    helperEl.style.color = 'var(--danger)';
+                    helperEl.innerText = `PIN dikunci selama 3 menit karena 5x salah.`;
+                }
+                window.customAlert('PIN Dikunci 3 Menit', 'Kamu telah 5 kali memasukkan PIN yang salah. Demi keamanan saldo, verifikasi PIN dikunci selama 3 menit.', 'error');
+            } else {
+                if (helperEl) {
+                    helperEl.style.color = 'var(--danger)';
+                    helperEl.innerText = `PIN salah! Sisa percobaan: ${attemptRes.remainingTries}x`;
+                }
+                window.showToast('PIN Salah', `PIN Transaksi tidak sesuai (Sisa ${attemptRes.remainingTries}x percobaan).`, 'error');
+            }
+            return;
+        }
+        recordUserPinAttemptResult(activeUidForPin, true);
+    }
+
+    // Keamanan Anti-Duplikat 15 Detik untuk SKU + Tujuan yang sama persis
+    const dedupSkuKey = `${selectedProductForBuy.dbId || selectedProductForBuy.buyerSkuCode || selectedProductForBuy.name}_${p.pidVal}_${p.zolVal || ''}`;
+    const lastOrderTs = lastOrderDedupMap.get(dedupSkuKey) || 0;
+    if (Date.now() - lastOrderTs < 15000) {
+        const waitDup = Math.ceil((15000 - (Date.now() - lastOrderTs)) / 1000);
+        window.customAlert('Tunggu Sebentar', `Pesanan dengan produk dan tujuan yang sama baru saja dikirim. Tunggu <b>${waitDup} detik</b> untuk menghindari transaksi ganda.`, 'warning');
+        return;
+    }
+
+    // Keamanan Anti-Manipulasi Harga: Verifikasi ulang harga terhadap data katalog terbaru
+    const freshCatalogItem = products.find(x => x.dbId === selectedProductForBuy.dbId);
+    if (freshCatalogItem && !p.isCustomEwallet && !p.isPascaProduct) {
+        const expectedUnitPrice = getEffectiveUserVariantPrice(freshCatalogItem);
+        const expectedRawTotal = expectedUnitPrice * p.qty;
+        const expectedBase = Math.max(0, expectedRawTotal - (p.discountPromo || 0));
+        if (expectedBase > 0 && p.baseTotal < expectedBase) {
+            p.unitPrice = expectedUnitPrice;
+            p.baseTotal = expectedBase;
         }
     }
 
@@ -4777,6 +4909,7 @@ window.confirmAndExecuteCheckout = async function() {
         durationDays: durationDays,
         status: isPaidByBalance ? 'SUCCESS' : 'UNPAID',
         paymentVerified: isPaidByBalance,
+        balanceDeducted: isPaidByBalance,
         paidAt: isPaidByBalance ? now : 0,
         paymentMethod: paymentMethod,
         adminReply: '',
@@ -4815,6 +4948,7 @@ window.confirmAndExecuteCheckout = async function() {
             }).catch(() => {});
         }
 
+        lastOrderDedupMap.set(dedupSkuKey, Date.now());
         const docRef = await addDoc(collection(db, pathOrders), newOrder);
         currentCheckoutSession = {
             dbId: docRef.id,
@@ -5120,8 +5254,12 @@ function buildFullReceiptHTML(order) {
             </div>`;
         }
     } else {
-        const alreadyReviewed = hasOrderBeenReviewed(order);
-        actionHtml = `
+        const isMpSubOrder = Boolean(order.isMemberPlusOrder === true || order.orderType === 'MEMBER_PLUS_SUB' || String(order.id || '').toUpperCase().startsWith('MPLUS-'));
+        const isTopupWalletOrder = Boolean(order.isTopupOrder === true || order.orderType === 'TOPUP_BALANCE' || String(order.id || '').toUpperCase().startsWith('TOPUP-'));
+        const canReviewThisOrder = Boolean(!isMpSubOrder && !isTopupWalletOrder && brandName);
+        const alreadyReviewed = canReviewThisOrder ? hasOrderBeenReviewed(order) : false;
+
+        const printAndShareBtnsHtml = (order.status === 'SUCCESS') ? `
             <div class="ereceipt-action-grid" style="margin-top:0.9rem;">
                 <button type="button" class="btn btn-primary" onclick="window.printOrderReceiptBluetooth58mm('${escapeJsStr(order.id)}')">
                     <i class="fa-solid fa-print"></i> Print Struk 58mm
@@ -5132,15 +5270,18 @@ function buildFullReceiptHTML(order) {
                 <button type="button" class="btn btn-outline" style="grid-column: 1 / -1;" onclick="window.downloadOrderReceiptImage('${escapeJsStr(order.id)}')">
                     <i class="fa-solid fa-download"></i> Simpan Gambar Struk (.PNG)
                 </button>
-            </div>
-            ${(!alreadyReviewed && isDeliveredSuccess && brandName) ? `
+            </div>` : '';
+
+        actionHtml = `
+            ${printAndShareBtnsHtml}
+            ${(canReviewThisOrder && !alreadyReviewed && isDeliveredSuccess) ? `
             <button type="button" class="btn btn-warning" style="width:100%; margin-top:0.65rem;" onclick="window.goToReview('${safeJsBrand}', '${escapeJsStr(order.id)}')">
                 <i class="fa-solid fa-star"></i> Beri Ulasan Produk
-            </button>` : (alreadyReviewed && isDeliveredSuccess ? `
+            </button>` : (canReviewThisOrder && alreadyReviewed && isDeliveredSuccess ? `
             <div style="margin-top:0.65rem; text-align:center; font-size:0.76rem; font-weight:800; color:var(--success); padding:7px; border:1.5px dashed var(--success); border-radius:8px;">
                 <i class="fa-solid fa-circle-check"></i> Terima kasih, pesanan ini sudah kamu ulas
             </div>` : '')}
-            ${((isCancelled || order.status === 'EXPIRED' || order.status === 'FAILED') && brandName) ? `
+            ${((isCancelled || order.status === 'EXPIRED' || order.status === 'FAILED') && canReviewThisOrder) ? `
             <button type="button" class="btn btn-primary" style="width:100%; margin-top:0.65rem;" onclick="window.closeModal('modal-order-detail'); window.openDirectBuyModal('${safeJsBrand}')">
                 <i class="fa-solid fa-rotate-right"></i> Pesan Ulang Produk Ini
             </button>` : ''}`;
@@ -6244,7 +6385,12 @@ window.switchMainTab = function(tab) {
     });
     document.querySelectorAll('nav a').forEach(el => el.classList.remove('active'));
     
-    const navKey = tab === 'baca-berita' ? 'berita' : (tab === 'payment-qris' ? 'pesanan' : (tab === 'perbandingan-harga' ? 'profil' : tab));
+    if (tab === 'perbandingan-harga') {
+        window.switchMainTab('memberplus');
+        window.openPriceComparisonTab();
+        return;
+    }
+    const navKey = tab === 'baca-berita' ? 'berita' : (tab === 'payment-qris' ? 'pesanan' : tab);
     const navEl = document.getElementById('nav-' + navKey);
     if (navEl) navEl.classList.add('active');
     const botNavEl = document.getElementById('nav-bot-' + navKey);
@@ -6268,13 +6414,17 @@ window.switchMainTab = function(tab) {
         } else if (tab === 'pesanan') {
             window.renderUserOrders();
         } else if (tab === 'topup') {
+            window.updateUserWalletBalanceUI();
+            window.updateTopupSummaryDisplay();
             window.renderTopupHistoryList();
+        } else if (tab === 'memberplus') {
+            const mpMainGrid = document.getElementById('memberplus-main-content-grid');
+            const panelCompare = document.getElementById('topup-panel-compare');
+            if (mpMainGrid) mpMainGrid.style.display = 'grid';
+            if (panelCompare) panelCompare.style.display = 'none';
+            window.updateUserWalletBalanceUI();
             window.updateProfileMemberPlusVisuals();
             window.syncMemberPlusPanelState();
-        } else if (tab === 'perbandingan-harga') {
-            window.switchMainTab('topup');
-            window.switchTopupSubTab('compare');
-            return;
         }
         observeReveals();
     });
@@ -7316,7 +7466,7 @@ function getUnreviewedSuccessOrdersForBrand(brandName) {
     const userEmailToMatch = getActiveSessionStorageEmail();
     
     const mySuccessOrders = orders.filter(o => {
-        if (o.status !== 'SUCCESS' || !o.adminReply) return false;
+        if (o.status !== 'SUCCESS' || !o.adminReply || o.isMemberPlusOrder === true || o.orderType === 'MEMBER_PLUS_SUB' || o.isTopupOrder === true || String(o.id || '').toUpperCase().startsWith('MPLUS-')) return false;
         if (!o.items || o.items[0]?.brandName !== brandName) return false;
         if (isMember) {
             return (effectiveUid && o.userId === effectiveUid) || (userEmailToMatch && o.userEmail?.toLowerCase() === userEmailToMatch);
@@ -7735,16 +7885,16 @@ window.updateUserWalletBalanceUI = function() {
 };
 
 window.openTopupBalanceModal = function(defaultSubTab = 'topup') {
-    const isMember = Boolean(currentUser && !currentUser.isAnonymous && !userProfile.isGuest);
-    if (!isMember) {
-        window.openUpgradeMemberModal();
-        window.showToast('Khusus Member', 'Upgrade akun Tamu ke Member terlebih dahulu untuk mengakses Saldo Akun & Member Plus.', 'info');
-        return;
-    }
     window.closeModal('modal-topup-balance');
     window.updateUserWalletBalanceUI();
-    window.switchMainTab('topup');
-    window.switchTopupSubTab(defaultSubTab === 'memberplus' ? 'memberplus' : 'topup');
+    if (defaultSubTab === 'memberplus') {
+        window.switchMainTab('memberplus');
+    } else if (defaultSubTab === 'compare') {
+        window.switchMainTab('memberplus');
+        window.openPriceComparisonTab();
+    } else {
+        window.switchMainTab('topup');
+    }
 };
 
 window.selectTopupPresetAmount = function(amt, btnEl) {
@@ -8802,7 +8952,7 @@ window.userCheckPascaBill = async function() {
                             ${adminFee > 0 ? `<div class="pasca-bill-row"><span>Biaya Admin</span><strong>Rp${adminFee.toLocaleString('id-ID')}</strong></div>` : ''}
                             <div class="pasca-bill-row total-row"><span>Total Tagihan</span><strong style="color:var(--primary); font-size:1.05rem;">Rp${totalTagihan.toLocaleString('id-ID')}</strong></div>
                         </div>
-                        <button type="button" class="btn btn-success" style="width:100%; margin-top:12px; font-weight:900; display:flex; align-items:center; justify-content:center; gap:8px;" onclick="window.proceedPascaToPaymentSheet()">
+                        <button type="button" class="btn btn-success btn-pasca-inline-mobile-only" style="width:100%; margin-top:12px; font-weight:900; display:flex; align-items:center; justify-content:center; gap:8px;" onclick="window.proceedPascaToPaymentSheet()">
                             <i class="fa-solid fa-wallet"></i> <span>Lanjutkan Bayar Tagihan (Rp${totalTagihan.toLocaleString('id-ID')})</span>
                         </button>
                     </div>
@@ -9681,7 +9831,7 @@ function computeVariantComparisonPrices(item) {
 }
 
 window.openPriceComparisonTab = function() {
-    window.switchMainTab('topup');
+    window.switchMainTab('memberplus');
     window.switchTopupSubTab('compare');
     const compEl = document.getElementById('topup-panel-compare');
     if (compEl) {
@@ -10238,46 +10388,37 @@ window.closeMemberPlusWelcomeAnimation = function() {
             overlay.classList.remove('active');
         }, 240);
     }
-    window.switchMainTab('topup');
-    window.switchTopupSubTab('memberplus');
+    window.switchMainTab('memberplus');
     window.refreshRealtimeMemberPlusUI();
 };
 
 window.switchTopupSubTab = function(subTab = 'topup') {
     const isCompareView = (subTab === 'compare');
     const isMpTab = (subTab === 'memberplus' || isCompareView);
-    const isWalletTab = !isMpTab;
-
-    const btnWallet = document.getElementById('topup-subtab-btn-wallet');
-    const btnMp = document.getElementById('topup-subtab-btn-memberplus');
-
-    const panelWallet = document.getElementById('topup-panel-wallet');
-    const panelMp = document.getElementById('topup-panel-memberplus');
     const mpMainGrid = document.getElementById('memberplus-main-content-grid');
     const panelCompare = document.getElementById('topup-panel-compare');
 
-    if (btnWallet) btnWallet.classList.toggle('active', isWalletTab);
-    if (btnMp) btnMp.classList.toggle('active', isMpTab);
-
-    if (panelWallet) panelWallet.style.display = isWalletTab ? 'grid' : 'none';
-    if (panelMp) panelMp.style.display = isMpTab ? 'block' : 'none';
-    if (mpMainGrid) mpMainGrid.style.display = (isMpTab && !isCompareView) ? 'grid' : 'none';
-    if (panelCompare) panelCompare.style.display = isCompareView ? 'block' : 'none';
-
-    window.updateTopupSummaryDisplay();
-    window.renderTopupHistoryList();
-    if (typeof window.updateProfileMemberPlusVisuals === 'function') {
+    if (isMpTab) {
+        const activeTab = document.querySelector('.main-tab-content.active');
+        if (!activeTab || activeTab.id !== 'tab-memberplus') {
+            window.switchMainTab('memberplus');
+        }
+        if (mpMainGrid) mpMainGrid.style.display = isCompareView ? 'none' : 'grid';
+        if (panelCompare) panelCompare.style.display = isCompareView ? 'block' : 'none';
         window.updateProfileMemberPlusVisuals();
-    }
-    window.syncMemberPlusPanelState();
-
-    if (isCompareView) {
-        window.initPriceComparisonTabUI();
-    }
-
-    if (subTab === 'history') {
-        const histEl = document.getElementById('topup-history-unified-card');
-        if (histEl) histEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        window.syncMemberPlusPanelState();
+        if (isCompareView) window.initPriceComparisonTabUI();
+    } else {
+        const activeTab = document.querySelector('.main-tab-content.active');
+        if (!activeTab || activeTab.id !== 'tab-topup') {
+            window.switchMainTab('topup');
+        }
+        window.updateTopupSummaryDisplay();
+        window.renderTopupHistoryList();
+        if (subTab === 'history') {
+            const histEl = document.getElementById('topup-history-unified-card');
+            if (histEl) histEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
     }
 };
 
@@ -10373,6 +10514,7 @@ window.processMemberPlusSubscriptionCheckout = async function() {
         durationDays: 30,
         status: isPaidByBalance ? 'SUCCESS' : 'UNPAID',
         paymentVerified: isPaidByBalance,
+        balanceDeducted: isPaidByBalance,
         paidAt: isPaidByBalance ? now : 0,
         paymentMethod: payMethod,
         adminReply: '',

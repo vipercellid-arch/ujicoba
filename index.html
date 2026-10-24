@@ -38,7 +38,7 @@
     <noscript><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"></noscript>
     
     <!-- Stylesheet Utama -->
-    <link rel="stylesheet" href="css/main.css?v=28.7">
+    <link rel="stylesheet" href="css/main.css?v=28.8">
     
     <!-- Library QR Code, Barcode & Unduh Struk (Defer Non-Blocking) -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js" defer></script>
@@ -164,6 +164,12 @@
                 <a onclick="window.switchMainTab('katalog')" id="nav-katalog" class="active" role="button">
                     <i class="fa-solid fa-store"></i> <span>Katalog</span>
                 </a>
+                <a onclick="window.switchMainTab('topup')" id="nav-topup" role="button">
+                    <i class="fa-solid fa-wallet"></i> <span>Isi Saldo</span>
+                </a>
+                <a onclick="window.switchMainTab('memberplus')" id="nav-memberplus" role="button">
+                    <i class="fa-solid fa-crown"></i> <span>Member Plus</span>
+                </a>
                 <a onclick="window.switchMainTab('pesanan')" id="nav-pesanan" role="button">
                     <i class="fa-solid fa-receipt"></i> <span id="nav-text-pesanan-desk">Pesanan</span>
                 </a>
@@ -179,7 +185,7 @@
             </nav>
 
             <div class="header-actions">
-                <button id="header-wallet-btn" class="theme-pill-btn wallet-header-pill" style="display:none;" aria-label="Saldo Akun" onclick="window.openTopupBalanceModal('topup')">
+                <button id="header-wallet-btn" class="theme-pill-btn wallet-header-pill" style="display:none;" aria-label="Saldo Akun" onclick="window.switchMainTab('topup')">
                     <i class="fa-solid fa-wallet text-primary"></i>
                     <strong id="header-wallet-amount">Rp0</strong>
                     <span class="wallet-plus-badge">+</span>
@@ -240,14 +246,14 @@
                             <span><i class="fa-solid fa-wallet text-primary"></i> SALDO AKUN</span>
                             <strong id="greeting-wallet-amount">Rp0</strong>
                         </div>
-                        <button type="button" class="btn btn-primary btn-sm" onclick="window.openTopupBalanceModal('topup')">
+                        <button type="button" class="btn btn-primary btn-sm" onclick="window.switchMainTab('topup')">
                             <i class="fa-solid fa-circle-plus"></i> Isi Saldo
                         </button>
                     </div>
 
                     <!-- Pintasan Langganan Member Plus / Upgrade Member -->
                     <div class="greeting-actions-strip">
-                        <button type="button" id="btn-greeting-memberplus" class="btn btn-warning btn-sm" onclick="window.openTopupBalanceModal('memberplus')">
+                        <button type="button" id="btn-greeting-memberplus" class="btn btn-warning btn-sm" onclick="window.switchMainTab('memberplus')">
                             <i class="fa-solid fa-crown"></i> <span id="btn-greeting-memberplus-text">Langganan Member Plus</span>
                         </button>
                         <button type="button" class="btn btn-outline btn-sm" onclick="window.switchMainTab('pesanan')">
@@ -558,9 +564,7 @@
                     <button class="btn btn-outline btn-sm" onclick="window.switchMainTab('pesanan')">
                         <i class="fa-solid fa-receipt"></i> Riwayat
                     </button>
-                    <button id="btn-prof-upgrade-guest" class="btn btn-warning btn-sm" style="display:none;" onclick="window.openUpgradeMemberModal()">
-                        <i class="fa-solid fa-user-plus"></i> Upgrade Akun
-                    </button>
+
                     <button id="btn-prof-logout-member" class="btn btn-danger btn-sm" onclick="window.logoutUser()">
                         <i class="fa-solid fa-right-from-bracket"></i> <span id="text-btn-logout">Keluar</span>
                     </button>
@@ -579,7 +583,7 @@
                     </div>
                 </div>
                 <div style="display: flex; gap: 8px; flex-wrap: wrap;">
-                    <button type="button" class="btn btn-primary btn-sm" onclick="window.openTopupBalanceModal()">
+                    <button type="button" class="btn btn-primary btn-sm" onclick="window.switchMainTab('topup')">
                         <i class="fa-solid fa-circle-plus"></i> Isi Saldo (QRIS / Tunai)
                     </button>
                     <button type="button" class="btn btn-outline btn-sm" onclick="window.switchMainTab('pesanan')">
@@ -631,7 +635,7 @@
                                 </p>
                             </div>
                         </div>
-                        <button type="button" id="btn-prof-manage-memberplus" class="btn btn-warning btn-sm" onclick="window.openTopupBalanceModal('memberplus')">
+                        <button type="button" id="btn-prof-manage-memberplus" class="btn btn-warning btn-sm" onclick="window.switchMainTab('memberplus')">
                             <i class="fa-solid fa-crown"></i> <span id="btn-prof-manage-memberplus-text">Buka Member Plus</span>
                         </button>
                     </div>
@@ -682,16 +686,16 @@
                     <div id="prof-body-trx-pin" class="prof-accordion-body" style="display:none; padding: 1rem; border-top: 1.5px dashed var(--border-subtle);">
                         <div id="prof-old-pin-group" class="form-group" style="display:none; margin-bottom:8px;">
                             <label for="prof-old-trx-pin" style="font-size:0.75rem;">PIN Transaksi Lama</label>
-                            <input type="password" id="prof-old-trx-pin" class="form-control code-mono" maxlength="6" inputmode="numeric" placeholder="Masukkan 6 digit PIN lama">
+                            <input type="password" id="prof-old-trx-pin" class="form-control code-mono" maxlength="6" inputmode="numeric" pattern="[0-9]*" oninput="this.value=this.value.replace(/[^0-9]/g,'').slice(0,6)" placeholder="Masukkan 6 digit PIN lama">
                         </div>
                         <div class="grid-2col-form" style="gap:8px; margin-bottom:10px;">
                             <div class="form-group" style="margin-bottom:0;">
                                 <label for="prof-new-trx-pin" style="font-size:0.75rem;">PIN Baru (6 Angka)</label>
-                                <input type="password" id="prof-new-trx-pin" class="form-control code-mono" maxlength="6" inputmode="numeric" placeholder="Contoh: 123456">
+                                <input type="password" id="prof-new-trx-pin" class="form-control code-mono" maxlength="6" inputmode="numeric" pattern="[0-9]*" oninput="this.value=this.value.replace(/[^0-9]/g,'').slice(0,6)" placeholder="Contoh: 123456">
                             </div>
                             <div class="form-group" style="margin-bottom:0;">
                                 <label for="prof-confirm-trx-pin" style="font-size:0.75rem;">Ulangi PIN Baru</label>
-                                <input type="password" id="prof-confirm-trx-pin" class="form-control code-mono" maxlength="6" inputmode="numeric" placeholder="Konfirmasi 6 angka">
+                                <input type="password" id="prof-confirm-trx-pin" class="form-control code-mono" maxlength="6" inputmode="numeric" pattern="[0-9]*" oninput="this.value=this.value.replace(/[^0-9]/g,'').slice(0,6)" placeholder="Konfirmasi 6 angka">
                             </div>
                         </div>
                         <div style="display:flex; flex-direction:column; gap:8px;">
@@ -866,18 +870,16 @@
                                     <div id="buy-promo-msg" class="promo-msg"></div>
                                 </div>
                                 
-                                <!-- Kolom Email untuk Tamu -->
-                                <div id="buy-guest-contact-box">
-                                    <div id="buy-email-group" class="form-group" style="margin-top: 0.8rem;">
-                                        <label for="buy-email">Email Pembeli <span style="color:var(--danger)">*</span></label>
-                                        <input type="email" id="buy-email" class="form-control" placeholder="nama@email.com" required>
+                                <div id="buy-guest-contact-box" style="display:none !important;">
+                                    <div id="buy-email-group" class="form-group" style="display:none;">
+                                        <input type="email" id="buy-email" class="form-control" placeholder="nama@email.com">
                                     </div>
                                 </div>
 
-                                <div id="buy-member-autofill-badge" class="member-autofill-card" style="display:none;">
+                                <div id="buy-member-autofill-badge" class="member-autofill-card" style="display:flex;">
                                     <i class="fa-solid fa-circle-check"></i>
                                     <div>
-                                        <strong style="display:block;">Terhubung ke Akun Member</strong>
+                                        <strong style="display:block;">Akun Member Aktif</strong>
                                         <span id="buy-member-autofill-text" style="font-size:0.72rem; color:var(--text-muted);"></span>
                                     </div>
                                 </div>
@@ -893,50 +895,31 @@
                                         <button type="button" class="topup-nom-chip" onclick="window.setCustomEwalletNominal(250000)">Rp250.000</button>
                                         <button type="button" class="topup-nom-chip" onclick="window.setCustomEwalletNominal(500000)">Rp500.000</button>
                                     </div>
-                                    <input type="number" id="buy-custom-ewallet-amount" class="form-control" value="50000" min="10000" max="500000" step="1000" placeholder="Rp10.000 - Rp500.000" style="font-weight:900; font-size:1rem;" oninput="window.onInputCustomEwalletAmount()">
-                                    <small id="buy-custom-ewallet-hint" style="display:block; margin-top:5px; font-size:0.73rem; font-weight:700; color:var(--text-muted);">Batas pengisian bebas nominal: Rp10.000 s/d Rp500.000</small>
+                                    <input type="tel" inputmode="numeric" pattern="[0-9]*" id="buy-custom-ewallet-amount" class="form-control" value="50000" min="10000" max="500000" placeholder="Rp10.000 - Rp500.000" style="font-weight:900; font-size:1rem;" oninput="this.value=this.value.replace(/[^0-9]/g,''); window.onInputCustomEwalletAmount()">
+                                    <small id="buy-custom-ewallet-hint" style="display:block; margin-top:5px; font-size:0.73rem; font-weight:700; color:var(--text-muted);">Nominal Rp10.000 s/d Rp500.000</small>
                                 </div>
 
                                 <div id="buy-payment-method" class="form-group" style="margin-top: 1rem;">
                                     <label>Metode Pembayaran</label>
-                                    <div id="checkout-pay-grid" class="type-grid checkout-pay-3grid" style="grid-template-columns: repeat(2, 1fr); gap: 8px; margin-top:6px;">
-                                        <label class="type-card active" id="pay-card-qris" onclick="window.selectPaymentUI('qris', this)" tabindex="0">
-                                            <input type="radio" name="payment_method" value="qris" checked style="display:none;">
-                                            <div class="pay-method-head">
-                                                <i class="fa-solid fa-qrcode"></i>
-                                                <strong>QRIS</strong>
+                                    <div id="checkout-pay-grid" class="type-grid" style="grid-template-columns: 1fr; gap: 8px; margin-top:6px;">
+                                        <label class="type-card active" id="pay-card-balance" onclick="window.selectPaymentUI('balance', this)" tabindex="0" style="display:flex; justify-content:space-between; align-items:center; flex-direction:row; padding: 12px 14px;">
+                                            <input type="radio" name="payment_method" value="balance" checked style="display:none;">
+                                            <div class="pay-method-head" style="margin:0;">
+                                                <i class="fa-solid fa-wallet text-primary" style="font-size:1.15rem;"></i>
+                                                <div style="text-align:left;">
+                                                    <strong style="display:block; font-size:0.88rem;">SALDO AKUN</strong>
+                                                    <small style="font-size:0.7rem; color:var(--text-muted); font-weight:700;">Proses Instan Otomatis</small>
+                                                </div>
                                             </div>
-                                            <span class="pay-badge badge-green">Otomatis</span>
-                                        </label>
-
-                                        <label class="type-card" id="pay-card-balance" style="display:none;" onclick="window.selectPaymentUI('balance', this)" tabindex="0">
-                                            <input type="radio" name="payment_method" value="balance" style="display:none;">
-                                            <div class="pay-method-head">
-                                                <i class="fa-solid fa-wallet"></i>
-                                                <strong>SALDO</strong>
-                                            </div>
-                                            <span class="pay-badge badge-green" id="checkout-balance-badge">Rp0</span>
-                                        </label>
-                                        
-                                        <label class="type-card" id="pay-card-cash" onclick="window.selectPaymentUI('cash', this)" tabindex="0">
-                                            <input type="radio" name="payment_method" value="cash" style="display:none;">
-                                            <div class="pay-method-head">
-                                                <i class="fa-solid fa-barcode"></i>
-                                                <strong>TUNAI</strong>
-                                            </div>
-                                            <span class="pay-badge badge-yellow">Kasir</span>
+                                            <span class="pay-badge badge-green" id="checkout-balance-badge" style="font-size:0.82rem; padding:4px 10px;">Rp0</span>
                                         </label>
                                     </div>
 
-                                    <div id="balance-warning-msg" class="brutal-alert-box alert-info" style="display:none; margin-top:10px; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
-                                        <span id="balance-warning-text"><i class="fa-solid fa-wallet"></i> Bayar dengan Saldo Akun</span>
-                                        <button type="button" class="btn btn-primary btn-sm" style="padding:3px 10px; min-height:26px; font-size:0.72rem;" onclick="window.openTopupBalanceModal()">+ Isi Saldo</button>
+                                    <div id="balance-warning-msg" class="brutal-alert-box alert-info" style="display:flex; margin-top:10px; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+                                        <span id="balance-warning-text"><i class="fa-solid fa-wallet"></i> Pembayaran otomatis dengan Saldo Akun</span>
+                                        <button type="button" class="btn btn-primary btn-sm" style="padding:4px 12px; min-height:28px; font-size:0.74rem;" onclick="window.closeMobilePaymentSheet(); window.switchMainTab('topup')"><i class="fa-solid fa-circle-plus"></i> Isi Saldo</button>
                                     </div>
-
-                                    <div id="cash-warning-msg" class="brutal-alert-box alert-warning" style="display:none; margin-top:10px;">
-                                        <i class="fa-solid fa-barcode"></i>
-                                        <span>Bayar tunai di kasir Admin.</span>
-                                    </div>
+                                    <div id="cash-warning-msg" style="display:none !important;"></div>
                                 </div>
                                 
                                 <div class="cart-total-box">
@@ -1124,24 +1107,20 @@
         </div>
 
         
-        <!-- TAB 6C: ISI SALDO AKUN, KELOLA LANGGANAN MEMBER PLUS & TAB KHUSUS PERBANDINGAN HARGA -->
+        <!-- TAB 6C: DEPOSIT / ISI SALDO AKUN TERPISAH -->
         <div id="tab-topup" class="main-tab-content container" style="padding-top: 1.2rem;">
             <div class="topup-fullscreen-wrapper">
                 <div class="flex-between align-center flex-wrap-gap topup-header-bar" style="margin-bottom: 1.15rem; display:flex; justify-content:space-between; align-items:center; gap:10px;">
+                    <div class="section-header" style="margin-bottom:0;">
+                        <h2><i class="fa-solid fa-wallet text-primary"></i> Deposit &amp; Isi Saldo Akun</h2>
+                        <p>Isi saldo akun dengan metode QRIS Otomatis atau Tunai di Kasir Admin.</p>
+                    </div>
                     <button type="button" class="btn btn-outline btn-sm" onclick="window.switchMainTab('katalog')">
                         <i class="fa-solid fa-arrow-left"></i> Kembali ke Katalog
                     </button>
-                    <div class="bantuan-subtabs-bar topup-two-subtabs" style="margin: 0; max-width: 520px; width: 100%;">
-                        <button type="button" id="topup-subtab-btn-wallet" class="bantuan-subtab-btn active" onclick="window.switchTopupSubTab('topup')">
-                            <i class="fa-solid fa-wallet"></i> <span>Isi Saldo &amp; Riwayat</span>
-                        </button>
-                        <button type="button" id="topup-subtab-btn-memberplus" class="bantuan-subtab-btn" onclick="window.switchTopupSubTab('memberplus')">
-                            <i class="fa-solid fa-crown"></i> <span id="topup-subtab-text-memberplus">Langganan Member Plus</span>
-                        </button>
-                    </div>
                 </div>
 
-                <!-- SUB-PANEL 1: ISI SALDO AKUN + RIWAYAT ISI SALDO DALAM SATU TAB TERPADU -->
+                <!-- PANEL ISI SALDO AKUN + RIWAYAT ISI SALDO -->
                 <div id="topup-panel-wallet" class="checkout-split-grid">
                     <div class="checkout-main-col">
                         <div class="checkout-step-card">
@@ -1169,7 +1148,7 @@
 
                             <div class="form-group" style="margin-bottom:0;">
                                 <label for="topup-custom-amount">Atau Masukkan Nominal Lain (Rp) <span style="color:var(--danger)">*</span></label>
-                                <input type="number" id="topup-custom-amount" class="form-control" value="50000" min="1000" placeholder="Minimal Rp1.000" style="font-weight: 900; font-size: 1.1rem;" oninput="window.updateTopupSummaryDisplay()">
+                                <input type="tel" inputmode="numeric" pattern="[0-9]*" id="topup-custom-amount" class="form-control" value="50000" min="1000" placeholder="Minimal Rp1.000" style="font-weight: 900; font-size: 1.1rem;" oninput="this.value=this.value.replace(/[^0-9]/g,''); window.updateTopupSummaryDisplay()">
                                 
                             </div>
                         </div>
@@ -1239,8 +1218,23 @@
                     </div>
                 </div>
 
-                <!-- SUB-PANEL 2: LANGGANAN & KELOLA MEMBER PLUS -->
-                <div id="topup-panel-memberplus" style="display: none;">
+            </div>
+        </div>
+
+        <!-- TAB 6D: LANGGANAN MEMBER PLUS TERPISAH -->
+        <div id="tab-memberplus" class="main-tab-content container" style="padding-top: 1.2rem;">
+            <div class="topup-fullscreen-wrapper">
+                <div class="flex-between align-center flex-wrap-gap topup-header-bar" style="margin-bottom: 1.15rem; display:flex; justify-content:space-between; align-items:center; gap:10px;">
+                    <div class="section-header" style="margin-bottom:0;">
+                        <h2><i class="fa-solid fa-crown" style="color:#f59e0b;"></i> <span id="topup-subtab-text-memberplus">Langganan Member Plus</span></h2>
+                        <p>Nikmati harga khusus Member Plus di seluruh katalog &amp; kode promo eksklusif.</p>
+                    </div>
+                    <button type="button" class="btn btn-outline btn-sm" onclick="window.switchMainTab('katalog')">
+                        <i class="fa-solid fa-arrow-left"></i> Kembali ke Katalog
+                    </button>
+                </div>
+
+                <div id="topup-panel-memberplus">
                     <div id="memberplus-main-content-grid" class="checkout-split-grid">
                         <div class="checkout-main-col">
                             <!-- Kartu Status Aktif Member Plus -->
@@ -1553,7 +1547,7 @@
                     <div class="auth-card-floating-badge">AKUN TOKO</div>
                     <div class="auth-header-text">
                         <h2 id="auth-title">Masuk Akun</h2>
-                        <p id="auth-subtitle">Masuk ke akunmu atau lanjut sebagai tamu.</p>
+                        <p id="auth-subtitle">Masuk ke akun Member kamu untuk mulai berbelanja.</p>
                     </div>
                     
                     <div class="auth-tabs-toggle" id="auth-tabs-container">
@@ -1645,9 +1639,7 @@
                         <button type="button" aria-label="Login Google" id="auth-google-btn" class="btn btn-outline btn-auth-action" onclick="window.processGoogleLogin()">
                             <i class="fa-brands fa-google" style="color:#ea4335; font-size:1.1rem;"></i> <span id="text-google-btn">Lanjut dengan Google</span>
                         </button>
-                        <button type="button" aria-label="Masuk Tanpa Akun" id="auth-guest-btn" class="btn btn-warning btn-auth-action" onclick="window.processAnonymousLogin()">
-                            <i class="fa-solid fa-user-astronaut" style="font-size:1.05rem;"></i> <span id="text-guest-btn">Masuk sebagai Tamu</span>
-                        </button>
+
                     </div>
                 </div>
             </div>
@@ -1726,16 +1718,19 @@
         </footer>
     </div>
 
-    <!-- NAVIGASI BAWAH MOBILE -->
+    <!-- NAVIGASI BAWAH MOBILE (TERPISAH ANTARA TAB SALDO DAN TAB MEMBER PLUS) -->
     <nav class="bottom-nav" id="mobile-bottom-nav" aria-label="Navigasi Bawah">
         <a onclick="window.switchMainTab('katalog')" id="nav-bot-katalog" class="active" role="button">
             <i class="fa-solid fa-store"></i><span>Katalog</span>
         </a>
+        <a onclick="window.switchMainTab('topup')" id="nav-bot-topup" role="button">
+            <i class="fa-solid fa-wallet"></i><span>Saldo</span>
+        </a>
+        <a onclick="window.switchMainTab('memberplus')" id="nav-bot-memberplus" role="button">
+            <i class="fa-solid fa-crown"></i><span>Member+</span>
+        </a>
         <a onclick="window.switchMainTab('pesanan')" id="nav-bot-pesanan" role="button">
             <i class="fa-solid fa-receipt"></i><span id="nav-text-pesanan-mob">Pesanan</span>
-        </a>
-        <a onclick="window.switchMainTab('berita')" id="nav-bot-berita" role="button">
-            <i class="fa-solid fa-newspaper"></i><span>Berita</span>
         </a>
         <a onclick="window.switchMainTab('bantuan')" id="nav-bot-bantuan" role="button">
             <i class="fa-solid fa-comments"></i><span>Bantuan</span>
@@ -1907,19 +1902,39 @@
                 </div>
             </div>
 
-            <!-- Kolom Verifikasi PIN Transaksi Saldo Akun (Muncul saat Metode Bayar = SALDO) -->
-            <div id="chk-confirm-pin-box" class="brutal-panel" style="display:none; padding: 0.9rem; margin-bottom: 1rem; border-color: var(--primary); background: var(--surface-elevated);">
-                <label for="chk-confirm-trx-pin" style="display:block; font-size:0.8rem; font-weight:900; margin-bottom:6px; color:var(--primary);">
-                    <i class="fa-solid fa-lock"></i> Masukkan 6 Digit PIN Transaksi Saldo
-                </label>
-                <input type="password" id="chk-confirm-trx-pin" class="form-control code-mono" maxlength="6" inputmode="numeric" placeholder="••••••" style="text-align:center; font-size:1.35rem; font-weight:900; letter-spacing:0.35em;" onkeypress="if(event.key === 'Enter') window.confirmAndExecuteCheckout()">
-                <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px; margin-top:6px;">
-                    <small id="chk-confirm-pin-helper" style="font-size:0.72rem; font-weight:700; color:var(--text-muted);">
-                        Masukkan PIN Transaksi untuk konfirmasi Saldo Akun.
-                    </small>
-                    <button type="button" class="btn btn-outline btn-sm" style="padding:2px 8px; min-height:24px; font-size:0.7rem;" onclick="window.openForgotTrxPinModal()">
+            <!-- Panel PIN M-Banking 6 Titik & Keypad Angka Interaktif -->
+            <div id="chk-confirm-pin-box" class="mbanking-pin-panel" style="display:none; margin-bottom: 1rem;">
+                <div class="mbanking-pin-header">
+                    <span class="mbanking-pin-badge"><i class="fa-solid fa-shield-halved"></i> PIN TRANSAKSI SALDO</span>
+                    <button type="button" class="btn btn-outline btn-sm" style="padding:2px 8px; min-height:24px; font-size:0.68rem;" onclick="window.openForgotTrxPinModal()">
                         <i class="fa-solid fa-key"></i> Lupa PIN?
                     </button>
+                </div>
+                <input type="password" id="chk-confirm-trx-pin" maxlength="6" inputmode="none" autocomplete="off" style="position:absolute; opacity:0; pointer-events:none; width:1px; height:1px;">
+                <div id="chk-pin-dots-row" class="mbanking-pin-dots" onclick="window.focusMbankingPinPad()">
+                    <span class="pin-dot"></span>
+                    <span class="pin-dot"></span>
+                    <span class="pin-dot"></span>
+                    <span class="pin-dot"></span>
+                    <span class="pin-dot"></span>
+                    <span class="pin-dot"></span>
+                </div>
+                <small id="chk-confirm-pin-helper" class="mbanking-pin-helper">
+                    Ketik 6 digit PIN menggunakan tombol angka di bawah atau keyboard fisik
+                </small>
+                <div class="mbanking-keypad-grid">
+                    <button type="button" class="mbanking-key-btn" onclick="window.pressUserPinKeypad('1')">1</button>
+                    <button type="button" class="mbanking-key-btn" onclick="window.pressUserPinKeypad('2')">2</button>
+                    <button type="button" class="mbanking-key-btn" onclick="window.pressUserPinKeypad('3')">3</button>
+                    <button type="button" class="mbanking-key-btn" onclick="window.pressUserPinKeypad('4')">4</button>
+                    <button type="button" class="mbanking-key-btn" onclick="window.pressUserPinKeypad('5')">5</button>
+                    <button type="button" class="mbanking-key-btn" onclick="window.pressUserPinKeypad('6')">6</button>
+                    <button type="button" class="mbanking-key-btn" onclick="window.pressUserPinKeypad('7')">7</button>
+                    <button type="button" class="mbanking-key-btn" onclick="window.pressUserPinKeypad('8')">8</button>
+                    <button type="button" class="mbanking-key-btn" onclick="window.pressUserPinKeypad('9')">9</button>
+                    <button type="button" class="mbanking-key-btn key-fn" onclick="window.pressUserPinKeypad('CLEAR')" title="Hapus Semua">C</button>
+                    <button type="button" class="mbanking-key-btn" onclick="window.pressUserPinKeypad('0')">0</button>
+                    <button type="button" class="mbanking-key-btn key-fn" onclick="window.pressUserPinKeypad('BACK')" title="Hapus 1 Angka"><i class="fa-solid fa-delete-left"></i></button>
                 </div>
             </div>
 
@@ -1961,9 +1976,7 @@
                 <button type="button" class="indomaret-btn-outline-bw" style="width: 100%; padding: 10px 14px; font-size: 0.8rem;" onclick="window.executeShareReceiptAction('download_png')">
                     <i class="fa-solid fa-download"></i> <span>Simpan Gambar Struk (.PNG)</span>
                 </button>
-                    <button type="button" id="btn-share-print-58mm" class="btn btn-warning" style="width:100%; font-weight:900; color:#422006;" onclick="window.executeShareReceiptAction('print_bt_58mm')">
-                        <i class="fa-solid fa-print"></i> <span>Print Struk Bluetooth 58mm</span>
-                    </button>
+
             </div>
         </div>
     </div>
@@ -1989,11 +2002,11 @@
             <div class="grid-2col-form" style="gap:8px; margin-bottom:1rem;">
                 <div class="form-group" style="margin-bottom:0;">
                     <label for="reset-pin-new">PIN Baru (6 Angka) <span style="color:var(--danger)">*</span></label>
-                    <input type="password" id="reset-pin-new" class="form-control code-mono" maxlength="6" inputmode="numeric" placeholder="6 digit angka">
+                    <input type="password" id="reset-pin-new" class="form-control code-mono" maxlength="6" inputmode="numeric" pattern="[0-9]*" oninput="this.value=this.value.replace(/[^0-9]/g,'').slice(0,6)" placeholder="6 digit angka">
                 </div>
                 <div class="form-group" style="margin-bottom:0;">
                     <label for="reset-pin-confirm">Ulangi PIN Baru <span style="color:var(--danger)">*</span></label>
-                    <input type="password" id="reset-pin-confirm" class="form-control code-mono" maxlength="6" inputmode="numeric" placeholder="Ulangi 6 angka">
+                    <input type="password" id="reset-pin-confirm" class="form-control code-mono" maxlength="6" inputmode="numeric" pattern="[0-9]*" oninput="this.value=this.value.replace(/[^0-9]/g,'').slice(0,6)" placeholder="Ulangi 6 angka">
                 </div>
             </div>
             <div style="display:flex; gap:8px;">
@@ -2031,7 +2044,7 @@
     </div>
 
     <!-- Script Utama Web User -->
-    <script type="module" src="js/store.js?v=28.7"></script>
+    <script type="module" src="js/store.js?v=28.8"></script>
 
     <script>
         if ('serviceWorker' in navigator) {

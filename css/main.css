@@ -6190,3 +6190,168 @@ button,
         padding: 14px 16px calc(24px + env(safe-area-inset-bottom, 0px)) 16px !important;
     }
 }
+
+/* ============================================================================
+ * PEMBARUAN v28.8: M-BANKING 6-DOT PIN PAD, PEMISAHAN TAB SALDO & MEMBER+,
+ * TOMBOL TUNGGAL PASCABAYAR DESKTOP, & EFEK SENTUH TOMBOL UNIVERSAL
+ * ============================================================================ */
+
+/* Sembunyikan tombol Lanjutkan Bayar duplikat di kotak hasil cek tagihan pascabayar khusus Desktop */
+@media (min-width: 769px) {
+    .btn-pasca-inline-mobile-only,
+    #user-pasca-inquiry-box .pasca-bill-result-card > button.btn-success {
+        display: none !important;
+    }
+}
+
+/* Navigasi Bawah Mobile 6 Item (Katalog, Saldo, Member+, Pesanan, Bantuan, Profil) Rapi & Presisi */
+@media (max-width: 768px) {
+    .bottom-nav {
+        display: grid !important;
+        grid-template-columns: repeat(6, minmax(0, 1fr)) !important;
+        padding: 6px 4px calc(6px + env(safe-area-inset-bottom, 0px)) 4px !important;
+        gap: 2px !important;
+    }
+    .bottom-nav a {
+        min-width: 0 !important;
+        padding: 5px 2px !important;
+        font-size: 0.62rem !important;
+        gap: 3px !important;
+    }
+    .bottom-nav a i {
+        font-size: 1.02rem !important;
+    }
+    .bottom-nav a span {
+        white-space: nowrap !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
+        max-width: 100% !important;
+    }
+    #tab-memberplus,
+    #tab-topup {
+        max-width: 100% !important;
+        overflow-x: hidden !important;
+    }
+}
+
+/* Panel PIN M-Banking 6 Titik & Keypad Angka Interaktif */
+.mbanking-pin-panel {
+    background: var(--surface-elevated);
+    border: 2.5px solid var(--border);
+    border-radius: 16px;
+    padding: 14px;
+    box-shadow: var(--brutal-shadow-sm);
+    text-align: center;
+}
+
+.mbanking-pin-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 10px;
+}
+
+.mbanking-pin-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.75rem;
+    font-weight: 900;
+    color: var(--primary);
+    letter-spacing: 0.03em;
+}
+
+.mbanking-pin-dots {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 6px;
+    margin: 4px auto 6px;
+    cursor: pointer;
+}
+
+.mbanking-pin-dots .pin-dot {
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    border: 2.5px solid var(--border);
+    background: var(--bg);
+    transition: transform 0.16s cubic-bezier(0.22, 1, 0.36, 1), background-color 0.16s ease, border-color 0.16s ease;
+}
+
+.mbanking-pin-dots .pin-dot.filled {
+    background: var(--primary);
+    border-color: var(--border);
+    transform: scale(1.18);
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.18);
+}
+
+.mbanking-pin-dots.pin-error-shake {
+    animation: pinErrorShakeAnim 0.42s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+}
+
+.mbanking-pin-dots.pin-error-shake .pin-dot {
+    border-color: var(--danger);
+    background: rgba(239, 68, 68, 0.25);
+}
+
+@keyframes pinErrorShakeAnim {
+    10%, 90% { transform: translate3d(-4px, 0, 0); }
+    20%, 80% { transform: translate3d(6px, 0, 0); }
+    30%, 50%, 70% { transform: translate3d(-8px, 0, 0); }
+    40%, 60% { transform: translate3d(8px, 0, 0); }
+}
+
+.mbanking-pin-helper {
+    display: block;
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: var(--text-muted);
+    margin-bottom: 10px;
+}
+
+.mbanking-keypad-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+    max-width: 310px;
+    margin: 0 auto;
+}
+
+.mbanking-key-btn {
+    height: 44px;
+    border-radius: 12px;
+    border: 2px solid var(--border);
+    background: var(--surface);
+    color: var(--text);
+    font-family: var(--font-heading);
+    font-size: 1.1rem;
+    font-weight: 900;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    user-select: none;
+    box-shadow: 2px 2px 0px var(--border);
+    transition: transform 0.1s ease, box-shadow 0.1s ease, background-color 0.12s ease;
+}
+
+.mbanking-key-btn:hover {
+    background: var(--surface-hover);
+}
+
+.mbanking-key-btn:active,
+.mbanking-key-btn.btn-tap-pressed {
+    transform: translate(2px, 2px) scale(0.96);
+    box-shadow: 0px 0px 0px var(--border);
+    background: var(--primary);
+    color: #ffffff;
+}
+
+.mbanking-key-btn.key-fn {
+    background: var(--bg);
+    font-size: 0.92rem;
+    color: var(--danger);
+}
