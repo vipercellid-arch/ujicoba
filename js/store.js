@@ -4350,19 +4350,27 @@ window.openCheckoutConfirmWithAutoCheckId = async function() {
     if (totEl) totEl.innerText = `Rp${p.baseTotal.toLocaleString('id-ID')}`;
     if (extraRow) extraRow.style.display = 'none';
 
+    window._isFullPinStageOpen = false;
+    window._customFullPinVerifiedCallback = null;
+    const detailsStageEl = document.getElementById('chk-confirm-stage-details');
     const pinBoxEl = document.getElementById('chk-confirm-pin-box');
     const pinInpEl = document.getElementById('chk-confirm-trx-pin');
-    if (pinBoxEl) {
-        pinBoxEl.style.display = (p.paymentMethod === 'balance') ? 'block' : 'none';
-    }
+    const modalEl = document.getElementById('modal-checkout-confirm');
+    if (modalEl) modalEl.classList.remove('pin-fullscreen-mode');
+    if (detailsStageEl) detailsStageEl.style.display = 'block';
+    if (pinBoxEl) pinBoxEl.style.display = 'none';
     if (pinInpEl) {
         pinInpEl.value = '';
         if (typeof window.syncMbankingPinDotsUI === 'function') window.syncMbankingPinDotsUI();
     }
+    const amtPillEl = document.getElementById('chk-pin-fullscreen-amount-pill');
+    if (amtPillEl) {
+        amtPillEl.innerText = `Total Bayar: Rp${Number(p.baseTotal || 0).toLocaleString('id-ID')}`;
+    }
     const helperPinEl = document.getElementById('chk-confirm-pin-helper');
     if (helperPinEl) {
         helperPinEl.style.color = 'var(--text-muted)';
-        helperPinEl.innerText = 'Ketik 6 digit PIN menggunakan tombol angka di bawah atau keyboard fisik';
+        helperPinEl.innerText = 'Masukkan 6 digit PIN Transaksi Saldo Akun';
     }
     window.openModal('modal-checkout-confirm');
 
@@ -4614,7 +4622,61 @@ window.focusMbankingPinPad = function() {
     if (inp) inp.focus();
 };
 
+window.openFullPinStageForCheckout = function(amountNum = 0, customCallback = null) {
+    window._isFullPinStageOpen = true;
+    window._customFullPinVerifiedCallback = typeof customCallback === 'function' ? customCallback : null;
+    const modalEl = document.getElementById('modal-checkout-confirm');
+    const detailsStageEl = document.getElementById('chk-confirm-stage-details');
+    const pinBoxEl = document.getElementById('chk-confirm-pin-box');
+    const pinInpEl = document.getElementById('chk-confirm-trx-pin');
+    const amtPillEl = document.getElementById('chk-pin-fullscreen-amount-pill');
+    const helperPinEl = document.getElementById('chk-confirm-pin-helper');
+
+    if (modalEl) {
+        modalEl.classList.add('pin-fullscreen-mode');
+        if (!modalEl.classList.contains('active')) {
+            window.openModal('modal-checkout-confirm');
+        }
+    }
+    if (detailsStageEl) detailsStageEl.style.display = 'none';
+    if (pinBoxEl) pinBoxEl.style.display = 'flex';
+    if (amtPillEl && amountNum > 0) {
+        amtPillEl.innerText = `Total Bayar: Rp${Number(amountNum).toLocaleString('id-ID')}`;
+    }
+    if (pinInpEl) {
+        pinInpEl.value = '';
+        window.syncMbankingPinDotsUI();
+    }
+    if (helperPinEl) {
+        helperPinEl.style.color = 'var(--text-muted)';
+        helperPinEl.innerText = 'Masukkan 6 digit PIN Transaksi Saldo Akun';
+    }
+    setTimeout(() => pinInpEl?.focus(), 80);
+};
+
+window.backFromFullPinStageToDetails = function() {
+    if (window._customFullPinVerifiedCallback) {
+        window._customFullPinVerifiedCallback = null;
+        window._isFullPinStageOpen = false;
+        window.closeModal('modal-checkout-confirm');
+        return;
+    }
+    window._isFullPinStageOpen = false;
+    const modalEl = document.getElementById('modal-checkout-confirm');
+    const detailsStageEl = document.getElementById('chk-confirm-stage-details');
+    const pinBoxEl = document.getElementById('chk-confirm-pin-box');
+    const pinInpEl = document.getElementById('chk-confirm-trx-pin');
+    if (modalEl) modalEl.classList.remove('pin-fullscreen-mode');
+    if (pinBoxEl) pinBoxEl.style.display = 'none';
+    if (detailsStageEl) detailsStageEl.style.display = 'block';
+    if (pinInpEl) {
+        pinInpEl.value = '';
+        window.syncMbankingPinDotsUI();
+    }
+};
+
 window.pressUserPinKeypad = function(key) {
+    if (isProcessingCheckout || window._pinVerifyingLock) return;
     const inp = document.getElementById('chk-confirm-trx-pin');
     if (!inp) return;
     let cur = String(inp.value || '').replace(/[^0-9]/g, '');
@@ -4628,10 +4690,54 @@ window.pressUserPinKeypad = function(key) {
     inp.value = cur;
     window.syncMbankingPinDotsUI();
     if (cur.length === 6) {
-        const btnProceed = document.getElementById('btn-confirm-proceed-pay');
-        if (btnProceed && !btnProceed.disabled) {
-            setTimeout(() => window.confirmAndExecuteCheckout(), 120);
+        setTimeout(() => {
+            if (typeof window._customFullPinVerifiedCallback === 'function') {
+                window.verifyPinForCustomAction();
+            } else {
+                window.confirmAndExecuteCheckout();
+            }
+        }, 110);
+    }
+};
+
+window.verifyPinForCustomAction = async function() {
+    if (window._pinVerifyingLock) return;
+    const activeUidForPin = currentUser?.uid || userProfile.uid || '';
+    const lockedSecNow = checkUserPinBruteForceLock(activeUidForPin);
+    if (lockedSecNow > 0) {
+        window.customAlert('PIN Dikunci Sementara', `Terlalu banyak percobaan PIN salah. Silakan tunggu <b>${lockedSecNow} detik</b> lagi.`, 'error');
+        return;
+    }
+    const savedUserPin = String(userProfile.trxPin || localStorage.getItem(`vipercell_trx_pin_${activeUidForPin}`) || '').trim();
+    const enteredPin = (document.getElementById('chk-confirm-trx-pin')?.value || '').trim();
+    if (!enteredPin || enteredPin.length < 6) return;
+    if (enteredPin !== savedUserPin) {
+        const attemptRes = recordUserPinAttemptResult(activeUidForPin, false);
+        const inpPin = document.getElementById('chk-confirm-trx-pin');
+        if (inpPin) inpPin.value = '';
+        window.syncMbankingPinDotsUI();
+        const dotsRow = document.getElementById('chk-pin-dots-row');
+        if (dotsRow) {
+            dotsRow.classList.remove('pin-error-shake');
+            void dotsRow.offsetWidth;
+            dotsRow.classList.add('pin-error-shake');
         }
+        const helperEl = document.getElementById('chk-confirm-pin-helper');
+        if (helperEl) {
+            helperEl.style.color = 'var(--danger)';
+            helperEl.innerText = attemptRes.lockedSec > 0
+                ? 'PIN dikunci selama 3 menit karena 5x salah.'
+                : `PIN salah! Sisa percobaan: ${attemptRes.remainingTries}x`;
+        }
+        return;
+    }
+    recordUserPinAttemptResult(activeUidForPin, true);
+    const cb = window._customFullPinVerifiedCallback;
+    window._customFullPinVerifiedCallback = null;
+    window._isFullPinStageOpen = false;
+    window.closeModal('modal-checkout-confirm');
+    if (typeof cb === 'function') {
+        await cb();
     }
 };
 
@@ -4710,6 +4816,10 @@ window.confirmAndExecuteCheckout = async function() {
     }
 
     if (p.paymentMethod === 'balance') {
+        if (!window._isFullPinStageOpen) {
+            window.openFullPinStageForCheckout(p.baseTotal, null);
+            return;
+        }
         const savedUserPin = String(userProfile.trxPin || localStorage.getItem(`vipercell_trx_pin_${activeUidForPin}`) || '').trim();
         const enteredPin = (document.getElementById('chk-confirm-trx-pin')?.value || '').trim();
         if (!enteredPin || enteredPin.length < 6) {
@@ -5274,17 +5384,17 @@ function buildFullReceiptHTML(order) {
 
         actionHtml = `
             ${printAndShareBtnsHtml}
+            ${canReviewThisOrder ? `
+            <button type="button" class="btn btn-primary" style="width:100%; margin-top:0.65rem;" onclick="window.closeModal('modal-order-detail'); window.reorderFromHistory('${escapeJsStr(order.id)}')">
+                <i class="fa-solid fa-rotate-right"></i> Beli Lagi Produk Ini
+            </button>` : ''}
             ${(canReviewThisOrder && !alreadyReviewed && isDeliveredSuccess) ? `
             <button type="button" class="btn btn-warning" style="width:100%; margin-top:0.65rem;" onclick="window.goToReview('${safeJsBrand}', '${escapeJsStr(order.id)}')">
                 <i class="fa-solid fa-star"></i> Beri Ulasan Produk
             </button>` : (canReviewThisOrder && alreadyReviewed && isDeliveredSuccess ? `
             <div style="margin-top:0.65rem; text-align:center; font-size:0.76rem; font-weight:800; color:var(--success); padding:7px; border:1.5px dashed var(--success); border-radius:8px;">
                 <i class="fa-solid fa-circle-check"></i> Terima kasih, pesanan ini sudah kamu ulas
-            </div>` : '')}
-            ${((isCancelled || order.status === 'EXPIRED' || order.status === 'FAILED') && canReviewThisOrder) ? `
-            <button type="button" class="btn btn-primary" style="width:100%; margin-top:0.65rem;" onclick="window.closeModal('modal-order-detail'); window.openDirectBuyModal('${safeJsBrand}')">
-                <i class="fa-solid fa-rotate-right"></i> Pesan Ulang Produk Ini
-            </button>` : ''}`;
+            </div>` : '')}`;
     }
 
     let durationReceiptHtml = '';
@@ -5480,7 +5590,6 @@ function buildCompactOrderItemHTML(order) {
         <div class="order-compact-right">
             <span class="order-compact-price">Rp${(order.finalTotal || 0).toLocaleString('id-ID')}</span>
             <div style="display:flex; align-items:center; gap:6px; margin-top:3px;">
-                ${!isUnpaid && item.brandName && !order.isTopupOrder && !order.isMemberPlusOrder ? `<button type="button" class="btn btn-primary btn-sm" style="padding:2px 8px; min-height:22px; font-size:0.64rem;" onclick="event.stopPropagation(); window.reorderFromHistory('${escapeJsStr(order.id)}')"><i class="fa-solid fa-rotate-right"></i> Beli Lagi</button>` : ''}
                 <span class="order-tap-hint">Rincian <i class="fa-solid fa-chevron-right"></i></span>
             </div>
         </div>
@@ -6390,7 +6499,9 @@ window.switchMainTab = function(tab) {
         window.openPriceComparisonTab();
         return;
     }
-    const navKey = tab === 'baca-berita' ? 'berita' : (tab === 'payment-qris' ? 'pesanan' : tab);
+    const navKey = tab === 'baca-berita'
+        ? 'berita'
+        : (tab === 'payment-qris' ? 'pesanan' : ((tab === 'topup' || tab === 'memberplus') ? 'profil' : tab));
     const navEl = document.getElementById('nav-' + navKey);
     if (navEl) navEl.classList.add('active');
     const botNavEl = document.getElementById('nav-bot-' + navKey);
@@ -6420,11 +6531,15 @@ window.switchMainTab = function(tab) {
         } else if (tab === 'memberplus') {
             const mpMainGrid = document.getElementById('memberplus-main-content-grid');
             const panelCompare = document.getElementById('topup-panel-compare');
-            if (mpMainGrid) mpMainGrid.style.display = 'grid';
-            if (panelCompare) panelCompare.style.display = 'none';
+            const isCompareActive = Boolean(window._mpCompareModeActive === true);
+            if (mpMainGrid) mpMainGrid.style.display = isCompareActive ? 'none' : 'grid';
+            if (panelCompare) panelCompare.style.display = isCompareActive ? 'block' : 'none';
             window.updateUserWalletBalanceUI();
             window.updateProfileMemberPlusVisuals();
             window.syncMemberPlusPanelState();
+            if (isCompareActive && typeof window.initPriceComparisonTabUI === 'function') {
+                window.initPriceComparisonTabUI();
+            }
         }
         observeReveals();
     });
@@ -6743,17 +6858,23 @@ function updateProfileStats() {
         return Boolean(effectiveUid && o.userId === effectiveUid);
     });
 
-    const successOrders = myOrders.filter(o => o.status === 'SUCCESS');
-    const totalSpent = successOrders.reduce((sum, o) => sum + (o.finalTotal || 0), 0);
+    const successOrders = myOrders.filter(o => o.status === 'SUCCESS' && !o.isTopupOrder && o.orderType !== 'TOPUP_BALANCE');
+    const liveSuccessCount = successOrders.length;
+    const liveTotalSpent = successOrders.reduce((sum, o) => sum + (o.finalTotal || 0), 0);
+
+    const archivedSuccessCount = isMember ? Math.max(0, Math.round(Number(userProfile.preservedSuccessOrders || 0))) : 0;
+    const archivedTotalSpent = isMember ? Math.max(0, Math.round(Number(userProfile.preservedTotalSpent || 0))) : 0;
+
+    const finalSuccessCount = archivedSuccessCount + liveSuccessCount;
+    const finalTotalSpent = archivedTotalSpent + liveTotalSpent;
 
     const totalEl = document.getElementById('prof-stat-total');
     const statEl = document.getElementById('prof-stat-success');
     const spentEl = document.getElementById('prof-stat-spent');
 
-    // [FITUR #7] Total Pesanan yang dihitung di tab profil hanya transaksi berhasil (SUCCESS)
-    if (totalEl) totalEl.innerText = successOrders.length;
-    if (statEl) statEl.innerText = successOrders.length;
-    if (spentEl) spentEl.innerText = `Rp${totalSpent.toLocaleString('id-ID')}`;
+    if (totalEl) totalEl.innerText = finalSuccessCount;
+    if (statEl) statEl.innerText = finalSuccessCount;
+    if (spentEl) spentEl.innerText = `Rp${finalTotalSpent.toLocaleString('id-ID')}`;
 }
 
 // ==========================================
@@ -9115,6 +9236,7 @@ async function executeClientDigiflazzOrder(orderData, orderDbId) {
     const isTesting = (siteSettings.digiflazzEnvMode || 'development') === 'development';
     const isPasca = (item.processType === 'digiflazz_pasca' || orderData.digiflazzCommand === 'pay-pasca');
 
+    const sellBudget = Math.round(Number(orderData.baseTotal || orderData.finalTotal || 0));
     const reqPayload = {
         username: username,
         buyer_sku_code: sku,
@@ -9125,8 +9247,10 @@ async function executeClientDigiflazzOrder(orderData, orderDbId) {
     if (isPasca) {
         reqPayload.commands = isRepeatCheck ? 'status-pasca' : 'pay-pasca';
         if (reqPayload.commands === 'pay-pasca' && isTesting) reqPayload.testing = true;
-    } else if (isTesting) {
-        reqPayload.testing = true;
+    } else {
+        if (isTesting) reqPayload.testing = true;
+        if (sellBudget > 0) reqPayload.max_price = sellBudget;
+        if (customerNo.includes('.')) reqPayload.allow_dot = true;
     }
 
     try {
@@ -9442,17 +9566,19 @@ window.updateUserGreetingPanelUI = function() {
         const displayName = userProfile.name || (userProfile.email ? userProfile.email.split('@')[0] : 'Member');
         if (nameTextEl) nameTextEl.innerText = displayName;
 
+        const btnCheckBalEl = document.getElementById('btn-greeting-check-balance');
         if (isMp) {
             if (subTextEl) {
-                subTextEl.innerText = 'Harga khusus Member Plus otomatis diterapkan di seluruh produk katalog.';
+                subTextEl.innerText = 'Harga khusus Member Plus aktif di seluruh produk katalog.';
             }
-            if (btnMpEl) btnMpEl.style.display = 'none';
+            if (btnMpEl) btnMpEl.style.display = siteSettings.memberPlusEnabled !== false ? 'inline-flex' : 'none';
+            if (btnMpTxtEl) btnMpTxtEl.innerText = 'Member Plus Aktif';
         } else {
             const hadExpiredMp = Number(userProfile.memberPlusExpiresAt || 0) > 0 && Number(userProfile.memberPlusExpiresAt || 0) <= Date.now();
             if (subTextEl) {
                 subTextEl.innerText = hadExpiredMp
-                    ? 'Masa aktif Member Plus kamu telah berakhir. Perpanjang kapan saja untuk menikmati harga khusus.'
-                    : 'Kelola saldo akun atau aktifkan Member Plus untuk mendapatkan potongan harga di seluruh katalog.';
+                    ? 'Masa aktif Member Plus telah berakhir. Perpanjang kapan saja.'
+                    : 'Kelola saldo akun atau aktifkan Member Plus untuk potongan harga katalog.';
             }
             if (btnMpEl) btnMpEl.style.display = siteSettings.memberPlusEnabled !== false ? 'inline-flex' : 'none';
             if (btnMpTxtEl) btnMpTxtEl.innerText = hadExpiredMp ? 'Perpanjang Member Plus' : 'Langganan Member Plus';
@@ -9460,14 +9586,17 @@ window.updateUserGreetingPanelUI = function() {
 
         if (walletBoxEl) walletBoxEl.style.display = 'flex';
         if (walletAmtEl) walletAmtEl.innerText = `Rp${Math.round(Number(userProfile.balance || 0)).toLocaleString('id-ID')}`;
+        if (btnCheckBalEl) btnCheckBalEl.style.display = 'inline-flex';
         if (btnPinShortcut) btnPinShortcut.style.display = 'inline-flex';
     } else {
+        const btnCheckBalEl = document.getElementById('btn-greeting-check-balance');
         const guestName = userProfile.name || localStorage.getItem('vipercell_anon_name') || 'Pelanggan';
         if (nameTextEl) nameTextEl.innerText = guestName;
         if (subTextEl) {
             subTextEl.innerText = 'Pilih produk digital, pulsa, token PLN, atau top up game pilihanmu.';
         }
         if (walletBoxEl) walletBoxEl.style.display = 'none';
+        if (btnCheckBalEl) btnCheckBalEl.style.display = 'none';
         if (btnPinShortcut) btnPinShortcut.style.display = 'none';
         if (btnMpEl) btnMpEl.style.display = 'inline-flex';
         if (btnMpTxtEl) btnMpTxtEl.innerText = 'Daftar Member';
@@ -9830,16 +9959,29 @@ function computeVariantComparisonPrices(item) {
     return { regularPrice, memberPlusPrice: regularPrice, saving: 0 };
 }
 
-window.openPriceComparisonTab = function() {
+window.openMemberPlusDashboardFromGreeting = function() {
+    window._mpCompareModeActive = false;
     window.switchMainTab('memberplus');
-    window.switchTopupSubTab('compare');
-    const compEl = document.getElementById('topup-panel-compare');
-    if (compEl) {
-        setTimeout(() => compEl.scrollIntoView({ behavior: 'smooth', block: 'start' }), 40);
+};
+
+window.openPriceComparisonTab = function() {
+    window._mpCompareModeActive = true;
+    const activeTab = document.querySelector('.main-tab-content.active');
+    if (!activeTab || activeTab.id !== 'tab-memberplus') {
+        window.switchMainTab('memberplus');
+    }
+    const mpMainGrid = document.getElementById('memberplus-main-content-grid');
+    const panelCompare = document.getElementById('topup-panel-compare');
+    if (mpMainGrid) mpMainGrid.style.display = 'none';
+    if (panelCompare) panelCompare.style.display = 'block';
+    window.initPriceComparisonTabUI();
+    if (panelCompare) {
+        setTimeout(() => panelCompare.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
     }
 };
 
 window.backToMemberPlusTabFromComparison = function() {
+    window._mpCompareModeActive = false;
     window.switchTopupSubTab('memberplus');
     const mpEl = document.getElementById('topup-panel-memberplus');
     if (mpEl) {
@@ -10399,6 +10541,7 @@ window.switchTopupSubTab = function(subTab = 'topup') {
     const panelCompare = document.getElementById('topup-panel-compare');
 
     if (isMpTab) {
+        window._mpCompareModeActive = isCompareView;
         const activeTab = document.querySelector('.main-tab-content.active');
         if (!activeTab || activeTab.id !== 'tab-memberplus') {
             window.switchMainTab('memberplus');
@@ -10451,14 +10594,36 @@ window.processMemberPlusSubscriptionCheckout = async function() {
     const payMethod = document.querySelector('input[name="mp_payment_method"]:checked')?.value || 'balance';
 
     if (payMethod === 'balance') {
+        const activeUidForPin = currentUser?.uid || userProfile.uid || '';
+        const savedUserPin = String(userProfile.trxPin || localStorage.getItem(`vipercell_trx_pin_${activeUidForPin}`) || '').trim();
+        if (savedUserPin.length !== 6) {
+            window.customAlert(
+                'PIN Transaksi Belum Disetel',
+                'Silakan atur <b>6 Digit PIN Transaksi</b> terlebih dahulu di menu <b>Profil</b> sebelum membayar dengan Saldo Akun.',
+                'warning',
+                `<button class="btn btn-outline btn-sm" style="width:100%; margin-top:8px;" onclick="window.closeAlert(); window.switchMainTab('profil')"><i class="fa-solid fa-shield-halved"></i> Atur PIN di Profil</button>`
+            );
+            return;
+        }
         const curBal = Math.round(Number(userProfile.balance || 0));
         if (curBal < mpPrice) {
             const kurang = mpPrice - curBal;
             window.customAlert(
                 'Saldo Akun Belum Mencukupi',
-                `Saldo akun kamu saat ini <b>Rp${curBal.toLocaleString('id-ID')}</b>, sedangkan biaya langganan Member Plus adalah <b>Rp${mpPrice.toLocaleString('id-ID')}</b> (kurang <b>Rp${kurang.toLocaleString('id-ID')}</b>).<br><br>Silakan isi saldo terlebih dahulu di tab <b>Isi Saldo</b> atau pilih metode <b>Tunai Kasir</b>.`,
+                `Saldo akun kamu saat ini <b>Rp${curBal.toLocaleString('id-ID')}</b>, sedangkan biaya langganan Member Plus adalah <b>Rp${mpPrice.toLocaleString('id-ID')}</b> (kurang <b>Rp${kurang.toLocaleString('id-ID')}</b>).<br><br>Silakan isi saldo terlebih dahulu atau pilih metode <b>Tunai Kasir</b>.`,
                 'warning'
             );
+            return;
+        }
+        if (!window._mpPinVerifiedBypass) {
+            window.openFullPinStageForCheckout(mpPrice, async () => {
+                window._mpPinVerifiedBypass = true;
+                try {
+                    await window.processMemberPlusSubscriptionCheckout();
+                } finally {
+                    window._mpPinVerifiedBypass = false;
+                }
+            });
             return;
         }
     }
