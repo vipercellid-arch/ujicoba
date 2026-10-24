@@ -433,6 +433,23 @@ function getVariantLocalVaultStockCount(item) {
     return vaultSlots + tabStocksSlots;
 }
 
+function getCurrentWibHourAndMinute() {
+    try {
+        const parts = new Intl.DateTimeFormat('en-GB', {
+            timeZone: 'Asia/Jakarta',
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: false
+        }).formatToParts(new Date());
+        const h = Number(parts.find(p => p.type === 'hour')?.value ?? new Date().getHours());
+        const m = Number(parts.find(p => p.type === 'minute')?.value ?? new Date().getMinutes());
+        return { h, m };
+    } catch (_) {
+        const wibDate = new Date(Date.now() + (7 * 3600000));
+        return { h: wibDate.getUTCHours(), m: wibDate.getUTCMinutes() };
+    }
+}
+
 function isVariantInDigiflazzCutOff(item) {
     if (!item) return false;
     const startStr = String(item.cutOffStart || '').trim();
@@ -442,8 +459,8 @@ function isVariantInDigiflazzCutOff(item) {
 
     const [sh, sm] = startStr.split(':').map(Number);
     const [eh, em] = endStr.split(':').map(Number);
-    const now = new Date();
-    const curMins = now.getHours() * 60 + now.getMinutes();
+    const { h, m } = getCurrentWibHourAndMinute();
+    const curMins = h * 60 + m;
     const startMins = sh * 60 + sm;
     const endMins = eh * 60 + em;
     if (startMins === endMins) return false;
@@ -2500,8 +2517,8 @@ async function checkClientPendingOrdersAgainstAmount(detectedAmount, sourceMutat
     if (currentCheckoutSession && currentCheckoutSession.dbId) {
         const activeOrd = orders.find(o => o.dbId === currentCheckoutSession.dbId || o.id === currentCheckoutSession.id);
         const sessFinal = Math.round(Number(currentCheckoutSession.finalTotal || activeOrd?.finalTotal || 0));
-        const sessBase = Math.round(Number(activeOrd?.baseTotal || 0));
-        if (sessFinal === numAmt || (sessBase > 0 && sessBase === numAmt)) {
+        const sessUnique = Math.round(Number(currentCheckoutSession.uniqueTotal || activeOrd?.uniqueTotal || sessFinal));
+        if (numAmt > 0 && (sessFinal === numAmt || sessUnique === numAmt)) {
             matchingUnpaid = activeOrd || currentCheckoutSession;
         }
     }
@@ -5430,23 +5447,61 @@ function buildFullReceiptHTML(order) {
         </div>`;
     }
 
+    const isDigiflazzOrderReceipt = Boolean(
+        order.digiflazzSku ||
+        itemObj.isDigiflazz === true ||
+        itemObj.processType === 'digiflazz' ||
+        itemObj.processType === 'digiflazz_pasca' ||
+        itemObj.processType === 'ewallet_custom' ||
+        itemObj.buyerSkuCode
+    );
+
     let replyHtml = '';
     if (isDeliveredSuccess && order.adminReply) {
-        const quickCopyButtonsHtml = buildQuickCopyCredentialButtons(order.adminReply);
-        replyHtml = `
-        ${plnCardHtml}
-        <div class="ereceipt-cred-vault">
-            <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px;">
-                <span style="font-weight: 900; color: var(--success); font-size: 0.82rem; display: flex; align-items: center; gap: 6px;">
-                    <i class="fa-solid fa-key"></i> RINCIAN AKUN / PESANAN TERKIRIM:
-                </span>
-                <button class="btn btn-outline btn-sm" style="padding:3px 10px; min-height:28px; font-size:0.7rem;" onclick="window.copyAccountReplyText('${escapeJsStr(order.id)}')">
-                    <i class="fa-regular fa-copy"></i> Salin Semua
-                </button>
-            </div>
-            ${quickCopyButtonsHtml}
-            <div class="ereceipt-cred-content">${escapeHtml(order.adminReply)}</div>
-        </div>`;
+        if (isDigiflazzOrderReceipt) {
+            const cleanSnVal = String(order.digiflazzSn || '').trim() || 'Sukses Diproses';
+            const verifiedOwner = String(order.verifiedTargetName || order.plnSubscriberName || '').trim();
+            replyHtml = `
+            ${plnCardHtml}
+            <div class="brutal-panel" style="margin-top:0.75rem; padding:0.85rem 1rem; border-color:var(--success); background:rgba(16,185,129,0.06);">
+                <div style="font-weight:900; color:var(--success); font-size:0.8rem; margin-bottom:6px; display:flex; align-items:center; gap:6px;">
+                    <i class="fa-solid fa-circle-check"></i> RINGKASAN TRANSAKSI OTOMATIS
+                </div>
+                <div class="qris-detail-row" style="padding:4px 0; border-bottom:1px dashed var(--border-subtle);">
+                    <span style="font-size:0.75rem; color:var(--text-muted);">Layanan</span>
+                    <strong style="font-size:0.8rem; text-align:right;">${escapeHtml(itemObj.name || order.productName || '-')}</strong>
+                </div>
+                <div class="qris-detail-row" style="padding:4px 0; border-bottom:1px dashed var(--border-subtle);">
+                    <span style="font-size:0.75rem; color:var(--text-muted);">Tujuan</span>
+                    <strong class="code-mono" style="font-size:0.8rem; text-align:right;">${escapeHtml(targetRaw)}</strong>
+                </div>
+                ${verifiedOwner ? `
+                <div class="qris-detail-row" style="padding:4px 0; border-bottom:1px dashed var(--border-subtle);">
+                    <span style="font-size:0.75rem; color:var(--text-muted);">Atas Nama / Akun</span>
+                    <strong style="font-size:0.8rem; color:var(--success); text-align:right;">${escapeHtml(verifiedOwner)}</strong>
+                </div>` : ''}
+                <div class="qris-detail-row" style="padding:4px 0;">
+                    <span style="font-size:0.75rem; color:var(--text-muted);">SN / Referensi</span>
+                    <strong class="code-mono" style="font-size:0.78rem; color:var(--primary); text-align:right; word-break:break-all;">${escapeHtml(cleanSnVal)}</strong>
+                </div>
+            </div>`;
+        } else {
+            const quickCopyButtonsHtml = buildQuickCopyCredentialButtons(order.adminReply);
+            replyHtml = `
+            ${plnCardHtml}
+            <div class="ereceipt-cred-vault">
+                <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px;">
+                    <span style="font-weight: 900; color: var(--success); font-size: 0.82rem; display: flex; align-items: center; gap: 6px;">
+                        <i class="fa-solid fa-key"></i> RINCIAN AKUN / PESANAN TERKIRIM:
+                    </span>
+                    <button class="btn btn-outline btn-sm" style="padding:3px 10px; min-height:28px; font-size:0.7rem;" onclick="window.copyAccountReplyText('${escapeJsStr(order.id)}')">
+                        <i class="fa-regular fa-copy"></i> Salin Semua
+                    </button>
+                </div>
+                ${quickCopyButtonsHtml}
+                <div class="ereceipt-cred-content">${escapeHtml(order.adminReply)}</div>
+            </div>`;
+        }
     }
 
     const helpHtml = generateHelpButtons(order.id, isPendingAdmin ? 'PENDING' : order.status, itemObj);
@@ -6530,10 +6585,16 @@ window.switchMainTab = function(tab) {
             window.renderTopupHistoryList();
         } else if (tab === 'memberplus') {
             const mpMainGrid = document.getElementById('memberplus-main-content-grid');
+            const mpTopHeader = document.querySelector('#tab-memberplus .topup-header-bar');
             const panelCompare = document.getElementById('topup-panel-compare');
             const isCompareActive = Boolean(window._mpCompareModeActive === true);
-            if (mpMainGrid) mpMainGrid.style.display = isCompareActive ? 'none' : 'grid';
-            if (panelCompare) panelCompare.style.display = isCompareActive ? 'block' : 'none';
+            if (mpMainGrid) {
+                mpMainGrid.classList.toggle('mp-hidden-force', isCompareActive);
+                if (isCompareActive) mpMainGrid.style.setProperty('display', 'none', 'important');
+                else mpMainGrid.style.removeProperty('display');
+            }
+            if (mpTopHeader) mpTopHeader.classList.toggle('mp-hidden-force', isCompareActive);
+            if (panelCompare) panelCompare.style.setProperty('display', isCompareActive ? 'block' : 'none', 'important');
             window.updateUserWalletBalanceUI();
             window.updateProfileMemberPlusVisuals();
             window.syncMemberPlusPanelState();
@@ -9124,7 +9185,8 @@ window.userCheckPascaBill = async function() {
 async function refundFailedClientOrderIfNeeded(orderData, orderDbId, reasonStr = 'Transaksi Digiflazz Gagal') {
     if (!orderData || !orderDbId) return false;
     const payMethod = String(orderData.paymentMethod || '').toLowerCase();
-    if ((payMethod !== 'balance' && payMethod !== 'saldo') || !orderData.userId || orderData.balanceRefunded === true) {
+    const isPaidQrisMember = (payMethod === 'qris' && orderData.paymentVerified === true && !orderData.isAnonymousOrder && Boolean(orderData.userId));
+    if ((payMethod !== 'balance' && payMethod !== 'saldo' && !isPaidQrisMember) || !orderData.userId || orderData.balanceRefunded === true) {
         return false;
     }
     const refundAmt = Math.round(Number(orderData.finalTotal || orderData.baseTotal || 0));
@@ -9254,8 +9316,31 @@ async function executeClientDigiflazzOrder(orderData, orderDbId) {
     }
 
     try {
-        const res = await callClientDigiflazzApi('/v1/transaction', reqPayload, refId);
-        const d = res?.data || {};
+        let res = await callClientDigiflazzApi('/v1/transaction', reqPayload, refId);
+        let d = res?.data || {};
+        // LOGIKA #1 (v30.0): Smart Auto-Failover Multi-Seller SKU Router (RC 53, 55, 62, 68, 69)
+        const failoverRcs = ['53', '55', '62', '68', '69'];
+        if (!isPasca && String(d.status || '') === 'Gagal' && failoverRcs.includes(String(d.rc || '')) && !orderData.digiflazzFailoverTried) {
+            let backupSku = String(item.digiflazzBackupSku || '').trim();
+            if (!backupSku && Array.isArray(products)) {
+                const brandDoc = products.find(b => b.id === item.brandId || (b.brandName || '').toLowerCase() === (orderData.productName || '').toLowerCase());
+                if (brandDoc && Array.isArray(brandDoc.variants)) {
+                    const altVar = brandDoc.variants.find(v => v.digiflazzSku && v.digiflazzSku !== sku && v.digiflazzSellerStatus !== false && v.digiflazzBuyerStatus !== false && (v.name === item.name || Math.abs(Number(v.price || 0) - Number(item.price || 0)) <= 500) && (!sellBudget || Number(v.digiflazzModalPrice || v.baseCost || 0) <= sellBudget));
+                    if (altVar) backupSku = String(altVar.digiflazzSku).trim();
+                }
+            }
+            if (backupSku && backupSku !== sku) {
+                const foRefId = `${refId}-FO1`;
+                const foSign = md5ClientDigiflazz(username + apiKey + foRefId);
+                const foPayload = { ...reqPayload, buyer_sku_code: backupSku, ref_id: foRefId, sign: foSign };
+                await updateDoc(orderRef, { digiflazzFailoverTried: true, digiflazzPrimaryFailedSku: sku, digiflazzPrimaryFailedRc: String(d.rc || ''), digiflazzSku: backupSku, digiflazzRefId: foRefId }).catch(() => {});
+                const foRes = await callClientDigiflazzApi('/v1/transaction', foPayload, foRefId);
+                if (foRes && foRes.data) {
+                    res = foRes;
+                    d = foRes.data;
+                }
+            }
+        }
         const statusStr = String(d.status || 'Pending');
         const rcStr = String(d.rc || '03');
         const snStr = String(d.sn || '');
@@ -9971,22 +10056,38 @@ window.openPriceComparisonTab = function() {
         window.switchMainTab('memberplus');
     }
     const mpMainGrid = document.getElementById('memberplus-main-content-grid');
+    const mpTopHeader = document.querySelector('#tab-memberplus .topup-header-bar');
     const panelCompare = document.getElementById('topup-panel-compare');
-    if (mpMainGrid) mpMainGrid.style.display = 'none';
-    if (panelCompare) panelCompare.style.display = 'block';
-    window.initPriceComparisonTabUI();
-    if (panelCompare) {
-        setTimeout(() => panelCompare.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
+    if (mpMainGrid) {
+        mpMainGrid.classList.add('mp-hidden-force');
+        mpMainGrid.style.setProperty('display', 'none', 'important');
     }
+    if (mpTopHeader) {
+        mpTopHeader.classList.add('mp-hidden-force');
+    }
+    if (panelCompare) {
+        panelCompare.style.setProperty('display', 'block', 'important');
+    }
+    window.initPriceComparisonTabUI();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
 };
 
 window.backToMemberPlusTabFromComparison = function() {
     window._mpCompareModeActive = false;
-    window.switchTopupSubTab('memberplus');
-    const mpEl = document.getElementById('topup-panel-memberplus');
-    if (mpEl) {
-        setTimeout(() => mpEl.scrollIntoView({ behavior: 'smooth', block: 'start' }), 40);
+    const mpMainGrid = document.getElementById('memberplus-main-content-grid');
+    const mpTopHeader = document.querySelector('#tab-memberplus .topup-header-bar');
+    const panelCompare = document.getElementById('topup-panel-compare');
+    if (mpMainGrid) {
+        mpMainGrid.classList.remove('mp-hidden-force');
+        mpMainGrid.style.removeProperty('display');
     }
+    if (mpTopHeader) {
+        mpTopHeader.classList.remove('mp-hidden-force');
+    }
+    if (panelCompare) {
+        panelCompare.style.setProperty('display', 'none', 'important');
+    }
+    window.scrollTo({ top: 0, behavior: 'smooth' });
 };
 
 window.initPriceComparisonTabUI = function() {
@@ -12067,6 +12168,434 @@ document.addEventListener('click', (e) => {
         }
     }, 650);
 }, { passive: true });
+
+// ============================================================================
+// PEMBARUAN v30.0: KATALOG SUB-VIEW NEO-BRUTALISM, TOP UP 2 TAB, PANEL PIN KOTAK,
+// SMART PREFIX GUARD (RC 52), MULTI-TRX GUARD (RC 63), & SAVED VERIFIED ID BOOK
+// ============================================================================
+
+let currentSubcatalogLayoutMode = 'compact_grid';
+
+const V30_CATEGORY_BANNER_META = {
+    game: {
+        title: 'WeGames • Top Up Game',
+        tag: 'ANTI PENDING • PROSES DETIKAN',
+        heading: 'Top Up Game Favoritmu',
+        desc: 'Masukkan ID & Zone, cek username otomatis, langsung masuk.',
+        icon: 'fa-gamepad'
+    },
+    pulsa: {
+        title: 'Pulsa & Paket Data',
+        tag: 'SEMUA OPERATOR SELULER',
+        heading: 'Isi Pulsa & Paket Kuota Data',
+        desc: 'Deteksi operator otomatis untuk Telkomsel, Indosat, XL, Axis, Tri & Smartfren.',
+        icon: 'fa-mobile-screen-button'
+    },
+    pln: {
+        title: 'Token Listrik PLN',
+        tag: 'VALIDASI ID PELANGGAN',
+        heading: 'Token Listrik PLN Prabayar',
+        desc: 'Cek nama pelanggan & daya otomatis sebelum membeli token.',
+        icon: 'fa-bolt'
+    },
+    ewallet: {
+        title: 'Top Up Saldo E-Wallet',
+        tag: 'DANA • OVO • GOPAY • SHOPEEPAY',
+        heading: 'Isi Saldo Dompet Digital',
+        desc: 'Tersedia pilihan nominal tetap maupun nominal bebas.',
+        icon: 'fa-wallet'
+    },
+    app: {
+        title: 'Aplikasi Premium',
+        tag: 'PENGIRIMAN OTOMATIS',
+        heading: 'Langganan Aplikasi & Hiburan',
+        desc: 'Akun dikirim langsung dari gudang stok lokal.',
+        icon: 'fa-tv'
+    },
+    ppob: {
+        title: 'Bayar Tagihan PPOB',
+        tag: 'CEK & BAYAR TAGIHAN',
+        heading: 'Layanan Tagihan Pascabayar',
+        desc: 'PLN Pascabayar, PDAM, BPJS Kesehatan, Internet & TV Kabel.',
+        icon: 'fa-file-invoice-dollar'
+    },
+    tools: {
+        title: 'Digital & Tools',
+        tag: 'LAYANAN DIGITAL',
+        heading: 'Tools & Layanan Produktivitas',
+        desc: 'Pilih layanan digital sesuai kebutuhanmu.',
+        icon: 'fa-screwdriver-wrench'
+    },
+    all: {
+        title: 'Semua Produk Katalog',
+        tag: 'KATALOG LENGKAP VIPERCELL',
+        heading: 'Seluruh Produk & Layanan',
+        desc: 'Cari dan pilih produk dari seluruh kategori.',
+        icon: 'fa-border-all'
+    }
+};
+
+window.openCategorySubview = function(categoryKey = 'all') {
+    const cleanCat = String(categoryKey || 'all').toLowerCase();
+    currentBrandFilter = cleanCat;
+
+    const homeWrap = document.getElementById('catalog-home-launcher-wrap');
+    const subView = document.getElementById('catalog-category-subview');
+    const mainBanner = document.getElementById('banner-container');
+    const greetPanel = document.getElementById('user-greeting-dashboard-panel');
+
+    if (homeWrap) homeWrap.style.display = 'none';
+    if (mainBanner) mainBanner.style.display = 'none';
+    if (greetPanel) greetPanel.style.display = 'none';
+    if (subView) subView.style.display = 'block';
+
+    const meta = V30_CATEGORY_BANNER_META[cleanCat] || V30_CATEGORY_BANNER_META.all;
+    const titleEl = document.getElementById('v30-subcatalog-title');
+    const tagEl = document.getElementById('v30-subcatalog-banner-tag');
+    const headEl = document.getElementById('v30-subcatalog-banner-heading');
+    const descEl = document.getElementById('v30-subcatalog-banner-desc');
+    const iconEl = document.getElementById('v30-subcatalog-banner-icon');
+    const bannerImg = document.getElementById('v30-subcatalog-banner-img');
+    const bannerFallback = document.getElementById('v30-subcatalog-banner-fallback');
+
+    if (titleEl) titleEl.innerText = meta.title;
+    if (tagEl) tagEl.innerHTML = `<i class="fa-solid fa-bolt"></i> ${escapeHtml(meta.tag)}`;
+    if (headEl) headEl.innerText = meta.heading;
+    if (descEl) descEl.innerText = meta.desc;
+    if (iconEl) iconEl.innerHTML = `<i class="fa-solid ${meta.icon}"></i>`;
+
+    const customCatBanners = (siteSettings.categoryBanners && typeof siteSettings.categoryBanners === 'object')
+        ? siteSettings.categoryBanners
+        : {};
+    const customImgUrl = customCatBanners[cleanCat] || (cleanCat === 'game' ? (siteSettings.categoryBannerGame || '') : '');
+
+    if (bannerImg && bannerFallback) {
+        if (customImgUrl) {
+            bannerImg.src = customImgUrl;
+            bannerImg.style.display = 'block';
+            bannerFallback.style.display = 'none';
+        } else {
+            bannerImg.style.display = 'none';
+            bannerFallback.style.display = 'flex';
+        }
+    }
+
+    window.renderBrands(cleanCat);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+};
+
+window.closeCategorySubviewToHome = function() {
+    const homeWrap = document.getElementById('catalog-home-launcher-wrap');
+    const subView = document.getElementById('catalog-category-subview');
+    const mainBanner = document.getElementById('banner-container');
+    const greetPanel = document.getElementById('user-greeting-dashboard-panel');
+
+    if (subView) subView.style.display = 'none';
+    if (homeWrap) homeWrap.style.display = 'block';
+    if (mainBanner && (siteSettings.banners || []).length > 0) mainBanner.style.display = 'block';
+    if (greetPanel) greetPanel.style.display = '';
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+};
+
+window.setSubcatalogLayoutMode = function(mode = 'compact_grid') {
+    currentSubcatalogLayoutMode = (mode === 'detail_card') ? 'detail_card' : 'compact_grid';
+    const btnGrid = document.getElementById('btn-subcat-view-grid');
+    const btnList = document.getElementById('btn-subcat-view-list');
+    const gridEl = document.getElementById('brand-grid');
+    if (btnGrid) {
+        btnGrid.className = currentSubcatalogLayoutMode === 'compact_grid'
+            ? 'btn btn-primary btn-sm v30-view-mode-btn active'
+            : 'btn btn-outline btn-sm v30-view-mode-btn';
+    }
+    if (btnList) {
+        btnList.className = currentSubcatalogLayoutMode === 'detail_card'
+            ? 'btn btn-primary btn-sm v30-view-mode-btn active'
+            : 'btn btn-outline btn-sm v30-view-mode-btn';
+    }
+    if (gridEl) {
+        gridEl.classList.toggle('v30-compact-3col-grid', currentSubcatalogLayoutMode === 'compact_grid');
+    }
+    window.renderBrands(currentBrandFilter);
+};
+
+window.setSubcatalogSortPill = function(sortVal, btnEl) {
+    document.querySelectorAll('.v30-subpill').forEach(b => b.classList.remove('active'));
+    if (btnEl) btnEl.classList.add('active');
+    const sel = document.getElementById('catalog-sort-select');
+    if (sel) {
+        sel.value = sortVal === 'all_default' ? 'popular' : sortVal;
+    }
+    window.renderBrands(currentBrandFilter);
+};
+
+const _origRenderBrandsV28 = window.renderBrands;
+window.renderBrands = function(filter = currentBrandFilter) {
+    const grid = document.getElementById('brand-grid');
+    if (!grid) return;
+
+    let filteredBrands = filter === 'all' ? [...groupedBrands] : groupedBrands.filter(b => b.type === filter);
+    if (currentSearchQuery) {
+        filteredBrands = filteredBrands.filter(b =>
+            b.brandName.toLowerCase().includes(currentSearchQuery) ||
+            (b.desc && b.desc.toLowerCase().includes(currentSearchQuery)) ||
+            b.items.some(i => i.name.toLowerCase().includes(currentSearchQuery))
+        );
+    }
+
+    const cntBadge = document.getElementById('v30-subcatalog-count-badge');
+    if (cntBadge) cntBadge.innerText = `${filteredBrands.length} Produk`;
+
+    if (currentSubcatalogLayoutMode !== 'compact_grid') {
+        grid.classList.remove('v30-compact-3col-grid');
+        return _origRenderBrandsV28(filter);
+    }
+
+    grid.classList.add('v30-compact-3col-grid');
+    filteredBrands = filteredBrands.map(b => {
+        const soldCount = orders.filter(o => o.status === 'SUCCESS' && o.items && o.items[0]?.brandName === b.brandName)
+                                .reduce((sum, o) => sum + (o.items[0].qty || 1), 0);
+        const prices = b.items.map(i => i.processType === 'ewallet_custom' ? Number(i.minCustomNominal || 10000) : getEffectiveUserVariantPrice(i)).filter(p => p > 0);
+        const minPrice = prices.length > 0 ? Math.min(...prices) : 0;
+        return { ...b, soldCount, minPrice };
+    });
+
+    const sortMode = document.getElementById('catalog-sort-select')?.value || 'popular';
+    if (sortMode === 'popular') filteredBrands.sort((a, b) => b.soldCount - a.soldCount);
+    else if (sortMode === 'price_asc') filteredBrands.sort((a, b) => a.minPrice - b.minPrice);
+    else if (sortMode === 'name_asc') filteredBrands.sort((a, b) => a.brandName.localeCompare(b.brandName));
+
+    if (filteredBrands.length === 0) {
+        grid.innerHTML = `<div class="brutal-empty-box" style="grid-column: 1/-1;">Produk tidak ditemukan pada kategori ini.</div>`;
+        return;
+    }
+
+    grid.innerHTML = filteredBrands.map(b => {
+        const safeJsBrand = escapeJsStr(b.brandName);
+        const safeHtmlBrand = escapeHtml(b.brandName);
+        const allVariantsGangguan = b.isGangguan || (b.items.length > 0 && b.items.every(it => isVariantGangguanState(it)));
+        const allVariantsSoldOut = !allVariantsGangguan && b.items.length > 0 && b.items.every(it => isVariantMarkedSoldOutByAdmin(it));
+
+        const imgHtml = b.imgUrlBase64
+            ? `<img src="${b.imgUrlBase64}" alt="${safeHtmlBrand}" loading="lazy" decoding="async">`
+            : `<div style="width:100%; height:100%; background:var(--primary); display:flex; align-items:center; justify-content:center; font-size:1.45rem; font-weight:900; color:#ffffff;">${safeHtmlBrand.charAt(0)}</div>`;
+
+        const clickAction = allVariantsGangguan
+            ? `window.customAlert('Sedang Gangguan', 'Layanan ${safeJsBrand} sedang mengalami gangguan.', 'warning')`
+            : `window.openDirectBuyModal('${safeJsBrand}')`;
+
+        const statusDotHtml = allVariantsGangguan
+            ? `<span class="brutal-tag tag-maint" style="font-size:0.55rem; padding:1px 5px; margin-top:2px;">GANGGUAN</span>`
+            : (allVariantsSoldOut
+                ? `<span class="brutal-tag tag-soldout" style="font-size:0.55rem; padding:1px 5px; margin-top:2px;">HABIS</span>`
+                : `<span class="v30-subcat-price">Mulai Rp${b.minPrice.toLocaleString('id-ID')}</span>`);
+
+        return `
+            <div class="v30-subcat-grid-card ${allVariantsGangguan || allVariantsSoldOut ? 'sold-out' : ''}" onclick="${clickAction}">
+                <div class="v30-subcat-thumb">${imgHtml}</div>
+                <div class="v30-subcat-title">${safeHtmlBrand}</div>
+                ${statusDotHtml}
+            </div>`;
+    }).join('');
+};
+
+// Top Up Saldo 2 Tab (ISI SALDO vs RIWAYAT)
+window.switchV30TopupInnerTab = function(tabMode = 'form') {
+    const isHistory = (tabMode === 'history');
+    const btnForm = document.getElementById('btn-v30-topup-tab-form');
+    const btnHist = document.getElementById('btn-v30-topup-tab-history');
+    const panelForm = document.getElementById('topup-panel-wallet');
+    const panelHist = document.getElementById('topup-history-unified-card');
+
+    if (btnForm) btnForm.classList.toggle('active', !isHistory);
+    if (btnHist) btnHist.classList.toggle('active', isHistory);
+    if (panelForm) panelForm.style.display = isHistory ? 'none' : 'block';
+    if (panelHist) panelHist.style.display = isHistory ? 'block' : 'none';
+
+    if (isHistory) {
+        window.renderTopupHistoryList();
+    }
+};
+
+window.toggleV30TopupMethodList = function() {
+    const box = document.getElementById('v30-topup-method-options');
+    if (!box) return;
+    box.style.display = box.style.display === 'none' ? 'grid' : 'grid';
+};
+
+const _origSelectTopupPaymentMethod = window.selectTopupPaymentMethod;
+window.selectTopupPaymentMethod = function(method, cardEl) {
+    if (typeof _origSelectTopupPaymentMethod === 'function') {
+        _origSelectTopupPaymentMethod(method, cardEl);
+    }
+    const lbl = document.getElementById('v30-selected-topup-method-name');
+    if (lbl) {
+        lbl.innerText = method === 'cash'
+            ? 'Tunai di Kasir Admin (Barcode)'
+            : 'QRIS Otomatis (Semua E-Wallet & Bank)';
+    }
+};
+
+const _origOpenTopupBalanceModal = window.openTopupBalanceModal;
+window.openTopupBalanceModal = function(defaultSubTab = 'topup') {
+    if (typeof _origOpenTopupBalanceModal === 'function') {
+        _origOpenTopupBalanceModal(defaultSubTab);
+    }
+    if (defaultSubTab === 'history') {
+        window.switchV30TopupInnerTab('history');
+    } else if (defaultSubTab === 'topup') {
+        window.switchV30TopupInnerTab('form');
+    }
+};
+
+// Panel Kolom PIN Tanpa Keypad Nomor di Layar Web
+window.onNativeUserPinInput = function(inpEl) {
+    if (!inpEl) return;
+    const clean = String(inpEl.value || '').replace(/[^0-9]/g, '').slice(0, 6);
+    if (inpEl.value !== clean) inpEl.value = clean;
+    window.syncMbankingPinDotsUI();
+    if (clean.length === 6) {
+        setTimeout(() => {
+            if (typeof window._customFullPinVerifiedCallback === 'function') {
+                window.verifyPinForCustomAction();
+            } else {
+                window.confirmAndExecuteCheckout();
+            }
+        }, 90);
+    }
+};
+
+// Logika Tingkat Dewa #2 & #4: Smart Cellular Prefix Guard (RC 52) & Pre-Checkout Multi-Trx Guard (RC 63)
+function validateCellularPrefixMatchesBrand(phoneStr, brandName) {
+    const detectedOp = detectCellularOperatorName(phoneStr);
+    if (!detectedOp) return { ok: true };
+    const bUp = String(brandName || '').toUpperCase();
+    const opUp = detectedOp.toUpperCase();
+    const knownBrandOps = [
+        { keys: ['TELKOMSEL', 'SIMPATI', 'AS', 'HALO'], match: ['TELKOMSEL'] },
+        { keys: ['BY.U', 'BYU'], match: ['BY.U', 'TELKOMSEL'] },
+        { keys: ['INDOSAT', 'IM3', 'OREDOO'], match: ['INDOSAT'] },
+        { keys: ['XL'], match: ['XL'] },
+        { keys: ['AXIS'], match: ['AXIS', 'XL'] },
+        { keys: ['TRI', 'THREE'], match: ['TRI'] },
+        { keys: ['SMARTFREN'], match: ['SMARTFREN'] }
+    ];
+    for (const rule of knownBrandOps) {
+        if (rule.keys.some(k => bUp.includes(k))) {
+            const isValidOp = rule.match.some(m => opUp.includes(m));
+            if (!isValidOp) {
+                return {
+                    ok: false,
+                    detectedOp,
+                    expectedBrand: brandName
+                };
+            }
+        }
+    }
+    return { ok: true, detectedOp };
+}
+
+function hasDuplicateNonMultiOrderTodayWib(skuCode, customerNo) {
+    if (!skuCode || !customerNo) return false;
+    const todayWib = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Jakarta' }).format(new Date());
+    const cleanTarget = combineGameIdAndZoneForDigiflazz(customerNo);
+    return orders.some(o => {
+        if (!o || (o.status !== 'SUCCESS' && o.status !== 'PENDING')) return false;
+        const oSku = String(o.digiflazzSku || o.items?.[0]?.buyerSkuCode || '').trim();
+        const oTarget = combineGameIdAndZoneForDigiflazz(o.digiflazzCustomerNo || o.targetId || '');
+        if (oSku !== skuCode || oTarget !== cleanTarget) return false;
+        try {
+            const ordWib = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Jakarta' }).format(new Date(o.date));
+            return ordWib === todayWib;
+        } catch (_) {
+            return false;
+        }
+    });
+}
+
+const _origOpenCheckoutConfirmWithAutoCheckId = window.openCheckoutConfirmWithAutoCheckId;
+window.openCheckoutConfirmWithAutoCheckId = async function() {
+    if (pendingConfirmedCheckoutPayload && selectedProductForBuy && currentCheckoutBrand) {
+        const p = pendingConfirmedCheckoutPayload;
+        // 1. Cek Prefix Operator Seluler (Cegah Gagal RC 52)
+        if (currentCheckoutBrand.type === 'pulsa' && p.pidVal) {
+            const prefCheck = validateCellularPrefixMatchesBrand(p.pidVal, currentCheckoutBrand.brandName);
+            if (!prefCheck.ok) {
+                window.customAlert(
+                    'Nomor HP Berbeda Operator',
+                    `Nomor <b>${escapeHtml(p.pidVal)}</b> terdeteksi sebagai nomor <b>${escapeHtml(prefCheck.detectedOp)}</b>, sedangkan kamu memilih produk <b>${escapeHtml(prefCheck.expectedBrand)}</b>. Silakan periksa kembali nomor HP tujuan.`,
+                    'warning'
+                );
+                return;
+            }
+        }
+        // 2. Cek Produk Non-Multi (multi: false) ke Nomor & SKU yang Sama di Hari yang Sama (Cegah Gagal RC 63)
+        if (selectedProductForBuy.multi === false && selectedProductForBuy.buyerSkuCode && p.pidVal) {
+            const mergedNo = combineGameIdAndZoneForDigiflazz(p.pidVal, p.zolVal);
+            if (hasDuplicateNonMultiOrderTodayWib(selectedProductForBuy.buyerSkuCode, mergedNo)) {
+                window.customAlert(
+                    'Tidak Mendukung Transaksi Ganda Hari Ini',
+                    `Produk <b>${escapeHtml(selectedProductForBuy.name)}</b> tidak mendukung pengisian lebih dari 1 kali ke nomor tujuan <b>${escapeHtml(mergedNo)}</b> di hari yang sama (Aturan Multi Digiflazz). Silakan pilih nominal lain.`,
+                    'warning'
+                );
+                return;
+            }
+        }
+    }
+    return _origOpenCheckoutConfirmWithAutoCheckId();
+};
+
+// Logika Tingkat Dewa #5: Simpan Nomor Tujuan beserta Nama Akun Terverifikasi di Buku Pelanggan Cepat
+window.saveRecentTargetForBrand = function(type, brandName, pidVal, zolVal = '', verifiedNameOverride = '') {
+    const cleanId = String(pidVal || '').trim();
+    if (!cleanId || cleanId.length < 3) return;
+    const vName = String(
+        verifiedNameOverride ||
+        pendingConfirmedCheckoutPayload?.verifiedTargetName ||
+        window.currentSheetVerifiedTarget?.name ||
+        ''
+    ).trim();
+    const key = `vipercell_recent_targets_${String(type || 'all').toLowerCase()}`;
+    try {
+        const raw = localStorage.getItem(key);
+        let list = raw ? JSON.parse(raw) : [];
+        if (!Array.isArray(list)) list = [];
+        const existing = list.find(x => x.id === cleanId && (x.zone || '') === String(zolVal || '').trim());
+        const finalName = vName || existing?.name || '';
+        list = list.filter(x => !(x.id === cleanId && (x.zone || '') === String(zolVal || '').trim()));
+        list.unshift({
+            id: cleanId,
+            zone: String(zolVal || '').trim(),
+            name: finalName,
+            brand: brandName || '',
+            ts: Date.now()
+        });
+        localStorage.setItem(key, JSON.stringify(list.slice(0, 5)));
+    } catch (_) {}
+};
+
+window.renderRecentTargetChipsForBrand = function(brandObj, inpType) {
+    const fieldsBox = document.getElementById('buy-detail-fields');
+    if (!fieldsBox || !brandObj || inpType === 'none') return;
+    const key = `vipercell_recent_targets_${String(brandObj.type || 'all').toLowerCase()}`;
+    let list = [];
+    try {
+        list = JSON.parse(localStorage.getItem(key) || '[]');
+    } catch (_) {}
+    if (!Array.isArray(list) || list.length === 0) return;
+
+    const chipsHtml = list.slice(0, 4).map(item => {
+        const baseLabel = item.zone ? `${item.id} (${item.zone})` : item.id;
+        const fullLabel = item.name ? `${baseLabel} • ${item.name}` : baseLabel;
+        return `<button type="button" class="recent-target-chip" onclick="window.applyRecentTargetChip('${escapeJsStr(item.id)}', '${escapeJsStr(item.zone || '')}')">
+            <i class="fa-solid fa-user-check"></i> <span>${escapeHtml(fullLabel)}</span>
+        </button>`;
+    }).join('');
+
+    const wrap = document.createElement('div');
+    wrap.className = 'recent-targets-strip';
+    wrap.innerHTML = `<span class="recent-targets-label">Tujuan tersimpan:</span><div class="recent-targets-chips">${chipsHtml}</div>`;
+    fieldsBox.appendChild(wrap);
+};
 
 // Jalankan Inisialisasi Aplikasi setelah seluruh fungsi dan modul siap
 if (document.readyState === 'loading') {

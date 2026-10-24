@@ -38,7 +38,7 @@
     <noscript><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"></noscript>
     
     <!-- Stylesheet Utama -->
-    <link rel="stylesheet" href="css/main.css?v=28.9">
+    <link rel="stylesheet" href="css/main.css?v=30.0">
     
     <!-- Library QR Code, Barcode & Unduh Struk (Defer Non-Blocking) -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js" defer></script>
@@ -240,95 +240,141 @@
                 </div>
 
                 <div class="greeting-right-col">
-                    <!-- Kotak Saldo Akun (Khusus Member - Klik untuk Cek Saldo & Isi Saldo) -->
-                    <div id="greeting-wallet-box" class="greeting-wallet-card" style="display: none; cursor: pointer;" onclick="window.switchMainTab('topup')" title="Klik untuk Cek Saldo & Riwayat Saldo">
+                    <!-- Kotak Saldo Akun & Pintasan Tunggal Top Up Saldo -->
+                    <div id="greeting-wallet-box" class="greeting-wallet-card" style="display: none; cursor: pointer;" onclick="window.openTopupBalanceModal('topup')">
                         <div class="greeting-wallet-meta">
                             <span><i class="fa-solid fa-wallet text-primary"></i> SALDO AKUN</span>
                             <strong id="greeting-wallet-amount">Rp0</strong>
                         </div>
-                        <div style="display:flex; gap:6px; align-items:center;">
-                            <button type="button" class="btn btn-outline btn-sm" style="padding:5px 9px; font-size:0.72rem;" onclick="event.stopPropagation(); window.openTopupBalanceModal('history')">
-                                <i class="fa-solid fa-clock-rotate-left"></i> Cek Saldo
-                            </button>
-                            <button type="button" class="btn btn-primary btn-sm" onclick="event.stopPropagation(); window.switchMainTab('topup')">
-                                <i class="fa-solid fa-circle-plus"></i> Isi Saldo
-                            </button>
-                        </div>
-                    </div>
-
-                    <!-- Pintasan Langganan Member Plus / Cek Saldo / Riwayat -->
-                    <div class="greeting-actions-strip">
-                        <button type="button" id="btn-greeting-memberplus" class="btn btn-warning btn-sm" onclick="window.openMemberPlusDashboardFromGreeting()">
-                            <i class="fa-solid fa-crown"></i> <span id="btn-greeting-memberplus-text">Langganan Member Plus</span>
-                        </button>
-                        <button type="button" id="btn-greeting-check-balance" class="btn btn-outline btn-sm" style="display: none;" onclick="window.switchMainTab('topup')">
-                            <i class="fa-solid fa-wallet text-primary"></i> <span>Saldo Akun</span>
-                        </button>
-                        <button type="button" class="btn btn-outline btn-sm" onclick="window.switchMainTab('pesanan')">
-                            <i class="fa-solid fa-receipt"></i> Riwayat Trx
-                        </button>
-                        <button type="button" id="btn-greeting-pin-shortcut" class="btn btn-outline btn-sm" style="display: none;" onclick="window.switchMainTab('profil')">
-                            <i class="fa-solid fa-shield-halved text-success"></i> PIN Trx
+                        <button type="button" class="btn btn-primary btn-sm" onclick="event.stopPropagation(); window.openTopupBalanceModal('topup')">
+                            <i class="fa-solid fa-circle-plus"></i> Top Up Saldo
                         </button>
                     </div>
                 </div>
             </div>
             
-            <!-- Filter & Pencarian Katalog -->
-            <div class="catalog-control-panel">
-                <div class="catalog-top-row">
-                    <div class="section-header" style="margin-bottom:0;">
-                        <h2>Katalog Produk</h2>
-                    </div>
-                    <div class="catalog-filter-controls">
-                        <div class="search-input-box">
-                            <i class="fa-solid fa-magnifying-glass"></i>
-                            <input type="text" id="catalog-search-input" class="form-control" placeholder="Cari produk..." oninput="window.handleCatalogSearch()" autocomplete="off">
-                            <button id="btn-clear-search" class="clear-search-btn" style="display:none;" onclick="window.clearCatalogSearch()" aria-label="Bersihkan">
-                                <i class="fa-solid fa-xmark"></i>
-                            </button>
+            <!-- TAMPILAN 1: BERANDA MENU IKON KATEGORI NEO-BRUTALISM -->
+            <div id="catalog-home-launcher-wrap">
+                <div class="catalog-control-panel v30-launcher-panel">
+                    <div class="v30-launcher-header">
+                        <div>
+                            <h2 class="v30-launcher-title">Kategori Layanan</h2>
+                            <span class="v30-launcher-sub">Pilih layanan untuk membuka katalog produk</span>
                         </div>
-                        <select id="catalog-sort-select" class="form-control sort-select" onchange="window.renderBrands()" aria-label="Urutkan">
-                            <option value="popular">Terpopuler</option>
-                            <option value="price_asc">Harga Termurah</option>
-                            <option value="name_asc">Nama (A - Z)</option>
-                        </select>
                         <button type="button" id="btn-refresh-catalog" class="btn btn-outline btn-sm catalog-refresh-btn" onclick="window.refreshCatalogData()" title="Segarkan Katalog">
                             <i class="fa-solid fa-rotate-right" id="icon-refresh-catalog"></i> <span>Segarkan</span>
                         </button>
                     </div>
-                </div>
 
-                <div class="tabs" style="margin-bottom:0; margin-top: 0.9rem;">
-                    <button aria-label="Semua" class="tab-btn active" data-filter="all" onclick="window.filterBrands('all', this)">
-                        <i class="fa-solid fa-border-all"></i> Semua
-                    </button>
-                    <button aria-label="Aplikasi" class="tab-btn" data-filter="app" onclick="window.filterBrands('app', this)">
-                        <i class="fa-solid fa-mobile-screen"></i> Aplikasi
-                    </button>
-                    <button aria-label="Game" class="tab-btn" data-filter="game" onclick="window.filterBrands('game', this)">
-                        <i class="fa-solid fa-gamepad"></i> Game
-                    </button>
-                    <button aria-label="Pulsa & Data" class="tab-btn" data-filter="pulsa" onclick="window.filterBrands('pulsa', this)">
-                        <i class="fa-solid fa-signal"></i> Pulsa &amp; Data
-                    </button>
-                    <button aria-label="Listrik PLN" class="tab-btn" data-filter="pln" onclick="window.filterBrands('pln', this)">
-                        <i class="fa-solid fa-bolt"></i> Listrik PLN
-                    </button>
-                    <button aria-label="E-Wallet" class="tab-btn" data-filter="ewallet" onclick="window.filterBrands('ewallet', this)">
-                        <i class="fa-solid fa-wallet"></i> E-Wallet
-                    </button>
-                    <button aria-label="Tagihan" class="tab-btn" data-filter="ppob" onclick="window.filterBrands('ppob', this)">
-                        <i class="fa-solid fa-file-invoice-dollar"></i> Tagihan
-                    </button>
-                    <button aria-label="Tools" class="tab-btn" data-filter="tools" onclick="window.filterBrands('tools', this)">
-                        <i class="fa-solid fa-screwdriver-wrench"></i> Tools &amp; Email
-                    </button>
+                    <div class="v30-category-icon-grid">
+                        <button type="button" class="v30-cat-icon-item" onclick="window.openCategorySubview('game')">
+                            <div class="v30-cat-circle bg-cat-game"><i class="fa-solid fa-gamepad"></i></div>
+                            <span>Top Up Game</span>
+                        </button>
+                        <button type="button" class="v30-cat-icon-item" onclick="window.openCategorySubview('pulsa')">
+                            <div class="v30-cat-circle bg-cat-pulsa"><i class="fa-solid fa-mobile-screen-button"></i></div>
+                            <span>Pulsa &amp; Data</span>
+                        </button>
+                        <button type="button" class="v30-cat-icon-item" onclick="window.openCategorySubview('pln')">
+                            <div class="v30-cat-circle bg-cat-pln"><i class="fa-solid fa-bolt"></i></div>
+                            <span>Token Listrik</span>
+                        </button>
+                        <button type="button" class="v30-cat-icon-item" onclick="window.openCategorySubview('ewallet')">
+                            <div class="v30-cat-circle bg-cat-ewallet"><i class="fa-solid fa-wallet"></i></div>
+                            <span>E-Wallet</span>
+                        </button>
+                        <button type="button" class="v30-cat-icon-item" onclick="window.openCategorySubview('app')">
+                            <div class="v30-cat-circle bg-cat-app"><i class="fa-solid fa-tv"></i></div>
+                            <span>Aplikasi Premium</span>
+                        </button>
+                        <button type="button" class="v30-cat-icon-item" onclick="window.openCategorySubview('ppob')">
+                            <div class="v30-cat-circle bg-cat-ppob"><i class="fa-solid fa-file-invoice-dollar"></i></div>
+                            <span>Bayar Tagihan</span>
+                        </button>
+                        <button type="button" class="v30-cat-icon-item" onclick="window.openCategorySubview('tools')">
+                            <div class="v30-cat-circle bg-cat-tools"><i class="fa-solid fa-screwdriver-wrench"></i></div>
+                            <span>Digital &amp; Tools</span>
+                        </button>
+                        <button type="button" class="v30-cat-icon-item" onclick="window.openCategorySubview('all')">
+                            <div class="v30-cat-circle bg-cat-all"><i class="fa-solid fa-border-all"></i></div>
+                            <span>Semua Produk</span>
+                        </button>
+                    </div>
                 </div>
             </div>
-            
-            <!-- Grid Semua Produk -->
-            <div class="grid" id="brand-grid"></div>
+
+            <!-- TAMPILAN 2: HALAMAN SUB-KATALOG KATEGORI (SEPERTI REFERENSI WEGAMES NAMUN NEO-BRUTALISM) -->
+            <div id="catalog-category-subview" class="v30-subcatalog-stage" style="display: none;">
+                <!-- Top Header Bar Sub-Katalog -->
+                <div class="v30-subcatalog-topbar">
+                    <button type="button" class="btn btn-outline btn-sm v30-subcatalog-back" onclick="window.closeCategorySubviewToHome()">
+                        <i class="fa-solid fa-arrow-left"></i> <span>Kembali</span>
+                    </button>
+                    <div class="v30-subcatalog-title-wrap">
+                        <h2 id="v30-subcatalog-title">Katalog Game</h2>
+                        <span id="v30-subcatalog-count-badge" class="brutal-tag tag-amber">0 Produk</span>
+                    </div>
+                </div>
+
+                <!-- Banner Khusus di Dalam Katalog Kategori -->
+                <div id="v30-subcatalog-banner-card" class="v30-subcatalog-banner">
+                    <img id="v30-subcatalog-banner-img" src="" alt="Banner Kategori" style="display:none;">
+                    <div id="v30-subcatalog-banner-fallback" class="v30-subcatalog-banner-hero">
+                        <div class="v30-banner-hero-left">
+                            <span class="v30-banner-tag" id="v30-subcatalog-banner-tag"><i class="fa-solid fa-bolt"></i> PROSES OTOMATIS</span>
+                            <h3 id="v30-subcatalog-banner-heading">Top Up Game &amp; Produk Digital</h3>
+                            <p id="v30-subcatalog-banner-desc">Pilih produk di bawah untuk melihat variasi nominal.</p>
+                        </div>
+                        <div class="v30-banner-hero-icon" id="v30-subcatalog-banner-icon">
+                            <i class="fa-solid fa-gamepad"></i>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Pencarian + Tombol Mode Grid/List -->
+                <div class="v30-subcatalog-search-row">
+                    <div class="search-input-box" style="flex:1;">
+                        <i class="fa-solid fa-magnifying-glass"></i>
+                        <input type="text" id="catalog-search-input" class="form-control" placeholder="Pencarian produk..." oninput="window.handleCatalogSearch()" autocomplete="off">
+                        <button id="btn-clear-search" class="clear-search-btn" style="display:none;" onclick="window.clearCatalogSearch()" aria-label="Bersihkan">
+                            <i class="fa-solid fa-xmark"></i>
+                        </button>
+                    </div>
+                    <button type="button" id="btn-subcat-view-grid" class="btn btn-primary btn-sm v30-view-mode-btn active" onclick="window.setSubcatalogLayoutMode('compact_grid')" title="Tampilan Ikon 3 Kolom">
+                        <i class="fa-solid fa-table-cells-large"></i>
+                    </button>
+                    <button type="button" id="btn-subcat-view-list" class="btn btn-outline btn-sm v30-view-mode-btn" onclick="window.setSubcatalogLayoutMode('detail_card')" title="Tampilan Kartu Detail">
+                        <i class="fa-solid fa-list"></i>
+                    </button>
+                </div>
+
+                <!-- Pil Sub-Filter (Terlaris, Semua, Termurah, A-Z) -->
+                <div class="v30-subcatalog-pills-strip">
+                    <button type="button" class="v30-subpill active" data-sort="popular" onclick="window.setSubcatalogSortPill('popular', this)">
+                        🔥 Terlaris
+                    </button>
+                    <button type="button" class="v30-subpill" data-sort="all_default" onclick="window.setSubcatalogSortPill('all_default', this)">
+                        ✨ Semua Produk
+                    </button>
+                    <button type="button" class="v30-subpill" data-sort="price_asc" onclick="window.setSubcatalogSortPill('price_asc', this)">
+                        💰 Harga Termurah
+                    </button>
+                    <button type="button" class="v30-subpill" data-sort="name_asc" onclick="window.setSubcatalogSortPill('name_asc', this)">
+                        🔤 Nama (A-Z)
+                    </button>
+                </div>
+                <select id="catalog-sort-select" style="display:none;" aria-hidden="true">
+                    <option value="popular">Terpopuler</option>
+                    <option value="price_asc">Harga Termurah</option>
+                    <option value="name_asc">Nama (A - Z)</option>
+                </select>
+                <div class="tabs" style="display:none;" aria-hidden="true">
+                    <button class="tab-btn active" data-filter="all"></button>
+                </div>
+
+                <!-- Grid Item Produk di Dalam Sub-Katalog -->
+                <div class="grid v30-compact-3col-grid" id="brand-grid"></div>
+            </div>
             <div id="catalog-more-wrap" style="display:none !important;" aria-hidden="true"></div>
         </div>
 
@@ -1115,117 +1161,122 @@
         </div>
 
         
-        <!-- TAB 6C: DEPOSIT / ISI SALDO AKUN TERPISAH -->
-        <div id="tab-topup" class="main-tab-content container" style="padding-top: 1.2rem;">
-            <div class="topup-fullscreen-wrapper">
-                <div class="flex-between align-center flex-wrap-gap topup-header-bar" style="margin-bottom: 1.15rem; display:flex; justify-content:space-between; align-items:center; gap:10px;">
-                    <div class="section-header" style="margin-bottom:0;">
-                        <h2><i class="fa-solid fa-wallet text-primary"></i> Deposit &amp; Isi Saldo Akun</h2>
-                        <p>Isi saldo akun dengan metode QRIS Otomatis atau Tunai di Kasir Admin.</p>
-                    </div>
+        <!-- TAB 6C: TOP UP SALDO 2 TAB (ISI SALDO & RIWAYAT) GAYA NEO-BRUTALISM -->
+        <div id="tab-topup" class="main-tab-content container" style="padding-top: 1rem;">
+            <div class="topup-fullscreen-wrapper v30-topup-stage">
+                <!-- Header Top Up -->
+                <div class="v30-topup-topbar">
                     <button type="button" class="btn btn-outline btn-sm" onclick="window.switchMainTab('katalog')">
-                        <i class="fa-solid fa-arrow-left"></i> Kembali ke Katalog
+                        <i class="fa-solid fa-arrow-left"></i>
+                    </button>
+                    <div class="v30-topup-title-box">
+                        <h2>Top Up Saldo</h2>
+                        <span>Saldo Saat Ini: <strong id="topup-modal-current-balance" class="text-primary">Rp0</strong></span>
+                    </div>
+                </div>
+
+                <!-- Switcher 2 Tab: ISI SALDO vs RIWAYAT -->
+                <div class="v30-topup-tabs-bar">
+                    <button type="button" id="btn-v30-topup-tab-form" class="v30-topup-tab-btn active" onclick="window.switchV30TopupInnerTab('form')">
+                        ISI SALDO
+                    </button>
+                    <button type="button" id="btn-v30-topup-tab-history" class="v30-topup-tab-btn" onclick="window.switchV30TopupInnerTab('history')">
+                        RIWAYAT
                     </button>
                 </div>
 
-                <!-- PANEL ISI SALDO AKUN + RIWAYAT ISI SALDO -->
-                <div id="topup-panel-wallet" class="checkout-split-grid">
-                    <div class="checkout-main-col">
-                        <div class="checkout-step-card">
-                            <div class="step-header">
-                                <span class="step-num"><i class="fa-solid fa-wallet"></i></span>
-                                <h4>Pilih Nominal Pengisian Saldo</h4>
+                <!-- PANEL 1: FORM ISI SALDO (SESUAI SCREENSHOT 5) -->
+                <div id="topup-panel-wallet" class="v30-topup-body-panel">
+                    <!-- Kartu 1: Nominal Pengisian -->
+                    <div class="checkout-step-card v30-topup-card">
+                        <div class="v30-topup-card-head">
+                            <div class="v30-topup-icon-box bg-accent-emerald">
+                                <i class="fa-solid fa-piggy-bank"></i>
                             </div>
+                            <div>
+                                <h4>Nominal Pengisian</h4>
+                                <small>Minimal 1.000 s/d 20.000.000 per pengisian.</small>
+                            </div>
+                        </div>
 
-                            <div class="brutal-alert-box alert-info" style="margin-bottom: 1rem; justify-content: space-between; align-items: center;">
-                                <span>Saldo Akun Kamu Saat Ini:</span>
-                                <strong id="topup-modal-current-balance" style="font-size: 1.2rem; color: var(--primary);">Rp0</strong>
-                            </div>
+                        <div class="form-group" style="margin-bottom: 0.85rem;">
+                            <input type="tel" inputmode="numeric" pattern="[0-9]*" id="topup-custom-amount" class="form-control v30-topup-big-input" value="50000" min="1000" placeholder="Nominal Topup" oninput="this.value=this.value.replace(/[^0-9]/g,''); window.updateTopupSummaryDisplay()">
+                        </div>
 
-                            <div class="form-group">
-                                <label>Pilih Nominal Cepat</label>
-                                <div class="topup-quick-grid">
-                                    <button type="button" class="topup-nom-chip" onclick="window.selectTopupPresetAmount(10000, this)">Rp10.000</button>
-                                    <button type="button" class="topup-nom-chip" onclick="window.selectTopupPresetAmount(20000, this)">Rp20.000</button>
-                                    <button type="button" class="topup-nom-chip active" onclick="window.selectTopupPresetAmount(50000, this)">Rp50.000</button>
-                                    <button type="button" class="topup-nom-chip" onclick="window.selectTopupPresetAmount(100000, this)">Rp100.000</button>
-                                    <button type="button" class="topup-nom-chip" onclick="window.selectTopupPresetAmount(250000, this)">Rp250.000</button>
-                                    <button type="button" class="topup-nom-chip" onclick="window.selectTopupPresetAmount(500000, this)">Rp500.000</button>
-                                </div>
-                            </div>
-
-                            <div class="form-group" style="margin-bottom:0;">
-                                <label for="topup-custom-amount">Atau Masukkan Nominal Lain (Rp) <span style="color:var(--danger)">*</span></label>
-                                <input type="tel" inputmode="numeric" pattern="[0-9]*" id="topup-custom-amount" class="form-control" value="50000" min="1000" placeholder="Minimal Rp1.000" style="font-weight: 900; font-size: 1.1rem;" oninput="this.value=this.value.replace(/[^0-9]/g,''); window.updateTopupSummaryDisplay()">
-                                
-                            </div>
+                        <div class="v30-topup-chips-wrap">
+                            <button type="button" class="topup-nom-chip" onclick="window.selectTopupPresetAmount(10000, this)">10.000</button>
+                            <button type="button" class="topup-nom-chip active" onclick="window.selectTopupPresetAmount(50000, this)">50.000</button>
+                            <button type="button" class="topup-nom-chip" onclick="window.selectTopupPresetAmount(100000, this)">100.000</button>
+                            <button type="button" class="topup-nom-chip" onclick="window.selectTopupPresetAmount(250000, this)">250.000</button>
+                            <button type="button" class="topup-nom-chip" onclick="window.selectTopupPresetAmount(500000, this)">500.000</button>
+                            <button type="button" class="topup-nom-chip" onclick="window.selectTopupPresetAmount(1000000, this)">1.000.000</button>
                         </div>
                     </div>
 
-                    <div class="checkout-side-col">
-                        <div class="checkout-step-card sticky-checkout-box">
-                            <div class="step-header">
-                                <span class="step-num">02</span>
-                                <h4>Metode Pembayaran</h4>
-                            </div>
-
-                            <div class="form-group">
-                                <div class="type-grid" style="grid-template-columns: 1fr 1fr; margin-top: 6px;">
-                                    <label class="type-card active" id="topup-pay-card-qris" onclick="window.selectTopupPaymentMethod('qris', this)">
-                                        <input type="radio" name="topup_payment_method" value="qris" checked style="display:none;">
-                                        <div class="pay-method-head">
-                                            <i class="fa-solid fa-qrcode"></i>
-                                            <strong>QRIS</strong>
-                                        </div>
-                                        <span class="pay-badge badge-green">Otomatis Masuk</span>
-                                    </label>
-                                    <label class="type-card" id="topup-pay-card-cash" onclick="window.selectTopupPaymentMethod('cash', this)">
-                                        <input type="radio" name="topup_payment_method" value="cash" style="display:none;">
-                                        <div class="pay-method-head">
-                                            <i class="fa-solid fa-barcode"></i>
-                                            <strong>TUNAI</strong>
-                                        </div>
-                                        <span class="pay-badge badge-yellow">Barcode Kasir</span>
-                                    </label>
+                    <!-- Kartu 2: Metode Pembayaran -->
+                    <div class="checkout-step-card v30-topup-card">
+                        <div class="v30-method-selector-row" onclick="window.toggleV30TopupMethodList()">
+                            <div style="display:flex; align-items:center; gap:12px;">
+                                <div class="v30-topup-icon-box bg-accent-blue">
+                                    <i class="fa-solid fa-credit-card"></i>
                                 </div>
-                            </div>
-
-                            <div class="cart-total-box">
                                 <div>
-                                    <span class="total-label">NOMINAL ISI SALDO</span>
-                                    <div class="unique-code-info">Saldo Akun</div>
-                                </div>
-                                <div style="text-align:right;">
-                                    <span id="topup-summary-total-display" class="total-nominal">Rp50.000</span>
+                                    <span class="v30-method-label-top">Metode Pembayaran</span>
+                                    <strong id="v30-selected-topup-method-name" class="v30-method-selected-title">QRIS Otomatis (Semua E-Wallet &amp; Bank)</strong>
                                 </div>
                             </div>
+                            <span class="v30-method-choose-link">Pilih <i class="fa-solid fa-chevron-right"></i></span>
+                        </div>
 
-                            <button type="button" id="btn-submit-topup-balance" class="btn btn-primary btn-checkout-submit" onclick="window.processTopupBalanceCheckout()">
-                                <i class="fa-solid fa-bolt"></i> <span>Lanjut Isi Saldo Sekarang</span>
-                            </button>
+                        <div id="v30-topup-method-options" class="type-grid" style="grid-template-columns: 1fr 1fr; margin-top: 12px; padding-top: 12px; border-top: 1.5px dashed var(--border-subtle);">
+                            <label class="type-card active" id="topup-pay-card-qris" onclick="window.selectTopupPaymentMethod('qris', this)">
+                                <input type="radio" name="topup_payment_method" value="qris" checked style="display:none;">
+                                <div class="pay-method-head">
+                                    <i class="fa-solid fa-qrcode"></i>
+                                    <strong>QRIS</strong>
+                                </div>
+                                <span class="pay-badge badge-green">Otomatis Masuk</span>
+                            </label>
+                            <label class="type-card" id="topup-pay-card-cash" onclick="window.selectTopupPaymentMethod('cash', this)">
+                                <input type="radio" name="topup_payment_method" value="cash" style="display:none;">
+                                <div class="pay-method-head">
+                                    <i class="fa-solid fa-barcode"></i>
+                                    <strong>TUNAI</strong>
+                                </div>
+                                <span class="pay-badge badge-yellow">Barcode Kasir</span>
+                            </label>
                         </div>
                     </div>
 
-                    <!-- BAGIAN RIWAYAT ISI SALDO TERPADU DI DALAM TAB ISI SALDO -->
-                    <div class="topup-unified-history-col" id="topup-history-unified-card">
-                        <div class="checkout-step-card">
-                            <div class="step-header" style="justify-content: space-between; flex-wrap: wrap; gap: 10px;">
-                                <div style="display:flex; align-items:center; gap:10px;">
-                                    <span class="step-num"><i class="fa-solid fa-clock-rotate-left"></i></span>
-                                    <div>
-                                        <h4>Riwayat Isi Saldo Akun</h4>
-                                        
-                                    </div>
-                                </div>
-                                <button type="button" class="btn btn-outline btn-sm" onclick="window.renderTopupHistoryList(); window.showToast('Diperbarui', 'Riwayat isi saldo telah diperbarui.', 'info');">
-                                    <i class="fa-solid fa-rotate"></i> Segarkan Riwayat
-                                </button>
-                            </div>
-                            <div id="topup-history-list-container" style="margin-top: 0.75rem;"></div>
+                    <!-- Kartu 3: Info Saldo Masuk Otomatis -->
+                    <div class="v30-topup-auto-info-box">
+                        <div class="v30-topup-auto-icon">
+                            <i class="fa-solid fa-bolt"></i>
+                        </div>
+                        <div>
+                            <strong>Saldo masuk otomatis</strong>
+                            <p>Setelah pembayaran diterima sistem, Saldo Akun kamu bertambah tanpa perlu konfirmasi.</p>
                         </div>
                     </div>
+
+                    <span id="topup-summary-total-display" style="display:none;">Rp50.000</span>
+
+                    <!-- Tombol Proses di Bawah -->
+                    <button type="button" id="btn-submit-topup-balance" class="btn btn-primary btn-checkout-submit v30-topup-submit-btn" onclick="window.processTopupBalanceCheckout()">
+                        <span>PROSES</span>
+                    </button>
                 </div>
 
+                <!-- PANEL 2: RIWAYAT TOP UP SALDO (SESUAI SCREENSHOT 6) -->
+                <div id="topup-history-unified-card" class="v30-topup-body-panel" style="display: none;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.85rem;">
+                        <strong style="font-size:0.88rem; color:var(--text-muted);">Riwayat Pengisian Saldo</strong>
+                        <button type="button" class="btn btn-outline btn-sm" onclick="window.renderTopupHistoryList(); window.showToast('Diperbarui', 'Riwayat diperbarui.', 'info');">
+                            <i class="fa-solid fa-rotate"></i> Segarkan
+                        </button>
+                    </div>
+                    <div id="topup-history-list-container"></div>
+                </div>
             </div>
         </div>
 
@@ -1731,12 +1782,6 @@
         <a onclick="window.switchMainTab('katalog')" id="nav-bot-katalog" class="active" role="button">
             <i class="fa-solid fa-store"></i><span>Katalog</span>
         </a>
-        <a onclick="window.switchMainTab('topup')" id="nav-bot-topup" role="button" style="display:none !important;" aria-hidden="true">
-            <i class="fa-solid fa-wallet"></i><span>Saldo</span>
-        </a>
-        <a onclick="window.switchMainTab('memberplus')" id="nav-bot-memberplus" role="button" style="display:none !important;" aria-hidden="true">
-            <i class="fa-solid fa-crown"></i><span>Member+</span>
-        </a>
         <a onclick="window.switchMainTab('pesanan')" id="nav-bot-pesanan" role="button">
             <i class="fa-solid fa-receipt"></i><span id="nav-text-pesanan-mob">Pesanan</span>
         </a>
@@ -1923,51 +1968,41 @@
                 </div>
             </div>
 
-            <!-- TAHAP 2: LAYAR PENUH MASUKKAN PIN ALA DANA (TANPA RINCIAN PESANAN DI ATASNYA) -->
-            <div id="chk-confirm-pin-box" class="dana-fullscreen-pin-stage" style="display:none;">
+            <!-- TAHAP 2: PANEL KOLOM PIN TANPA TOMBOL NOMOR DI LAYAR WEB -->
+            <div id="chk-confirm-pin-box" class="dana-fullscreen-pin-stage v30-clean-pin-panel" style="display:none;">
                 <div class="dana-pin-topbar">
                     <button type="button" class="dana-pin-back-btn" onclick="window.backFromFullPinStageToDetails()" aria-label="Kembali">
                         <i class="fa-solid fa-arrow-left"></i> <span>Kembali</span>
                     </button>
-                    <span class="dana-pin-brand-pill"><i class="fa-solid fa-shield-halved"></i> VIPERCELL PIN</span>
+                    <span class="dana-pin-brand-pill"><i class="fa-solid fa-shield-halved"></i> PIN SALDO</span>
                     <button type="button" class="dana-pin-forgot-link" onclick="window.openForgotTrxPinModal()">
                         Lupa PIN?
                     </button>
                 </div>
 
-                <div class="dana-pin-center-hero">
+                <div class="dana-pin-center-hero" onclick="window.focusMbankingPinPad()">
                     <div class="dana-pin-lock-badge">
                         <i class="fa-solid fa-lock"></i>
                     </div>
-                    <h3 class="dana-pin-main-title">Masukkan PIN Kamu</h3>
+                    <h3 class="dana-pin-main-title">Masukkan 6 Digit PIN</h3>
                     <div class="dana-pin-amount-pill" id="chk-pin-fullscreen-amount-pill">Rp0</div>
-                    <input type="password" id="chk-confirm-trx-pin" maxlength="6" inputmode="none" autocomplete="off" style="position:absolute; opacity:0; pointer-events:none; width:1px; height:1px;">
-                    <div id="chk-pin-dots-row" class="mbanking-pin-dots dana-style-dots" onclick="window.focusMbankingPinPad()">
-                        <span class="pin-dot"></span>
-                        <span class="pin-dot"></span>
-                        <span class="pin-dot"></span>
-                        <span class="pin-dot"></span>
-                        <span class="pin-dot"></span>
-                        <span class="pin-dot"></span>
-                    </div>
-                    <small id="chk-confirm-pin-helper" class="mbanking-pin-helper">
-                        Masukkan 6 digit PIN Transaksi Saldo Akun
-                    </small>
-                </div>
 
-                <div class="mbanking-keypad-grid dana-style-keypad">
-                    <button type="button" class="mbanking-key-btn" onclick="window.pressUserPinKeypad('1')">1</button>
-                    <button type="button" class="mbanking-key-btn" onclick="window.pressUserPinKeypad('2')">2</button>
-                    <button type="button" class="mbanking-key-btn" onclick="window.pressUserPinKeypad('3')">3</button>
-                    <button type="button" class="mbanking-key-btn" onclick="window.pressUserPinKeypad('4')">4</button>
-                    <button type="button" class="mbanking-key-btn" onclick="window.pressUserPinKeypad('5')">5</button>
-                    <button type="button" class="mbanking-key-btn" onclick="window.pressUserPinKeypad('6')">6</button>
-                    <button type="button" class="mbanking-key-btn" onclick="window.pressUserPinKeypad('7')">7</button>
-                    <button type="button" class="mbanking-key-btn" onclick="window.pressUserPinKeypad('8')">8</button>
-                    <button type="button" class="mbanking-key-btn" onclick="window.pressUserPinKeypad('9')">9</button>
-                    <button type="button" class="mbanking-key-btn key-fn" onclick="window.pressUserPinKeypad('CLEAR')" title="Hapus Semua">C</button>
-                    <button type="button" class="mbanking-key-btn" onclick="window.pressUserPinKeypad('0')">0</button>
-                    <button type="button" class="mbanking-key-btn key-fn" onclick="window.pressUserPinKeypad('BACK')" title="Hapus 1 Angka"><i class="fa-solid fa-delete-left"></i></button>
+                    <!-- Kolom Kotak PIN 6 Digit Langsung Terhubung ke Keyboard Perangkat -->
+                    <div class="v30-pin-input-wrapper" onclick="window.focusMbankingPinPad()">
+                        <input type="tel" id="chk-confirm-trx-pin" class="v30-native-pin-input" maxlength="6" inputmode="numeric" pattern="[0-9]*" autocomplete="one-time-code" oninput="window.onNativeUserPinInput(this)">
+                        <div id="chk-pin-dots-row" class="v30-pin-boxes-row">
+                            <span class="pin-dot v30-pin-box"></span>
+                            <span class="pin-dot v30-pin-box"></span>
+                            <span class="pin-dot v30-pin-box"></span>
+                            <span class="pin-dot v30-pin-box"></span>
+                            <span class="pin-dot v30-pin-box"></span>
+                            <span class="pin-dot v30-pin-box"></span>
+                        </div>
+                    </div>
+
+                    <small id="chk-confirm-pin-helper" class="mbanking-pin-helper">
+                        Sentuh kotak di atas untuk mengetik 6 angka PIN
+                    </small>
                 </div>
             </div>
         </div>
@@ -2068,7 +2103,7 @@
     </div>
 
     <!-- Script Utama Web User -->
-    <script type="module" src="js/store.js?v=28.9"></script>
+    <script type="module" src="js/store.js?v=30.0"></script>
 
     <script>
         if ('serviceWorker' in navigator) {

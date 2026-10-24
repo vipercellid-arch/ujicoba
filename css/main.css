@@ -6208,7 +6208,7 @@ button,
 @media (max-width: 768px) {
     .bottom-nav {
         display: grid !important;
-        grid-template-columns: repeat(6, minmax(0, 1fr)) !important;
+        grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
         padding: 6px 4px calc(6px + env(safe-area-inset-bottom, 0px)) 4px !important;
         gap: 2px !important;
     }
@@ -6536,4 +6536,595 @@ button,
         border-radius: 24px 24px 0 0 !important;
         padding: 1.1rem 1.15rem 1.35rem !important;
     }
+}
+
+
+/* ==========================================================================
+   PEMBARUAN v30.0: KATALOG IKON NEO-BRUTALISM, SUB-KATALOG WEGAMES,
+   TOP UP 2 TAB, PERBAIKAN TABEL PERBANDINGAN, PANEL PIN KOTAK, & EFEK TOMBOL LAMPU NEON
+   ========================================================================== */
+
+/* 1. Perbaikan Mutlak Navigasi Bawah HP 4 Kolom Rata Sampai Ujung */
+.bottom-nav,
+#mobile-bottom-nav {
+    display: grid !important;
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+    width: auto !important;
+    left: 10px !important;
+    right: 10px !important;
+    box-sizing: border-box !important;
+    gap: 6px !important;
+}
+
+@media (min-width: 901px) {
+    .bottom-nav,
+    #mobile-bottom-nav {
+        display: none !important;
+    }
+}
+
+/* 2. Sembunyikan Paksa Grid Utama Member Plus Saat Membuka Tabel Perbandingan Harga */
+.mp-hidden-force,
+#memberplus-main-content-grid.mp-hidden-force,
+.topup-header-bar.mp-hidden-force {
+    display: none !important;
+}
+
+/* 3. Efek Tekan Tombol Cahaya / Lampu Kuning-Neon Masuk Tanpa Bergeser Tempat */
+button,
+.btn,
+.type-card,
+.item-card,
+.brand-card,
+.v30-cat-icon-item,
+.v30-subcat-grid-card,
+.topup-nom-chip,
+.v30-topup-tab-btn,
+.v30-subpill {
+    position: relative;
+    transition: box-shadow 0.14s ease, background-color 0.14s ease, border-color 0.14s ease !important;
+}
+
+button:active,
+.btn:active,
+.btn-tap-pressed,
+.btn-working-indicator {
+    transform: none !important;
+    box-shadow: inset 0 3px 6px rgba(15, 23, 42, 0.38), 0 0 0 2.5px #facc15, 0 0 16px rgba(250, 204, 21, 0.85), 0 0 26px rgba(56, 189, 248, 0.45) !important;
+    filter: brightness(1.04);
+}
+
+/* 4. Beranda Menu Grid Ikon Kategori (Gaya Neo-Brutalism Sesuai Screenshot 7) */
+.v30-launcher-panel {
+    padding: 1.15rem !important;
+}
+
+.v30-launcher-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 1rem;
+}
+
+.v30-launcher-title {
+    font-size: 1.15rem;
+    font-weight: 900;
+    margin: 0;
+    color: var(--text);
+}
+
+.v30-launcher-sub {
+    font-size: 0.76rem;
+    font-weight: 700;
+    color: var(--text-muted);
+    display: block;
+    margin-top: 2px;
+}
+
+.v30-category-icon-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 14px 10px;
+}
+
+.v30-cat-icon-item {
+    background: transparent;
+    border: none;
+    padding: 6px 4px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 8px;
+    cursor: pointer;
+    text-align: center;
+    border-radius: 14px;
+}
+
+.v30-cat-circle {
+    width: 58px;
+    height: 58px;
+    border-radius: 50%;
+    border: 2.5px solid #0f172a;
+    box-shadow: 3px 3px 0px #0f172a;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.4rem;
+    color: #0f172a;
+    background: #e2e8f0;
+}
+
+html[data-theme="dark"] .v30-cat-circle {
+    border-color: #cbd5e1;
+    box-shadow: 3px 3px 0px #020617;
+}
+
+.bg-cat-game { background: #fde047; color: #0f172a; }
+.bg-cat-pulsa { background: #93c5fd; color: #0f172a; }
+.bg-cat-pln { background: #fcd34d; color: #0f172a; }
+.bg-cat-ewallet { background: #6ee7b7; color: #0f172a; }
+.bg-cat-app { background: #c4b5fd; color: #0f172a; }
+.bg-cat-ppob { background: #fca5a5; color: #0f172a; }
+.bg-cat-tools { background: #a5f3fc; color: #0f172a; }
+.bg-cat-all { background: #cbd5e1; color: #0f172a; }
+
+.v30-cat-icon-item span {
+    font-size: 0.76rem;
+    font-weight: 800;
+    color: var(--text);
+    line-height: 1.2;
+}
+
+/* 5. Halaman Sub-Katalog Kategori (Gaya Neo-Brutalism Sesuai Screenshot 4 "WeGames") */
+.v30-subcatalog-stage {
+    animation: v289TabSmoothEnter 0.24s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.v30-subcatalog-topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 0.9rem;
+    padding: 0.75rem 1rem;
+    background: var(--surface);
+    border: var(--brutal-border);
+    box-shadow: var(--brutal-shadow);
+    border-radius: 14px;
+}
+
+.v30-subcatalog-title-wrap {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.v30-subcatalog-title-wrap h2 {
+    font-size: 1.08rem;
+    font-weight: 900;
+    margin: 0;
+}
+
+.v30-subcatalog-banner {
+    margin-bottom: 0.95rem;
+    border-radius: 16px;
+    border: var(--brutal-border);
+    box-shadow: var(--brutal-shadow);
+    overflow: hidden;
+    background: var(--surface);
+}
+
+.v30-subcatalog-banner img {
+    width: 100%;
+    max-height: 175px;
+    object-fit: cover;
+    display: block;
+}
+
+.v30-subcatalog-banner-hero {
+    padding: 1.15rem 1.25rem;
+    background: linear-gradient(135deg, #1e3a8a 0%, #0f172a 65%, #ca8a04 100%);
+    color: #ffffff;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+}
+
+.v30-banner-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    background: #facc15;
+    color: #0f172a;
+    font-size: 0.65rem;
+    font-weight: 900;
+    padding: 3px 9px;
+    border-radius: 999px;
+    border: 1.5px solid #0f172a;
+    margin-bottom: 6px;
+}
+
+.v30-banner-hero-left h3 {
+    font-size: 1.15rem;
+    font-weight: 900;
+    margin: 0 0 4px;
+    color: #facc15;
+    text-shadow: 1px 1px 0px #000;
+}
+
+.v30-banner-hero-left p {
+    font-size: 0.76rem;
+    font-weight: 700;
+    margin: 0;
+    color: #e2e8f0;
+}
+
+.v30-banner-hero-icon {
+    width: 58px;
+    height: 58px;
+    border-radius: 16px;
+    background: rgba(250, 204, 21, 0.2);
+    border: 2px solid #facc15;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.75rem;
+    color: #facc15;
+    flex-shrink: 0;
+}
+
+.v30-subcatalog-search-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 0.85rem;
+}
+
+.v30-view-mode-btn {
+    min-width: 42px;
+    height: 42px;
+    padding: 0 !important;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.v30-subcatalog-pills-strip {
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    padding-bottom: 6px;
+    margin-bottom: 0.95rem;
+    -webkit-overflow-scrolling: touch;
+}
+
+.v30-subpill {
+    white-space: nowrap;
+    padding: 7px 14px;
+    border-radius: 999px;
+    border: 2px solid var(--border);
+    background: var(--surface);
+    color: var(--text);
+    font-size: 0.76rem;
+    font-weight: 800;
+    cursor: pointer;
+    box-shadow: 2px 2px 0px var(--border);
+}
+
+.v30-subpill.active {
+    background: var(--primary);
+    color: #ffffff;
+}
+
+/* Grid 3 Kolom Ala WeGames dengan Bingkai Neo-Brutalism */
+.grid.v30-compact-3col-grid {
+    display: grid !important;
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    gap: 10px !important;
+}
+
+@media (min-width: 769px) {
+    .grid.v30-compact-3col-grid {
+        grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+        gap: 14px !important;
+    }
+}
+
+.v30-subcat-grid-card {
+    background: var(--surface);
+    border: 2px solid var(--border);
+    box-shadow: 3px 3px 0px var(--border);
+    border-radius: 16px;
+    padding: 12px 8px 10px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    cursor: pointer;
+    position: relative;
+}
+
+.v30-subcat-grid-card.sold-out {
+    opacity: 0.65;
+}
+
+.v30-subcat-thumb {
+    width: 62px;
+    height: 62px;
+    border-radius: 16px;
+    overflow: hidden;
+    border: 2px solid var(--border);
+    background: var(--bg);
+    margin-bottom: 8px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.v30-subcat-thumb img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.v30-subcat-title {
+    font-size: 0.76rem;
+    font-weight: 800;
+    color: var(--text);
+    line-height: 1.25;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    margin-bottom: 3px;
+}
+
+.v30-subcat-price {
+    font-size: 0.66rem;
+    font-weight: 800;
+    color: var(--primary);
+}
+
+/* 6. Desain Baru Halaman Top Up Saldo 2 Tab (ISI SALDO & RIWAYAT Sesuai Screenshot 5 & 6) */
+.v30-topup-stage {
+    max-width: 540px;
+    margin: 0 auto;
+}
+
+.v30-topup-topbar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 0.9rem;
+}
+
+.v30-topup-title-box h2 {
+    font-size: 1.15rem;
+    font-weight: 900;
+    margin: 0;
+}
+
+.v30-topup-title-box span {
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: var(--text-muted);
+}
+
+.v30-topup-tabs-bar {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    background: var(--bg);
+    padding: 5px;
+    border-radius: 999px;
+    border: 2.5px solid var(--border);
+    box-shadow: 3px 3px 0px var(--border);
+    margin-bottom: 1.1rem;
+}
+
+.v30-topup-tab-btn {
+    border: none;
+    background: transparent;
+    color: var(--text-muted);
+    font-weight: 900;
+    font-size: 0.82rem;
+    padding: 9px 12px;
+    border-radius: 999px;
+    cursor: pointer;
+    letter-spacing: 0.03em;
+}
+
+.v30-topup-tab-btn.active {
+    background: var(--secondary);
+    color: #0f172a;
+    border: 2px solid #0f172a;
+    box-shadow: 2px 2px 0px #0f172a;
+}
+
+.v30-topup-card {
+    margin-bottom: 0.95rem !important;
+    padding: 1.1rem !important;
+}
+
+.v30-topup-card-head {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 0.85rem;
+}
+
+.v30-topup-card-head h4 {
+    margin: 0;
+    font-size: 0.96rem;
+    font-weight: 900;
+}
+
+.v30-topup-card-head small {
+    font-size: 0.74rem;
+    font-weight: 700;
+    color: var(--text-muted);
+}
+
+.v30-topup-icon-box {
+    width: 42px;
+    height: 42px;
+    border-radius: 12px;
+    border: 2px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.1rem;
+    flex-shrink: 0;
+}
+
+.v30-topup-big-input {
+    font-size: 1.15rem !important;
+    font-weight: 900 !important;
+    padding: 12px 14px !important;
+    border-radius: 12px !important;
+}
+
+.v30-topup-chips-wrap {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.v30-topup-chips-wrap .topup-nom-chip {
+    border-radius: 999px !important;
+    padding: 7px 15px !important;
+    font-size: 0.8rem !important;
+    font-weight: 800 !important;
+}
+
+.v30-method-selector-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    cursor: pointer;
+}
+
+.v30-method-label-top {
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: var(--text-muted);
+    display: block;
+}
+
+.v30-method-selected-title {
+    font-size: 0.9rem;
+    font-weight: 900;
+    color: var(--primary);
+}
+
+.v30-method-choose-link {
+    font-size: 0.8rem;
+    font-weight: 900;
+    color: var(--primary);
+    white-space: nowrap;
+}
+
+.v30-topup-auto-info-box {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 1rem;
+    border-radius: 14px;
+    background: rgba(59, 130, 246, 0.12);
+    border: 2px solid var(--primary);
+    margin-bottom: 1.1rem;
+}
+
+.v30-topup-auto-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    background: var(--primary);
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.v30-topup-auto-info-box strong {
+    display: block;
+    font-size: 0.86rem;
+    font-weight: 900;
+    margin-bottom: 2px;
+}
+
+.v30-topup-auto-info-box p {
+    margin: 0;
+    font-size: 0.76rem;
+    font-weight: 700;
+    color: var(--text-muted);
+    line-height: 1.35;
+}
+
+.v30-topup-submit-btn {
+    width: 100%;
+    padding: 14px !important;
+    font-size: 0.95rem !important;
+    font-weight: 900 !important;
+    letter-spacing: 0.05em;
+    border-radius: 14px !important;
+}
+
+/* 7. Panel Kolom PIN Tanpa Keypad Nomor di Web */
+.v30-pin-input-wrapper {
+    position: relative;
+    max-width: 310px;
+    margin: 0.5rem auto 0.85rem;
+    cursor: text;
+}
+
+.v30-native-pin-input {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    opacity: 0;
+    z-index: 5;
+    cursor: text;
+    font-size: 1.2rem;
+}
+
+.v30-pin-boxes-row {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 8px;
+}
+
+.v30-pin-box {
+    width: 100% !important;
+    height: 48px !important;
+    border-radius: 12px !important;
+    border: 2.5px solid var(--border) !important;
+    background: var(--bg) !important;
+    box-shadow: 2px 2px 0px var(--border) !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    font-size: 1.25rem !important;
+    font-weight: 900 !important;
+    color: var(--primary) !important;
+    transition: all 0.14s ease !important;
+}
+
+.v30-pin-box.filled {
+    background: rgba(37, 99, 235, 0.12) !important;
+    border-color: var(--primary) !important;
+    transform: translateY(-2px) !important;
+}
+
+.v30-pin-box.filled::after {
+    content: "●";
+    font-size: 1.1rem;
+    color: var(--primary);
 }
