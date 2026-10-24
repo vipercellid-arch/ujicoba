@@ -3651,31 +3651,36 @@ window.openDirectBuyModal = function(brandName) {
             ${extraDesc}
             <div class="form-group" style="margin-bottom:0;">
                 <label for="buy-id">Nomor Meter / ID Pelanggan PLN <span style="color:var(--danger)">*</span></label>
-                <div style="display:flex; gap:8px; align-items:stretch;">
-                    <input type="text" id="buy-id" class="form-control" placeholder="Masukkan Nomor Meter / ID Pelanggan PLN (Cth: 530000000001)" required oninput="window.onInputAutoCheckPlnSubscriber()">
-                    <button type="button" id="btn-user-check-pln" class="btn btn-primary btn-sm" style="white-space:nowrap; padding:0 14px; font-weight:900;" onclick="window.userCheckPlnSubscriber()">
-                        <i class="fa-solid fa-magnifying-glass"></i> Cek ID PLN
-                    </button>
-                </div>
-                <small style="font-size:0.72rem; color:var(--text-muted); display:block; margin-top:4px;">Masukkan Nomor Meter / ID Pelanggan lalu tekan <b>Cek ID PLN</b> atau tunggu pengecekan otomatis.</small>
-                <div id="user-pln-inquiry-box" class="pln-inquiry-result-card" style="display:none;"></div>
+                <input type="tel" id="buy-id" class="form-control" placeholder="Masukkan Nomor Meter / ID Pelanggan PLN" required oninput="window.onInputTargetFieldChange()">
+                <small style="font-size:0.72rem; color:var(--text-muted); display:block; margin-top:4px;">Masukkan Nomor Meter / ID PLN lalu pilih nominal token di bawah. Nama pelanggan akan tervalidasi otomatis di panel pembayaran.</small>
             </div>`;
     } else if (inpType === 'ewallet_no' || brandObj.type === 'ewallet') {
         fields.innerHTML = `
             ${extraDesc}
             <div class="form-group" style="margin-bottom:0;">
                 <label for="buy-id">Nomor HP / Akun ${escapeHtml(brandObj.brandName)} <span style="color:var(--danger)">*</span></label>
-                <input type="tel" id="buy-id" class="form-control" placeholder="Contoh: 081234567890" required oninput="window.resetPlnAndPascaCheck()">
-                <small style="font-size:0.72rem; color:var(--text-muted); display:block; margin-top:4px;">Nama pengguna ${escapeHtml(brandObj.brandName)} akan dicek otomatis pada jendela konfirmasi saat menekan tombol Beli Sekarang.</small>
+                <input type="tel" id="buy-id" class="form-control" placeholder="Contoh: 081234567890" required oninput="window.onInputTargetFieldChange()">
+                <small style="font-size:0.72rem; color:var(--text-muted); display:block; margin-top:4px;">Masukkan nomor tujuan lalu pilih nominal di bawah. Akun ${escapeHtml(brandObj.brandName)} tervalidasi otomatis di panel pembayaran.</small>
             </div>`;
     } else if (inpType === 'pasca_no' || brandObj.type === 'ppob' || firstItem.processType === 'digiflazz_pasca') {
+        const pascaSelectHtml = brandObj.items.length > 1
+            ? `<div class="form-group" style="margin-bottom:10px;">
+                   <label for="buy-pasca-service-select">Pilih Layanan Tagihan</label>
+                   <select id="buy-pasca-service-select" class="form-control" onchange="window.onChangePascaServiceSelect(this.value)">
+                       ${brandObj.items.map(it => `<option value="${escapeHtml(it.dbId)}">${escapeHtml(it.name)}</option>`).join('')}
+                   </select>
+               </div>`
+            : '';
         fields.innerHTML = `
             ${extraDesc}
+            ${pascaSelectHtml}
             <div class="form-group" style="margin-bottom:0;">
                 <label for="buy-id">Nomor Pelanggan / ID Tagihan ${escapeHtml(brandObj.brandName)} <span style="color:var(--danger)">*</span></label>
-                <input type="text" id="buy-id" class="form-control" placeholder="Masukkan Nomor Pelanggan (Cth: 530000000001)" required oninput="window.onInputPascaCustomerNo()">
-                <small style="font-size:0.74rem; color:var(--text-muted); font-weight:700; display:block; margin-top:5px;">Masukkan nomor pelanggan lalu klik tombol <b>Cek Tagihan</b> di samping untuk melihat nominal tagihan sebelum membayar.</small>
-                <div id="user-pasca-inquiry-box" class="pln-inquiry-result-card" style="display:none;"></div>
+                <input type="text" id="buy-id" class="form-control" placeholder="Masukkan Nomor Pelanggan / ID Tagihan" required oninput="window.onInputPascaCustomerNo()">
+                <button type="button" id="btn-user-check-pasca" class="btn btn-primary" style="width:100%; margin-top:10px; font-weight:900; display:flex; align-items:center; justify-content:center; gap:8px;" onclick="window.userCheckPascaBill()">
+                    <i class="fa-solid fa-magnifying-glass-dollar"></i> <span>Cek Tagihan Sekarang</span>
+                </button>
+                <div id="user-pasca-inquiry-box" class="pln-inquiry-result-card" style="display:none; margin-top:12px;"></div>
             </div>`;
     } else if (inpType === 'phone' || brandObj.type === 'pulsa') {
         fields.innerHTML = `
@@ -3693,15 +3698,15 @@ window.openDirectBuyModal = function(brandName) {
                 ${extraDesc}
                 <div class="form-group" style="margin-bottom:0;">
                     <label for="buy-id">ID Player / UID Tujuan <span style="color:var(--danger)">*</span></label>
-                    <input type="text" id="buy-id" class="form-control" placeholder="Masukkan ID Player" required>
-                    <small style="font-size:0.72rem; color:var(--text-muted); display:block; margin-top:4px;">Username akun game akan dicek otomatis saat konfirmasi pesanan sebelum bayar.</small>
+                    <input type="text" id="buy-id" class="form-control" placeholder="Masukkan ID Player" required oninput="window.onInputTargetFieldChange()">
+                    <small style="font-size:0.72rem; color:var(--text-muted); display:block; margin-top:4px;">Masukkan ID Player lalu pilih item di bawah. Username game akan dicek otomatis di panel pembayaran.</small>
                 </div>`;
         } else if (inpType === 'custom' || inpType === 'roblox') {
             fields.innerHTML = `
                 ${extraDesc}
                 <div class="form-group" style="margin-bottom:0;">
                     <label for="buy-id">Username / Email / Link Tujuan <span style="color:var(--danger)">*</span></label>
-                    <input type="text" id="buy-id" class="form-control" placeholder="Masukkan data tujuan" required>
+                    <input type="text" id="buy-id" class="form-control" placeholder="Masukkan data tujuan" required oninput="window.onInputTargetFieldChange()">
                 </div>`;
         } else {
             fields.innerHTML = `
@@ -3709,15 +3714,15 @@ window.openDirectBuyModal = function(brandName) {
                 <div style="display:grid; grid-template-columns: 2fr 1fr; gap:10px;">
                     <div class="form-group" style="margin-bottom:0;">
                         <label for="buy-id">ID Player <span style="color:var(--danger)">*</span></label>
-                        <input type="text" id="buy-id" class="form-control" placeholder="ID Player" required oninput="window.updateMergedGameTargetPreview()">
+                        <input type="text" id="buy-id" class="form-control" placeholder="ID Player" required oninput="window.updateMergedGameTargetPreview(); window.onInputTargetFieldChange();">
                     </div>
                     <div class="form-group" style="margin-bottom:0;">
                         <label for="buy-zone">Zone / Server</label>
-                        <input type="text" id="buy-zone" class="form-control" placeholder="Zone / Server" oninput="window.updateMergedGameTargetPreview()">
+                        <input type="text" id="buy-zone" class="form-control" placeholder="Zone / Server" oninput="window.updateMergedGameTargetPreview(); window.onInputTargetFieldChange();">
                     </div>
                 </div>
                 <div id="buy-merged-target-preview" style="display:none; margin-top:6px; font-size:0.74rem; font-weight:800; color:var(--primary);"></div>
-                <small style="font-size:0.72rem; color:var(--text-muted); display:block; margin-top:5px;">ID Player dan Zone/Server otomatis digabungkan saat proses pengecekan username dan pengiriman produk.</small>`;
+                <small style="font-size:0.72rem; color:var(--text-muted); display:block; margin-top:5px;">Masukkan ID &amp; Zone lalu pilih item di bawah. Username akun game akan tervalidasi otomatis di panel pembayaran.</small>`;
         }
     } else {
         fields.innerHTML = `
@@ -3775,12 +3780,20 @@ window.openDirectBuyModal = function(brandName) {
     // Render chip riwayat nomor/ID tujuan terakhir (1-klik isi otomatis)
     window.renderRecentTargetChipsForBrand(brandObj, inpType);
 
-    // Tutup bottom-sheet pembayaran mobile terlebih dahulu sampai user memilih variasi (kecuali pascabayar)
-    if (isPascaBrand) {
-        window.openMobilePaymentSheet();
-    } else {
-        window.closeMobilePaymentSheet();
+    // Reset kotak validasi di dalam sheet pembayaran
+    const sheetValBox = document.getElementById('sheet-target-validation-box');
+    if (sheetValBox) {
+        sheetValBox.style.display = 'none';
+        sheetValBox.innerHTML = '';
     }
+    window.currentSheetVerifiedTarget = null;
+
+    // Untuk Pascabayar, sembunyikan panel pembayaran sampai user mengisi ID Pelanggan dan menekan Cek Tagihan!
+    const sideColSheet = document.getElementById('checkout-side-col-sheet');
+    if (sideColSheet) {
+        sideColSheet.style.display = isPascaBrand ? 'none' : '';
+    }
+    window.closeMobilePaymentSheet();
 
     window.calculateDirectBuyTotal();
     window.renderReviewsUI();
@@ -3879,6 +3892,19 @@ window.selectItemToBuy = function(dbId) {
         }
     }
 
+    const buyIdEl = document.getElementById('buy-id');
+    const rawTargetVal = buyIdEl ? buyIdEl.value.trim() : '';
+    const isPascaItem = Boolean(procType === 'digiflazz_pasca' || currentCheckoutBrand?.type === 'ppob');
+
+    // Jika produk membutuhkan Nomor / ID Tujuan (dan bukan pascabayar), pastikan user mengisi tujuan terlebih dahulu sebelum panel pembayaran terbuka
+    if (buyIdEl && !rawTargetVal && !isPascaItem) {
+        window.calculateDirectBuyTotal();
+        buyIdEl.focus();
+        buyIdEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        window.showToast('Isi Tujuan Dulu', 'Masukkan Nomor / ID Tujuan pada Langkah 01 terlebih dahulu.', 'warning');
+        return;
+    }
+
     const mobVarLbl = document.getElementById('mobile-selected-variant-label');
     if (mobVarLbl) {
         const effPrice = getEffectiveUserVariantPrice(selectedProductForBuy);
@@ -3887,7 +3913,12 @@ window.selectItemToBuy = function(dbId) {
     }
 
     window.calculateDirectBuyTotal();
-    window.openMobilePaymentSheet();
+    if (!isPascaItem) {
+        const sideColSheet = document.getElementById('checkout-side-col-sheet');
+        if (sideColSheet) sideColSheet.style.display = '';
+        window.openMobilePaymentSheet();
+        window.runAutoSheetTargetCheck();
+    }
 };
 
 window.selectPaymentUI = function(val, el) {
@@ -4296,6 +4327,10 @@ window.processDirectCheckout = async function() {
         )
     );
 
+    const preVerifiedName = (window.currentSheetVerifiedTarget && window.currentSheetVerifiedTarget.status === 'valid')
+        ? String(window.currentSheetVerifiedTarget.name || '').trim()
+        : '';
+
     pendingConfirmedCheckoutPayload = {
         pidVal,
         zolVal,
@@ -4310,8 +4345,14 @@ window.processDirectCheckout = async function() {
         isPascaProduct,
         inpType,
         checkIdSku,
-        verifiedTargetName: ''
+        verifiedTargetName: preVerifiedName
     };
+
+    // Jika pembayaran bukan Saldo Akun dan tujuan sudah tervalidasi langsung di panel pembayaran bawah, langsung proses pesanan!
+    if (paymentMethod !== 'balance' && window.currentSheetVerifiedTarget && window.currentSheetVerifiedTarget.status === 'valid') {
+        await window.confirmAndExecuteCheckout();
+        return;
+    }
 
     if (shouldShowConfirmCheckModal) {
         await window.openCheckoutConfirmWithAutoCheckId();
@@ -6178,6 +6219,14 @@ window.switchMainTab = function(tab) {
     // Jika pengguna sudah login, cegah perpindahan ke tab auth
     if (!isAuthLocked && tab === 'auth') {
         tab = 'katalog';
+    }
+
+    // Sembunyikan navigasi bawah & footer saat user berada di dalam halaman produk (checkout) agar panel pembayaran mulus
+    document.body.classList.toggle('in-product-checkout', tab === 'checkout');
+    if (tab !== 'checkout') {
+        if (typeof window.closeMobilePaymentSheet === 'function') {
+            window.closeMobilePaymentSheet();
+        }
     }
 
     if (tab !== 'payment-qris') {
@@ -8471,16 +8520,50 @@ window.userCheckPlnSubscriber = async function() {
     }
 };
 
+window.onChangePascaServiceSelect = function(dbId) {
+    if (!currentCheckoutBrand) return;
+    const found = currentCheckoutBrand.items.find(i => i.dbId === dbId);
+    if (found) {
+        selectedProductForBuy = found;
+        window.resetPlnAndPascaCheck();
+    }
+};
+
+window.proceedPascaToPaymentSheet = function() {
+    if (!verifiedPascaInquiry || !selectedProductForBuy) {
+        window.showToast('Cek Tagihan Dulu', 'Silakan cek tagihan pelanggan terlebih dahulu.', 'warning');
+        return;
+    }
+    const sideColSheet = document.getElementById('checkout-side-col-sheet');
+    if (sideColSheet) {
+        sideColSheet.style.display = '';
+    }
+    const mobVarLbl = document.getElementById('mobile-selected-variant-label');
+    const totalTagihan = Number(verifiedPascaInquiry.selling_price || verifiedPascaInquiry.price || 0);
+    if (mobVarLbl) {
+        mobVarLbl.style.display = 'block';
+        mobVarLbl.innerText = `${selectedProductForBuy.name} • Rp${totalTagihan.toLocaleString('id-ID')}`;
+    }
+    window.calculateDirectBuyTotal();
+    window.runAutoSheetTargetCheck();
+    window.openMobilePaymentSheet();
+    if (window.innerWidth > 768 && sideColSheet) {
+        sideColSheet.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+};
+
 window.userCheckPascaBill = async function() {
     const cNo = combineGameIdAndZoneForDigiflazz(document.getElementById('buy-id')?.value || '');
     const box = document.getElementById('user-pasca-inquiry-box');
     const btn = document.getElementById('btn-user-check-pasca');
+    const sideColSheet = document.getElementById('checkout-side-col-sheet');
     if (!cNo) {
-        window.customAlert('Nomor Kosong', 'Masukkan Nomor Pelanggan terlebih dahulu.', 'warning');
+        window.customAlert('Nomor Pelanggan Kosong', 'Masukkan Nomor Pelanggan / ID Tagihan terlebih dahulu.', 'warning');
+        document.getElementById('buy-id')?.focus();
         return;
     }
     if (!selectedProductForBuy && currentCheckoutBrand?.items?.length > 0) {
-        window.selectItemToBuy(currentCheckoutBrand.items[0].dbId);
+        selectedProductForBuy = currentCheckoutBrand.items[0];
     }
     const sku = selectedProductForBuy?.buyerSkuCode || 'pln';
     const refId = 'INQ-' + Date.now();
@@ -8490,11 +8573,27 @@ window.userCheckPascaBill = async function() {
     const sign = md5ClientDigiflazz(username + apiKey + refId);
     const isTesting = (siteSettings.digiflazzEnvMode || 'development') === 'development';
 
+    if (sideColSheet) sideColSheet.style.display = 'none';
+    window.closeMobilePaymentSheet();
+
     const ogHtml = btn ? btn.innerHTML : '';
     if (btn) {
         btn.disabled = true;
-        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Mengecek...';
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> <span>Mengecek Tagihan Pelanggan...</span>';
     }
+    if (box) {
+        box.style.display = 'block';
+        box.style.borderColor = 'var(--primary)';
+        box.innerHTML = `
+            <div style="display:flex; align-items:center; gap:10px; font-weight:800; color:var(--primary);">
+                <i class="fa-solid fa-spinner fa-spin" style="font-size:1.1rem;"></i>
+                <div>
+                    <div>Sedang Mengecek Tagihan...</div>
+                    <small style="font-weight:600; color:var(--text-muted);">Menghubungi server untuk nomor pelanggan <b>${escapeHtml(cNo)}</b></small>
+                </div>
+            </div>`;
+    }
+
     try {
         const res = await callClientDigiflazzApi('/v1/transaction', {
             commands: 'inq-pasca',
@@ -8509,29 +8608,67 @@ window.userCheckPascaBill = async function() {
         if (box) {
             box.style.display = 'block';
             if (d.status === 'Sukses' || d.rc === '00') {
-                verifiedPascaInquiry = { ...d, sku: sku, ref_id: refId };
+                verifiedPascaInquiry = { ...d, sku: sku, ref_id: refId, customer_no: cNo };
                 const totalTagihan = Number(d.selling_price || d.price || 0);
+                const adminFee = Number(d.admin || 0);
+                const custName = String(d.customer_name || d.name || '-').trim();
+                const periodeStr = String(d.periode || '-').trim();
+                window.currentSheetVerifiedTarget = {
+                    status: 'valid',
+                    targetNo: cNo,
+                    name: custName,
+                    extraLabel: 'Periode Tagihan',
+                    extraValue: periodeStr
+                };
                 box.style.borderColor = 'var(--success)';
                 box.innerHTML = `
-                    <div style="font-weight:800; color:var(--success); margin-bottom:4px;"><i class="fa-solid fa-circle-check"></i> Tagihan Ditemukan</div>
-                    <div>Nama Pelanggan: <b>${escapeHtml(d.customer_name || '-')}</b></div>
-                    <div>Periode Tagihan: <b>${escapeHtml(d.periode || '-')}</b></div>
-                    <div style="margin-top:4px; font-size:0.95rem;">Total Tagihan: <strong style="color:var(--primary);">Rp${totalTagihan.toLocaleString('id-ID')}</strong></div>
+                    <div class="pasca-bill-result-card">
+                        <div class="pasca-bill-head">
+                            <span class="status-badge status-success"><i class="fa-solid fa-circle-check"></i> TAGIHAN DITEMUKAN</span>
+                            <small class="code-mono">#${escapeHtml(refId)}</small>
+                        </div>
+                        <div class="pasca-bill-rows">
+                            <div class="pasca-bill-row"><span>ID Pelanggan</span><strong>${escapeHtml(cNo)}</strong></div>
+                            <div class="pasca-bill-row"><span>Nama Pelanggan</span><strong style="color:var(--success);">${escapeHtml(custName)}</strong></div>
+                            <div class="pasca-bill-row"><span>Periode Tagihan</span><strong>${escapeHtml(periodeStr)}</strong></div>
+                            ${adminFee > 0 ? `<div class="pasca-bill-row"><span>Biaya Admin</span><strong>Rp${adminFee.toLocaleString('id-ID')}</strong></div>` : ''}
+                            <div class="pasca-bill-row total-row"><span>Total Tagihan</span><strong style="color:var(--primary); font-size:1.05rem;">Rp${totalTagihan.toLocaleString('id-ID')}</strong></div>
+                        </div>
+                        <button type="button" class="btn btn-success" style="width:100%; margin-top:12px; font-weight:900; display:flex; align-items:center; justify-content:center; gap:8px;" onclick="window.proceedPascaToPaymentSheet()">
+                            <i class="fa-solid fa-wallet"></i> <span>Lanjutkan Bayar Tagihan (Rp${totalTagihan.toLocaleString('id-ID')})</span>
+                        </button>
+                    </div>
                 `;
                 window.calculateDirectBuyTotal();
+                if (window.innerWidth > 768 && sideColSheet) {
+                    sideColSheet.style.display = '';
+                    window.runAutoSheetTargetCheck();
+                }
             } else {
                 verifiedPascaInquiry = null;
+                window.currentSheetVerifiedTarget = null;
+                if (sideColSheet) sideColSheet.style.display = 'none';
                 box.style.borderColor = 'var(--danger)';
-                box.innerHTML = `<div style="font-weight:800; color:var(--danger);"><i class="fa-solid fa-circle-xmark"></i> ${escapeHtml(d.message || 'Tagihan tidak ditemukan atau sudah lunas')}</div>`;
+                box.innerHTML = `
+                    <div style="font-weight:800; color:var(--danger); display:flex; align-items:center; gap:8px;">
+                        <i class="fa-solid fa-circle-xmark"></i>
+                        <span>${escapeHtml(d.message || 'Tagihan tidak ditemukan atau sudah lunas.')}</span>
+                    </div>`;
                 window.calculateDirectBuyTotal();
             }
         }
     } catch (e) {
-        window.customAlert('Gagal Cek Tagihan', escapeHtml(e.message), 'error');
+        verifiedPascaInquiry = null;
+        if (sideColSheet) sideColSheet.style.display = 'none';
+        if (box) {
+            box.style.display = 'block';
+            box.style.borderColor = 'var(--danger)';
+            box.innerHTML = `<div style="font-weight:800; color:var(--danger);"><i class="fa-solid fa-triangle-exclamation"></i> ${escapeHtml(e.message || 'Gagal mengecek tagihan.')}</div>`;
+        }
     } finally {
         if (btn) {
             btn.disabled = false;
-            btn.innerHTML = ogHtml;
+            btn.innerHTML = ogHtml || '<i class="fa-solid fa-magnifying-glass-dollar"></i> <span>Cek Tagihan Sekarang</span>';
         }
     }
 };
@@ -10173,13 +10310,9 @@ window.onInputAutoCheckPlnSubscriber = function() {
 
 window.onInputPascaCustomerNo = function() {
     window.resetPlnAndPascaCheck();
-    const val = (document.getElementById('buy-id')?.value || '').trim();
-    if (pascaInputDebounceTimer) clearTimeout(pascaInputDebounceTimer);
-    if (val.length >= 8 && selectedProductForBuy) {
-        pascaInputDebounceTimer = setTimeout(() => {
-            window.userCheckPascaBill();
-        }, 700);
-    }
+    const sideColSheet = document.getElementById('checkout-side-col-sheet');
+    if (sideColSheet) sideColSheet.style.display = 'none';
+    window.closeMobilePaymentSheet();
 };
 
 // ============================================================================
@@ -10985,14 +11118,16 @@ window.toggleProfileSectionPanel = function(bodyId, chevronId) {
     }
 };
 
-// Bottom-Sheet Pembayaran Mobile Saat Memilih Varian
+// Bottom-Sheet Pembayaran Mobile Saat Memilih Varian + Validasi Otomatis ID/Username di Dalam Sheet
 window.openMobilePaymentSheet = function() {
     const sheet = document.getElementById('checkout-side-col-sheet');
     const backdrop = document.getElementById('mobile-checkout-sheet-backdrop');
     if (!sheet) return;
+    sheet.style.display = '';
     if (window.innerWidth <= 768) {
         sheet.classList.add('mobile-sheet-open');
         if (backdrop) backdrop.classList.add('active');
+        document.body.classList.add('mobile-sheet-locked');
     }
 };
 
@@ -11001,6 +11136,268 @@ window.closeMobilePaymentSheet = function() {
     const backdrop = document.getElementById('mobile-checkout-sheet-backdrop');
     if (sheet) sheet.classList.remove('mobile-sheet-open');
     if (backdrop) backdrop.classList.remove('active');
+    document.body.classList.remove('mobile-sheet-locked');
+};
+
+let sheetTargetCheckDebounceTimer = null;
+let sheetTargetCheckReqCounter = 0;
+
+window.onInputTargetFieldChange = function() {
+    window.resetPlnAndPascaCheck();
+    window.currentSheetVerifiedTarget = null;
+    if (sheetTargetCheckDebounceTimer) clearTimeout(sheetTargetCheckDebounceTimer);
+    if (selectedProductForBuy) {
+        sheetTargetCheckDebounceTimer = setTimeout(() => {
+            const sheet = document.getElementById('checkout-side-col-sheet');
+            const isSheetVisible = window.innerWidth > 768 || (sheet && sheet.classList.contains('mobile-sheet-open'));
+            if (isSheetVisible) {
+                window.runAutoSheetTargetCheck();
+            }
+        }, 500);
+    }
+};
+
+// Validasi Username / ID Pelanggan Otomatis Langsung di Panel Pembayaran Bawah (#sheet-target-validation-box)
+window.runAutoSheetTargetCheck = async function() {
+    const box = document.getElementById('sheet-target-validation-box');
+    const btnProc = document.getElementById('btn-process-buy');
+    if (!box || !currentCheckoutBrand || !selectedProductForBuy) return;
+
+    const buyIdEl = document.getElementById('buy-id');
+    const buyZoneEl = document.getElementById('buy-zone');
+    const pidVal = buyIdEl ? buyIdEl.value.trim() : '';
+    const zolVal = buyZoneEl ? buyZoneEl.value.trim() : '';
+    const inpType = selectedProductForBuy.inputType || currentCheckoutBrand.items[0]?.inputType || 'none';
+
+    if (!buyIdEl || inpType === 'none') {
+        box.style.display = 'none';
+        box.innerHTML = '';
+        window.currentSheetVerifiedTarget = { status: 'skip', name: '' };
+        return;
+    }
+
+    if (!pidVal) {
+        box.style.display = 'block';
+        box.className = 'sheet-target-validation-card state-warn';
+        box.innerHTML = `
+            <div class="stv-head">
+                <i class="fa-solid fa-triangle-exclamation"></i>
+                <div>
+                    <strong>Nomor / ID Tujuan Belum Diisi</strong>
+                    <span>Silakan isi Nomor / ID Tujuan pada Langkah 01 terlebih dahulu.</span>
+                </div>
+            </div>`;
+        if (btnProc) btnProc.disabled = true;
+        return;
+    }
+
+    const displayTarget = zolVal ? `${pidVal} (${zolVal})` : pidVal;
+
+    // 1. Produk Pulsa & Paket Data: Validasi Operator Seluler Otomatis
+    if (currentCheckoutBrand.type === 'pulsa' || inpType === 'phone') {
+        const opName = detectCellularOperatorName(pidVal) || 'Nomor Seluler';
+        window.currentSheetVerifiedTarget = { status: 'valid', targetNo: displayTarget, name: opName };
+        box.style.display = 'block';
+        box.className = 'sheet-target-validation-card state-valid';
+        box.innerHTML = `
+            <div class="stv-grid">
+                <div class="stv-row"><span>Nomor HP Tujuan</span><strong>${escapeHtml(displayTarget)}</strong></div>
+                <div class="stv-row"><span>Operator Terdeteksi</span><strong style="color:var(--primary);"><i class="fa-solid fa-signal"></i> ${escapeHtml(opName)}</strong></div>
+            </div>`;
+        window.calculateDirectBuyTotal();
+        return;
+    }
+
+    // 2. Produk Pascabayar yang Sudah Dicek Tagihannya
+    const isPascaProduct = (selectedProductForBuy.processType === 'digiflazz_pasca' || currentCheckoutBrand.type === 'ppob');
+    if (isPascaProduct) {
+        if (verifiedPascaInquiry) {
+            const pascaName = String(verifiedPascaInquiry.customer_name || verifiedPascaInquiry.name || '-').trim();
+            const pascaPeriode = String(verifiedPascaInquiry.periode || '-').trim();
+            window.currentSheetVerifiedTarget = { status: 'valid', targetNo: displayTarget, name: pascaName, extraLabel: 'Periode', extraValue: pascaPeriode };
+            box.style.display = 'block';
+            box.className = 'sheet-target-validation-card state-valid';
+            box.innerHTML = `
+                <div class="stv-grid">
+                    <div class="stv-row"><span>ID Pelanggan</span><strong>${escapeHtml(displayTarget)}</strong></div>
+                    <div class="stv-row"><span>Nama Pelanggan</span><strong style="color:var(--success);"><i class="fa-solid fa-circle-check"></i> ${escapeHtml(pascaName)}</strong></div>
+                    <div class="stv-row"><span>Periode Tagihan</span><strong>${escapeHtml(pascaPeriode)}</strong></div>
+                </div>`;
+            window.calculateDirectBuyTotal();
+        }
+        return;
+    }
+
+    // 3. Produk Aplikasi / Custom yang tidak memerlukan inquiry Digiflazz
+    const checkIdSku = resolveBrandCheckIdSku(currentCheckoutBrand, selectedProductForBuy);
+    const needsRemoteValidation = Boolean(
+        currentCheckoutBrand.type === 'pln' ||
+        inpType === 'pln_token' ||
+        currentCheckoutBrand.type === 'ewallet' ||
+        inpType === 'ewallet_no' ||
+        currentCheckoutBrand.type === 'game' ||
+        selectedProductForBuy.isCheckUsernameProduct ||
+        selectedProductForBuy.autoCheckIdBeforePay ||
+        currentCheckoutBrand.autoCheckIdBeforePay ||
+        checkIdSku
+    );
+
+    if (!needsRemoteValidation) {
+        window.currentSheetVerifiedTarget = { status: 'valid', targetNo: displayTarget, name: '' };
+        box.style.display = 'block';
+        box.className = 'sheet-target-validation-card state-valid';
+        box.innerHTML = `
+            <div class="stv-grid">
+                <div class="stv-row"><span>Akun / Tujuan</span><strong>${escapeHtml(displayTarget)}</strong></div>
+            </div>`;
+        window.calculateDirectBuyTotal();
+        return;
+    }
+
+    // 4. Jalankan Validasi Otomatis ke Server Digiflazz (PLN, Game, E-Wallet, Cek Username)
+    const reqId = ++sheetTargetCheckReqCounter;
+    box.style.display = 'block';
+    box.className = 'sheet-target-validation-card state-loading';
+    box.innerHTML = `
+        <div class="stv-head">
+            <i class="fa-solid fa-spinner fa-spin" style="color:var(--primary);"></i>
+            <div>
+                <strong>Memvalidasi ID / Username Pelanggan...</strong>
+                <span>Mengecek tujuan <b>${escapeHtml(displayTarget)}</b></span>
+            </div>
+        </div>`;
+    if (btnProc) {
+        btnProc.disabled = true;
+        btnProc.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> <span>Memvalidasi Tujuan...</span>';
+    }
+
+    try {
+        await ensureClientDigiflazzCredentialsLoaded();
+        if (reqId !== sheetTargetCheckReqCounter) return;
+
+        const mergedTargetNo = combineGameIdAndZoneForDigiflazz(pidVal, zolVal);
+
+        // 4A. Validasi Pelanggan PLN Prabayar
+        if (currentCheckoutBrand.type === 'pln' || inpType === 'pln_token') {
+            const username = (siteSettings.digiflazzUsername || 'username').trim();
+            const apiKey = getActiveClientDigiflazzApiKey();
+            const sign = md5ClientDigiflazz(username + apiKey + mergedTargetNo);
+            const res = await callClientDigiflazzApi('/v1/inquiry-pln', {
+                username: username,
+                customer_no: mergedTargetNo,
+                sign: sign
+            }, mergedTargetNo);
+            if (reqId !== sheetTargetCheckReqCounter) return;
+            const d = res?.data || {};
+            const realPlnName = extractRealUsernameFromDigiflazzResponse(d);
+            if ((d.status === 'Sukses' || d.rc === '00') && realPlnName) {
+                verifiedPlnSubscriber = { ...d, name: realPlnName };
+                window.currentSheetVerifiedTarget = {
+                    status: 'valid',
+                    targetNo: displayTarget,
+                    name: realPlnName,
+                    extraLabel: 'Tarif / Daya',
+                    extraValue: d.segment_power || '-'
+                };
+                box.className = 'sheet-target-validation-card state-valid';
+                box.innerHTML = `
+                    <div class="stv-grid">
+                        <div class="stv-row"><span>ID Pelanggan / No. Meter</span><strong>${escapeHtml(displayTarget)}</strong></div>
+                        <div class="stv-row"><span>Nama Pelanggan PLN</span><strong style="color:var(--success);"><i class="fa-solid fa-circle-check"></i> ${escapeHtml(realPlnName)}</strong></div>
+                        <div class="stv-row"><span>Tarif / Daya Listrik</span><strong>${escapeHtml(d.segment_power || '-')}</strong></div>
+                    </div>`;
+                window.calculateDirectBuyTotal();
+            } else {
+                verifiedPlnSubscriber = null;
+                window.currentSheetVerifiedTarget = { status: 'invalid', targetNo: displayTarget, name: '' };
+                box.className = 'sheet-target-validation-card state-error';
+                box.innerHTML = `
+                    <div class="stv-head">
+                        <i class="fa-solid fa-circle-xmark" style="color:var(--danger);"></i>
+                        <div>
+                            <strong>ID Pelanggan PLN Tidak Ditemukan</strong>
+                            <span>${escapeHtml(d.message || 'Periksa kembali Nomor Meter / ID Pelanggan PLN kamu.')}</span>
+                        </div>
+                    </div>`;
+                if (btnProc) {
+                    btnProc.disabled = true;
+                    btnProc.innerHTML = '<i class="fa-solid fa-ban"></i> <span>ID PLN Tidak Valid</span>';
+                }
+            }
+            return;
+        }
+
+        // 4B. Validasi Username Game / Akun E-Wallet
+        const d = await performClientDigiflazzTargetCheck({
+            sku: checkIdSku || (selectedProductForBuy?.isCheckUsernameProduct ? selectedProductForBuy?.buyerSkuCode : '') || '',
+            fallbackSku: selectedProductForBuy?.buyerSkuCode || '',
+            brand: currentCheckoutBrand.brandName,
+            type: currentCheckoutBrand.type,
+            customerNo: pidVal,
+            zoneId: zolVal || ''
+        });
+        if (reqId !== sheetTargetCheckReqCounter) return;
+        const realUsername = extractRealUsernameFromDigiflazzResponse(d);
+        const requireStrictCheck = Boolean(
+            selectedProductForBuy?.isCheckUsernameProduct ||
+            selectedProductForBuy?.autoCheckIdBeforePay ||
+            currentCheckoutBrand?.autoCheckIdBeforePay ||
+            currentCheckoutBrand?.type === 'ewallet'
+        );
+
+        if ((d.status === 'Sukses' || d.rc === '00') && realUsername) {
+            if (currentCheckoutBrand.type === 'ewallet') {
+                verifiedEwalletAccount = d;
+            }
+            window.currentSheetVerifiedTarget = {
+                status: 'valid',
+                targetNo: displayTarget,
+                name: realUsername
+            };
+            box.className = 'sheet-target-validation-card state-valid';
+            box.innerHTML = `
+                <div class="stv-grid">
+                    <div class="stv-row"><span>ID / Nomor Tujuan</span><strong>${escapeHtml(displayTarget)}</strong></div>
+                    <div class="stv-row"><span>${currentCheckoutBrand.type === 'ewallet' ? 'Nama Akun E-Wallet' : 'Username Terverifikasi'}</span><strong style="color:var(--success);"><i class="fa-solid fa-circle-check"></i> ${escapeHtml(realUsername)}</strong></div>
+                </div>`;
+            window.calculateDirectBuyTotal();
+        } else {
+            window.currentSheetVerifiedTarget = { status: 'invalid', targetNo: displayTarget, name: '' };
+            if (requireStrictCheck) {
+                box.className = 'sheet-target-validation-card state-error';
+                box.innerHTML = `
+                    <div class="stv-head">
+                        <i class="fa-solid fa-circle-xmark" style="color:var(--danger);"></i>
+                        <div>
+                            <strong>Username / Akun Tidak Ditemukan</strong>
+                            <span>${escapeHtml(d.message || 'Pastikan Nomor / ID Tujuan yang dimasukkan sudah benar.')}</span>
+                        </div>
+                    </div>`;
+                if (btnProc) {
+                    btnProc.disabled = true;
+                    btnProc.innerHTML = '<i class="fa-solid fa-ban"></i> <span>Tujuan Tidak Valid</span>';
+                }
+            } else {
+                // Jika game tidak memiliki SKU cek username khusus, tetap tampilkan ID tujuan dengan rapi dan izinkan lanjut
+                window.currentSheetVerifiedTarget = { status: 'valid', targetNo: displayTarget, name: '' };
+                box.className = 'sheet-target-validation-card state-valid';
+                box.innerHTML = `
+                    <div class="stv-grid">
+                        <div class="stv-row"><span>ID / Tujuan Pesanan</span><strong>${escapeHtml(displayTarget)}</strong></div>
+                    </div>`;
+                window.calculateDirectBuyTotal();
+            }
+        }
+    } catch (err) {
+        if (reqId !== sheetTargetCheckReqCounter) return;
+        window.currentSheetVerifiedTarget = { status: 'valid', targetNo: displayTarget, name: '' };
+        box.className = 'sheet-target-validation-card state-valid';
+        box.innerHTML = `
+            <div class="stv-grid">
+                <div class="stv-row"><span>ID / Tujuan Pesanan</span><strong>${escapeHtml(displayTarget)}</strong></div>
+            </div>`;
+        window.calculateDirectBuyTotal();
+    }
 };
 
 // Riwayat Nomor / ID Tujuan Terakhir (1-Klik Isi Otomatis)

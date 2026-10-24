@@ -801,6 +801,7 @@ html[data-theme="dark"] .alert-info { background: rgba(59, 130, 246, 0.18); colo
    BANNER SLIDER & KATALOG PRODUK NEO-BRUTALISM
    ========================================================================== */
 .banner-slider-container {
+    position: relative !important;
     width: 100%;
     border-radius: var(--brutal-radius-lg);
     border: var(--brutal-border-thick);
@@ -5481,11 +5482,15 @@ html, body {
 
 .footer-new,
 .footer-divider-marquee-wrap,
-#footer-marquee-section,
-.bottom-nav,
-.navbar {
+#footer-marquee-section {
     position: relative !important;
     z-index: 6 !important;
+}
+
+.navbar {
+    position: sticky !important;
+    top: 0 !important;
+    z-index: 1000 !important;
 }
 
 /* 6. Posisi Notifikasi Toast di Atas-Tengah (Top-Center) */
@@ -5681,5 +5686,325 @@ html, body {
     .item-selection-grid {
         grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
         gap: 8px !important;
+    }
+}
+
+
+/* ==========================================================================
+   PERBAIKAN FINAL v28.7: BANNER DOTS, STICKY BOTTOM-NAV MOBILE, HIDE NAV/FOOTER
+   SAAT DI DALAM PRODUK, KELOLA LANGGANAN MOBILE RAPI, & VALIDASI SHEET OTOMATIS
+   ========================================================================== */
+
+/* 1. Indikator Titik Banner (#banner-dots) Selalu Berada di Dalam Banner */
+.banner-slider-container {
+    position: relative !important;
+    overflow: hidden !important;
+}
+
+#banner-dots,
+.banner-dots {
+    position: absolute !important;
+    bottom: 10px !important;
+    left: 50% !important;
+    right: auto !important;
+    top: auto !important;
+    transform: translateX(-50%) !important;
+    z-index: 15 !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 6px !important;
+    padding: 4px 10px !important;
+    background: rgba(15, 23, 42, 0.68) !important;
+    border-radius: 999px !important;
+    border: 1.5px solid rgba(255, 255, 255, 0.55) !important;
+    max-width: calc(100% - 24px) !important;
+}
+
+/* 2. Sembunyikan Navigasi Bawah & Footer Saat User Masuk ke Halaman Produk (#tab-checkout) */
+body.in-product-checkout .bottom-nav,
+body.in-product-checkout .bottom-nav-spacer,
+body.in-product-checkout .footer-new,
+body.in-product-checkout .footer-divider-marquee-wrap,
+body.in-product-checkout #footer-marquee-section {
+    display: none !important;
+}
+
+body.mobile-sheet-locked {
+    overflow: hidden !important;
+    touch-action: none !important;
+}
+
+/* 3. Kotak Validasi Otomatis Username / ID Pelanggan di Dalam Panel Pembayaran (#sheet-target-validation-box) */
+.sheet-target-validation-card {
+    margin-bottom: 12px;
+    padding: 10px 12px;
+    border-radius: 12px;
+    border: 2px solid var(--border);
+    background: var(--bg);
+    font-size: 0.8rem;
+    transition: all 0.2s ease;
+}
+
+.sheet-target-validation-card.state-loading {
+    border-color: var(--primary);
+    background: rgba(37, 99, 235, 0.07);
+}
+
+.sheet-target-validation-card.state-valid {
+    border-color: var(--success);
+    background: rgba(22, 163, 74, 0.08);
+}
+
+.sheet-target-validation-card.state-error {
+    border-color: var(--danger);
+    background: rgba(239, 68, 68, 0.09);
+}
+
+.sheet-target-validation-card.state-warn {
+    border-color: var(--warning);
+    background: rgba(245, 158, 11, 0.12);
+}
+
+.sheet-target-validation-card .stv-head {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.sheet-target-validation-card .stv-head i {
+    font-size: 1.1rem;
+    flex-shrink: 0;
+}
+
+.sheet-target-validation-card .stv-head strong {
+    display: block;
+    font-size: 0.8rem;
+    font-weight: 900;
+    color: var(--text);
+}
+
+.sheet-target-validation-card .stv-head span {
+    display: block;
+    font-size: 0.73rem;
+    font-weight: 700;
+    color: var(--text-muted);
+    margin-top: 1px;
+}
+
+.sheet-target-validation-card .stv-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.sheet-target-validation-card .stv-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.77rem;
+}
+
+.sheet-target-validation-card .stv-row span {
+    color: var(--text-muted);
+    font-weight: 700;
+}
+
+.sheet-target-validation-card .stv-row strong {
+    font-weight: 900;
+    color: var(--text);
+    text-align: right;
+    word-break: break-word;
+}
+
+/* 4. Kartu Rincian Tagihan Pascabayar di Tab Produk */
+.pasca-bill-result-card {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.pasca-bill-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    padding-bottom: 6px;
+    border-bottom: 1.5px dashed var(--border-subtle);
+}
+
+.pasca-bill-rows {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.pasca-bill-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+    font-size: 0.8rem;
+}
+
+.pasca-bill-row span {
+    color: var(--text-muted);
+    font-weight: 700;
+}
+
+.pasca-bill-row strong {
+    font-weight: 900;
+    color: var(--text);
+    text-align: right;
+}
+
+.pasca-bill-row.total-row {
+    margin-top: 4px;
+    padding-top: 8px;
+    border-top: 1.5px solid var(--border-subtle);
+}
+
+/* 5. Perbaikan Navigasi Bawah Mobile & Tampilan Kelola Langganan di Layar HP */
+@media (max-width: 900px) {
+    .bottom-nav {
+        display: flex !important;
+        position: fixed !important;
+        bottom: calc(10px + env(safe-area-inset-bottom, 0px)) !important;
+        left: 10px !important;
+        right: 10px !important;
+        z-index: 9500 !important;
+    }
+
+    body.auth-locked .bottom-nav,
+    body.in-product-checkout .bottom-nav {
+        display: none !important;
+    }
+}
+
+@media (max-width: 768px) {
+    /* Kunci semua container utama agar 100% pas di layar HP tanpa geser samping */
+    .container,
+    #tab-topup,
+    .topup-fullscreen-wrapper,
+    #topup-panel-wallet,
+    #topup-panel-memberplus,
+    #memberplus-main-content-grid,
+    #topup-panel-compare,
+    .checkout-split-grid,
+    .checkout-main-col,
+    .checkout-side-col,
+    .topup-unified-history-col {
+        width: 100% !important;
+        max-width: 100% !important;
+        min-width: 0 !important;
+        box-sizing: border-box !important;
+    }
+
+    .checkout-split-grid {
+        display: grid !important;
+        grid-template-columns: minmax(0, 1fr) !important;
+        gap: 0.9rem !important;
+    }
+
+    /* Tampilan Tab Isi Saldo & Kelola Langganan Member Plus Kompak & Proporsional di HP */
+    #tab-topup {
+        padding-top: 0.75rem !important;
+        padding-left: 10px !important;
+        padding-right: 10px !important;
+    }
+
+    #tab-topup .checkout-step-card,
+    #topup-panel-memberplus .checkout-step-card,
+    #topup-panel-memberplus .memberplus-celebration-card {
+        padding: 0.95rem !important;
+        margin-bottom: 0.85rem !important;
+        border-radius: 14px !important;
+        box-shadow: 3px 3px 0px var(--border) !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        box-sizing: border-box !important;
+        overflow: hidden !important;
+    }
+
+    #topup-panel-memberplus .mp-celebration-title {
+        font-size: 1rem !important;
+        line-height: 1.25 !important;
+    }
+
+    #topup-panel-memberplus .mp-celebration-sub {
+        font-size: 0.76rem !important;
+        line-height: 1.35 !important;
+    }
+
+    #topup-panel-memberplus .memberplus-exp-meta-grid {
+        display: grid !important;
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+        gap: 8px !important;
+        margin-top: 10px !important;
+    }
+
+    #topup-panel-memberplus .memberplus-exp-meta-item {
+        padding: 8px 10px !important;
+        min-width: 0 !important;
+    }
+
+    #topup-panel-memberplus .memberplus-exp-meta-item span {
+        font-size: 0.64rem !important;
+    }
+
+    #topup-panel-memberplus .memberplus-exp-meta-item strong {
+        font-size: 0.78rem !important;
+        word-break: break-word !important;
+    }
+
+    #topup-panel-memberplus .auth-category-bento {
+        display: grid !important;
+        grid-template-columns: minmax(0, 1fr) !important;
+        gap: 8px !important;
+    }
+
+    #topup-panel-memberplus .auth-bento-item {
+        padding: 10px 12px !important;
+        min-width: 0 !important;
+    }
+
+    #topup-panel-memberplus .step-header h4 {
+        font-size: 0.92rem !important;
+    }
+
+    #topup-panel-memberplus .cart-total-box {
+        padding: 10px 12px !important;
+    }
+
+    #topup-panel-memberplus .total-nominal {
+        font-size: 1.15rem !important;
+    }
+
+    #topup-panel-memberplus .mp-compare-table-wrap,
+    #topup-panel-compare .mp-compare-table-wrap {
+        width: 100% !important;
+        max-width: 100% !important;
+        overflow-x: auto !important;
+        -webkit-overflow-scrolling: touch !important;
+    }
+
+    #topup-panel-memberplus .mp-compare-table {
+        min-width: 420px !important;
+    }
+
+    /* Panel Pembayaran Bottom-Sheet di Halaman Produk (#checkout-side-col-sheet) Mulus & Tidak Goyang Saat Digeser */
+    #checkout-side-col-sheet {
+        overscroll-behavior: contain !important;
+        touch-action: pan-y !important;
+        will-change: transform;
+    }
+
+    #checkout-side-col-sheet #checkout-step-03-card {
+        overscroll-behavior: contain !important;
+        -webkit-overflow-scrolling: touch !important;
+        max-height: 86dvh !important;
+        padding: 12px 14px calc(20px + env(safe-area-inset-bottom, 0px)) 14px !important;
     }
 }
