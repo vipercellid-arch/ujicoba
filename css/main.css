@@ -48,13 +48,13 @@
 }
 
 html[data-theme="dark"] {
-    /* Palet Warna Utama — Mode Gelap (Dark Neo-Brutalism) */
-    --bg: #090d16;
-    --bg-pattern-line: rgba(148, 163, 184, 0.07);
-    --bg-pattern-dot: rgba(59, 130, 246, 0.18);
-    --surface: #131b2e;
-    --surface-hover: #1e293b;
-    --surface-elevated: #172136;
+    /* Palet Warna Utama — Mode Gelap Hitam Karbon Murni (Pure Pitch-Black Neo-Brutalism) */
+    --bg: #0a0a0a;
+    --bg-pattern-line: rgba(255, 255, 255, 0.045);
+    --bg-pattern-dot: rgba(250, 204, 21, 0.14);
+    --surface: #141414;
+    --surface-hover: #222222;
+    --surface-elevated: #1b1b1b;
     --primary: #3b82f6;
     --primary-dark: #2563eb;
     --primary-light: #60a5fa;
@@ -64,10 +64,10 @@ html[data-theme="dark"] {
     --accent-cyan: #22d3ee;
     --accent-emerald: #34d399;
     --accent-amber: #fbbf24;
-    --text: #f8fafc;
-    --text-muted: #94a3b8;
-    --border: #334155;
-    --border-subtle: #1e293b;
+    --text: #fafafa;
+    --text-muted: #a1a1aa;
+    --border: #3f3f46;
+    --border-subtle: #27272a;
     --danger: #f87171;
     --success: #34d399;
     --warning: #fbbf24;
@@ -7127,4 +7127,390 @@ html[data-theme="dark"] .v30-cat-circle {
     content: "●";
     font-size: 1.1rem;
     color: var(--primary);
+}
+
+
+/* ==========================================================================
+   PEMBARUAN v30.1: PURE BLACK DARK MODE, FIX SHEET PEMBAYARAN BOCOR,
+   PANEL BAYAR COMPACT TANPA SCROLL, RINCIAN FULL-SCREEN MOBILE,
+   PROFIL FULL-SCREEN + AKTIVITAS LOGIN, & BANNER POP-UP NEO-BRUTALISM
+   ========================================================================== */
+
+/* 1. Pastikan Animasi Tab Tidak Menciptakan Containing Block Baru yang Merusak position: fixed */
+@keyframes v289TabSmoothEnter {
+    0% { opacity: 0; }
+    100% { opacity: 1; }
+}
+.main-tab-content.active {
+    transform: none !important;
+    filter: none !important;
+}
+
+/* 2. Sembunyikan Navigasi Bawah Saat Berada di Dalam Halaman Produk / Sub-Halaman Penuh */
+body.in-product-checkout .bottom-nav,
+body.in-product-checkout #mobile-bottom-nav,
+body.in-fullscreen-subpage .bottom-nav,
+body.in-fullscreen-subpage #mobile-bottom-nav {
+    display: none !important;
+}
+
+/* 3. Kunci Mutlak Panel Pembayaran (#checkout-side-col-sheet) Agar TIDAK PERNAH Muncul Sebelum Dipicu */
+@media (max-width: 768px) {
+    #checkout-side-col-sheet:not(.mobile-sheet-open) {
+        display: none !important;
+        visibility: hidden !important;
+        pointer-events: none !important;
+        transform: translate3d(0, 115%, 0) !important;
+    }
+
+    #checkout-side-col-sheet.mobile-sheet-open {
+        display: block !important;
+        visibility: visible !important;
+        pointer-events: auto !important;
+        transform: translate3d(0, 0, 0) !important;
+        z-index: 9995 !important;
+    }
+
+    /* Panel Pembayaran Ringkas Tanpa Perlu Scroll di Layar HP (Poin #3 & #11) */
+    #checkout-side-col-sheet #checkout-step-03-card {
+        min-height: 0 !important;
+        max-height: 92dvh !important;
+        border-radius: 20px 20px 0 0 !important;
+        border-top: 3px solid var(--border) !important;
+    }
+
+    #checkout-side-col-sheet .sheet-sticky-top-bar {
+        padding: 8px 14px 8px 14px !important;
+    }
+
+    #checkout-side-col-sheet .mobile-sheet-drag-handle {
+        margin: 0 auto 6px auto !important;
+        height: 4px !important;
+    }
+
+    #checkout-side-col-sheet .sheet-scrollable-content {
+        padding: 10px 14px calc(14px + env(safe-area-inset-bottom, 0px)) 14px !important;
+    }
+
+    #checkout-side-col-sheet .qty-control-bar {
+        padding: 7px 10px !important;
+        margin-bottom: 8px !important;
+    }
+
+    #checkout-side-col-sheet .form-group {
+        margin-bottom: 8px !important;
+    }
+
+    #checkout-side-col-sheet .form-group label {
+        font-size: 0.72rem !important;
+        margin-bottom: 3px !important;
+    }
+
+    #checkout-side-col-sheet .promo-box input {
+        padding: 7px 10px !important;
+        font-size: 0.78rem !important;
+        min-height: 36px !important;
+    }
+
+    #checkout-side-col-sheet .promo-box button {
+        padding: 7px 12px !important;
+        min-height: 36px !important;
+        font-size: 0.76rem !important;
+    }
+
+    #checkout-side-col-sheet #pay-card-balance {
+        padding: 8px 12px !important;
+        min-height: 44px !important;
+        border-radius: 10px !important;
+    }
+
+    #checkout-side-col-sheet .cart-total-box {
+        padding: 9px 12px !important;
+        margin: 8px 0 10px 0 !important;
+    }
+
+    #checkout-side-col-sheet .cart-total-box .total-nominal {
+        font-size: 1.15rem !important;
+    }
+
+    #checkout-side-col-sheet #btn-process-buy {
+        padding: 12px 14px !important;
+        min-height: 46px !important;
+        font-size: 0.92rem !important;
+    }
+}
+
+/* 4. Tampilan Rincian Pembayaran, Struk & Konfirmasi Full-Screen di Mode Mobile (Poin #4) */
+@media (max-width: 768px) {
+    #modal-order-detail.active,
+    #modal-cash-barcode.active,
+    #modal-share-receipt.active,
+    #modal-checkout-confirm.active {
+        padding: 0 !important;
+        align-items: stretch !important;
+        justify-content: stretch !important;
+    }
+
+    #modal-order-detail .modal-content,
+    #modal-cash-barcode .modal-content,
+    #modal-share-receipt .modal-content,
+    #modal-checkout-confirm .modal-content {
+        width: 100vw !important;
+        max-width: 100vw !important;
+        height: 100dvh !important;
+        max-height: 100dvh !important;
+        min-height: 100dvh !important;
+        margin: 0 !important;
+        border-radius: 0 !important;
+        border: none !important;
+        box-shadow: none !important;
+        display: flex !important;
+        flex-direction: column !important;
+        background: var(--surface) !important;
+        overflow-y: auto !important;
+        padding: 14px 16px calc(24px + env(safe-area-inset-bottom, 0px)) 16px !important;
+    }
+
+    #modal-order-detail .modal-content {
+        padding: 0 !important;
+    }
+
+    #modal-order-detail .modal-header,
+    #modal-cash-barcode .modal-header,
+    #modal-share-receipt .modal-header,
+    #modal-checkout-confirm .modal-header {
+        position: sticky !important;
+        top: 0 !important;
+        z-index: 25 !important;
+        background: var(--surface) !important;
+        border-bottom: 2.5px solid var(--border) !important;
+        padding: 12px 14px !important;
+        margin-bottom: 12px !important;
+    }
+
+    #modal-order-detail .bottom-sheet-drag-handle,
+    #modal-cash-barcode .bottom-sheet-drag-handle,
+    #modal-share-receipt .bottom-sheet-drag-handle,
+    #modal-checkout-confirm .bottom-sheet-drag-handle {
+        display: none !important;
+    }
+}
+
+/* 5. Daftar Menu Profil & Halaman Sub-Tab Profil Full-Screen (Poin #7a & #12) */
+.v301-profile-menu-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.v301-profile-menu-item {
+    width: 100%;
+    text-align: left;
+    background: var(--surface);
+    border: 2.5px solid var(--border);
+    box-shadow: 4px 4px 0px #000000;
+    border-radius: 14px;
+    padding: 13px 15px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    cursor: pointer;
+    color: var(--text);
+}
+
+.v301-profile-menu-item.menu-gold {
+    border-color: #f59e0b;
+    background: linear-gradient(135deg, rgba(250, 204, 21, 0.14), rgba(245, 158, 11, 0.05));
+}
+
+.v301-prof-menu-left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-width: 0;
+}
+
+.v301-prof-menu-left strong {
+    font-size: 0.9rem;
+    font-weight: 900;
+    color: var(--text);
+    display: block;
+}
+
+.v301-prof-menu-sub {
+    display: block;
+    font-size: 0.74rem;
+    font-weight: 700;
+    color: var(--text-muted);
+    margin-top: 2px;
+}
+
+.v301-prof-arrow {
+    font-size: 0.95rem;
+    color: var(--text-muted);
+    flex-shrink: 0;
+}
+
+.v301-profile-subpage-stage {
+    min-height: calc(100dvh - 80px);
+    animation: v289TabSmoothEnter 0.18s ease both;
+}
+
+.v301-subpage-topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 10px 14px;
+    margin-bottom: 1rem;
+    background: var(--surface);
+    border: 2.5px solid var(--border);
+    box-shadow: 4px 4px 0px #000000;
+    border-radius: 14px;
+    position: sticky;
+    top: 70px;
+    z-index: 40;
+}
+
+.v301-device-session-card {
+    background: var(--bg);
+    border: 2px solid var(--border);
+    box-shadow: 3px 3px 0px #000000;
+    border-radius: 12px;
+    padding: 12px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.v301-device-session-card.current-session {
+    border-color: var(--primary);
+    background: rgba(59, 130, 246, 0.08);
+}
+
+.v301-device-meta-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(145px, 1fr));
+    gap: 8px;
+    padding-top: 8px;
+    border-top: 1.5px dashed var(--border-subtle);
+}
+
+.v301-device-meta-item span {
+    display: block;
+    font-size: 0.66rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    color: var(--text-muted);
+}
+
+.v301-device-meta-item strong {
+    font-size: 0.78rem;
+    font-weight: 900;
+    color: var(--text);
+}
+
+/* 6. Modal Banner Pop-Up Awal Buka Web User (Poin #8) */
+.v301-popup-banner-card {
+    position: relative !important;
+    max-width: 420px !important;
+    width: calc(100vw - 32px) !important;
+    padding: 0 !important;
+    border-radius: 18px !important;
+    border: 3px solid #0f172a !important;
+    box-shadow: 7px 7px 0px #000000 !important;
+    overflow: hidden !important;
+    background: var(--surface) !important;
+}
+
+html[data-theme="dark"] .v301-popup-banner-card {
+    border-color: #facc15 !important;
+}
+
+.v301-popup-close-x {
+    position: absolute !important;
+    top: 10px !important;
+    right: 10px !important;
+    width: 38px !important;
+    height: 38px !important;
+    border-radius: 50% !important;
+    background: #facc15 !important;
+    color: #0f172a !important;
+    border: 2.5px solid #0f172a !important;
+    box-shadow: 3px 3px 0px #000000 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    font-size: 1.15rem !important;
+    font-weight: 900 !important;
+    z-index: 15 !important;
+    cursor: pointer !important;
+}
+
+.v301-popup-img-wrap {
+    width: 100%;
+    max-height: 72dvh;
+    overflow: hidden;
+    cursor: pointer;
+    background: #0a0a0a;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.v301-popup-img-wrap img {
+    width: 100%;
+    height: auto;
+    max-height: 72dvh;
+    object-fit: contain;
+    display: block;
+}
+
+.v301-popup-footer {
+    padding: 12px 16px;
+    background: var(--surface);
+    border-top: 2.5px solid var(--border);
+    text-align: center;
+}
+
+.v301-popup-footer strong {
+    font-size: 0.88rem;
+    font-weight: 900;
+    color: var(--text);
+}
+
+/* 7. Pematangan Panel Selamat Datang & Default Hero Banner Neo-Brutalism */
+.user-greeting-neo-panel {
+    border: 3px solid var(--border) !important;
+    box-shadow: 5px 5px 0px #000000 !important;
+    border-radius: 16px !important;
+    background: var(--surface) !important;
+}
+
+.v301-default-hero-banner {
+    width: 100%;
+    min-height: 138px;
+    padding: 1.15rem 1.35rem;
+    background: linear-gradient(135deg, #1d4ed8 0%, #1e40af 55%, #0f172a 100%);
+    color: #ffffff;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    box-sizing: border-box;
+}
+
+.v301-default-hero-banner h3 {
+    margin: 4px 0;
+    font-size: 1.15rem;
+    font-weight: 900;
+    color: #facc15;
+}
+
+.v301-default-hero-banner p {
+    margin: 0;
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: #e2e8f0;
 }

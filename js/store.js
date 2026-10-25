@@ -3774,10 +3774,12 @@ window.openDirectBuyModal = function(brandName) {
     }
     window.currentSheetVerifiedTarget = null;
 
-    // Untuk Pascabayar, sembunyikan panel pembayaran sampai user mengisi ID Pelanggan dan menekan Cek Tagihan!
+    // v30.1 Poin #2: Sembunyikan mutlak panel pembayaran sampai user mengisi tujuan DAN memilih variasi!
+    ensureCheckoutSheetPortaledForViewport();
     const sideColSheet = document.getElementById('checkout-side-col-sheet');
     if (sideColSheet) {
-        sideColSheet.style.display = isPascaBrand ? 'none' : '';
+        sideColSheet.style.display = 'none';
+        sideColSheet.classList.remove('mobile-sheet-open');
     }
     window.closeMobilePaymentSheet();
 
@@ -3884,6 +3886,12 @@ window.selectItemToBuy = function(dbId) {
 
     // Jika produk membutuhkan Nomor / ID Tujuan (dan bukan pascabayar), pastikan user mengisi tujuan terlebih dahulu sebelum panel pembayaran terbuka
     if (buyIdEl && !rawTargetVal && !isPascaItem) {
+        const sideColSheetGuard = document.getElementById('checkout-side-col-sheet');
+        if (sideColSheetGuard) {
+            sideColSheetGuard.style.display = 'none';
+            sideColSheetGuard.classList.remove('mobile-sheet-open');
+        }
+        window.closeMobilePaymentSheet();
         window.calculateDirectBuyTotal();
         buyIdEl.focus();
         buyIdEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -5727,7 +5735,15 @@ window.renderUserOrders = function() {
 
     let userOrders = orders.filter(o => {
         const isMpSub = Boolean(o.isMemberPlusOrder === true || o.orderType === 'MEMBER_PLUS_SUB' || String(o.id || '').toUpperCase().startsWith('MPLUS-'));
-        if (isMpSub) return false;
+        const isTopupOrd = Boolean(
+            o.isTopupOrder === true ||
+            o.isTopupBalanceOrder === true ||
+            o.orderType === 'TOPUP_BALANCE' ||
+            o.orderType === 'BALANCE_TOPUP' ||
+            String(o.id || '').toUpperCase().startsWith('TOPUP-') ||
+            o.items?.[0]?.processType === 'balance_topup'
+        );
+        if (isMpSub || isTopupOrd) return false;
         if (isMember) {
             const matchUid = effectiveUid && o.userId === effectiveUid;
             const matchEmail = activeMemberEmail && o.userEmail && o.userEmail.toLowerCase() === activeMemberEmail;
@@ -7342,7 +7358,23 @@ window.renderBanners = function() {
     const banners = siteSettings.banners || [];
 
     if (banners.length === 0) {
-        container.style.display = 'none';
+        container.style.display = 'block';
+        setTimeout(() => { container.classList.add('reveal-visible'); }, 40);
+        track.innerHTML = `
+            <div class="v301-default-hero-banner">
+                <div>
+                    <span class="brutal-tag tag-amber" style="font-size:0.64rem;">VIPERCELL STORE</span>
+                    <h3>Top Up Game, Pulsa &amp; Aplikasi Premium</h3>
+                    <p>Proses otomatis 24 jam dengan harga lebih hemat untuk Member Plus.</p>
+                </div>
+                <div style="font-size:2.3rem; color:#facc15; flex-shrink:0;">
+                    <i class="fa-solid fa-bolt"></i>
+                </div>
+            </div>
+        `;
+        if (prevBtn) prevBtn.style.display = 'none';
+        if (nextBtn) nextBtn.style.display = 'none';
+        if (dotsEl) { dotsEl.style.display = 'none'; dotsEl.innerHTML = ''; }
         return;
     }
 
@@ -8239,6 +8271,10 @@ async function creditClientTopupOrderBalance(orderData, orderDbId) {
             if (uSnap.exists() && (uSnap.data().isAnonymous || uSnap.data().isGuest)) {
                 return;
             }
+            const verifiedFinalTotal = Math.round(Number(oData.finalTotal || oData.uniqueTotal || 0));
+            if (verifiedFinalTotal > 0 && topupAmt > verifiedFinalTotal) {
+                return;
+            }
             const curBal = uSnap.exists() ? Math.round(Number(uSnap.data().balance || 0)) : 0;
             const nextBal = curBal + topupAmt;
 
@@ -8372,15 +8408,7 @@ async function hydrateLegacyProjectDigiflazzSettingsIfNeeded() {
                 siteSettings = { ...siteSettings, ...mergedLegacy };
                 hydrateClientDigiflazzSyncToken();
                 try {
-                    localStorage.setItem('vipercell_df_config_backup', JSON.stringify({
-                        digiflazzBridgeUrl: siteSettings.digiflazzBridgeUrl,
-                        digiflazzUsername: siteSettings.digiflazzUsername,
-                        digiflazzDevApiKey: siteSettings.digiflazzDevApiKey,
-                        digiflazzProdApiKey: siteSettings.digiflazzProdApiKey,
-                        digiflazzApiKey: siteSettings.digiflazzApiKey,
-                        digiflazzEnvMode: siteSettings.digiflazzEnvMode,
-                        digiflazzBridgeSyncToken: siteSettings.digiflazzBridgeSyncToken
-                    }));
+                    localStorage.removeItem('vipercell_df_config_backup');
                 } catch (e) {}
                 break;
             }
@@ -12603,3 +12631,463 @@ if (document.readyState === 'loading') {
 } else {
     initializeAppWithLoader();
 }
+
+// ============================================================================
+// PEMBARUAN v30.1: PROFIL FULL-SCREEN, AKTIVITAS LOGIN & PERANGKAT AKTIF,
+// POP-UP BANNER AWAL, NAVIGASI BACK PWA, & KEAMANAN ANTI-HACKER
+// ============================================================================
+
+const CURRENT_CLIENT_SESSION_ID = (() => {
+    let sid = sessionStorage.getItem('vipercell_active_session_id');
+    if (!sid) {
+        sid = 'SES-' + Date.now().toString(36).toUpperCase() + '-' + Math.random().toString(36).substring(2, 7).toUpperCase();
+        sessionStorage.setItem('vipercell_active_session_id', sid);
+    }
+    return sid;
+})();
+
+function escapeHtmlSafeV301(raw) {
+    return String(raw || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+// Deteksi Lengkap Versi Android / iOS / OS, Model Perangkat, Browser, & Lokasi / Zona Waktu Login
+async function detectClientDeviceAndLocationMeta() {
+    const ua = navigator.userAgent || '';
+    let osName = 'Perangkat Web';
+    let osVersion = '-';
+    let deviceModel = 'Perangkat Standar';
+    let browserName = 'Browser';
+
+    // Deteksi Versi Android & Model HP dari User-Agent
+    const androidMatch = ua.match(/Android\s+([0-9.]+)(?:;\s*([^;)]+))?/i);
+    if (androidMatch) {
+        osName = 'Android';
+        osVersion = `Android ${androidMatch[1]}`;
+        if (androidMatch[2]) {
+            deviceModel = androidMatch[2].replace(/\s*Build\/.*$/i, '').trim();
+        }
+    } else if (/iPhone|iPad|iPod/i.test(ua)) {
+        osName = 'iOS';
+        const iosMatch = ua.match(/OS\s+([0-9_]+)/i);
+        osVersion = iosMatch ? `iOS ${iosMatch[1].replace(/_/g, '.')}` : 'iOS';
+        deviceModel = /iPad/i.test(ua) ? 'Apple iPad' : 'Apple iPhone';
+    } else if (/Windows NT/i.test(ua)) {
+        osName = 'Windows';
+        const winMatch = ua.match(/Windows NT\s+([0-9.]+)/i);
+        osVersion = winMatch && winMatch[1] === '10.0' ? 'Windows 10 / 11' : 'Windows Desktop';
+        deviceModel = 'PC / Laptop Windows';
+    } else if (/Mac OS X/i.test(ua)) {
+        osName = 'macOS';
+        osVersion = 'macOS Desktop';
+        deviceModel = 'Apple Mac';
+    } else if (/Linux/i.test(ua)) {
+        osName = 'Linux';
+        osVersion = 'Linux OS';
+        deviceModel = 'Perangkat Linux';
+    }
+
+    // Coba ambil versi Android lebih akurat via User-Agent Client Hints jika didukung browser
+    try {
+        if (navigator.userAgentData && typeof navigator.userAgentData.getHighEntropyValues === 'function') {
+            const hints = await navigator.userAgentData.getHighEntropyValues(['platform', 'platformVersion', 'model']);
+            if (hints.platform === 'Android' && hints.platformVersion) {
+                const majorVer = parseInt(String(hints.platformVersion).split('.')[0], 10);
+                if (majorVer > 0) osVersion = `Android ${majorVer}`;
+            }
+            if (hints.model && hints.model.trim()) {
+                deviceModel = hints.model.trim();
+            }
+        }
+    } catch (_) {}
+
+    if (/Edg\//i.test(ua)) browserName = 'Microsoft Edge';
+    else if (/OPR\/|Opera/i.test(ua)) browserName = 'Opera';
+    else if (/Chrome\//i.test(ua) && !/Edg\//i.test(ua)) browserName = 'Google Chrome';
+    else if (/Firefox\//i.test(ua)) browserName = 'Mozilla Firefox';
+    else if (/Safari\//i.test(ua) && !/Chrome\//i.test(ua)) browserName = 'Apple Safari';
+
+    const isPwaStandalone = Boolean(window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true);
+    if (isPwaStandalone) {
+        browserName += ' (Aplikasi PWA)';
+    }
+
+    // Deteksi Lokasi & Zona Waktu
+    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Jayapura';
+    const offsetMin = -new Date().getTimezoneOffset();
+    const offsetHours = offsetMin / 60;
+    let zoneLabel = `UTC+${offsetHours}`;
+    if (offsetHours === 7) zoneLabel = 'WIB (UTC+7)';
+    else if (offsetHours === 8) zoneLabel = 'WITA (UTC+8)';
+    else if (offsetHours === 9) zoneLabel = 'WIT (UTC+9)';
+
+    const cityFromTz = tz.includes('/') ? tz.split('/').pop().replace(/_/g, ' ') : tz;
+    let locationText = `${cityFromTz}, Indonesia (${zoneLabel})`;
+
+    return {
+        sessionId: CURRENT_CLIENT_SESSION_ID,
+        deviceId: currentDeviceId || 'DEV-LOCAL',
+        osName,
+        osVersion,
+        deviceModel,
+        browserName,
+        locationText,
+        timeZone: tz,
+        zoneLabel,
+        loginAt: Date.now(),
+        lastActiveAt: Date.now()
+    };
+}
+
+let _recordedLoginSessionForUid = '';
+window.recordCurrentUserLoginActivity = async function(forceUpdate = false) {
+    if (!currentUser || currentUser.isAnonymous || userProfile.isGuest) return;
+    const uid = currentUser.uid;
+    if (!uid) return;
+    if (_recordedLoginSessionForUid === uid && !forceUpdate) return;
+    _recordedLoginSessionForUid = uid;
+
+    try {
+        const meta = await detectClientDeviceAndLocationMeta();
+        const userRef = doc(db, pathUsers, uid);
+        const snap = await getDoc(userRef).catch(() => null);
+        const curData = (snap && snap.exists()) ? snap.data() : {};
+        let historyArr = Array.isArray(curData.loginHistory) ? [...curData.loginHistory] : [];
+
+        const existingIdx = historyArr.findIndex(item => item && item.sessionId === CURRENT_CLIENT_SESSION_ID);
+        if (existingIdx !== -1) {
+            historyArr[existingIdx] = {
+                ...historyArr[existingIdx],
+                ...meta,
+                loginAt: historyArr[existingIdx].loginAt || meta.loginAt,
+                lastActiveAt: Date.now()
+            };
+        } else {
+            historyArr.unshift(meta);
+        }
+
+        historyArr = historyArr.slice(0, 12);
+        userProfile.loginHistory = historyArr;
+        userProfile.lastLoginMeta = meta;
+
+        await setDoc(userRef, {
+            loginHistory: historyArr,
+            lastLoginMeta: meta
+        }, { merge: true }).catch(() => {});
+
+        if (document.getElementById('prof-subpage-login-activity')?.style.display !== 'none') {
+            window.renderUserLoginActivityList();
+        }
+    } catch (_) {}
+};
+
+window.renderUserLoginActivityList = async function() {
+    const curBox = document.getElementById('prof-current-device-card-box');
+    const listBox = document.getElementById('prof-login-history-list-box');
+    if (!curBox || !listBox) return;
+
+    const currentMeta = userProfile.lastLoginMeta || await detectClientDeviceAndLocationMeta();
+    const fmtTime = (ms) => {
+        if (!ms) return '-';
+        try {
+            return new Date(Number(ms)).toLocaleString('id-ID', {
+                day: '2-digit', month: 'short', year: 'numeric',
+                hour: '2-digit', minute: '2-digit'
+            });
+        } catch (_) {
+            return '-';
+        }
+    };
+
+    curBox.innerHTML = `
+        <div class="v301-device-session-card current-session">
+            <div style="display:flex; justify-content:space-between; align-items:center; gap:8px; flex-wrap:wrap;">
+                <div style="display:flex; align-items:center; gap:8px;">
+                    <i class="fa-solid fa-mobile-screen-button text-primary" style="font-size:1.15rem;"></i>
+                    <strong>${escapeHtmlSafeV301(currentMeta.deviceModel || 'Perangkat Aktif')}</strong>
+                </div>
+                <span class="brutal-tag tag-primary" style="font-size:0.62rem;">${escapeHtmlSafeV301(currentMeta.osVersion || 'Android / Web')}</span>
+            </div>
+            <div class="v301-device-meta-grid">
+                <div class="v301-device-meta-item">
+                    <span>Sistem &amp; Versi</span>
+                    <strong>${escapeHtmlSafeV301(currentMeta.osVersion)} • ${escapeHtmlSafeV301(currentMeta.browserName)}</strong>
+                </div>
+                <div class="v301-device-meta-item">
+                    <span>Lokasi Login</span>
+                    <strong><i class="fa-solid fa-location-dot text-danger"></i> ${escapeHtmlSafeV301(currentMeta.locationText)}</strong>
+                </div>
+                <div class="v301-device-meta-item">
+                    <span>Waktu Masuk</span>
+                    <strong><i class="fa-regular fa-clock text-primary"></i> ${fmtTime(currentMeta.loginAt)}</strong>
+                </div>
+            </div>
+        </div>
+    `;
+
+    const historyArr = Array.isArray(userProfile.loginHistory) && userProfile.loginHistory.length > 0
+        ? userProfile.loginHistory
+        : [currentMeta];
+
+    listBox.innerHTML = historyArr.map((item) => {
+        const isCurrent = item.sessionId === CURRENT_CLIENT_SESSION_ID;
+        return `
+            <div class="v301-device-session-card ${isCurrent ? 'current-session' : ''}">
+                <div style="display:flex; justify-content:space-between; align-items:center; gap:8px; flex-wrap:wrap;">
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <i class="fa-solid ${/Android|iOS|iPhone|iPad/i.test(item.osVersion || '') ? 'fa-mobile-screen' : 'fa-laptop'} text-primary"></i>
+                        <strong>${escapeHtmlSafeV301(item.deviceModel || 'Perangkat')} (${escapeHtmlSafeV301(item.osVersion || '-')})</strong>
+                    </div>
+                    <span class="brutal-tag ${isCurrent ? 'tag-success' : 'tag-amber'}" style="font-size:0.6rem;">
+                        ${isCurrent ? 'SEDANG DIGUNAKAN' : 'SESI TERCATAT'}
+                    </span>
+                </div>
+                <div class="v301-device-meta-grid">
+                    <div class="v301-device-meta-item">
+                        <span>Aplikasi / Browser</span>
+                        <strong>${escapeHtmlSafeV301(item.browserName || '-')}</strong>
+                    </div>
+                    <div class="v301-device-meta-item">
+                        <span>Lokasi &amp; Zona Waktu</span>
+                        <strong>${escapeHtmlSafeV301(item.locationText || '-')}</strong>
+                    </div>
+                    <div class="v301-device-meta-item">
+                        <span>Keterangan Waktu Masuk</span>
+                        <strong>${fmtTime(item.loginAt || item.lastActiveAt)}</strong>
+                    </div>
+                </div>
+            </div>
+        `;
+    }).join('');
+};
+
+window.revokeOtherLoginSessions = async function() {
+    if (!currentUser || currentUser.isAnonymous || userProfile.isGuest) return;
+    const confirmed = await window.customConfirm(
+        'Keluar dari Perangkat Lain?',
+        'Semua perangkat lain yang sedang masuk ke akun ini akan dikeluarkan otomatis, dan hanya perangkat kamu saat ini yang tetap aktif.',
+        'Ya, Amankan Akun'
+    );
+    if (!confirmed) return;
+
+    try {
+        const meta = await detectClientDeviceAndLocationMeta();
+        const nowMs = Date.now();
+        await setDoc(doc(db, pathUsers, currentUser.uid), {
+            loginHistory: [meta],
+            lastLoginMeta: meta,
+            trustedSessionRevokedBefore: nowMs,
+            trustedActiveSessionId: CURRENT_CLIENT_SESSION_ID
+        }, { merge: true });
+        userProfile.loginHistory = [meta];
+        userProfile.lastLoginMeta = meta;
+        await window.renderUserLoginActivityList();
+        window.showToast('Berhasil Diamankan', 'Seluruh sesi di perangkat lain telah dikeluarkan.', 'success');
+    } catch (e) {
+        window.showToast('Gagal', 'Terjadi kendala saat mengamankan sesi perangkat.', 'error');
+    }
+};
+
+// Pembuka Halaman Sub-Tab Profil Full-Screen (Poin #7a & #12)
+window.openProfileSubPage = function(pageKey, pushHistory = true) {
+    const hub = document.getElementById('profile-main-hub-view');
+    const stage = document.getElementById('profile-fullscreen-subpage-wrap');
+    const titleEl = document.getElementById('v301-prof-subpage-title');
+    if (!hub || !stage) return;
+
+    hub.style.display = 'none';
+    stage.style.display = 'block';
+    document.body.classList.add('in-fullscreen-subpage');
+
+    document.querySelectorAll('#profile-fullscreen-subpage-wrap .v301-prof-subpage-body').forEach(el => {
+        el.style.display = 'none';
+    });
+
+    const titles = {
+        'login-activity': 'Aktivitas Login & Perangkat',
+        'trx-pin': 'PIN Transaksi (6 Digit)',
+        'edit-profile': 'Ubah Data Profil',
+        'security': 'Notifikasi & Kata Sandi'
+    };
+    if (titleEl) titleEl.innerText = titles[pageKey] || 'Detail Profil';
+
+    const target = document.getElementById(`prof-subpage-${pageKey}`);
+    if (target) target.style.display = 'block';
+
+    if (pageKey === 'login-activity') {
+        window.recordCurrentUserLoginActivity(true);
+        window.renderUserLoginActivityList();
+    }
+
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    if (pushHistory) {
+        pushV301NavigationState({ view: 'profile-subpage', pageKey });
+    }
+};
+
+window.closeProfileSubPage = function() {
+    const hub = document.getElementById('profile-main-hub-view');
+    const stage = document.getElementById('profile-fullscreen-subpage-wrap');
+    if (hub) hub.style.display = 'block';
+    if (stage) stage.style.display = 'none';
+    document.body.classList.remove('in-fullscreen-subpage');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+};
+
+// Banner Pop-Up Awal Buka Web User (Poin #8)
+let _initialPopupBannerChecked = false;
+window.maybeShowInitialPopupBanner = function() {
+    if (_initialPopupBannerChecked) return;
+    if (document.body.classList.contains('auth-locked')) return;
+    const enabled = Boolean(siteSettings.popupBannerEnabled === true);
+    const imgUrl = String(siteSettings.popupBannerImg || '').trim();
+    if (!enabled || !imgUrl) return;
+
+    const dismissedKey = 'vipercell_popup_dismissed_' + btoa(encodeURIComponent(imgUrl.slice(-40))).slice(0, 16);
+    if (sessionStorage.getItem(dismissedKey) === '1') return;
+
+    _initialPopupBannerChecked = true;
+    const modal = document.getElementById('modal-initial-popup-banner');
+    const imgEl = document.getElementById('v301-popup-banner-img');
+    const footEl = document.getElementById('v301-popup-banner-footer');
+    const titleEl = document.getElementById('v301-popup-banner-title');
+    if (!modal || !imgEl) return;
+
+    imgEl.src = imgUrl;
+    const titleStr = String(siteSettings.popupBannerTitle || '').trim();
+    if (footEl && titleEl) {
+        if (titleStr) {
+            titleEl.innerText = titleStr;
+            footEl.style.display = 'block';
+        } else {
+            footEl.style.display = 'none';
+        }
+    }
+    modal.style.display = 'flex';
+    requestAnimationFrame(() => modal.classList.add('active'));
+};
+
+window.closeInitialPopupBanner = function() {
+    const modal = document.getElementById('modal-initial-popup-banner');
+    if (modal) {
+        modal.classList.remove('active');
+        setTimeout(() => { modal.style.display = 'none'; }, 180);
+    }
+    const imgUrl = String(siteSettings.popupBannerImg || '').trim();
+    if (imgUrl) {
+        const dismissedKey = 'vipercell_popup_dismissed_' + btoa(encodeURIComponent(imgUrl.slice(-40))).slice(0, 16);
+        sessionStorage.setItem(dismissedKey, '1');
+    }
+};
+
+window.handleInitialPopupBannerClick = function() {
+    const link = String(siteSettings.popupBannerLink || '').trim();
+    if (!link) return;
+    window.closeInitialPopupBanner();
+    if (link.startsWith('http://') || link.startsWith('https://')) {
+        window.open(link, '_blank', 'noopener');
+    } else if (['game', 'pulsa', 'pln', 'ewallet', 'app_premium', 'ppob', 'tools', 'all'].includes(link)) {
+        window.openCategorySubview(link);
+    }
+};
+
+// Proteksi Brute-Force PIN User (Maks 5x Salah -> Kunci 3 Menit)
+let _userPinFailCount = 0;
+let _userPinLockUntil = 0;
+window.checkUserPinRateLimitAllowed = function() {
+    const now = Date.now();
+    if (_userPinLockUntil > now) {
+        const waitSec = Math.ceil((_userPinLockUntil - now) / 1000);
+        window.customAlert('PIN Dikunci Sementara', `Terlalu banyak percobaan PIN yang salah. Silakan tunggu <b>${waitSec} detik</b> lagi.`, 'warning');
+        return false;
+    }
+    return true;
+};
+
+window.recordUserPinAttemptResultV301 = function(isSuccess) {
+    if (isSuccess) {
+        _userPinFailCount = 0;
+        _userPinLockUntil = 0;
+    } else {
+        _userPinFailCount += 1;
+        if (_userPinFailCount >= 5) {
+            _userPinLockUntil = Date.now() + 180000;
+            _userPinFailCount = 0;
+        }
+    }
+};
+
+// Sinkronisasi Tombol Back Fisik HP Android / History API untuk PWA Setara APK Native
+function pushV301NavigationState(stateObj) {
+    try {
+        window.history.pushState({ vipercellNav: true, ...stateObj }, '');
+    } catch (_) {}
+}
+
+window.addEventListener('popstate', () => {
+    // 1. Jika ada modal full-screen / pop-up yang sedang terbuka, tutup modal tersebut terlebih dahulu
+    const openModals = ['modal-initial-popup-banner', 'modal-order-detail', 'modal-cash-barcode', 'modal-share-receipt', 'modal-checkout-confirm', 'modal-forgot-trx-pin'];
+    for (const mid of openModals) {
+        const mEl = document.getElementById(mid);
+        if (mEl && (mEl.classList.contains('active') || mEl.style.display === 'flex')) {
+            if (mid === 'modal-initial-popup-banner') window.closeInitialPopupBanner();
+            else window.closeModal(mid);
+            return;
+        }
+    }
+
+    // 2. Jika bottom-sheet pembayaran mobile sedang terbuka, tutup sheet pembayaran
+    const paySheet = document.getElementById('checkout-side-col-sheet');
+    if (paySheet && paySheet.classList.contains('mobile-sheet-open')) {
+        window.closeMobilePaymentSheet();
+        return;
+    }
+
+    // 3. Jika sedang di dalam sub-halaman Full-Screen Profil, kembali ke Hub Profil
+    const profStage = document.getElementById('profile-fullscreen-subpage-wrap');
+    if (profStage && profStage.style.display !== 'none') {
+        window.closeProfileSubPage();
+        return;
+    }
+
+    // 4. Jika sedang di Tabel Perbandingan Harga Member Plus, kembali ke halaman Member Plus
+    const mpComp = document.getElementById('topup-panel-compare');
+    if (mpComp && mpComp.style.display !== 'none') {
+        window.backFromComparisonToMemberPlus();
+        return;
+    }
+
+    // 5. Jika sedang di halaman Checkout produk, kembali ke katalog
+    const chkTab = document.getElementById('tab-checkout');
+    if (chkTab && chkTab.classList.contains('active')) {
+        window.switchMainTab('katalog');
+        return;
+    }
+
+    // 6. Jika sedang di Sub-Katalog Kategori, kembali ke Beranda Ikon Kategori
+    const subCat = document.getElementById('catalog-subview-wrap');
+    const katTab = document.getElementById('tab-katalog');
+    if (katTab && katTab.classList.contains('active') && subCat && subCat.style.display !== 'none') {
+        window.closeCategorySubviewToHome();
+        return;
+    }
+
+    // 7. Jika sedang di tab selain katalog, kembali ke tab katalog
+    if (katTab && !katTab.classList.contains('active')) {
+        window.switchMainTab('katalog');
+    }
+});
+
+// Hook otomatis saat data pengaturan toko dan profil user dimuat
+setInterval(() => {
+    if (siteSettings && siteSettings.popupBannerEnabled && !_initialPopupBannerChecked) {
+        window.maybeShowInitialPopupBanner();
+    }
+    if (currentUser && !currentUser.isAnonymous && !userProfile.isGuest && !_recordedLoginSessionForUid) {
+        window.recordCurrentUserLoginActivity();
+    }
+}, 1800);

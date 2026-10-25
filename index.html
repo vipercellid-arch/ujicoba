@@ -348,21 +348,7 @@
                     </button>
                 </div>
 
-                <!-- Pil Sub-Filter (Terlaris, Semua, Termurah, A-Z) -->
-                <div class="v30-subcatalog-pills-strip">
-                    <button type="button" class="v30-subpill active" data-sort="popular" onclick="window.setSubcatalogSortPill('popular', this)">
-                        🔥 Terlaris
-                    </button>
-                    <button type="button" class="v30-subpill" data-sort="all_default" onclick="window.setSubcatalogSortPill('all_default', this)">
-                        ✨ Semua Produk
-                    </button>
-                    <button type="button" class="v30-subpill" data-sort="price_asc" onclick="window.setSubcatalogSortPill('price_asc', this)">
-                        💰 Harga Termurah
-                    </button>
-                    <button type="button" class="v30-subpill" data-sort="name_asc" onclick="window.setSubcatalogSortPill('name_asc', this)">
-                        🔤 Nama (A-Z)
-                    </button>
-                </div>
+                <!-- Filter Terlaris Dihapus Sesuai Poin #9 v30.1 -->
                 <select id="catalog-sort-select" style="display:none;" aria-hidden="true">
                     <option value="popular">Terpopuler</option>
                     <option value="price_asc">Harga Termurah</option>
@@ -590,124 +576,243 @@
 
         <!-- TAB 5: PROFIL AKUN (#3 OPSI KIRIM STRUK EMAIL & #7 TOTAL PESANAN HANYA TRX BERHASIL) -->
         <div id="tab-profil" class="main-tab-content container">
-            <div class="section-header">
-                <h2>Profil Saya</h2>
-            </div>
-
-            <div id="anon-ttl-info-card" style="display:none !important;" aria-hidden="true"></div>
-            <div id="guest-upgrade-banner-profile" style="display:none !important;" aria-hidden="true"></div>
-            
-            <div class="profile-hero-card" id="prof-hero-card-container">
-                <div class="profile-avatar-box" id="prof-avatar-box-wrap" style="position:relative;">
-                    <span id="prof-avatar-initial">V</span>
-                    <span id="prof-avatar-crown" class="profile-avatar-crown-badge" style="display:none;" title="Member Plus Aktif">
-                        <i class="fa-solid fa-crown"></i>
-                    </span>
-                </div>
-                <div class="profile-hero-info">
-                    <div class="profile-badge-row" style="display:flex; flex-wrap:wrap; gap:6px; align-items:center;">
-                        <span class="brutal-tag tag-success" id="prof-email-status">MEMBER</span>
-                        <span class="memberplus-gold-badge" id="prof-memberplus-gold-badge" style="display:none;">
-                            <i class="fa-solid fa-crown"></i> MEMBER PLUS
-                        </span>
+            <!-- TAMPILAN UTAMA HUB PROFIL -->
+            <div id="profile-main-hub-view">
+                <div class="section-header" style="display:flex; justify-content:space-between; align-items:center; gap:10px; margin-bottom:1rem;">
+                    <div style="display:flex; align-items:center; gap:10px;">
+                        <button type="button" class="btn btn-outline btn-sm" onclick="window.switchMainTab('katalog')">
+                            <i class="fa-solid fa-arrow-left"></i>
+                        </button>
+                        <h2 style="margin:0;">Profil Saya</h2>
                     </div>
-                    <h3 id="prof-display-name">Memuat...</h3>
-                    <p id="prof-display-email">-</p>
-                </div>
-                <div class="profile-hero-actions">
-                    <button class="btn btn-outline btn-sm" onclick="window.switchMainTab('pesanan')">
-                        <i class="fa-solid fa-receipt"></i> Riwayat
-                    </button>
-
                     <button id="btn-prof-logout-member" class="btn btn-danger btn-sm" onclick="window.logoutUser()">
                         <i class="fa-solid fa-right-from-bracket"></i> <span id="text-btn-logout">Keluar</span>
                     </button>
                 </div>
-            </div>
 
-            <!-- KARTU DOMPET SALDO AKUN (KHUSUS MEMBER LOGIN) -->
-            <div id="prof-wallet-card" class="brutal-panel wallet-profile-banner" style="margin-bottom: 1.25rem; display: none; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; border-color: var(--primary);">
-                <div style="display: flex; align-items: center; gap: 14px;">
-                    <div class="prof-stat-icon bg-accent-emerald" style="width: 52px; height: 52px; font-size: 1.35rem;">
-                        <i class="fa-solid fa-wallet"></i>
+                <div id="anon-ttl-info-card" style="display:none !important;" aria-hidden="true"></div>
+                <div id="guest-upgrade-banner-profile" style="display:none !important;" aria-hidden="true"></div>
+                
+                <div class="profile-hero-card" id="prof-hero-card-container">
+                    <div class="profile-avatar-box" id="prof-avatar-box-wrap" style="position:relative;">
+                        <span id="prof-avatar-initial">V</span>
+                        <span id="prof-avatar-crown" class="profile-avatar-crown-badge" style="display:none;" title="Member Plus Aktif">
+                            <i class="fa-solid fa-crown"></i>
+                        </span>
                     </div>
-                    <div>
-                        <span style="font-size: 0.74rem; font-weight: 800; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em;">Saldo Akun Tersedia</span>
-                        <h3 id="prof-wallet-balance" style="font-size: 1.55rem; font-weight: 900; margin: 2px 0 0; color: var(--primary);">Rp0</h3>
+                    <div class="profile-hero-info">
+                        <div class="profile-badge-row" style="display:flex; flex-wrap:wrap; gap:6px; align-items:center;">
+                            <span class="brutal-tag tag-success" id="prof-email-status">MEMBER</span>
+                            <span class="memberplus-gold-badge" id="prof-memberplus-gold-badge" style="display:none;">
+                                <i class="fa-solid fa-crown"></i> MEMBER PLUS
+                            </span>
+                        </div>
+                        <h3 id="prof-display-name">Memuat...</h3>
+                        <p id="prof-display-email">-</p>
+                    </div>
+                    <div class="profile-hero-actions">
+                        <button class="btn btn-outline btn-sm" onclick="window.switchMainTab('pesanan')">
+                            <i class="fa-solid fa-receipt"></i> Pesanan
+                        </button>
                     </div>
                 </div>
-                <div style="display: flex; gap: 8px; flex-wrap: wrap;">
-                    <button type="button" class="btn btn-primary btn-sm" onclick="window.switchMainTab('topup')">
-                        <i class="fa-solid fa-circle-plus"></i> Isi Saldo (QRIS / Tunai)
-                    </button>
-                    <button type="button" class="btn btn-outline btn-sm" onclick="window.switchMainTab('pesanan')">
-                        <i class="fa-solid fa-clock-rotate-left"></i> Riwayat
-                    </button>
-                </div>
-            </div>
 
-            <div class="profile-stats-grid">
-                <div class="prof-stat-card">
-                    <div class="prof-stat-icon bg-accent-blue"><i class="fa-solid fa-bag-shopping"></i></div>
-                    <div>
-                        <span class="prof-stat-label">Total Pesanan</span>
-                        <h4 id="prof-stat-total">0</h4>
+                <!-- KARTU DOMPET SALDO AKUN -->
+                <div id="prof-wallet-card" class="brutal-panel wallet-profile-banner" style="margin-bottom: 1rem; display: none; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; border-color: var(--primary);">
+                    <div style="display: flex; align-items: center; gap: 12px;">
+                        <div class="prof-stat-icon bg-accent-emerald" style="width: 46px; height: 46px; font-size: 1.2rem;">
+                            <i class="fa-solid fa-wallet"></i>
+                        </div>
+                        <div>
+                            <span style="font-size: 0.72rem; font-weight: 800; color: var(--text-muted); text-transform: uppercase;">Saldo Akun</span>
+                            <h3 id="prof-wallet-balance" style="font-size: 1.45rem; font-weight: 900; margin: 2px 0 0; color: var(--primary);">Rp0</h3>
+                        </div>
+                    </div>
+                    <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                        <button type="button" class="btn btn-primary btn-sm" onclick="window.switchMainTab('topup')">
+                            <i class="fa-solid fa-circle-plus"></i> Top Up Saldo
+                        </button>
                     </div>
                 </div>
-                <div class="prof-stat-card">
-                    <div class="prof-stat-icon bg-accent-emerald"><i class="fa-solid fa-circle-check"></i></div>
-                    <div>
-                        <span class="prof-stat-label">Transaksi Berhasil</span>
-                        <h4 id="prof-stat-success">0</h4>
-                    </div>
-                </div>
-                <div class="prof-stat-card">
-                    <div class="prof-stat-icon bg-accent-amber"><i class="fa-solid fa-wallet"></i></div>
-                    <div>
-                        <span class="prof-stat-label">Total Belanja</span>
-                        <h4 id="prof-stat-spent">Rp0</h4>
-                    </div>
-                </div>
-            </div>
 
-            <!-- Menu Panel Ringkas di Tab Profil (Tekan Tombol untuk Membuka Panel) -->
-            <div class="profile-collapsible-stack" style="display:flex; flex-direction:column; gap:0.85rem;">
-                <!-- 1. Kartu Pintasan Member Plus (Khusus Member) -->
-                <div id="prof-memberplus-manage-card" class="brutal-panel" style="display:none; padding: 1rem; background: var(--surface); border-color: #f59e0b;">
-                    <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
-                        <div style="display:flex; align-items:center; gap:10px;">
-                            <div class="prof-stat-icon" style="width:42px; height:42px; font-size:1.1rem; background:linear-gradient(135deg,#fde047,#f59e0b); color:#422006;">
+                <div class="profile-stats-grid" style="margin-bottom: 1.1rem;">
+                    <div class="prof-stat-card">
+                        <div class="prof-stat-icon bg-accent-blue"><i class="fa-solid fa-bag-shopping"></i></div>
+                        <div>
+                            <span class="prof-stat-label">Total Pesanan</span>
+                            <h4 id="prof-stat-total">0</h4>
+                        </div>
+                    </div>
+                    <div class="prof-stat-card">
+                        <div class="prof-stat-icon bg-accent-emerald"><i class="fa-solid fa-circle-check"></i></div>
+                        <div>
+                            <span class="prof-stat-label">Transaksi Berhasil</span>
+                            <h4 id="prof-stat-success">0</h4>
+                        </div>
+                    </div>
+                    <div class="prof-stat-card">
+                        <div class="prof-stat-icon bg-accent-amber"><i class="fa-solid fa-wallet"></i></div>
+                        <div>
+                            <span class="prof-stat-label">Total Belanja</span>
+                            <h4 id="prof-stat-spent">Rp0</h4>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- DAFTAR MENU PROFIL NEO-BRUTALISM (SETIAP MENU DIBUKA FULL-SCREEN) -->
+                <div class="v301-profile-menu-list">
+                    <!-- 1. Langganan Member Plus -->
+                    <div id="prof-memberplus-manage-card" class="v301-profile-menu-item menu-gold" style="display:none;" onclick="window.switchMainTab('memberplus')">
+                        <div class="v301-prof-menu-left">
+                            <div class="prof-stat-icon" style="width:42px; height:42px; font-size:1.05rem; background:linear-gradient(135deg,#fde047,#f59e0b); color:#422006;">
                                 <i class="fa-solid fa-crown"></i>
                             </div>
                             <div>
                                 <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
                                     <strong id="prof-mp-card-title" style="font-size:0.9rem;">Langganan Member Plus</strong>
-                                    <span id="prof-mp-card-badge" class="brutal-tag tag-amber" style="font-size:0.65rem;">MEMBER BIASA</span>
+                                    <span id="prof-mp-card-badge" class="brutal-tag tag-amber" style="font-size:0.62rem;">MEMBER BIASA</span>
                                 </div>
-                                <p id="prof-mp-card-desc" style="font-size:0.75rem; color:var(--text-muted); font-weight:600; margin:2px 0 0;">
-                                    Potongan harga khusus Member Plus di seluruh katalog.
-                                </p>
+                                <span id="prof-mp-card-desc" class="v301-prof-menu-sub">Harga khusus Member Plus &amp; tabel perbandingan harga</span>
                             </div>
                         </div>
-                        <button type="button" id="btn-prof-manage-memberplus" class="btn btn-warning btn-sm" onclick="window.switchMainTab('memberplus')">
-                            <i class="fa-solid fa-crown"></i> <span id="btn-prof-manage-memberplus-text">Buka Member Plus</span>
+                        <button type="button" id="btn-prof-manage-memberplus" class="btn btn-warning btn-sm" onclick="event.stopPropagation(); window.switchMainTab('memberplus')">
+                            <span id="btn-prof-manage-memberplus-text">Buka</span> <i class="fa-solid fa-chevron-right"></i>
                         </button>
+                    </div>
+
+                    <!-- 2. Aktivitas Login & Perangkat Aktif (Full-Screen) -->
+                    <button type="button" class="v301-profile-menu-item" onclick="window.openProfileSubPage('login-activity')">
+                        <div class="v301-prof-menu-left">
+                            <span class="prof-stat-icon bg-accent-purple" style="width:42px; height:42px; font-size:1rem; background:#c4b5fd; color:#0f172a;"><i class="fa-solid fa-mobile-screen-button"></i></span>
+                            <div>
+                                <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+                                    <strong>Aktivitas Login &amp; Perangkat</strong>
+                                    <span class="brutal-tag tag-success" style="font-size:0.6rem;">AKTIF</span>
+                                </div>
+                                <span class="v301-prof-menu-sub">Perangkat aktif, versi Android/OS, lokasi &amp; waktu masuk</span>
+                            </div>
+                        </div>
+                        <i class="fa-solid fa-chevron-right v301-prof-arrow"></i>
+                    </button>
+
+                    <!-- 3. PIN Transaksi Saldo (Full-Screen) -->
+                    <button type="button" id="prof-trx-pin-card" class="v301-profile-menu-item" onclick="window.openProfileSubPage('trx-pin')">
+                        <div class="v301-prof-menu-left">
+                            <span class="prof-stat-icon bg-accent-emerald" style="width:42px; height:42px; font-size:1rem;"><i class="fa-solid fa-shield-halved"></i></span>
+                            <div>
+                                <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+                                    <strong>PIN Transaksi (6 Digit)</strong>
+                                    <span id="prof-pin-status-badge" class="brutal-tag tag-amber" style="font-size:0.62rem;">BELUM DISETEL</span>
+                                </div>
+                                <span class="v301-prof-menu-sub">Atur atau reset PIN keamanan Saldo Akun</span>
+                            </div>
+                        </div>
+                        <i class="fa-solid fa-chevron-right v301-prof-arrow"></i>
+                    </button>
+
+                    <!-- 4. Ubah Data Profil (Full-Screen) -->
+                    <button type="button" class="v301-profile-menu-item" onclick="window.openProfileSubPage('edit-profile')">
+                        <div class="v301-prof-menu-left">
+                            <span class="prof-stat-icon bg-accent-blue" style="width:42px; height:42px; font-size:1rem;"><i class="fa-solid fa-user-pen"></i></span>
+                            <div>
+                                <strong>Ubah Data Profil</strong>
+                                <span class="v301-prof-menu-sub">Email akun &amp; nama panggilan</span>
+                            </div>
+                        </div>
+                        <i class="fa-solid fa-chevron-right v301-prof-arrow"></i>
+                    </button>
+
+                    <!-- 5. Notifikasi & Keamanan Akun (Full-Screen) -->
+                    <button type="button" class="v301-profile-menu-item" onclick="window.openProfileSubPage('security')">
+                        <div class="v301-prof-menu-left">
+                            <span class="prof-stat-icon bg-accent-amber" style="width:42px; height:42px; font-size:1rem;"><i class="fa-solid fa-lock"></i></span>
+                            <div>
+                                <strong>Notifikasi &amp; Kata Sandi</strong>
+                                <span class="v301-prof-menu-sub">Pengaturan notifikasi &amp; ubah kata sandi</span>
+                            </div>
+                        </div>
+                        <i class="fa-solid fa-chevron-right v301-prof-arrow"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- HALAMAN SUB-TAB PROFIL FULL-SCREEN -->
+            <div id="profile-fullscreen-subpage-wrap" class="v301-profile-subpage-stage" style="display:none;">
+                <div class="v301-subpage-topbar">
+                    <button type="button" class="btn btn-outline btn-sm" onclick="window.closeProfileSubPage()">
+                        <i class="fa-solid fa-arrow-left"></i> <span>Kembali</span>
+                    </button>
+                    <h3 id="v301-prof-subpage-title" style="margin:0; font-size:1.05rem; font-weight:900;">Detail Profil</h3>
+                    <div style="width:36px;"></div>
+                </div>
+
+                <!-- SUB-PAGE 1: AKTIVITAS LOGIN & PERANGKAT AKTIF -->
+                <div id="prof-subpage-login-activity" class="v301-prof-subpage-body" style="display:none;">
+                    <div class="checkout-step-card" style="margin-bottom:1rem; border-color:var(--primary);">
+                        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; margin-bottom:0.85rem;">
+                            <div style="display:flex; align-items:center; gap:10px;">
+                                <span class="prof-stat-icon bg-accent-emerald" style="width:40px; height:40px;"><i class="fa-solid fa-shield-check"></i></span>
+                                <div>
+                                    <h4 style="margin:0; font-size:0.95rem;">Perangkat Aktif Saat Ini</h4>
+                                    <small style="color:var(--text-muted); font-weight:700;">Sesi yang sedang kamu gunakan sekarang</small>
+                                </div>
+                            </div>
+                            <span class="brutal-tag tag-success">PERANGKAT INI • AKTIF</span>
+                        </div>
+                        <div id="prof-current-device-card-box"></div>
+                    </div>
+
+                    <div class="checkout-step-card">
+                        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; margin-bottom:0.85rem;">
+                            <div>
+                                <h4 style="margin:0; font-size:0.95rem;">Riwayat Login &amp; Perangkat</h4>
+                                <small style="color:var(--text-muted); font-weight:700;">Daftar waktu masuk, versi perangkat &amp; lokasi login</small>
+                            </div>
+                            <div style="display:flex; gap:6px; flex-wrap:wrap;">
+                                <button type="button" class="btn btn-danger btn-sm" onclick="window.revokeOtherLoginSessions()">
+                                    <i class="fa-solid fa-right-from-bracket"></i> Keluar Perangkat Lain
+                                </button>
+                            </div>
+                        </div>
+                        <div id="prof-login-history-list-box" style="display:flex; flex-direction:column; gap:10px;"></div>
                     </div>
                 </div>
 
-                <!-- 2. Panel Lipat: Ubah Data Profil & Nama Panggilan -->
-                <div class="brutal-panel" style="padding: 0; overflow: hidden;">
-                    <button type="button" class="prof-accordion-trigger" onclick="window.toggleProfileSectionPanel('prof-body-edit-profile', 'prof-chevron-edit-profile')">
-                        <div style="display:flex; align-items:center; gap:10px;">
-                            <span class="prof-stat-icon bg-accent-blue" style="width:38px; height:38px; font-size:0.95rem;"><i class="fa-solid fa-user-pen"></i></span>
-                            <div style="text-align:left;">
-                                <strong style="display:block; font-size:0.88rem; color:var(--text);">Ubah Data Profil</strong>
-                                <span style="font-size:0.72rem; color:var(--text-muted); font-weight:600;">Email akun &amp; nama panggilan</span>
+                <!-- SUB-PAGE 2: PIN TRANSAKSI 6 DIGIT -->
+                <div id="prof-subpage-trx-pin" class="v301-prof-subpage-body" style="display:none;">
+                    <div id="prof-body-trx-pin" class="checkout-step-card">
+                        <div style="margin-bottom:1rem;">
+                            <h4 style="margin:0 0 4px;">PIN Transaksi Saldo (6 Digit)</h4>
+                            <small style="color:var(--text-muted); font-weight:700;">Digunakan saat konfirmasi pembayaran menggunakan Saldo Akun.</small>
+                        </div>
+                        <div id="prof-old-pin-group" class="form-group" style="display:none; margin-bottom:10px;">
+                            <label for="prof-old-trx-pin">PIN Transaksi Lama</label>
+                            <input type="password" id="prof-old-trx-pin" class="form-control code-mono" maxlength="6" inputmode="numeric" pattern="[0-9]*" oninput="this.value=this.value.replace(/[^0-9]/g,'').slice(0,6)" placeholder="Masukkan 6 digit PIN lama">
+                        </div>
+                        <div class="grid-2col-form" style="gap:10px; margin-bottom:12px;">
+                            <div class="form-group" style="margin-bottom:0;">
+                                <label for="prof-new-trx-pin">PIN Baru (6 Angka)</label>
+                                <input type="password" id="prof-new-trx-pin" class="form-control code-mono" maxlength="6" inputmode="numeric" pattern="[0-9]*" oninput="this.value=this.value.replace(/[^0-9]/g,'').slice(0,6)" placeholder="Contoh: 123456">
+                            </div>
+                            <div class="form-group" style="margin-bottom:0;">
+                                <label for="prof-confirm-trx-pin">Ulangi PIN Baru</label>
+                                <input type="password" id="prof-confirm-trx-pin" class="form-control code-mono" maxlength="6" inputmode="numeric" pattern="[0-9]*" oninput="this.value=this.value.replace(/[^0-9]/g,'').slice(0,6)" placeholder="Konfirmasi 6 angka">
                             </div>
                         </div>
-                        <i class="fa-solid fa-chevron-down prof-accordion-chevron" id="prof-chevron-edit-profile"></i>
-                    </button>
-                    <div id="prof-body-edit-profile" class="prof-accordion-body" style="display:none; padding: 1rem; border-top: 1.5px dashed var(--border-subtle);">
+                        <div style="display:flex; flex-direction:column; gap:10px;">
+                            <button type="button" id="btn-save-user-trx-pin" class="btn btn-primary" style="width:100%;" onclick="window.saveUserTransactionPin()">
+                                <i class="fa-solid fa-lock"></i> <span id="text-save-user-trx-pin">Simpan PIN Transaksi</span>
+                            </button>
+                            <button type="button" id="btn-forgot-user-trx-pin" class="btn btn-outline" style="width:100%; display:none;" onclick="window.openForgotTrxPinModal()">
+                                <i class="fa-solid fa-key"></i> Lupa PIN? Reset dengan Kata Sandi Akun
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SUB-PAGE 3: UBAH DATA PROFIL -->
+                <div id="prof-subpage-edit-profile" class="v301-prof-subpage-body" style="display:none;">
+                    <div id="prof-body-edit-profile" class="checkout-step-card">
                         <div class="form-group">
                             <label for="prof-email">Email Akun</label>
                             <input type="email" id="prof-email" class="form-control" disabled style="opacity: 0.75; cursor: not-allowed;">
@@ -716,67 +821,16 @@
                             <label for="prof-name">Nama Panggilan</label>
                             <input type="text" id="prof-name" class="form-control" placeholder="Nama panggilan kamu">
                         </div>
-                        <button aria-label="Simpan Profil" class="btn btn-primary btn-sm" style="width: 100%;" onclick="window.saveUserProfile()">
-                            <i class="fa-solid fa-floppy-disk"></i> Simpan Profil
+                        <button aria-label="Simpan Profil" class="btn btn-primary" style="width: 100%;" onclick="window.saveUserProfile()">
+                            <i class="fa-solid fa-floppy-disk"></i> Simpan Perubahan Profil
                         </button>
                     </div>
                 </div>
 
-                <!-- 3. Panel Lipat: PIN Transaksi Saldo (6 Digit) -->
-                <div id="prof-trx-pin-card" class="brutal-panel" style="padding: 0; overflow: hidden; border-color: var(--primary);">
-                    <button type="button" class="prof-accordion-trigger" onclick="window.toggleProfileSectionPanel('prof-body-trx-pin', 'prof-chevron-trx-pin')">
-                        <div style="display:flex; align-items:center; gap:10px;">
-                            <span class="prof-stat-icon bg-accent-emerald" style="width:38px; height:38px; font-size:0.95rem;"><i class="fa-solid fa-shield-halved"></i></span>
-                            <div style="text-align:left;">
-                                <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
-                                    <strong style="font-size:0.88rem; color:var(--text);">PIN Transaksi Saldo (6 Digit)</strong>
-                                    <span id="prof-pin-status-badge" class="brutal-tag tag-amber" style="font-size:0.62rem;">BELUM DISETEL</span>
-                                </div>
-                                <span style="font-size:0.72rem; color:var(--text-muted); font-weight:600;">Keamanan pembayaran Saldo Akun</span>
-                            </div>
-                        </div>
-                        <i class="fa-solid fa-chevron-down prof-accordion-chevron" id="prof-chevron-trx-pin"></i>
-                    </button>
-                    <div id="prof-body-trx-pin" class="prof-accordion-body" style="display:none; padding: 1rem; border-top: 1.5px dashed var(--border-subtle);">
-                        <div id="prof-old-pin-group" class="form-group" style="display:none; margin-bottom:8px;">
-                            <label for="prof-old-trx-pin" style="font-size:0.75rem;">PIN Transaksi Lama</label>
-                            <input type="password" id="prof-old-trx-pin" class="form-control code-mono" maxlength="6" inputmode="numeric" pattern="[0-9]*" oninput="this.value=this.value.replace(/[^0-9]/g,'').slice(0,6)" placeholder="Masukkan 6 digit PIN lama">
-                        </div>
-                        <div class="grid-2col-form" style="gap:8px; margin-bottom:10px;">
-                            <div class="form-group" style="margin-bottom:0;">
-                                <label for="prof-new-trx-pin" style="font-size:0.75rem;">PIN Baru (6 Angka)</label>
-                                <input type="password" id="prof-new-trx-pin" class="form-control code-mono" maxlength="6" inputmode="numeric" pattern="[0-9]*" oninput="this.value=this.value.replace(/[^0-9]/g,'').slice(0,6)" placeholder="Contoh: 123456">
-                            </div>
-                            <div class="form-group" style="margin-bottom:0;">
-                                <label for="prof-confirm-trx-pin" style="font-size:0.75rem;">Ulangi PIN Baru</label>
-                                <input type="password" id="prof-confirm-trx-pin" class="form-control code-mono" maxlength="6" inputmode="numeric" pattern="[0-9]*" oninput="this.value=this.value.replace(/[^0-9]/g,'').slice(0,6)" placeholder="Konfirmasi 6 angka">
-                            </div>
-                        </div>
-                        <div style="display:flex; flex-direction:column; gap:8px;">
-                            <button type="button" id="btn-save-user-trx-pin" class="btn btn-primary btn-sm" style="width:100%;" onclick="window.saveUserTransactionPin()">
-                                <i class="fa-solid fa-lock"></i> <span id="text-save-user-trx-pin">Simpan PIN Transaksi</span>
-                            </button>
-                            <button type="button" id="btn-forgot-user-trx-pin" class="btn btn-outline btn-sm" style="width:100%; display:none;" onclick="window.openForgotTrxPinModal()">
-                                <i class="fa-solid fa-key"></i> Lupa PIN Transaksi? Reset dengan Kata Sandi Akun
-                            </button>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- 4. Panel Lipat: Pengaturan Notifikasi & Kata Sandi -->
-                <div class="brutal-panel" style="padding: 0; overflow: hidden;">
-                    <button type="button" class="prof-accordion-trigger" onclick="window.toggleProfileSectionPanel('prof-body-security', 'prof-chevron-security')">
-                        <div style="display:flex; align-items:center; gap:10px;">
-                            <span class="prof-stat-icon bg-accent-amber" style="width:38px; height:38px; font-size:0.95rem;"><i class="fa-solid fa-lock"></i></span>
-                            <div style="text-align:left;">
-                                <strong style="display:block; font-size:0.88rem; color:var(--text);">Notifikasi &amp; Keamanan Akun</strong>
-                                <span style="font-size:0.72rem; color:var(--text-muted); font-weight:600;">Notifikasi browser &amp; reset kata sandi email</span>
-                            </div>
-                        </div>
-                        <i class="fa-solid fa-chevron-down prof-accordion-chevron" id="prof-chevron-security"></i>
-                    </button>
-                    <div id="prof-body-security" class="prof-accordion-body" style="display:none; padding: 1rem; border-top: 1.5px dashed var(--border-subtle);">
-                        <div class="notif-toggle-card" style="margin-bottom: 0.85rem;">
+                <!-- SUB-PAGE 4: NOTIFIKASI & KATA SANDI -->
+                <div id="prof-subpage-security" class="v301-prof-subpage-body" style="display:none;">
+                    <div id="prof-body-security" class="checkout-step-card">
+                        <div class="notif-toggle-card" style="margin-bottom: 1rem;">
                             <div class="notif-toggle-info">
                                 <div class="notif-bell-circle" id="prof-notif-icon-box">
                                     <i class="fa-solid fa-bell" id="prof-notif-icon"></i>
@@ -791,8 +845,8 @@
                             </button>
                         </div>
                         <div id="prof-security-member-box">
-                            <button id="btn-prof-reset-pass" aria-label="Ubah Kata Sandi" class="btn btn-outline btn-sm" onclick="window.sendProfileResetPassword()" style="width:100%;">
-                                <i class="fa-solid fa-envelope"></i> <span>Kirim Link Ubah Sandi ke Email</span>
+                            <button id="btn-prof-reset-pass" aria-label="Ubah Kata Sandi" class="btn btn-outline" onclick="window.sendProfileResetPassword()" style="width:100%;">
+                                <i class="fa-solid fa-envelope"></i> <span>Kirim Link Ubah Kata Sandi ke Email</span>
                             </button>
                         </div>
                         <div id="prof-security-guest-box" style="display:none;"></div>
@@ -930,12 +984,8 @@
                                     </div>
                                 </div>
 
-                                <div id="buy-member-autofill-badge" class="member-autofill-card" style="display:flex;">
-                                    <i class="fa-solid fa-circle-check"></i>
-                                    <div>
-                                        <strong style="display:block;">Akun Member Aktif</strong>
-                                        <span id="buy-member-autofill-text" style="font-size:0.72rem; color:var(--text-muted);"></span>
-                                    </div>
+                                <div id="buy-member-autofill-badge" class="member-autofill-card" style="display:none !important;" aria-hidden="true">
+                                    <span id="buy-member-autofill-text" style="display:none;"></span>
                                 </div>
                                 
                                 <!-- Box Input Nominal Bebas E-Wallet (Maks Rp500.000) -->
@@ -969,9 +1019,8 @@
                                         </label>
                                     </div>
 
-                                    <div id="balance-warning-msg" class="brutal-alert-box alert-info" style="display:flex; margin-top:10px; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
-                                        <span id="balance-warning-text"><i class="fa-solid fa-wallet"></i> Pembayaran otomatis dengan Saldo Akun</span>
-                                        <button type="button" class="btn btn-primary btn-sm" style="padding:4px 12px; min-height:28px; font-size:0.74rem;" onclick="window.closeMobilePaymentSheet(); window.switchMainTab('topup')"><i class="fa-solid fa-circle-plus"></i> Isi Saldo</button>
+                                    <div id="balance-warning-msg" class="brutal-alert-box alert-info v301-compact-bal-note" style="display:flex; margin-top:6px; padding:6px 10px; font-size:0.74rem; align-items:center; gap:6px;">
+                                        <span id="balance-warning-text"><i class="fa-solid fa-wallet"></i> Saldo mencukupi</span>
                                     </div>
                                     <div id="cash-warning-msg" style="display:none !important;"></div>
                                 </div>
@@ -1968,13 +2017,13 @@
                 </div>
             </div>
 
-            <!-- TAHAP 2: PANEL KOLOM PIN TANPA TOMBOL NOMOR DI LAYAR WEB -->
+            <!-- TAHAP 2: PANEL KONFIRMASI & MASUKKAN PIN -->
             <div id="chk-confirm-pin-box" class="dana-fullscreen-pin-stage v30-clean-pin-panel" style="display:none;">
                 <div class="dana-pin-topbar">
                     <button type="button" class="dana-pin-back-btn" onclick="window.backFromFullPinStageToDetails()" aria-label="Kembali">
                         <i class="fa-solid fa-arrow-left"></i> <span>Kembali</span>
                     </button>
-                    <span class="dana-pin-brand-pill"><i class="fa-solid fa-shield-halved"></i> PIN SALDO</span>
+                    <span class="dana-pin-brand-pill">Konfirmasi</span>
                     <button type="button" class="dana-pin-forgot-link" onclick="window.openForgotTrxPinModal()">
                         Lupa PIN?
                     </button>
@@ -1984,8 +2033,8 @@
                     <div class="dana-pin-lock-badge">
                         <i class="fa-solid fa-lock"></i>
                     </div>
-                    <h3 class="dana-pin-main-title">Masukkan 6 Digit PIN</h3>
-                    <div class="dana-pin-amount-pill" id="chk-pin-fullscreen-amount-pill">Rp0</div>
+                    <h3 class="dana-pin-main-title">Masukkan PIN</h3>
+                    <div class="dana-pin-amount-pill" id="chk-pin-fullscreen-amount-pill" style="display:none !important;">Rp0</div>
 
                     <!-- Kolom Kotak PIN 6 Digit Langsung Terhubung ke Keyboard Perangkat -->
                     <div class="v30-pin-input-wrapper" onclick="window.focusMbankingPinPad()">
@@ -2000,9 +2049,7 @@
                         </div>
                     </div>
 
-                    <small id="chk-confirm-pin-helper" class="mbanking-pin-helper">
-                        Sentuh kotak di atas untuk mengetik 6 angka PIN
-                    </small>
+                    <small id="chk-confirm-pin-helper" class="dana-pin-helper-text"></small>
                 </div>
             </div>
         </div>
@@ -2112,5 +2159,20 @@
             });
         }
     </script>
+
+    <!-- MODAL BANNER POP-UP AWAL BUKA WEB USER (v30.1 POIN #8) -->
+    <div class="modal-overlay" id="modal-initial-popup-banner" style="z-index: 999995; display: none;" onclick="if(event.target===this) window.closeInitialPopupBanner()">
+        <div class="modal-content v301-popup-banner-card">
+            <button type="button" class="v301-popup-close-x" onclick="window.closeInitialPopupBanner()" aria-label="Tutup Banner">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+            <div class="v301-popup-img-wrap" id="v301-popup-banner-click-area" onclick="window.handleInitialPopupBannerClick()">
+                <img id="v301-popup-banner-img" src="" alt="Promo Vipercell" loading="eager">
+            </div>
+            <div id="v301-popup-banner-footer" class="v301-popup-footer" style="display:none;">
+                <strong id="v301-popup-banner-title"></strong>
+            </div>
+        </div>
+    </div>
 </body>
 </html>
