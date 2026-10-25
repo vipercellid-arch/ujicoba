@@ -36,7 +36,11 @@ service cloud.firestore {
         request.resource.data.get('baseTotal', 0) == resource.data.get('baseTotal', 0) &&
         request.resource.data.get('topupAmount', 0) == resource.data.get('topupAmount', 0)
       );
-      return diffKeys.hasOnly(allowedKeys) && priceUnchanged;
+      let notRevertingSuccess = (
+        resource.data.get('status', '') != 'SUCCESS' ||
+        request.resource.data.get('status', '') == 'SUCCESS'
+      );
+      return diffKeys.hasOnly(allowedKeys) && priceUnchanged && notRevertingSuccess;
     }
 
     match /users/{userId} {

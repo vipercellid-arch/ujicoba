@@ -2864,10 +2864,22 @@ window.cancelActiveOrder = function(explicitDbId = null) {
                 btnCancelCash.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Membatalkan...';
             }
 
+            if (orderObj) {
+                const isTopupCheck = Boolean(orderObj.isTopupOrder === true || orderObj.orderType === 'TOPUP_BALANCE' || String(orderObj.id || '').toUpperCase().startsWith('TOPUP-'));
+                if (!isTopupCheck || (orderObj.status !== 'UNPAID' && orderObj.status !== 'PENDING_PAYMENT')) {
+                    isCancellingOrder = false;
+                    window.customAlert('Tidak Dapat Dibatalkan', 'Hanya transaksi Top Up Saldo yang masih menunggu pembayaran yang dapat dibatalkan.', 'warning');
+                    return;
+                }
+            }
             try {
-                // Sesuai rules database firebase.js, perubahan status oleh pembeli menggunakan EXPIRED
-                await updateDoc(doc(db, pathOrders, targetDbId), { status: 'EXPIRED' });
-                if (orderObj) orderObj.status = 'EXPIRED';
+                // Simpan status sebagai CANCELLED (DIBATALKAN), bukan EXPIRED (Kedaluwarsa)
+                const nowCancelMs = Date.now();
+                await updateDoc(doc(db, pathOrders, targetDbId), { status: 'CANCELLED', cancelledAt: nowCancelMs });
+                if (orderObj) {
+                    orderObj.status = 'CANCELLED';
+                    orderObj.cancelledAt = nowCancelMs;
+                }
 
                 window.closeModal('modal-cash-barcode');
                 window.closeModal('modal-order-detail');
@@ -3924,7 +3936,7 @@ window.selectPaymentUI = function(val, el) {
         if (rad) rad.checked = true;
     }
     const balWarn = document.getElementById('balance-warning-msg');
-    if (balWarn) balWarn.style.display = 'flex';
+    if (balWarn) balWarn.style.display = 'none';
     window.calculateDirectBuyTotal();
 };
 
@@ -4124,19 +4136,31 @@ window.calculateDirectBuyTotal = function() {
     if (isPascaMode) {
         if (!verifiedPascaInquiry || verifiedPascaInquiry.sku !== selectedProductForBuy.buyerSkuCode) {
             btnProc.className = 'btn btn-warning btn-checkout-submit';
-            btnProc.innerHTML = '<i class="fa-solid fa-file-invoice-dollar"></i> <span id="btn-process-text">Cek Tagihan (Gratis)</span>';
+            btnProc.innerHTML = '<i class="fa-solid fa-file-invoice-dollar"></i> <span id="btn-process-text">Cek Tagihan</span>';
             btnProc.disabled = false;
+            return;
+        } else if (isMember && userBal < baseTotal) {
+            btnProc.className = 'btn btn-danger btn-checkout-submit';
+            btnProc.innerHTML = '<i class="fa-solid fa-wallet"></i> <span id="btn-process-text">Saldo Tidak Mencukupi</span>';
+            btnProc.disabled = true;
             return;
         } else {
             btnProc.className = 'btn btn-success btn-checkout-submit';
-            btnProc.innerHTML = '<i class="fa-solid fa-bolt"></i> <span id="btn-process-text">Bayar Tagihan Sekarang</span>';
+            btnProc.innerHTML = '<i class="fa-solid fa-bolt"></i> <span id="btn-process-text">Bayar Tagihan</span>';
             btnProc.disabled = false;
             return;
         }
     }
 
+    if (isMember && userBal < baseTotal) {
+        btnProc.className = 'btn btn-danger btn-checkout-submit';
+        btnProc.innerHTML = '<i class="fa-solid fa-wallet"></i> <span id="btn-process-text">Saldo Tidak Mencukupi</span>';
+        btnProc.disabled = true;
+        return;
+    }
+
     btnProc.className = 'btn btn-primary btn-checkout-submit';
-    btnProc.innerHTML = '<i class="fa-solid fa-bolt"></i> <span id="btn-process-text">Beli Sekarang</span>'; 
+    btnProc.innerHTML = '<i class="fa-solid fa-bolt"></i> <span id="btn-process-text">Bayar Sekarang</span>'; 
     btnProc.disabled = false;
 };
 
@@ -5367,25 +5391,37 @@ function buildFullReceiptHTML(order) {
 
     let actionHtml = '';
     if (isUnpaid) {
+        const isTopupUnpaid = Boolean(order.isTopupOrder === true || order.orderType === 'TOPUP_BALANCE' || String(order.id || '').toUpperCase().startsWith('TOPUP-'));
+        const payNominal = Math.round(Number(order.finalTotal || order.uniqueTotal || 0));
+        const topupPaymentInfoBox = isTopupUnpaid ? `
+            <div class="brutal-panel" style="padding:12px; margin-bottom:10px; background:var(--bg); border-color:var(--primary); text-align:center;">
+                <span style="font-size:0.7rem; font-weight:800; color:var(--text-muted); display:block;">KODE TRANSAKSI TOP UP SALDO</span>
+                <strong class="code-mono" style="font-size:1.05rem; color:var(--primary); display:block; margin:2px 0 4px;">#${escapeHtml(order.id)}</strong>
+                <span style="font-size:0.76rem; font-weight:800; color:var(--text); display:block;">Nominal Transfer / Bayar: <b class="text-primary">Rp${payNominal.toLocaleString('id-ID')}</b></span>
+            </div>
+        ` : '';
+        const cancelBtnHtml = isTopupUnpaid ? `
+            <button class="btn btn-danger" onclick="window.cancelActiveOrder('${order.dbId}')">
+                <i class="fa-solid fa-ban"></i> Batalkan
+            </button>
+        ` : '';
         if (order.paymentMethod === 'cash') {
             actionHtml = `
+            ${topupPaymentInfoBox}
             <div class="ereceipt-action-grid">
-                <button class="btn btn-warning" onclick="window.resumePayment('${order.dbId}')">
-                    <i class="fa-solid fa-barcode"></i> Buka Barcode Tunai
+                <button class="btn btn-warning" onclick="window.closeModal('modal-order-detail'); window.resumePayment('${order.dbId}')">
+                    <i class="fa-solid fa-barcode"></i> Lanjutkan Pembayaran Tunai
                 </button>
-                <button class="btn btn-danger" onclick="window.cancelActiveOrder('${order.dbId}')">
-                    <i class="fa-solid fa-ban"></i> Batalkan
-                </button>
+                ${cancelBtnHtml}
             </div>`;
         } else {
             actionHtml = `
+            ${topupPaymentInfoBox}
             <div class="ereceipt-action-grid">
-                <button class="btn btn-primary" onclick="window.resumePayment('${order.dbId}')">
-                    <i class="fa-solid fa-qrcode"></i> Lanjut Bayar QRIS
+                <button class="btn btn-primary" onclick="window.closeModal('modal-order-detail'); window.resumePayment('${order.dbId}')">
+                    <i class="fa-solid fa-qrcode"></i> Lanjutkan Pembayaran QRIS
                 </button>
-                <button class="btn btn-danger" onclick="window.cancelActiveOrder('${order.dbId}')">
-                    <i class="fa-solid fa-ban"></i> Batalkan
-                </button>
+                ${cancelBtnHtml}
             </div>`;
         }
     } else {
@@ -8137,6 +8173,23 @@ window.processTopupBalanceCheckout = async function() {
         return;
     }
 
+    const myUidCheck = currentUser?.uid || userProfile.uid || '';
+    const myEmailCheck = (userProfile.email || currentUser?.email || '').toLowerCase();
+    const activeUnpaidTopup = orders.find(o => {
+        const isTopup = Boolean(o.isTopupOrder === true || o.orderType === 'TOPUP_BALANCE' || String(o.id || '').startsWith('TOPUP-'));
+        if (!isTopup) return false;
+        if (o.status !== 'UNPAID' && o.status !== 'PENDING_PAYMENT') return false;
+        const expMs = Number(o.expiresAt || 0);
+        if (expMs > 0 && expMs <= Date.now()) return false;
+        return (myUidCheck && o.userId === myUidCheck) || (myEmailCheck && String(o.userEmail || '').toLowerCase() === myEmailCheck);
+    });
+    if (activeUnpaidTopup) {
+        window.switchV30TopupInnerTab('history');
+        window.openOrderDetailModalById(activeUnpaidTopup.id);
+        window.showToast('Selesaikan Top Up Aktif', `Masih ada tagihan Top Up #${activeUnpaidTopup.id} yang menunggu pembayaran. Silakan lanjutkan atau batalkan terlebih dahulu.`, 'warning');
+        return;
+    }
+
     const rawAmt = parseInt(document.getElementById('topup-custom-amount')?.value || '0', 10);
     if (isNaN(rawAmt) || rawAmt < 1000) {
         window.customAlert('Nominal Minimal Rp1.000', 'Masukkan nominal pengisian saldo minimal Rp1.000.', 'warning');
@@ -9812,7 +9865,7 @@ window.updateUserTrxPinProfileUI = function() {
     if (!pinCard) return;
 
     const isMember = Boolean(currentUser && !currentUser.isAnonymous && !userProfile.isGuest);
-    pinCard.style.display = isMember ? 'block' : 'none';
+    pinCard.style.display = isMember ? 'flex' : 'none';
     if (!isMember) return;
 
     const savedPin = String(userProfile.trxPin || localStorage.getItem(`vipercell_trx_pin_${currentUser?.uid || ''}`) || '').trim();
@@ -10010,7 +10063,7 @@ window.renderTopupHistoryList = function() {
         }
 
         return `
-            <div class="topup-history-card" onclick="window.viewOrderDetail('${escapeJsStr(o.id)}')" style="cursor:pointer;">
+            <div class="topup-history-card" onclick="window.openOrderDetailModalById('${escapeJsStr(o.id)}')" style="cursor:pointer;">
                 <div>
                     <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:4px;">
                         <strong class="code-mono" style="font-size:0.84rem;">#${escapeHtml(o.id)}</strong>
@@ -13091,3 +13144,139 @@ setInterval(() => {
         window.recordCurrentUserLoginActivity();
     }
 }, 1800);
+
+
+// ============================================================================
+// PEMBARUAN v30.2: TAB MEMBER PLUS 2 TAB (KELOLA & RIWAYAT), KUNCI SCROLL
+// POP-UP, BUKA STRUK TOP UP / MEMBER+, & KODE RAHASIA ENDPOINT VPS BRIDGE
+// ============================================================================
+
+window.viewOrderDetail = function(invId) {
+    return window.openOrderDetailModalById(invId);
+};
+
+window.switchV302MemberPlusInnerTab = function(tabMode = 'manage') {
+    const isHistory = (tabMode === 'history');
+    const btnManage = document.getElementById('btn-v302-mp-tab-manage');
+    const btnHistory = document.getElementById('btn-v302-mp-tab-history');
+    const panelManage = document.getElementById('memberplus-main-content-grid');
+    const panelHistory = document.getElementById('memberplus-history-unified-card');
+    const panelCompare = document.getElementById('topup-panel-compare');
+
+    if (panelCompare) panelCompare.style.display = 'none';
+    if (btnManage) btnManage.classList.toggle('active', !isHistory);
+    if (btnHistory) btnHistory.classList.toggle('active', isHistory);
+
+    if (panelManage) {
+        panelManage.classList.remove('mp-hidden-force');
+        panelManage.style.display = isHistory ? 'none' : 'block';
+    }
+    if (panelHistory) {
+        panelHistory.style.display = isHistory ? 'block' : 'none';
+    }
+    if (isHistory && typeof window.renderMemberPlusOrderHistoryList === 'function') {
+        window.renderMemberPlusOrderHistoryList();
+    }
+};
+
+// Override openPriceComparisonTab & backToMemberPlusTabFromComparison agar sinkron dengan 2 Tab Member Plus
+const _origOpenPriceComp = window.openPriceComparisonTab;
+window.openPriceComparisonTab = function() {
+    const tabsBar = document.getElementById('v302-mp-tabs-bar');
+    const histCard = document.getElementById('memberplus-history-unified-card');
+    if (tabsBar) tabsBar.style.display = 'none';
+    if (histCard) histCard.style.display = 'none';
+    if (typeof _origOpenPriceComp === 'function') _origOpenPriceComp();
+};
+
+const _origBackFromComp = window.backToMemberPlusTabFromComparison;
+window.backToMemberPlusTabFromComparison = function() {
+    const tabsBar = document.getElementById('v302-mp-tabs-bar');
+    if (tabsBar) tabsBar.style.display = 'grid';
+    if (typeof _origBackFromComp === 'function') _origBackFromComp();
+    window.switchV302MemberPlusInnerTab('manage');
+};
+
+// Kunci Pergerakan Latar Belakang Saat Modal / Pop-Up Terbuka (Poin #4)
+function syncUserModalScrollLock() {
+    const anyActive = Array.from(document.querySelectorAll('.modal-overlay')).some(
+        el => el.classList.contains('active') || el.style.display === 'flex'
+    );
+    document.documentElement.classList.toggle('v302-modal-scroll-locked', anyActive);
+    document.body.classList.toggle('v302-modal-scroll-locked', anyActive);
+}
+
+const _origOpenModalUser = window.openModal;
+window.openModal = function(id) {
+    if (typeof _origOpenModalUser === 'function') _origOpenModalUser(id);
+    setTimeout(syncUserModalScrollLock, 20);
+};
+
+const _origCloseModalUser = window.closeModal;
+window.closeModal = function(id) {
+    if (typeof _origCloseModalUser === 'function') _origCloseModalUser(id);
+    setTimeout(syncUserModalScrollLock, 20);
+};
+
+// Override Pemanggilan ke VPS Bridge Digiflazz Menggunakan Kode Rahasia Endpoint (Tanpa API Key / Username di Browser)
+callClientDigiflazzApi = async function(endpointPath, payloadData, explicitSignSuffix = '') {
+    const bridgeUrl = (siteSettings.digiflazzBridgeUrl || 'https://api.vipercell.cloud').trim();
+    const envMode = siteSettings.digiflazzEnvMode || 'production';
+    const bridgeSecret = (siteSettings.digiflazzBridgeAccessKey || 'VIPERCELL_BRIDGE_SECRET_2026').trim();
+
+    const basePayload = { ...(payloadData || {}) };
+    delete basePayload.username;
+    delete basePayload.sign;
+
+    if (basePayload.customer_no !== undefined) {
+        basePayload.customer_no = combineGameIdAndZoneForDigiflazz(basePayload.customer_no, basePayload.zone_id || '');
+        delete basePayload.zone_id;
+    }
+
+    const rawBases = [bridgeUrl, 'https://api.vipercell.cloud'];
+    if (typeof window !== 'undefined' && window.location && window.location.protocol === 'http:') {
+        rawBases.push('http://139.59.60.91:3100', 'http://localhost:3100');
+    }
+    const candidateUrls = [];
+    rawBases.forEach(b => {
+        const cb = String(b || '').trim().replace(/\/+$/, '');
+        if (!cb || !cb.startsWith('http')) return;
+        const u1 = cb.endsWith('/api/digiflazz') ? cb : (cb + '/api/digiflazz');
+        const u2 = cb.endsWith('/api/digiflazz') ? cb.replace(/\/api\/digiflazz$/, '') : cb;
+        if (!candidateUrls.includes(u1)) candidateUrls.push(u1);
+        if (!candidateUrls.includes(u2)) candidateUrls.push(u2);
+    });
+
+    const reqBody = {
+        endpoint: endpointPath,
+        envMode: envMode,
+        bridgeAccessKey: bridgeSecret,
+        payload: basePayload
+    };
+
+    let lastErr = null;
+    for (const u of candidateUrls) {
+        try {
+            const res = await fetch(u, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Vipercell-Bridge-Key': bridgeSecret
+                },
+                body: JSON.stringify(reqBody)
+            });
+            const rawJson = await res.json().catch(() => null);
+            const jsonRes = normalizeBridgeResponseJsonClient(rawJson);
+            if (jsonRes && jsonRes.ok === false && jsonRes.data === undefined) {
+                lastErr = new Error(jsonRes.message || 'Gagal menghubungi Server Layanan.');
+                continue;
+            }
+            if (jsonRes && jsonRes.data !== undefined) {
+                return jsonRes;
+            }
+        } catch (err) {
+            lastErr = err;
+        }
+    }
+    throw lastErr || new Error('Layanan sedang sibuk. Silakan coba beberapa saat lagi.');
+};
