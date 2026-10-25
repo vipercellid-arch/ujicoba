@@ -7514,3 +7514,107 @@ html[data-theme="dark"] .v301-popup-banner-card {
     font-weight: 700;
     color: #e2e8f0;
 }
+
+
+/* ==========================================================================
+   PEMBARUAN v30.2: SLIM METODE PEMBAYARAN, LOCK LATAR POP-UP,
+   SEJAJARKAN PANAH PROFIL, & HAPUS UI EMAS BERLEBIHAN MEMBER PLUS
+   ========================================================================== */
+
+/* 1. Kartu Metode Pembayaran Super Ringkas & Kecil (Poin #1) */
+.v302-slim-pay-card,
+#pay-card-balance.v302-slim-pay-card {
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    padding: 7px 11px !important;
+    min-height: 38px !important;
+    max-height: 42px !important;
+    border-radius: 10px !important;
+    gap: 8px !important;
+}
+
+.v302-slim-pay-left {
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+    font-size: 0.8rem !important;
+    font-weight: 900 !important;
+    color: var(--text) !important;
+}
+
+.v302-slim-pay-left i {
+    font-size: 0.95rem !important;
+}
+
+#pay-card-balance.v302-slim-pay-card .pay-badge {
+    font-size: 0.75rem !important;
+    padding: 3px 9px !important;
+    margin: 0 !important;
+}
+
+#balance-warning-msg {
+    display: none !important;
+}
+
+/* 2. Pastikan Semua Item Menu di Tab Profil Selalu Flex Sejajar (Poin #3) */
+.v301-profile-menu-item:not([style*="display: none"]):not([style*="display:none"]) {
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+}
+
+/* 3. Kunci Mutlak Pergerakan Halaman Belakang Saat Modal / Pop-Up Terbuka (Poin #4) */
+html.v302-modal-scroll-locked,
+body.v302-modal-scroll-locked {
+    overflow: hidden !important;
+    overscroll-behavior: none !important;
+}
+
+.modal-overlay.active {
+    overscroll-behavior: contain !important;
+    touch-action: none !important;
+}
+
+.modal-overlay.active .modal-content {
+    touch-action: pan-y !important;
+    overscroll-behavior: contain !important;
+}
+
+/* 4. Hapus UI Emas Khusus Member Plus — Tampilan Biasa & Serasi, Hanya Label Member Plus (Poin #6) */
+.profile-hero-card.profile-hero-memberplus-gold,
+.profile-hero-card.memberplus-profile-gold,
+html[data-theme="dark"] .profile-hero-card.profile-hero-memberplus-gold,
+html[data-theme="dark"] .profile-hero-card.memberplus-profile-gold {
+    background: var(--surface) !important;
+    border: var(--brutal-border) !important;
+    box-shadow: var(--brutal-shadow) !important;
+    color: var(--text) !important;
+}
+
+.profile-hero-card.profile-hero-memberplus-gold #prof-display-name,
+html[data-theme="dark"] .profile-hero-card.profile-hero-memberplus-gold #prof-display-name {
+    color: var(--text) !important;
+}
+
+.profile-hero-card.profile-hero-memberplus-gold #prof-display-email,
+html[data-theme="dark"] .profile-hero-card.profile-hero-memberplus-gold #prof-display-email {
+    color: var(--text-muted) !important;
+}
+
+.profile-avatar-box.memberplus-gold-avatar {
+    background: var(--primary) !important;
+    color: #ffffff !important;
+}
+
+#prof-avatar-crown,
+.profile-avatar-crown-badge {
+    display: none !important;
+}
+
+.v301-profile-menu-item.menu-gold {
+    border-color: var(--border) !important;
+    background: var(--surface) !important;
+}
