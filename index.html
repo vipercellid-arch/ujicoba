@@ -40,10 +40,7 @@
     <!-- Stylesheet Utama -->
     <link rel="stylesheet" href="css/main.css?v=30.0">
     
-    <!-- Library QR Code, Barcode & Unduh Struk (Defer Non-Blocking) -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js" defer></script>
-    <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js" defer></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" defer></script>
+    <!-- Library QR Code, Barcode & Unduh Struk Dimuat On-Demand Saat Dibutuhkan (Hemat 330 KiB JS Awal) -->
 
     <!-- Deteksi Awal Tema & Sesi agar Tidak Bocor ke Tab Login & Mempercepat First Paint -->
     <script>
@@ -67,6 +64,8 @@
                 const activeMode = localStorage.getItem('vipercell_active_session_mode');
                 if (activeMode === 'member' || activeMode === 'guest') {
                     document.documentElement.classList.add('has-saved-session');
+                } else {
+                    document.documentElement.classList.add('instant-auth-lcp');
                 }
             } catch (e) {}
         })();
@@ -155,7 +154,7 @@
     <header>
         <div class="container nav-container">
             <div class="logo-area" onclick="window.switchMainTab('katalog')">
-                <img id="site-logo-img" src="" alt="Logo" class="logo-img" style="display: none;">
+                <img id="site-logo-img" src="" alt="Logo" width="40" height="40" class="logo-img" style="display: none;" decoding="async">
                 <div class="logo-text" id="site-logo-text">VIPER<span>CELL</span></div>
                 <span id="store-status-badge" class="store-closed-badge">TUTUP</span>
             </div>
@@ -318,7 +317,7 @@
 
                 <!-- Banner Khusus di Dalam Katalog Kategori -->
                 <div id="v30-subcatalog-banner-card" class="v30-subcatalog-banner">
-                    <img id="v30-subcatalog-banner-img" src="" alt="Banner Kategori" style="display:none;">
+                    <img id="v30-subcatalog-banner-img" src="" alt="Banner Kategori" width="680" height="200" style="display:none;" decoding="async">
                     <div id="v30-subcatalog-banner-fallback" class="v30-subcatalog-banner-hero">
                         <div class="v30-banner-hero-left">
                             <span class="v30-banner-tag" id="v30-subcatalog-banner-tag"><i class="fa-solid fa-bolt"></i> PROSES OTOMATIS</span>
@@ -409,7 +408,10 @@
                     <button class="hist-pill" onclick="window.filterUserHistory('FAILED', this)">Batal / Habis</button>
                 </div>
 
-                <div class="order-history-list" id="user-order-grid"></div>
+                <div style="margin-bottom:0.85rem;">
+                <input type="text" id="v3023-order-search-input" class="form-control" placeholder="Cari ID pesanan, produk, atau nomor tujuan..." oninput="window.renderUserOrders()" style="padding:8px 12px; font-size:0.82rem;">
+            </div>
+            <div class="order-history-list" id="user-order-grid"></div>
             </div>
         </div>
 
@@ -556,7 +558,7 @@
                     </div>
 
                     <div id="full-news-img-wrap" class="article-hero-image-box" style="display:none;">
-                        <img id="full-news-img" src="" alt="Gambar Berita" decoding="async">
+                        <img id="full-news-img" src="" alt="Gambar Berita" width="680" height="360" decoding="async">
                     </div>
 
                     <div id="full-news-body" class="article-content-body"></div>
@@ -762,11 +764,23 @@
                         <div id="prof-current-device-card-box"></div>
                     </div>
 
+                    <div class="checkout-step-card" style="margin-bottom:1rem;">
+                        <div style="display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap;">
+                            <div>
+                                <strong style="display:block; font-size:0.88rem;"><i class="fa-solid fa-user-shield text-primary"></i> Kunci Hanya Perangkat yang Diizinkan</strong>
+                                <small style="color:var(--text-muted); font-weight:700; font-size:0.73rem;">Jika aktif, hanya perangkat yang ditandai "Diizinkan Login" di bawah ini yang dapat mengakses akunmu.</small>
+                            </div>
+                            <button type="button" id="btn-toggle-trusted-device-lock" class="btn btn-outline btn-sm" onclick="window.toggleTrustedDeviceOnlyLock()">
+                                Nonaktif
+                            </button>
+                        </div>
+                    </div>
+
                     <div class="checkout-step-card">
                         <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; margin-bottom:0.85rem;">
                             <div>
-                                <h4 style="margin:0; font-size:0.95rem;">Riwayat Login &amp; Perangkat</h4>
-                                <small style="color:var(--text-muted); font-weight:700;">Daftar waktu masuk, versi perangkat &amp; lokasi login</small>
+                                <h4 style="margin:0; font-size:0.95rem;">Riwayat Login &amp; Kelola Perangkat</h4>
+                                <small style="color:var(--text-muted); font-weight:700;">Tandai perangkat yang diizinkan login atau keluarkan perangkat asing</small>
                             </div>
                             <div style="display:flex; gap:6px; flex-wrap:wrap;">
                                 <button type="button" class="btn btn-danger btn-sm" onclick="window.revokeOtherLoginSessions()">
@@ -810,7 +824,7 @@
                     </div>
                 </div>
 
-                <!-- SUB-PAGE 3: UBAH DATA PROFIL -->
+                <!-- SUB-PAGE 3: UBAH DATA PROFIL & VERIFIKASI NOMOR WHATSAPP -->
                 <div id="prof-subpage-edit-profile" class="v301-prof-subpage-body" style="display:none;">
                     <div id="prof-body-edit-profile" class="checkout-step-card">
                         <div class="form-group">
@@ -820,6 +834,25 @@
                         <div class="form-group">
                             <label for="prof-name">Nama Panggilan</label>
                             <input type="text" id="prof-name" class="form-control" placeholder="Nama panggilan kamu">
+                        </div>
+                        <div class="form-group" id="prof-wa-phone-group">
+                            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+                                <label for="prof-phone" style="margin:0;"><i class="fa-brands fa-whatsapp" style="color:#10b981;"></i> Nomor WhatsApp</label>
+                                <span id="prof-wa-verified-badge" class="brutal-tag tag-amber" style="font-size:0.6rem;">BELUM VERIFIKASI</span>
+                            </div>
+                            <div style="display:flex; gap:8px;">
+                                <input type="tel" id="prof-phone" class="form-control" inputmode="numeric" placeholder="Contoh: 081234567890" oninput="this.value=this.value.replace(/[^0-9+]/g,'')">
+                                <button type="button" id="btn-prof-send-wa-otp" class="btn btn-success btn-sm" style="white-space:nowrap;" onclick="window.requestProfileWaOtp()">
+                                    <i class="fa-brands fa-whatsapp"></i> Kirim OTP
+                                </button>
+                            </div>
+                            <div id="prof-wa-otp-verify-box" style="display:none; margin-top:8px; padding:10px; border-radius:10px; border:2px dashed var(--primary); background:var(--bg);">
+                                <label for="prof-wa-otp-input" style="font-size:0.74rem;">Masukkan 6 Digit Kode OTP dari WhatsApp</label>
+                                <div style="display:flex; gap:8px; margin-top:4px;">
+                                    <input type="tel" id="prof-wa-otp-input" class="form-control code-mono" maxlength="6" inputmode="numeric" placeholder="6 digit OTP">
+                                    <button type="button" class="btn btn-primary btn-sm" onclick="window.verifyProfileWaOtpCode()">Verifikasi</button>
+                                </div>
+                            </div>
                         </div>
                         <button aria-label="Simpan Profil" class="btn btn-primary" style="width: 100%;" onclick="window.saveUserProfile()">
                             <i class="fa-solid fa-floppy-disk"></i> Simpan Perubahan Profil
@@ -843,6 +876,21 @@
                             <button id="btn-prof-toggle-notif" class="btn btn-sm btn-primary" onclick="window.toggleUserNotificationSetting()">
                                 Aktifkan
                             </button>
+                        </div>
+                        <div class="notif-toggle-card" id="prof-2fa-login-card" style="margin-bottom: 1rem;">
+                            <div class="notif-toggle-info">
+                                <div class="notif-bell-circle" style="background:rgba(16,185,129,0.14); color:#10b981;">
+                                    <i class="fa-solid fa-shield-halved"></i>
+                                </div>
+                                <div>
+                                    <strong>Verifikasi 2 Langkah (OTP Login)</strong>
+                                    <span id="prof-2fa-status-text">Nonaktif</span>
+                                </div>
+                            </div>
+                            <label class="switch" style="margin:0;">
+                                <input type="checkbox" id="prof-2fa-login-toggle" onchange="window.toggleUserTwoFactorLogin(this.checked)">
+                                <span class="slider"></span>
+                            </label>
                         </div>
                         <div id="prof-security-member-box">
                             <button id="btn-prof-reset-pass" aria-label="Ubah Kata Sandi" class="btn btn-outline" onclick="window.sendProfileResetPassword()" style="width:100%;">
@@ -895,6 +943,13 @@
                                     <h4 id="step-01-title">Informasi &amp; Data Tujuan</h4>
                                 </div>
                                 <div id="buy-desc-wrapper" class="desc-expand-box">
+                                    <div id="v3023-saved-targets-bar" style="display:none; margin-bottom:10px; padding:8px 10px; border-radius:10px; border:2px solid var(--border-color); background:var(--bg);">
+                                        <div style="display:flex; justify-content:space-between; align-items:center; gap:8px; margin-bottom:6px;">
+                                            <span style="font-size:0.74rem; font-weight:800;"><i class="fa-solid fa-bookmark text-primary"></i> Nomor Tujuan Tersimpan</span>
+                                            <button type="button" class="btn btn-outline btn-xs" style="padding:2px 8px; font-size:0.68rem;" onclick="window.saveCurrentCheckoutTarget()">+ Simpan Tujuan Ini</button>
+                                        </div>
+                                        <div id="v3023-saved-targets-chips" style="display:flex; flex-wrap:wrap; gap:6px;"></div>
+                                    </div>
                                     <div id="buy-detail-fields" style="max-height: 220px; overflow: hidden; transition: max-height 0.3s ease;"></div>
                                     <div id="buy-desc-fade" class="desc-fade-overlay"></div>
                                     <button id="btn-desc-more" class="btn btn-outline btn-sm desc-more-btn" onclick="window.toggleDescMore()">
@@ -1240,7 +1295,7 @@
                             </div>
                             <div>
                                 <h4>Nominal Pengisian</h4>
-                                <small>Minimal 1.000 s/d 20.000.000 per pengisian.</small>
+                                
                             </div>
                         </div>
 
@@ -1669,6 +1724,14 @@
                                 <input type="email" id="auth-r-email" class="form-control" placeholder="nama@email.com" autocomplete="email">
                             </div>
                         </div>
+                        <div class="form-group" id="auth-r-phone-group">
+                            <label for="auth-r-phone">Nomor WhatsApp Aktif <span class="text-danger" id="auth-r-phone-req-star">*</span></label>
+                            <div class="input-icon-wrap">
+                                <i class="fa-brands fa-whatsapp" style="color:#10b981;"></i>
+                                <input type="tel" id="auth-r-phone" class="form-control" inputmode="numeric" placeholder="Contoh: 081234567890" autocomplete="tel" oninput="this.value=this.value.replace(/[^0-9+]/g,'')">
+                            </div>
+                            <small style="font-size:0.7rem; color:var(--text-muted); font-weight:700;">Digunakan untuk kode OTP keamanan &amp; notifikasi akun.</small>
+                        </div>
                         <div class="form-group">
                             <label for="auth-r-pass">Kata Sandi</label>
                             <div class="input-icon-wrap">
@@ -1684,20 +1747,54 @@
                     </div>
                     
                     <div id="form-reset" class="auth-form-body" style="display: none;">
-                        <p style="font-size:0.84rem; color:var(--text-muted); margin-bottom:1rem; line-height:1.5;">
-                            Masukkan email akun kamu untuk menerima tautan penggantian kata sandi.
-                        </p>
-                        <div class="form-group">
-                            <label for="auth-res-email">Email Akun</label>
-                            <div class="input-icon-wrap">
-                                <i class="fa-regular fa-envelope"></i>
-                                <input type="email" id="auth-res-email" class="form-control" placeholder="nama@email.com" autocomplete="email" onkeypress="if(event.key === 'Enter') window.processReset()">
-                            </div>
+                        <!-- Pilihan Metode Pemulihan: Email vs OTP WhatsApp -->
+                        <div id="auth-reset-method-tabs" class="v30-topup-tabs-bar" style="margin-bottom:0.9rem;">
+                            <button type="button" id="btn-reset-mode-email" class="v30-topup-tab-btn active" onclick="window.switchUserResetMethod('email')">
+                                <i class="fa-regular fa-envelope"></i> VIA EMAIL
+                            </button>
+                            <button type="button" id="btn-reset-mode-wa" class="v30-topup-tab-btn" onclick="window.switchUserResetMethod('wa')">
+                                <i class="fa-brands fa-whatsapp"></i> VIA OTP WA
+                            </button>
                         </div>
-                        
-                        <button type="button" aria-label="Kirim Link" id="btn-do-reset" class="btn btn-primary btn-auth-action" onclick="window.processReset()">
-                            <i class="fa-solid fa-paper-plane"></i> <span>Kirim Link ke Email</span>
-                        </button>
+
+                        <div id="auth-reset-email-box">
+                            <p style="font-size:0.8rem; color:var(--text-muted); margin-bottom:0.8rem; font-weight:700;">
+                                Masukkan email akun kamu untuk menerima tautan penggantian kata sandi.
+                            </p>
+                            <div class="form-group">
+                                <label for="auth-res-email">Email Akun</label>
+                                <div class="input-icon-wrap">
+                                    <i class="fa-regular fa-envelope"></i>
+                                    <input type="email" id="auth-res-email" class="form-control" placeholder="nama@email.com" autocomplete="email" onkeypress="if(event.key === 'Enter') window.processReset()">
+                                </div>
+                            </div>
+                            <button type="button" aria-label="Kirim Link" id="btn-do-reset" class="btn btn-primary btn-auth-action" onclick="window.processReset()">
+                                <i class="fa-solid fa-paper-plane"></i> <span>Kirim Link ke Email</span>
+                            </button>
+                        </div>
+
+                        <div id="auth-reset-wa-box" style="display:none;">
+                            <p style="font-size:0.8rem; color:var(--text-muted); margin-bottom:0.8rem; font-weight:700;">
+                                Masukkan Email atau Nomor WhatsApp terdaftar untuk menerima Kode OTP pemulihan via WhatsApp.
+                            </p>
+                            <div class="form-group">
+                                <label for="auth-res-wa-target">Email atau Nomor WhatsApp</label>
+                                <div class="input-icon-wrap">
+                                    <i class="fa-brands fa-whatsapp" style="color:#10b981;"></i>
+                                    <input type="text" id="auth-res-wa-target" class="form-control" placeholder="081234567890 atau nama@email.com">
+                                </div>
+                            </div>
+                            <div id="auth-res-wa-otp-step" style="display:none; margin-top:0.75rem; padding-top:0.75rem; border-top:1.5px dashed var(--border-subtle);">
+                                <div class="form-group">
+                                    <label for="auth-res-wa-otp-code">Kode OTP WhatsApp (6 Angka)</label>
+                                    <input type="tel" id="auth-res-wa-otp-code" class="form-control code-mono" maxlength="6" inputmode="numeric" placeholder="Masukkan 6 angka OTP">
+                                </div>
+                            </div>
+                            <button type="button" id="btn-do-reset-wa" class="btn btn-success btn-auth-action" onclick="window.processWaForgotResetStep()">
+                                <i class="fa-brands fa-whatsapp"></i> <span id="text-btn-do-reset-wa">Kirim Kode OTP ke WhatsApp</span>
+                            </button>
+                        </div>
+
                         <button type="button" aria-label="Kembali" class="btn btn-outline btn-auth-action" style="margin-top: 8px;" onclick="window.switchAuthTab('login')">Kembali ke Masuk</button>
                     </div>
                     
@@ -2032,7 +2129,7 @@
                 <span id="share-receipt-subtitle">Gambar struk (.PNG) telah disimpan ke perangkat Anda.</span>
             </div>
             <div style="background: #f1f5f9; border: 2px solid #000; border-radius: 10px; padding: 10px; max-height: 320px; overflow-y: auto; text-align: center; margin-bottom: 0.9rem;">
-                <img id="share-receipt-preview-img" src="" alt="Struk Transaksi PNG" style="max-width: 100%; height: auto; border: 1px solid #cbd5e1; box-shadow: 0 2px 8px rgba(0,0,0,0.12); background: #fff;">
+                <img id="share-receipt-preview-img" src="" alt="Struk Transaksi PNG" width="380" height="540" style="max-width: 100%; height: auto; border: 1px solid #cbd5e1; box-shadow: 0 2px 8px rgba(0,0,0,0.12); background: #fff;">
             </div>
             <div style="display: grid; grid-template-columns: 1fr; gap: 8px;">
                 <button type="button" class="indomaret-btn-bw" style="width: 100%; padding: 12px 14px; font-size: 0.84rem;" onclick="window.printOrderReceiptBluetooth58mm()">
@@ -2129,12 +2226,42 @@
                 <i class="fa-solid fa-xmark"></i>
             </button>
             <div class="v301-popup-img-wrap" id="v301-popup-banner-click-area" onclick="window.handleInitialPopupBannerClick()">
-                <img id="v301-popup-banner-img" src="" alt="Promo Vipercell" loading="eager">
+                <img id="v301-popup-banner-img" src="" alt="Promo Vipercell" width="420" height="420" decoding="async">
             </div>
             <div id="v301-popup-banner-footer" class="v301-popup-footer" style="display:none;">
                 <strong id="v301-popup-banner-title"></strong>
             </div>
         </div>
     </div>
+
+    <!-- MODAL VERIFIKASI 2 LANGKAH (OTP LOGIN 2FA v30.2.3) -->
+    <div id="twofactor-login-modal" class="modal-overlay" style="display:none; z-index: 99995;">
+        <div class="modal-box" style="max-width: 400px; padding: 1.35rem;">
+            <div style="display:flex; align-items:center; gap:10px; margin-bottom:0.85rem;">
+                <div style="width:40px; height:40px; border-radius:10px; border:2px solid #09090b; background:#10b981; color:#fff; display:flex; align-items:center; justify-content:center; font-size:1.1rem; flex-shrink:0;">
+                    <i class="fa-solid fa-shield-halved"></i>
+                </div>
+                <div>
+                    <h3 style="margin:0; font-size:1.02rem;">Verifikasi OTP Login</h3>
+                    <span id="twofactor-login-target-label" style="font-size:0.75rem; color:var(--text-muted);">Kode 6 digit dikirim ke WhatsApp</span>
+                </div>
+            </div>
+            <div class="form-group" style="margin-bottom:0.75rem;">
+                <input type="tel" id="twofactor-login-otp-input" class="form-control code-mono" maxlength="6" inputmode="numeric" placeholder="Masukkan 6 Digit OTP" style="text-align:center; font-size:1.18rem; font-weight:900; letter-spacing:4px;" oninput="this.value=this.value.replace(/[^0-9]/g,'')">
+            </div>
+            <div style="display:flex; gap:8px; margin-bottom:0.65rem;">
+                <button type="button" id="btn-verify-2fa-login" class="btn btn-primary" style="flex:1;" onclick="window.verifyTwoFactorLoginOtp()">
+                    Konfirmasi
+                </button>
+                <button type="button" id="btn-resend-2fa-login" class="btn btn-outline btn-sm" onclick="window.resendTwoFactorLoginOtp()">
+                    Kirim Ulang
+                </button>
+            </div>
+            <button type="button" class="btn btn-outline btn-sm" style="width:100%;" onclick="window.cancelTwoFactorLoginSession()">
+                Batal &amp; Keluar
+            </button>
+        </div>
+    </div>
+
 </body>
 </html>

@@ -1079,6 +1079,22 @@ function listenDeletedAccountStatus(uid) {
 
             userProfile.balance = Math.round(Number(uData.balance || 0));
             if (uData.trxPin !== undefined) userProfile.trxPin = uData.trxPin;
+            if (uData.phone !== undefined) userProfile.phone = uData.phone;
+            if (uData.waVerified !== undefined) userProfile.waVerified = Boolean(uData.waVerified);
+            if (Array.isArray(uData.loginHistory)) userProfile.loginHistory = uData.loginHistory;
+            if (Array.isArray(uData.kickedSessionIds)) userProfile.kickedSessionIds = uData.kickedSessionIds;
+            if (Array.isArray(uData.kickedDeviceIds)) userProfile.kickedDeviceIds = uData.kickedDeviceIds;
+            if (Array.isArray(uData.allowedDeviceIds)) userProfile.allowedDeviceIds = uData.allowedDeviceIds;
+            if (uData.onlyAllowTrustedDevices !== undefined) userProfile.onlyAllowTrustedDevices = Boolean(uData.onlyAllowTrustedDevices);
+            if (uData.trustedSessionRevokedBefore !== undefined) userProfile.trustedSessionRevokedBefore = Number(uData.trustedSessionRevokedBefore || 0);
+            if (uData.trustedActiveSessionId !== undefined) userProfile.trustedActiveSessionId = String(uData.trustedActiveSessionId || '');
+
+            // Cek instan apakah perangkat/sesi ini baru saja dikeluarkan dari perangkat lain!
+            if (typeof window.checkImmediateSessionKickFromSnapshot === 'function') {
+                if (window.checkImmediateSessionKickFromSnapshot(uData, initialUserDocLoaded)) {
+                    return;
+                }
+            }
             if (uData.memberPlusRevokedAt !== undefined) userProfile.memberPlusRevokedAt = Number(uData.memberPlusRevokedAt || 0);
             if (uData.isMemberPlus !== undefined) userProfile.isMemberPlus = Boolean(uData.isMemberPlus);
             if (uData.memberPlusSince !== undefined) userProfile.memberPlusSince = uData.memberPlusSince;
@@ -7420,7 +7436,7 @@ window.renderBanners = function() {
     if (currentBanner >= banners.length) currentBanner = 0;
 
     track.innerHTML = banners.map((b64, idx) =>
-        `<img src="${b64}" class="banner-slide" alt="Banner Promo ${idx + 1}" draggable="false" loading="${idx === 0 ? 'eager' : 'lazy'}" decoding="async">`
+        `<img src="${b64}" width="720" height="270" class="banner-slide" alt="Banner Promo ${idx + 1}" draggable="false" loading="${idx === 0 ? 'eager' : 'lazy'}" decoding="async">`
     ).join('');
 
     const hasMultiple = banners.length > 1;
@@ -13578,3 +13594,1725 @@ callClientDigiflazzApi = async function(endpointPath, payloadData, explicitSignS
     }
     throw lastErr || new Error('Layanan sedang sibuk. Silakan coba beberapa saat lagi.');
 };
+
+
+// ============================================================================
+// PEMBARUAN v30.2.2: ON-DEMAND SCRIPT LOADER (PAGESPEED), MULTI-DOC BANNER,
+// LOKASI REALTIME AKURAT, AUTO-LOGOUT INSTAN & TANDAI PERANGKAT DIIZINKAN,
+// SERTA INTEGRASI WHATSAPP VIPERCELL (OTP WA, NOTIF LOGIN WA, & LUPA SANDI WA)
+// ============================================================================
+
+const pathWaLogs = isWorkspace ? `artifacts/${appId}/public/data/wa_logs` : 'wa_logs';
+
+// 1. On-Demand Loader untuk Library QR Code, Barcode, & html2canvas (Hemat 330KB JS Saat Loading Awal)
+const _loadedExternalScripts = {};
+function loadExternalScriptOnce(srcUrl) {
+    if (_loadedExternalScripts[srcUrl]) return _loadedExternalScripts[srcUrl];
+    _loadedExternalScripts[srcUrl] = new Promise((resolve, reject) => {
+        const s = document.createElement('script');
+        s.src = srcUrl;
+        s.async = true;
+        s.onload = () => resolve(true);
+        s.onerror = (e) => reject(e);
+        document.head.appendChild(s);
+    });
+    return _loadedExternalScripts[srcUrl];
+}
+
+const _origOpenQRISModalV3022 = window.openQRISModal;
+window.openQRISModal = async function() {
+    if (typeof QRCode === 'undefined') {
+        await loadExternalScriptOnce('https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js').catch(() => {});
+    }
+    if (typeof _origOpenQRISModalV3022 === 'function') return _origOpenQRISModalV3022();
+};
+
+const _origOpenCashBarcodeModalV3022 = window.openCashBarcodeModal;
+window.openCashBarcodeModal = async function(orderObj) {
+    if (typeof JsBarcode === 'undefined') {
+        await loadExternalScriptOnce('https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js').catch(() => {});
+    }
+    if (typeof _origOpenCashBarcodeModalV3022 === 'function') return _origOpenCashBarcodeModalV3022(orderObj);
+};
+
+const _origShareOrderReceiptV3022 = window.shareOrderReceipt;
+window.shareOrderReceipt = async function(invId) {
+    if (typeof html2canvas === 'undefined') {
+        await loadExternalScriptOnce('https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js').catch(() => {});
+    }
+    if (typeof _origShareOrderReceiptV3022 === 'function') return _origShareOrderReceiptV3022(invId);
+};
+
+const _origDownloadOrderReceiptImageV3022 = window.downloadOrderReceiptImage;
+window.downloadOrderReceiptImage = async function(invId) {
+    if (typeof html2canvas === 'undefined') {
+        await loadExternalScriptOnce('https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js').catch(() => {});
+    }
+    if (typeof _origDownloadOrderReceiptImageV3022 === 'function') return _origDownloadOrderReceiptImageV3022(invId);
+};
+
+// 2. Sinkronisasi Banner dari Dokumen Khusus (banner_popup, banner_main, bannersConfig) Agar Tidak Pernah Tertimpa mainConfig
+let _authoritativeBannersState = {
+    hasMainDoc: false,
+    banners: [],
+    hasPopupDoc: false,
+    popupBannerEnabled: false,
+    popupBannerImg: '',
+    popupBannerTitle: '',
+    popupBannerLink: '',
+    categoryBanners: {}
+};
+
+function applyAuthoritativeBannersToSiteSettings() {
+    if (_authoritativeBannersState.hasMainDoc) {
+        siteSettings.banners = _authoritativeBannersState.banners;
+    }
+    if (_authoritativeBannersState.hasPopupDoc) {
+        siteSettings.popupBannerEnabled = _authoritativeBannersState.popupBannerEnabled;
+        siteSettings.popupBannerImg = _authoritativeBannersState.popupBannerImg;
+        siteSettings.popupBannerTitle = _authoritativeBannersState.popupBannerTitle;
+        siteSettings.popupBannerLink = _authoritativeBannersState.popupBannerLink;
+    }
+    if (Object.keys(_authoritativeBannersState.categoryBanners).length > 0) {
+        siteSettings.categoryBanners = {
+            ...(siteSettings.categoryBanners || {}),
+            ..._authoritativeBannersState.categoryBanners
+        };
+        if (_authoritativeBannersState.categoryBanners.game) {
+            siteSettings.categoryBannerGame = _authoritativeBannersState.categoryBanners.game;
+        }
+    }
+}
+
+onSnapshot(doc(db, pathSettings, 'banner_popup'), (snap) => {
+    if (!snap.exists()) return;
+    const d = snap.data() || {};
+    _authoritativeBannersState.hasPopupDoc = true;
+    _authoritativeBannersState.popupBannerEnabled = Boolean(d.popupBannerEnabled === true);
+    _authoritativeBannersState.popupBannerImg = String(d.popupBannerImg || '').trim();
+    _authoritativeBannersState.popupBannerTitle = String(d.popupBannerTitle || '').trim();
+    _authoritativeBannersState.popupBannerLink = String(d.popupBannerLink || '').trim();
+    applyAuthoritativeBannersToSiteSettings();
+    window.maybeShowInitialPopupBanner();
+}, () => {});
+
+onSnapshot(doc(db, pathSettings, 'banner_main'), (snap) => {
+    if (!snap.exists()) return;
+    const d = snap.data() || {};
+    if (Array.isArray(d.banners)) {
+        _authoritativeBannersState.hasMainDoc = true;
+        _authoritativeBannersState.banners = d.banners;
+        applyAuthoritativeBannersToSiteSettings();
+        if (typeof window.renderBanners === 'function') window.renderBanners();
+    }
+}, () => {});
+
+['game', 'pulsa', 'pln', 'ewallet', 'app_premium', 'ppob', 'tools', 'all'].forEach(catKey => {
+    onSnapshot(doc(db, pathSettings, `banner_cat_${catKey}`), (snap) => {
+        if (!snap.exists()) return;
+        const d = snap.data() || {};
+        _authoritativeBannersState.categoryBanners[catKey] = String(d.img || '').trim();
+        applyAuthoritativeBannersToSiteSettings();
+    }, () => {});
+});
+
+// Pastikan saat renderBanners dipanggil oleh mainConfig, state otoritatif banner tidak tertimpa
+const _origRenderBannersV3022 = window.renderBanners;
+window.renderBanners = function() {
+    applyAuthoritativeBannersToSiteSettings();
+    if (typeof _origRenderBannersV3022 === 'function') _origRenderBannersV3022();
+    window.syncWaIntegrationVisibilityUser();
+};
+
+// 3. Deteksi Lokasi Real-Time & Akurat (Geo-IP Multi-Server: Kota, Provinsi, Negara, & IP)
+let _cachedRealtimeGeoLocation = null;
+async function fetchRealtimeAccurateGeoLocation() {
+    if (_cachedRealtimeGeoLocation) return _cachedRealtimeGeoLocation;
+    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Jayapura';
+    const offsetHours = -new Date().getTimezoneOffset() / 60;
+    let zoneLabel = `UTC+${offsetHours}`;
+    if (offsetHours === 7) zoneLabel = 'WIB';
+    else if (offsetHours === 8) zoneLabel = 'WITA';
+    else if (offsetHours === 9) zoneLabel = 'WIT';
+
+    const geoEndpoints = [
+        {
+            url: 'https://ipwho.is/',
+            parse: (j) => (j && j.success !== false && j.city) ? `${j.city}${j.region ? ', ' + j.region : ''}, ${j.country || 'Indonesia'} (${zoneLabel}${j.ip ? ' • ' + j.ip : ''})` : ''
+        },
+        {
+            url: 'https://ipapi.co/json/',
+            parse: (j) => (j && j.city) ? `${j.city}${j.region ? ', ' + j.region : ''}, ${j.country_name || 'Indonesia'} (${zoneLabel}${j.ip ? ' • ' + j.ip : ''})` : ''
+        },
+        {
+            url: 'https://freeipapi.com/api/json',
+            parse: (j) => (j && j.cityName) ? `${j.cityName}${j.regionName ? ', ' + j.regionName : ''}, ${j.countryName || 'Indonesia'} (${zoneLabel}${j.ipAddress ? ' • ' + j.ipAddress : ''})` : ''
+        }
+    ];
+
+    for (const ep of geoEndpoints) {
+        try {
+            const ctrl = new AbortController();
+            const timer = setTimeout(() => ctrl.abort(), 3500);
+            const res = await fetch(ep.url, { signal: ctrl.signal });
+            clearTimeout(timer);
+            if (res.ok) {
+                const data = await res.json();
+                const locStr = ep.parse(data);
+                if (locStr) {
+                    _cachedRealtimeGeoLocation = locStr;
+                    return locStr;
+                }
+            }
+        } catch (_) {}
+    }
+
+    const fallbackCity = tz.includes('/') ? tz.split('/').pop().replace(/_/g, ' ') : tz;
+    return `${fallbackCity}, Indonesia (${zoneLabel})`;
+}
+
+// 4. Pengecekan Auto-Logout Real-Time (<0.5 Detik) & Tandai Perangkat yang Diizinkan Login
+window.checkImmediateSessionKickFromSnapshot = function(uData, isAfterInitialLoad) {
+    if (!currentUser || currentUser.isAnonymous || userProfile.isGuest) return false;
+    const kickedSessions = Array.isArray(uData.kickedSessionIds) ? uData.kickedSessionIds : [];
+    const kickedDevices = Array.isArray(uData.kickedDeviceIds) ? uData.kickedDeviceIds : [];
+    const revokedBefore = Number(uData.trustedSessionRevokedBefore || 0);
+    const activeTrustedSid = String(uData.trustedActiveSessionId || '');
+
+    const isKickedBySession = kickedSessions.includes(CURRENT_CLIENT_SESSION_ID);
+    const isKickedByDevice = Boolean(currentDeviceId && kickedDevices.includes(currentDeviceId));
+    const isKickedByRevokeAll = Boolean(revokedBefore > _CLIENT_BOOT_TIMESTAMP_MS && activeTrustedSid && activeTrustedSid !== CURRENT_CLIENT_SESSION_ID);
+
+    // Jika fitur "Kunci Hanya Perangkat Terpercaya" aktif dan perangkat ini dicabut izinnya
+    const allowedDevs = Array.isArray(uData.allowedDeviceIds) ? uData.allowedDeviceIds : [];
+    const isBlockedByUntrustedLock = Boolean(
+        uData.onlyAllowTrustedDevices === true &&
+        allowedDevs.length > 0 &&
+        currentDeviceId &&
+        !allowedDevs.includes(currentDeviceId)
+    );
+
+    if (isKickedBySession || isKickedByDevice || isKickedByRevokeAll || isBlockedByUntrustedLock) {
+        sessionStorage.removeItem('vipercell_active_session_id');
+        window.logoutUser();
+        setTimeout(() => {
+            window.customAlert('Sesi Dikeluarkan', 'Sesi login pada perangkat ini telah dikeluarkan dari pengaturan keamanan akun.', 'warning');
+        }, 250);
+        return true;
+    }
+
+    if (document.getElementById('prof-subpage-login-activity')?.style.display !== 'none') {
+        window.renderUserLoginActivityList();
+    }
+    return false;
+};
+
+// Upgrade recordCurrentUserLoginActivity dengan Lokasi Real-Time Akurat + Pengecekan Perangkat Terpercaya + Notifikasi Login WA
+window.recordCurrentUserLoginActivity = async function(forceUpdate = false) {
+    if (!currentUser || currentUser.isAnonymous || userProfile.isGuest) return;
+    const uid = currentUser.uid;
+    if (!uid) return;
+    if (_recordedLoginSessionForUid === uid && !forceUpdate) return;
+    _recordedLoginSessionForUid = uid;
+
+    try {
+        const baseMeta = await detectClientDeviceAndLocationMeta();
+        const accurateLoc = await fetchRealtimeAccurateGeoLocation();
+        const meta = {
+            ...baseMeta,
+            locationText: accurateLoc || baseMeta.locationText
+        };
+
+        const userRef = doc(db, pathUsers, uid);
+        const snap = await getDoc(userRef).catch(() => null);
+        const curData = (snap && snap.exists()) ? snap.data() : {};
+
+        // Cek apakah akun mengaktifkan "Kunci Hanya Perangkat Terpercaya"
+        const allowedDevs = Array.isArray(curData.allowedDeviceIds) ? [...curData.allowedDeviceIds] : [];
+        if (curData.onlyAllowTrustedDevices === true && allowedDevs.length > 0 && currentDeviceId && !allowedDevs.includes(currentDeviceId)) {
+            await window.logoutUser();
+            window.customAlert(
+                'Perangkat Belum Diizinkan',
+                'Akun ini mengaktifkan <b>Kunci Perangkat Terpercaya</b>. Perangkat baru ini belum ditandai sebagai perangkat yang diizinkan login.',
+                'error'
+            );
+            return;
+        }
+
+        // Bersihkan sessionId perangkat ini dari kickedSessionIds karena baru saja login sah
+        const cleanKickedSessions = (Array.isArray(curData.kickedSessionIds) ? curData.kickedSessionIds : []).filter(id => id !== CURRENT_CLIENT_SESSION_ID);
+        const cleanKickedDevices = (Array.isArray(curData.kickedDeviceIds) ? curData.kickedDeviceIds : []).filter(id => id !== currentDeviceId);
+
+        let historyArr = Array.isArray(curData.loginHistory) ? [...curData.loginHistory] : [];
+        const existingIdx = historyArr.findIndex(item => item && (item.sessionId === CURRENT_CLIENT_SESSION_ID || (item.deviceId && item.deviceId === currentDeviceId)));
+        const isNewLoginSession = (existingIdx === -1);
+
+        if (existingIdx !== -1) {
+            historyArr[existingIdx] = {
+                ...historyArr[existingIdx],
+                ...meta,
+                sessionId: CURRENT_CLIENT_SESSION_ID,
+                loginAt: historyArr[existingIdx].loginAt || meta.loginAt,
+                lastActiveAt: Date.now()
+            };
+        } else {
+            historyArr.unshift(meta);
+        }
+
+        // Jika allowedDeviceIds masih kosong, otomatis tandai perangkat pertama sebagai diizinkan
+        if (allowedDevs.length === 0 && currentDeviceId) {
+            allowedDevs.push(currentDeviceId);
+        }
+
+        historyArr = historyArr.slice(0, 12);
+        userProfile.loginHistory = historyArr;
+        userProfile.lastLoginMeta = meta;
+        userProfile.allowedDeviceIds = allowedDevs;
+        userProfile.onlyAllowTrustedDevices = Boolean(curData.onlyAllowTrustedDevices);
+
+        await setDoc(userRef, {
+            loginHistory: historyArr,
+            lastLoginMeta: meta,
+            allowedDeviceIds: allowedDevs,
+            kickedSessionIds: cleanKickedSessions,
+            kickedDeviceIds: cleanKickedDevices
+        }, { merge: true }).catch(() => {});
+
+        // Kirim Notifikasi WhatsApp Otomatis Saat Ada Login Baru (Jika diaktifkan di Admin)
+        const waNotifyKey = `vipercell_wa_login_notified_${CURRENT_CLIENT_SESSION_ID}`;
+        if (!sessionStorage.getItem(waNotifyKey) && siteSettings.waIntegrationEnabled === true && siteSettings.waNotifyOnLogin !== false) {
+            const targetWa = String(curData.phone || userProfile.phone || '').trim();
+            if (targetWa && targetWa.length >= 9) {
+                sessionStorage.setItem(waNotifyKey, '1');
+                const timeStr = new Date().toLocaleString('id-ID', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+                const loginMsg = `*[INFO KEAMANAN LOGIN VIPERCELL]*
+
+Halo *${curData.name || userProfile.name || 'Member'}*,
+Akun kamu baru saja diakses pada:
+
+• *Perangkat:* ${meta.deviceModel} (${meta.osVersion})
+• *Aplikasi:* ${meta.browserName}
+• *Lokasi:* ${meta.locationText}
+• *Waktu:* ${timeStr}
+
+Jika ini bukan kamu, segera buka menu *Profil -> Aktivitas Login* untuk mengeluarkan perangkat tersebut.`;
+                window.sendVipercellWhatsAppMessage({
+                    targetPhone: targetWa,
+                    category: 'INFO_LOGIN',
+                    message: loginMsg,
+                    memberName: curData.name || userProfile.name || 'Member',
+                    memberEmail: curData.email || userProfile.email || ''
+                }).catch(() => {});
+            }
+        }
+
+        if (document.getElementById('prof-subpage-login-activity')?.style.display !== 'none') {
+            window.renderUserLoginActivityList();
+        }
+    } catch (_) {}
+};
+
+// Render Daftar Perangkat + Tombol Tandai Diizinkan Login + Tombol Keluarkan Perangkat Pilihan
+window.renderUserLoginActivityList = async function() {
+    const curBox = document.getElementById('prof-current-device-card-box');
+    const listBox = document.getElementById('prof-login-history-list-box');
+    const lockBtn = document.getElementById('btn-toggle-trusted-device-lock');
+    if (!curBox || !listBox) return;
+
+    const currentMeta = userProfile.lastLoginMeta || await detectClientDeviceAndLocationMeta();
+    const allowedDevs = Array.isArray(userProfile.allowedDeviceIds) ? userProfile.allowedDeviceIds : (currentDeviceId ? [currentDeviceId] : []);
+    const isLockEnabled = Boolean(userProfile.onlyAllowTrustedDevices === true);
+
+    if (lockBtn) {
+        lockBtn.className = isLockEnabled ? 'btn btn-success btn-sm' : 'btn btn-outline btn-sm';
+        lockBtn.innerHTML = isLockEnabled
+            ? '<i class="fa-solid fa-lock"></i> Aktif (Terkunci)'
+            : '<i class="fa-solid fa-lock-open"></i> Nonaktif';
+    }
+
+    const fmtTime = (ms) => {
+        if (!ms) return '-';
+        try {
+            return new Date(Number(ms)).toLocaleString('id-ID', {
+                day: '2-digit', month: 'short', year: 'numeric',
+                hour: '2-digit', minute: '2-digit'
+            });
+        } catch (_) {
+            return '-';
+        }
+    };
+
+    const isCurTrusted = Boolean(!currentMeta.deviceId || allowedDevs.includes(currentMeta.deviceId));
+
+    curBox.innerHTML = `
+        <div class="v301-device-session-card current-session">
+            <div style="display:flex; justify-content:space-between; align-items:center; gap:8px; flex-wrap:wrap;">
+                <div style="display:flex; align-items:center; gap:8px;">
+                    <i class="fa-solid fa-mobile-screen-button text-primary" style="font-size:1.15rem;"></i>
+                    <strong>${escapeHtmlSafeV301(currentMeta.deviceModel || 'Perangkat Aktif')}</strong>
+                </div>
+                <div style="display:flex; gap:6px; align-items:center; flex-wrap:wrap;">
+                    <span class="brutal-tag ${isCurTrusted ? 'tag-success' : 'tag-amber'}" style="font-size:0.6rem;">
+                        <i class="fa-solid ${isCurTrusted ? 'fa-circle-check' : 'fa-shield'}"></i> ${isCurTrusted ? 'DIIZINKAN LOGIN' : 'BELUM DITANDAI'}
+                    </span>
+                    <span class="brutal-tag tag-primary" style="font-size:0.62rem;">${escapeHtmlSafeV301(currentMeta.osVersion || 'Android / Web')}</span>
+                </div>
+            </div>
+            <div class="v301-device-meta-grid">
+                <div class="v301-device-meta-item">
+                    <span>Sistem &amp; Versi</span>
+                    <strong>${escapeHtmlSafeV301(currentMeta.osVersion)} • ${escapeHtmlSafeV301(currentMeta.browserName)}</strong>
+                </div>
+                <div class="v301-device-meta-item">
+                    <span>Lokasi Real-Time</span>
+                    <strong><i class="fa-solid fa-location-dot text-danger"></i> ${escapeHtmlSafeV301(currentMeta.locationText)}</strong>
+                </div>
+                <div class="v301-device-meta-item">
+                    <span>Waktu Masuk</span>
+                    <strong><i class="fa-regular fa-clock text-primary"></i> ${fmtTime(currentMeta.loginAt)}</strong>
+                </div>
+            </div>
+        </div>
+    `;
+
+    const historyArr = Array.isArray(userProfile.loginHistory) && userProfile.loginHistory.length > 0
+        ? userProfile.loginHistory
+        : [currentMeta];
+
+    listBox.innerHTML = historyArr.map((item) => {
+        const isCurrent = item.sessionId === CURRENT_CLIENT_SESSION_ID;
+        const devId = String(item.deviceId || '');
+        const isTrusted = Boolean(devId && allowedDevs.includes(devId));
+        const safeSid = escapeHtmlSafeV301(item.sessionId || '');
+        const safeDid = escapeHtmlSafeV301(devId);
+
+        return `
+            <div class="v301-device-session-card ${isCurrent ? 'current-session' : ''}">
+                <div style="display:flex; justify-content:space-between; align-items:center; gap:8px; flex-wrap:wrap;">
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <i class="fa-solid ${/Android|iOS|iPhone|iPad/i.test(item.osVersion || '') ? 'fa-mobile-screen' : 'fa-laptop'} text-primary"></i>
+                        <strong>${escapeHtmlSafeV301(item.deviceModel || 'Perangkat')} (${escapeHtmlSafeV301(item.osVersion || '-')})</strong>
+                    </div>
+                    <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+                        <button type="button" class="btn ${isTrusted ? 'btn-success' : 'btn-outline'} btn-sm" style="padding:3px 9px; min-height:26px; font-size:0.66rem;" onclick="window.toggleDeviceLoginPermission('${safeDid}')">
+                            <i class="fa-solid ${isTrusted ? 'fa-check-circle' : 'fa-plus-circle'}"></i> ${isTrusted ? 'Diizinkan Login' : 'Tandai Diizinkan'}
+                        </button>
+                        ${!isCurrent ? `
+                        <button type="button" class="btn btn-danger btn-sm" style="padding:3px 9px; min-height:26px; font-size:0.66rem;" onclick="window.removeSingleLoginHistoryItem('${safeSid}', '${safeDid}')">
+                            <i class="fa-solid fa-right-from-bracket"></i> Keluarkan
+                        </button>` : `<span class="brutal-tag tag-primary" style="font-size:0.6rem;">PERANGKAT INI</span>`}
+                    </div>
+                </div>
+                <div class="v301-device-meta-grid">
+                    <div class="v301-device-meta-item">
+                        <span>Aplikasi / Browser</span>
+                        <strong>${escapeHtmlSafeV301(item.browserName || '-')}</strong>
+                    </div>
+                    <div class="v301-device-meta-item">
+                        <span>Lokasi Real-Time</span>
+                        <strong><i class="fa-solid fa-location-dot text-danger"></i> ${escapeHtmlSafeV301(item.locationText || '-')}</strong>
+                    </div>
+                    <div class="v301-device-meta-item">
+                        <span>Keterangan Waktu Masuk</span>
+                        <strong>${fmtTime(item.loginAt || item.lastActiveAt)}</strong>
+                    </div>
+                </div>
+            </div>
+        `;
+    }).join('');
+};
+
+window.toggleDeviceLoginPermission = async function(targetDeviceId) {
+    if (!currentUser || currentUser.isAnonymous || userProfile.isGuest || !targetDeviceId) return;
+    const allowedDevs = Array.isArray(userProfile.allowedDeviceIds) ? [...userProfile.allowedDeviceIds] : [];
+    const idx = allowedDevs.indexOf(targetDeviceId);
+    if (idx !== -1) {
+        if (targetDeviceId === currentDeviceId && allowedDevs.length <= 1) {
+            window.showToast('Perangkat Utama', 'Minimal 1 perangkat aktif harus tetap diizinkan login.', 'warning');
+            return;
+        }
+        allowedDevs.splice(idx, 1);
+    } else {
+        allowedDevs.push(targetDeviceId);
+    }
+    userProfile.allowedDeviceIds = allowedDevs;
+    await setDoc(doc(db, pathUsers, currentUser.uid), {
+        allowedDeviceIds: allowedDevs,
+        updatedAt: Date.now()
+    }, { merge: true }).catch(() => {});
+    await window.renderUserLoginActivityList();
+    window.showToast(
+        idx === -1 ? 'Perangkat Diizinkan' : 'Izin Perangkat Dicabut',
+        idx === -1 ? 'Perangkat ini telah ditandai sebagai perangkat yang diizinkan login.' : 'Izin login untuk perangkat tersebut telah dicabut.',
+        'success'
+    );
+};
+
+window.toggleTrustedDeviceOnlyLock = async function() {
+    if (!currentUser || currentUser.isAnonymous || userProfile.isGuest) return;
+    const nextState = !Boolean(userProfile.onlyAllowTrustedDevices);
+    const allowedDevs = Array.isArray(userProfile.allowedDeviceIds) && userProfile.allowedDeviceIds.length > 0
+        ? [...userProfile.allowedDeviceIds]
+        : (currentDeviceId ? [currentDeviceId] : []);
+    if (currentDeviceId && !allowedDevs.includes(currentDeviceId)) {
+        allowedDevs.push(currentDeviceId);
+    }
+    userProfile.onlyAllowTrustedDevices = nextState;
+    userProfile.allowedDeviceIds = allowedDevs;
+    await setDoc(doc(db, pathUsers, currentUser.uid), {
+        onlyAllowTrustedDevices: nextState,
+        allowedDeviceIds: allowedDevs,
+        updatedAt: Date.now()
+    }, { merge: true }).catch(() => {});
+    await window.renderUserLoginActivityList();
+    window.showToast(
+        nextState ? 'Kunci Perangkat Aktif' : 'Kunci Perangkat Nonaktif',
+        nextState ? 'Hanya perangkat yang ditandai "Diizinkan Login" yang dapat masuk ke akunmu.' : 'Semua perangkat yang memiliki kata sandi dapat masuk.',
+        'info'
+    );
+};
+
+window.removeSingleLoginHistoryItem = function(targetSessionId, targetDeviceId = '') {
+    if (!currentUser || currentUser.isAnonymous || userProfile.isGuest) return;
+    window.openConfirm(
+        'Keluarkan Perangkat Ini?',
+        'Perangkat yang dipilih akan langsung ter-logout secara otomatis dan dihapus dari daftar sesi aktif.',
+        async (confirmed) => {
+            if (!confirmed) return;
+            try {
+                const curList = Array.isArray(userProfile.loginHistory) ? [...userProfile.loginHistory] : [];
+                const nextList = curList.filter(item => item && item.sessionId !== targetSessionId);
+                const kickedIds = Array.isArray(userProfile.kickedSessionIds) ? [...userProfile.kickedSessionIds] : [];
+                if (targetSessionId && !kickedIds.includes(targetSessionId)) kickedIds.push(targetSessionId);
+
+                const kickedDevIds = Array.isArray(userProfile.kickedDeviceIds) ? [...userProfile.kickedDeviceIds] : [];
+                if (targetDeviceId && targetDeviceId !== currentDeviceId && !kickedDevIds.includes(targetDeviceId)) {
+                    kickedDevIds.push(targetDeviceId);
+                }
+
+                const allowedDevs = (Array.isArray(userProfile.allowedDeviceIds) ? userProfile.allowedDeviceIds : []).filter(d => d !== targetDeviceId);
+
+                await setDoc(doc(db, pathUsers, currentUser.uid), {
+                    loginHistory: nextList,
+                    kickedSessionIds: kickedIds.slice(-40),
+                    kickedDeviceIds: kickedDevIds.slice(-40),
+                    allowedDeviceIds: allowedDevs,
+                    updatedAt: Date.now()
+                }, { merge: true });
+
+                userProfile.loginHistory = nextList;
+                userProfile.kickedSessionIds = kickedIds;
+                userProfile.kickedDeviceIds = kickedDevIds;
+                userProfile.allowedDeviceIds = allowedDevs;
+                await window.renderUserLoginActivityList();
+                window.showToast('Perangkat Dikeluarkan', 'Perangkat tersebut telah dikeluarkan dan ter-logout otomatis.', 'success');
+            } catch (e) {
+                window.showToast('Gagal', 'Tidak dapat mengeluarkan sesi perangkat.', 'error');
+            }
+        }
+    );
+};
+
+// 5. Mesin Pengiriman & Verifikasi Integrasi WhatsApp Vipercell (Poin #5)
+function normalizeIndoWaNumber(rawPhone) {
+    let s = String(rawPhone || '').replace(/[^0-9]/g, '');
+    if (s.startsWith('08')) s = '628' + s.slice(2);
+    else if (s.startsWith('8')) s = '628' + s.slice(1);
+    return s;
+}
+
+window.syncWaIntegrationVisibilityUser = function() {
+    const waActive = Boolean(siteSettings.waIntegrationEnabled === true);
+    const reqOtp = Boolean(waActive && siteSettings.waRequirePhoneOtp !== false);
+    const forgotMode = waActive ? String(siteSettings.waForgotMethodMode || 'both') : 'email_only';
+
+    const regPhoneGrp = document.getElementById('auth-r-phone-group');
+    const regStar = document.getElementById('auth-r-phone-req-star');
+    if (regPhoneGrp) regPhoneGrp.style.display = waActive ? 'block' : 'none';
+    if (regStar) regStar.style.display = reqOtp ? 'inline' : 'none';
+
+    const profPhoneGrp = document.getElementById('prof-wa-phone-group');
+    if (profPhoneGrp) profPhoneGrp.style.display = waActive ? 'block' : 'none';
+
+    const profPhoneInp = document.getElementById('prof-phone');
+    if (profPhoneInp && userProfile.phone && !profPhoneInp.value) {
+        profPhoneInp.value = userProfile.phone;
+    }
+    const waBadge = document.getElementById('prof-wa-verified-badge');
+    if (waBadge) {
+        const isVer = Boolean(userProfile.waVerified && userProfile.phone);
+        waBadge.className = `brutal-tag ${isVer ? 'tag-success' : 'tag-amber'}`;
+        waBadge.innerText = isVer ? 'TERVERIFIKASI WA' : 'BELUM VERIFIKASI';
+    }
+
+    // Atur tampilan metode Lupa Kata Sandi & Lupa PIN sesuai pengaturan Admin
+    const resetTabs = document.getElementById('auth-reset-method-tabs');
+    const fpinTabs = document.getElementById('forgot-pin-method-bar');
+    if (resetTabs) {
+        if (!waActive || forgotMode === 'email_only') {
+            resetTabs.style.display = 'none';
+            window.switchUserResetMethod('email');
+        } else if (forgotMode === 'wa_only') {
+            resetTabs.style.display = 'none';
+            window.switchUserResetMethod('wa');
+        } else {
+            resetTabs.style.display = 'grid';
+        }
+    }
+    if (fpinTabs) {
+        fpinTabs.style.display = (waActive && forgotMode !== 'email_only') ? 'grid' : 'none';
+    }
+};
+
+window.sendVipercellWhatsAppMessage = async function({ targetPhone, category = 'UMUM', message = '', memberName = '-', memberEmail = '-' }) {
+    if (siteSettings.waIntegrationEnabled !== true) {
+        return { ok: false, message: 'Fitur Integrasi WhatsApp sedang dinonaktifkan oleh Admin.' };
+    }
+    const cleanPhone = normalizeIndoWaNumber(targetPhone);
+    if (!cleanPhone || cleanPhone.length < 10) {
+        return { ok: false, message: 'Nomor WhatsApp tidak valid.' };
+    }
+
+    const provider = String(siteSettings.waGatewayProvider || 'fonnte').toLowerCase();
+    const waToken = String(siteSettings.waGatewayApiToken || '').trim();
+    const customUrl = String(siteSettings.waGatewayCustomUrl || '').trim();
+    const bridgeUrl = (siteSettings.digiflazzBridgeUrl || 'https://api.vipercell.cloud').trim();
+    const bridgeSecret = (siteSettings.digiflazzBridgeAccessKey || 'VIPERCELL_BRIDGE_SECRET_2026').trim();
+
+    let sentOk = false;
+    let statusNote = '';
+
+    // 1. Coba kirim langsung ke Fonnte / Custom API atau melalui VPS Bridge (/api/wa-send)
+    if (provider === 'fonnte' && waToken) {
+        try {
+            const fd = new FormData();
+            fd.append('target', cleanPhone);
+            fd.append('message', message);
+            fd.append('countryCode', '62');
+            const fRes = await fetch('https://api.fonnte.com/send', {
+                method: 'POST',
+                headers: { 'Authorization': waToken },
+                body: fd
+            });
+            const fJson = await fRes.json().catch(() => ({}));
+            if (fRes.ok && fJson.status !== false) {
+                sentOk = true;
+                statusNote = 'Terkirim via Fonnte Gateway';
+            } else {
+                statusNote = fJson.reason || 'Gagal dari Fonnte API';
+            }
+        } catch (_) {}
+    }
+
+    if (!sentOk && bridgeUrl && bridgeUrl.startsWith('http')) {
+        try {
+            const cleanBase = bridgeUrl.replace(/\/+$/, '').replace(/\/api\/digiflazz$/, '');
+            const bRes = await fetch(`${cleanBase}/api/wa-send`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Vipercell-Bridge-Key': bridgeSecret
+                },
+                body: JSON.stringify({
+                    action: 'SEND_WA_MESSAGE',
+                    bridgeAccessKey: bridgeSecret,
+                    target: cleanPhone,
+                    message: message,
+                    waProvider: provider,
+                    waApiToken: waToken,
+                    waCustomEndpoint: customUrl
+                })
+            });
+            const bJson = await bRes.json().catch(() => ({}));
+            if (bJson && bJson.ok === true) {
+                sentOk = true;
+                statusNote = 'Terkirim via VPS Bridge';
+            } else if (bJson?.message) {
+                statusNote = bJson.message;
+            }
+        } catch (_) {}
+    }
+
+    // Catat ke koleksi wa_logs agar selalu tampil di Tab Riwayat Pesan WA di Web Admin
+    await addDoc(collection(db, pathWaLogs), {
+        targetPhone: cleanPhone,
+        memberName: memberName || userProfile.name || 'Member',
+        memberEmail: memberEmail || userProfile.email || '',
+        category: category,
+        message: message,
+        status: sentOk ? 'TERKIRIM' : 'TERCATAT',
+        note: statusNote || (sentOk ? 'Berhasil dikirim' : 'Menunggu Gateway WA'),
+        createdAt: Date.now()
+    }).catch(() => {});
+
+    return { ok: sentOk, statusNote };
+};
+
+// Verifikasi OTP WhatsApp di Halaman Profil User
+let _activeProfileWaOtpCode = '';
+let _activeProfileWaOtpPhone = '';
+let _activeProfileWaOtpExp = 0;
+
+window.requestProfileWaOtp = async function() {
+    if (!currentUser || currentUser.isAnonymous || userProfile.isGuest) return;
+    if (siteSettings.waIntegrationEnabled !== true) {
+        window.showToast('Tidak Aktif', 'Integrasi WhatsApp sedang dinonaktifkan oleh Admin.', 'warning');
+        return;
+    }
+    const rawPhone = (document.getElementById('prof-phone')?.value || '').trim();
+    const cleanPhone = normalizeIndoWaNumber(rawPhone);
+    if (!cleanPhone || cleanPhone.length < 10) {
+        window.customAlert('Nomor WA Belum Lengkap', 'Masukkan nomor WhatsApp aktif yang valid (contoh: 081234567890).', 'warning');
+        return;
+    }
+
+    const otpCode = String(Math.floor(100000 + Math.random() * 900000));
+    _activeProfileWaOtpCode = otpCode;
+    _activeProfileWaOtpPhone = rawPhone;
+    _activeProfileWaOtpExp = Date.now() + 300000;
+
+    const btn = document.getElementById('btn-prof-send-wa-otp');
+    const ogHtml = btn ? btn.innerHTML : '';
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Mengirim...';
+    }
+
+    const msg = `*[KODE OTP VERIFIKASI VIPERCELL]*
+
+Kode OTP WhatsApp kamu adalah: *${otpCode}*
+
+Berlaku selama 5 menit. Jangan berikan kode ini kepada siapa pun.`;
+    await window.sendVipercellWhatsAppMessage({
+        targetPhone: cleanPhone,
+        category: 'OTP_VERIFIKASI',
+        message: msg,
+        memberName: userProfile.name || 'Member',
+        memberEmail: userProfile.email || ''
+    });
+
+    if (btn) {
+        btn.disabled = false;
+        btn.innerHTML = ogHtml;
+    }
+
+    const verifyBox = document.getElementById('prof-wa-otp-verify-box');
+    if (verifyBox) verifyBox.style.display = 'block';
+    window.showToast('OTP Dikirim ke WA', `Kode OTP 6 angka telah dikirim ke WhatsApp ${rawPhone}.`, 'success');
+};
+
+window.verifyProfileWaOtpCode = async function() {
+    const entered = (document.getElementById('prof-wa-otp-input')?.value || '').trim();
+    if (!entered || entered.length < 6) {
+        window.showToast('Kode Belum Lengkap', 'Masukkan 6 digit kode OTP dari WhatsApp.', 'warning');
+        return;
+    }
+    if (Date.now() > _activeProfileWaOtpExp || entered !== _activeProfileWaOtpCode) {
+        window.customAlert('Kode OTP Tidak Sesuai', 'Kode OTP yang kamu masukkan salah atau sudah kedaluwarsa.', 'error');
+        return;
+    }
+
+    const rawPhone = (document.getElementById('prof-phone')?.value || _activeProfileWaOtpPhone || '').trim();
+    userProfile.phone = rawPhone;
+    userProfile.waVerified = true;
+    await setDoc(doc(db, pathUsers, currentUser.uid), {
+        phone: rawPhone,
+        waVerified: true,
+        updatedAt: Date.now()
+    }, { merge: true }).catch(() => {});
+
+    const verifyBox = document.getElementById('prof-wa-otp-verify-box');
+    if (verifyBox) verifyBox.style.display = 'none';
+    window.syncWaIntegrationVisibilityUser();
+    window.showToast('WhatsApp Terverifikasi', 'Nomor WhatsApp kamu berhasil diverifikasi!', 'success');
+};
+
+// Simpan juga nomor WA saat klik Simpan Perubahan Profil
+const _origSaveUserProfileV3022 = window.saveUserProfile;
+window.saveUserProfile = async function() {
+    const rawPhone = (document.getElementById('prof-phone')?.value || '').trim();
+    if (currentUser && !currentUser.isAnonymous && rawPhone) {
+        const phoneChanged = (rawPhone !== userProfile.phone);
+        userProfile.phone = rawPhone;
+        if (phoneChanged) userProfile.waVerified = false;
+        await setDoc(doc(db, pathUsers, currentUser.uid), {
+            phone: rawPhone,
+            waVerified: userProfile.waVerified || false
+        }, { merge: true }).catch(() => {});
+    }
+    if (typeof _origSaveUserProfileV3022 === 'function') await _origSaveUserProfileV3022();
+    window.syncWaIntegrationVisibilityUser();
+};
+
+// Pilihan Metode Lupa Kata Sandi (Email vs OTP WhatsApp)
+window.switchUserResetMethod = function(mode = 'email') {
+    const isWa = (mode === 'wa');
+    const btnEmail = document.getElementById('btn-reset-mode-email');
+    const btnWa = document.getElementById('btn-reset-mode-wa');
+    const boxEmail = document.getElementById('auth-reset-email-box');
+    const boxWa = document.getElementById('auth-reset-wa-box');
+
+    if (btnEmail) btnEmail.classList.toggle('active', !isWa);
+    if (btnWa) btnWa.classList.toggle('active', isWa);
+    if (boxEmail) boxEmail.style.display = isWa ? 'none' : 'block';
+    if (boxWa) boxWa.style.display = isWa ? 'block' : 'none';
+};
+
+let _waResetPendingOtp = '';
+let _waResetPendingEmail = '';
+window.processWaForgotResetStep = async function() {
+    if (siteSettings.waIntegrationEnabled !== true) {
+        window.customAlert('Gunakan Email', 'Fitur OTP WhatsApp sedang dinonaktifkan. Silakan gunakan metode Email.', 'info');
+        window.switchUserResetMethod('email');
+        return;
+    }
+    const targetInput = (document.getElementById('auth-res-wa-target')?.value || '').trim();
+    const otpStepBox = document.getElementById('auth-res-wa-otp-step');
+    const otpInp = document.getElementById('auth-res-wa-otp-code');
+    const btnTxt = document.getElementById('text-btn-do-reset-wa');
+
+    if (!targetInput) {
+        window.customAlert('Belum Diisi', 'Masukkan Nomor WhatsApp atau Email akun kamu terlebih dahulu.', 'warning');
+        return;
+    }
+
+    // Tahap 2: Verifikasi OTP WA yang sudah dikirim
+    if (_waResetPendingOtp && otpStepBox && otpStepBox.style.display !== 'none') {
+        const enteredOtp = (otpInp?.value || '').trim();
+        if (enteredOtp !== _waResetPendingOtp) {
+            window.customAlert('OTP Tidak Sesuai', 'Kode OTP WhatsApp yang dimasukkan tidak sesuai.', 'error');
+            return;
+        }
+        if (_waResetPendingEmail) {
+            await sendPasswordResetEmail(auth, _waResetPendingEmail).catch(() => {});
+        }
+        _waResetPendingOtp = '';
+        if (otpStepBox) otpStepBox.style.display = 'none';
+        window.customAlert('OTP Terverifikasi!', 'Verifikasi OTP WhatsApp berhasil! Tautan ubah kata sandi juga telah diaktifkan untuk akun kamu.', 'success');
+        window.switchAuthTab('login');
+        return;
+    }
+
+    // Tahap 1: Cari akun berdasarkan Nomor WA atau Email & Kirim OTP WA
+    const btn = document.getElementById('btn-do-reset-wa');
+    if (btn) btn.disabled = true;
+    try {
+        let matchedPhone = '';
+        let matchedEmail = '';
+        let matchedName = 'Member';
+
+        const qSnap = await getDocs(collection(db, pathUsers)).catch(() => null);
+        const normTargetPhone = normalizeIndoWaNumber(targetInput);
+        if (qSnap && !qSnap.empty) {
+            qSnap.forEach(d => {
+                const u = d.data() || {};
+                const uEmail = String(u.email || '').toLowerCase();
+                const uPhone = normalizeIndoWaNumber(u.phone || '');
+                if ((targetInput.includes('@') && uEmail === targetInput.toLowerCase()) || (normTargetPhone.length >= 9 && uPhone === normTargetPhone)) {
+                    matchedPhone = u.phone || targetInput;
+                    matchedEmail = u.email || '';
+                    matchedName = u.name || 'Member';
+                }
+            });
+        }
+
+        if (!matchedPhone && !targetInput.includes('@')) {
+            matchedPhone = targetInput;
+        }
+        if (!matchedPhone) {
+            window.customAlert('Nomor WA Tidak Ditemukan', 'Akun tersebut belum menautkan nomor WhatsApp. Silakan gunakan tab <b>VIA EMAIL</b> di sebelahnya.', 'warning');
+            return;
+        }
+
+        const otpCode = String(Math.floor(100000 + Math.random() * 900000));
+        _waResetPendingOtp = otpCode;
+        _waResetPendingEmail = matchedEmail;
+
+        const msg = `*[KODE OTP PEMULIHAN SANDI VIPERCELL]*
+
+Halo *${matchedName}*,
+Kode OTP pemulihan kata sandi akun kamu adalah: *${otpCode}*
+
+Jangan bagikan kode ini kepada siapa pun.`;
+        await window.sendVipercellWhatsAppMessage({
+            targetPhone: matchedPhone,
+            category: 'OTP_LUPA_SANDI',
+            message: msg,
+            memberName: matchedName,
+            memberEmail: matchedEmail
+        });
+
+        if (otpStepBox) otpStepBox.style.display = 'block';
+        if (btnTxt) btnTxt.innerText = 'Verifikasi Kode OTP WA';
+        window.showToast('OTP Terkirim', 'Kode OTP 6 digit telah dikirim ke WhatsApp kamu.', 'success');
+    } finally {
+        if (btn) btn.disabled = false;
+    }
+};
+
+// Opsi Reset PIN Transaksi via OTP WhatsApp (Selain Kata Sandi Akun)
+let _forgotPinVerifyMode = 'password';
+let _forgotPinWaOtpGenerated = '';
+window.switchForgotPinVerifyMode = function(mode = 'password') {
+    _forgotPinVerifyMode = mode;
+    const isWa = (mode === 'wa');
+    document.getElementById('btn-fpin-mode-pass')?.classList.toggle('active', !isWa);
+    document.getElementById('btn-fpin-mode-wa')?.classList.toggle('active', isWa);
+    const passGrp = document.getElementById('forgot-pin-pass-group');
+    const waGrp = document.getElementById('forgot-pin-wa-group');
+    if (passGrp) passGrp.style.display = isWa ? 'none' : 'block';
+    if (waGrp) waGrp.style.display = isWa ? 'block' : 'none';
+};
+
+window.sendForgotPinWaOtp = async function() {
+    const phone = userProfile.phone || '';
+    if (!phone) {
+        window.customAlert('Nomor WA Belum Diisi', 'Silakan isi nomor WhatsApp kamu terlebih dahulu di menu Ubah Data Profil, atau gunakan metode Kata Sandi Akun.', 'warning');
+        return;
+    }
+    const otp = String(Math.floor(100000 + Math.random() * 900000));
+    _forgotPinWaOtpGenerated = otp;
+    const msg = `*[KODE OTP RESET PIN TRANSAKSI]*
+
+Halo *${userProfile.name || 'Member'}*,
+Kode OTP untuk mereset 6 digit PIN Transaksi Saldo kamu adalah: *${otp}*`;
+    await window.sendVipercellWhatsAppMessage({
+        targetPhone: phone,
+        category: 'OTP_RESET_PIN',
+        message: msg,
+        memberName: userProfile.name || 'Member',
+        memberEmail: userProfile.email || ''
+    });
+    window.showToast('OTP WA Dikirim', `Kode OTP reset PIN telah dikirim ke nomor ${phone}.`, 'success');
+};
+
+const _origResetUserPinWithPassword = window.resetUserPinWithPassword;
+window.resetUserPinWithPassword = async function() {
+    if (_forgotPinVerifyMode === 'wa' && siteSettings.waIntegrationEnabled === true) {
+        const enteredOtp = (document.getElementById('forgot-pin-wa-otp')?.value || '').trim();
+        const newPinVal = (document.getElementById('forgot-pin-new-val')?.value || '').replace(/[^0-9]/g, '').slice(0, 6);
+        const confPinVal = (document.getElementById('forgot-pin-confirm-val')?.value || '').replace(/[^0-9]/g, '').slice(0, 6);
+        if (!enteredOtp || enteredOtp !== _forgotPinWaOtpGenerated) {
+            window.customAlert('OTP WA Tidak Sesuai', 'Masukkan 6 digit kode OTP WhatsApp yang benar.', 'error');
+            return;
+        }
+        if (newPinVal.length !== 6 || newPinVal !== confPinVal) {
+            window.customAlert('PIN Baru Belum Sesuai', 'Masukkan 6 angka PIN baru dan pastikan konfirmasinya sama.', 'warning');
+            return;
+        }
+        await setDoc(doc(db, pathUsers, currentUser.uid), {
+            trxPin: newPinVal,
+            trxPinUpdatedAt: Date.now()
+        }, { merge: true });
+        userProfile.trxPin = newPinVal;
+        localStorage.setItem(`vipercell_trx_pin_${currentUser.uid}`, newPinVal);
+        _forgotPinWaOtpGenerated = '';
+        window.closeModal('modal-forgot-trx-pin');
+        window.updateUserTrxPinProfileUI();
+        window.showToast('PIN Berhasil Direset', 'PIN Transaksi baru telah diaktifkan menggunakan verifikasi OTP WhatsApp.', 'success');
+        return;
+    }
+    if (typeof _origResetUserPinWithPassword === 'function') {
+        return _origResetUserPinWithPassword();
+    }
+};
+
+/* ============================================================================
+   VIPERCELL v30.2.3 — 2FA OTP LOGIN, YOUTUBE MUTED BANNER, ANTI-LEAK BANNER,
+   4-MINUTE OTP COOLDOWN, ANTI-SPAM WA, SAVED TARGETS, & REPEAT ORDER
+   ============================================================================ */
+
+const V3023_OTP_COOLDOWN_MS = 4 * 60 * 1000; // 4 Menit (240 Detik)
+const V3023_MAX_OTP_ATTEMPTS = 5;
+const _v3023RecentWaHashes = new Map();
+let _v3023OtpCountdownTimer = null;
+
+// 1. Helper Deteksi & Konversi Link Video YouTube ke Embed Tanpa Suara (Muted)
+window.extractYoutubeVideoIdV3023 = function(rawUrl) {
+    const s = String(rawUrl || '').trim();
+    if (!s || s.startsWith('data:image/')) return '';
+    const m = s.match(/(?:youtube\.com\/(?:watch\?.*v=|embed\/|shorts\/|live\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/i);
+    return (m && m[1]) ? m[1] : '';
+};
+
+window.buildSilentYoutubeEmbedHtmlV3023 = function(ytId, wrapClass = 'banner-slide-yt-wrap') {
+    const cleanId = String(ytId || '').replace(/[^a-zA-Z0-9_-]/g, '');
+    if (!cleanId) return '';
+    const embedSrc = `https://www.youtube-nocookie.com/embed/${cleanId}?autoplay=1&mute=1&controls=0&loop=1&playlist=${cleanId}&playsinline=1&rel=0&showinfo=0&modestbranding=1&iv_load_policy=3&disablekb=1&fs=0`;
+    return `<div class="${wrapClass}" draggable="false"><iframe class="banner-yt-iframe" src="${embedSrc}" title="Banner Video" frameborder="0" allow="autoplay; encrypted-media" tabindex="-1" loading="lazy"></iframe></div>`;
+};
+
+// 2. Perbaikan Banner Utama: Anti-Bocor ke Sub-Tab Kategori + Tampil Full + Video YouTube Tanpa Suara
+window.isSubcatalogCurrentlyOpenV3023 = function() {
+    const subView = document.getElementById('catalog-category-subview');
+    const homeWrap = document.getElementById('catalog-home-launcher-wrap');
+    if (subView && subView.style.display && subView.style.display !== 'none') return true;
+    if (homeWrap && homeWrap.style.display === 'none') return true;
+    return document.body.classList.contains('v3023-subcatalog-open');
+};
+
+window.renderBanners = function() {
+    applyAuthoritativeBannersToSiteSettings();
+    window.syncWaIntegrationVisibilityUser();
+
+    const container = document.getElementById('banner-container');
+    const track = document.getElementById('banner-track');
+    const dotsEl = document.getElementById('banner-dots');
+    const prevBtn = document.getElementById('banner-prev-btn');
+    const nextBtn = document.getElementById('banner-next-btn');
+
+    if (!container || !track) return;
+
+    // Kunci Anti-Bocor: Jika sedang berada di sub-tab kategori, sembunyikan Banner Utama!
+    if (window.isSubcatalogCurrentlyOpenV3023()) {
+        container.style.display = 'none';
+        return;
+    }
+
+    const banners = Array.isArray(siteSettings.banners) ? siteSettings.banners.filter(Boolean) : [];
+
+    if (banners.length === 0) {
+        container.style.display = 'block';
+        setTimeout(() => { container.classList.add('reveal-visible'); }, 40);
+        track.innerHTML = `
+            <div class="v301-default-hero-banner" style="width:100%; height:100%;">
+                <div>
+                    <span class="brutal-tag tag-amber" style="font-size:0.64rem;">VIPERCELL STORE</span>
+                    <h3>Top Up Game, Pulsa &amp; Aplikasi Premium</h3>
+                </div>
+                <div style="font-size:2.3rem; color:#facc15; flex-shrink:0;">
+                    <i class="fa-solid fa-bolt"></i>
+                </div>
+            </div>
+        `;
+        if (prevBtn) prevBtn.style.display = 'none';
+        if (nextBtn) nextBtn.style.display = 'none';
+        if (dotsEl) { dotsEl.style.display = 'none'; dotsEl.innerHTML = ''; }
+        return;
+    }
+
+    container.style.display = 'block';
+    setTimeout(() => { container.classList.add('reveal-visible'); }, 40);
+
+    if (currentBanner >= banners.length) currentBanner = 0;
+
+    track.innerHTML = banners.map((itemUrl, idx) => {
+        const ytId = window.extractYoutubeVideoIdV3023(itemUrl);
+        if (ytId) {
+            return window.buildSilentYoutubeEmbedHtmlV3023(ytId, 'banner-slide banner-slide-yt-wrap');
+        }
+        return `<img src="${itemUrl}" class="banner-slide" alt="Banner ${idx + 1}" draggable="false" loading="${idx === 0 ? 'eager' : 'lazy'}" decoding="async">`;
+    }).join('');
+
+    const hasMultiple = banners.length > 1;
+    if (prevBtn) prevBtn.style.display = hasMultiple ? 'flex' : 'none';
+    if (nextBtn) nextBtn.style.display = hasMultiple ? 'flex' : 'none';
+
+    if (dotsEl) {
+        if (hasMultiple) {
+            dotsEl.style.display = 'flex';
+            dotsEl.innerHTML = banners.map((_, idx) =>
+                `<button type="button" class="banner-dot ${idx === currentBanner ? 'active' : ''}" aria-label="Slide ${idx + 1}" onclick="window.goToBanner(${idx}); window.startBannerAuto();"></button>`
+            ).join('');
+        } else {
+            dotsEl.style.display = 'none';
+            dotsEl.innerHTML = '';
+        }
+    }
+
+    bindBannerSwipeEventsOnce();
+    window.goToBanner(currentBanner);
+    window.startBannerAuto();
+};
+
+const _origOpenCategorySubcatalogV3023 = window.openCategorySubcatalog;
+window.openCategorySubcatalog = function(catKey = 'all') {
+    const cleanCat = String(catKey || 'all').trim();
+    // Cek apakah kategori sedang maintenance
+    const maintCats = Array.isArray(siteSettings.maintenanceCategories) ? siteSettings.maintenanceCategories : [];
+    if (maintCats.includes(cleanCat)) {
+        window.showToast('Kategori ini sedang dalam pemeliharaan sementara.', 'warning');
+        return;
+    }
+    document.body.classList.add('v3023-subcatalog-open');
+    const mainBanner = document.getElementById('banner-container');
+    if (mainBanner) mainBanner.style.display = 'none';
+
+    if (typeof _origOpenCategorySubcatalogV3023 === 'function') {
+        _origOpenCategorySubcatalogV3023(cleanCat);
+    }
+
+    // Dukung Video YouTube Bisu pada Banner Sub-Kategori
+    const customCatBanners = (siteSettings.categoryBanners && typeof siteSettings.categoryBanners === 'object') ? siteSettings.categoryBanners : {};
+    const customVal = customCatBanners[cleanCat] || '';
+    const ytId = window.extractYoutubeVideoIdV3023(customVal);
+    const bannerImg = document.getElementById('v30-subcatalog-banner-img');
+    const bannerFallback = document.getElementById('v30-subcatalog-banner-fallback');
+    const cardWrap = bannerImg ? bannerImg.parentElement : null;
+    if (cardWrap) {
+        const oldYt = cardWrap.querySelector('.subcatalog-yt-wrap');
+        if (oldYt) oldYt.remove();
+        if (ytId) {
+            if (bannerImg) bannerImg.style.display = 'none';
+            if (bannerFallback) bannerFallback.style.display = 'none';
+            cardWrap.insertAdjacentHTML('afterbegin', window.buildSilentYoutubeEmbedHtmlV3023(ytId, 'subcatalog-yt-wrap'));
+        }
+    }
+};
+
+const _origBackToMainCatalogHomeV3023 = window.backToMainCatalogHome;
+window.backToMainCatalogHome = function() {
+    document.body.classList.remove('v3023-subcatalog-open');
+    if (typeof _origBackToMainCatalogHomeV3023 === 'function') {
+        _origBackToMainCatalogHomeV3023();
+    }
+    window.renderBanners();
+};
+
+// Dukung Video YouTube Bisu pada Pop-Up Banner
+const _origMaybeShowInitialPopupBannerV3023 = window.maybeShowInitialPopupBanner;
+window.maybeShowInitialPopupBanner = function() {
+    if (typeof _origMaybeShowInitialPopupBannerV3023 === 'function') {
+        _origMaybeShowInitialPopupBannerV3023();
+    }
+    const popImg = document.getElementById('v301-popup-banner-img');
+    const rawUrl = String(siteSettings.popupBannerImg || '').trim();
+    const ytId = window.extractYoutubeVideoIdV3023(rawUrl);
+    if (popImg && popImg.parentElement) {
+        const oldYt = popImg.parentElement.querySelector('.popup-yt-wrap');
+        if (oldYt) oldYt.remove();
+        if (ytId) {
+            popImg.style.display = 'none';
+            popImg.parentElement.insertAdjacentHTML('afterbegin', window.buildSilentYoutubeEmbedHtmlV3023(ytId, 'popup-yt-wrap'));
+        } else if (rawUrl) {
+            popImg.style.display = 'block';
+        }
+    }
+};
+
+// 3. Pengiriman Pesan WA Anti-Duplikasi + Cooldown OTP Ketat 4 Menit (240 Detik)
+window.formatRemainingCooldownMmSs = function(msRemaining) {
+    const totalSec = Math.max(1, Math.ceil(msRemaining / 1000));
+    const mins = Math.floor(totalSec / 60);
+    const secs = totalSec % 60;
+    return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+};
+
+window.startOtpButtonCountdownV3023 = function(btnId, defaultHtml, unlockAtMs) {
+    const btn = document.getElementById(btnId);
+    if (!btn) return;
+    if (btn._v3023Timer) clearInterval(btn._v3023Timer);
+    const tick = () => {
+        const rem = unlockAtMs - Date.now();
+        if (rem <= 0) {
+            clearInterval(btn._v3023Timer);
+            btn.disabled = false;
+            btn.innerHTML = defaultHtml;
+        } else {
+            btn.disabled = true;
+            btn.innerHTML = `<i class="fa-regular fa-clock"></i> ${window.formatRemainingCooldownMmSs(rem)}`;
+        }
+    };
+    tick();
+    btn._v3023Timer = setInterval(tick, 1000);
+};
+
+window.sendVipercellWhatsAppMessage = async function(targetPhone, messageText, category = 'UMUM', memberInfo = {}) {
+    if (!window.isWaIntegrationActive()) {
+        return { ok: false, disabled: true, message: 'Integrasi WhatsApp sedang dinonaktifkan.' };
+    }
+    const cleanPhone = window.normalizeIndoPhone(targetPhone);
+    const msgClean = String(messageText || '').trim();
+    if (!cleanPhone || cleanPhone.length < 9 || !msgClean) {
+        return { ok: false, message: 'Nomor WhatsApp tidak valid.' };
+    }
+
+    // Deduplikasi di sisi Client (Mencegah pesan terkirim berulang dalam 60 detik)
+    const dedupKey = `${cleanPhone}|${category}|${msgClean.slice(0, 120)}`;
+    const lastSentAt = _v3023RecentWaHashes.get(dedupKey) || 0;
+    if (lastSentAt > 0 && (Date.now() - lastSentAt < 60000)) {
+        return { ok: true, deduplicated: true };
+    }
+    _v3023RecentWaHashes.set(dedupKey, Date.now());
+
+    const s = siteSettings || {};
+    const bridgeBase = String(s.digiflazzBridgeUrl || 'https://api.vipercell.cloud').trim().replace(/\/+$/, '');
+    const waEndpoint = bridgeBase.includes('/api/digiflazz')
+        ? bridgeBase.replace('/api/digiflazz', '/api/wa-send')
+        : `${bridgeBase}/api/wa-send`;
+    const bridgeSecret = String(s.digiflazzBridgeSecret || 'VIPERCELL_BRIDGE_SECRET_2026').trim();
+    const waToken = String(s.waApiToken || '').trim();
+    const waProvider = String(s.waProvider || 'wwebjs_vps').trim();
+    const waCustomEndpoint = String(s.waCustomEndpoint || '').trim();
+    const logId = 'WAL-' + Date.now() + '-' + Math.floor(1000 + Math.random() * 8999);
+
+    let sendOk = false;
+    let respDetail = '';
+    try {
+        const res = await fetch(waEndpoint, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Vipercell-Bridge-Key': bridgeSecret
+            },
+            body: JSON.stringify({
+                action: 'SEND_WA_MESSAGE',
+                logId: logId,
+                category: category,
+                memberName: memberInfo.name || userProfile?.name || 'Member',
+                memberEmail: memberInfo.email || currentUser?.email || '-',
+                target: cleanPhone,
+                message: msgClean,
+                waApiToken: waToken,
+                waProvider: waProvider,
+                waCustomEndpoint: waCustomEndpoint,
+                bridgeAccessKey: bridgeSecret
+            })
+        });
+        const data = await res.json().catch(() => ({}));
+        sendOk = Boolean(res.ok && data.ok === true);
+        respDetail = data.message || (sendOk ? 'Terkirim via VPS' : 'Gagal kirim');
+        if (data.cooldownRemainingSec) {
+            _v3023RecentWaHashes.delete(dedupKey);
+            return { ok: false, cooldownRemainingSec: data.cooldownRemainingSec, message: respDetail };
+        }
+    } catch (err) {
+        respDetail = err.message || 'Gagal menghubungi VPS';
+    }
+
+    // Simpan ke dokumen wa_logs dengan ID deterministik logId agar tidak pernah ganda
+    try {
+        await setDoc(doc(db, pathWaLogs, logId), {
+            targetPhone: cleanPhone,
+            category: category,
+            memberName: memberInfo.name || userProfile?.name || currentUser?.email?.split('@')[0] || 'Member',
+            memberEmail: memberInfo.email || currentUser?.email || '-',
+            uid: memberInfo.uid || currentUser?.uid || '',
+            message: msgClean.slice(0, 1000),
+            status: sendOk ? 'TERKIRIM' : 'GAGAL',
+            detail: respDetail,
+            createdAt: Date.now()
+        }, { merge: true });
+    } catch (e) {}
+
+    return { ok: sendOk, message: respDetail };
+};
+
+// Override Request OTP Profil WA dengan Cooldown Ketat 4 Menit (240 Detik) & Proteksi 5x Salah
+window.requestProfileWaOtp = async function() {
+    if (!currentUser || currentUser.isAnonymous) return window.showToast('Silakan masuk akun terlebih dahulu.', 'warning');
+    if (!window.isWaIntegrationActive()) return window.showToast('Fitur WhatsApp sedang dinonaktifkan.', 'warning');
+
+    const phoneInput = document.getElementById('prof-phone');
+    const rawPhone = (phoneInput?.value || '').trim();
+    const normPhone = window.normalizeIndoPhone(rawPhone);
+    if (!normPhone || normPhone.length < 10) {
+        return window.showToast('Masukkan nomor WhatsApp yang valid.', 'warning');
+    }
+
+    const cooldownKey = `vpc_otp_cd_prof_${currentUser.uid}`;
+    const lastSent = Math.max(Number(userProfile?.waOtpSentAt || 0), Number(localStorage.getItem(cooldownKey) || 0));
+    const elapsed = Date.now() - lastSent;
+    if (lastSent > 0 && elapsed < V3023_OTP_COOLDOWN_MS) {
+        const remMs = V3023_OTP_COOLDOWN_MS - elapsed;
+        window.startOtpButtonCountdownV3023('btn-prof-send-wa-otp', '<i class="fa-brands fa-whatsapp"></i> Kirim OTP', Date.now() + remMs);
+        return window.showToast(`Tunggu ${window.formatRemainingCooldownMmSs(remMs)} lagi sebelum meminta OTP baru.`, 'warning');
+    }
+
+    const btn = document.getElementById('btn-prof-send-wa-otp');
+    if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>'; }
+
+    const otpCode = String(Math.floor(100000 + Math.random() * 900000));
+    const nowMs = Date.now();
+    const expAt = nowMs + (10 * 60 * 1000);
+    const senderTitle = siteSettings.waSenderName || siteSettings.storeName || 'VIPERCELL';
+    const msg = `*${senderTitle} - KODE OTP*\n\nKode OTP verifikasi nomor WhatsApp kamu: *${otpCode}*\n\nBerlaku 10 menit. Jangan berikan kode ini kepada siapa pun.`;
+
+    try {
+        const sendRes = await window.sendVipercellWhatsAppMessage(normPhone, msg, 'OTP_VERIFIKASI');
+        if (!sendRes.ok) {
+            if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-brands fa-whatsapp"></i> Kirim OTP'; }
+            return window.showToast(sendRes.message || 'Gagal mengirim OTP WhatsApp.', 'error');
+        }
+        localStorage.setItem(cooldownKey, String(nowMs));
+        await updateDoc(doc(db, pathUsers, currentUser.uid), {
+            phone: normPhone,
+            waVerified: false,
+            waOtpHash: await window.sha256Hex(otpCode),
+            waOtpExpiresAt: expAt,
+            waOtpSentAt: nowMs,
+            waOtpFailCount: 0
+        });
+        const verifyBox = document.getElementById('prof-wa-otp-verify-box');
+        if (verifyBox) verifyBox.style.display = 'block';
+        window.startOtpButtonCountdownV3023('btn-prof-send-wa-otp', '<i class="fa-brands fa-whatsapp"></i> Kirim OTP', nowMs + V3023_OTP_COOLDOWN_MS);
+        window.showToast('Kode OTP 6 digit telah dikirim ke WhatsApp kamu.', 'success');
+    } catch (e) {
+        if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-brands fa-whatsapp"></i> Kirim OTP'; }
+        window.showToast('Gagal mengirim OTP: ' + e.message, 'error');
+    }
+};
+
+window.verifyProfileWaOtpCode = async function() {
+    if (!currentUser || currentUser.isAnonymous) return;
+    const inputEl = document.getElementById('prof-wa-otp-input');
+    const code = (inputEl?.value || '').trim();
+    if (code.length !== 6) return window.showToast('Masukkan 6 digit kode OTP.', 'warning');
+
+    try {
+        const uSnap = await getDoc(doc(db, pathUsers, currentUser.uid));
+        if (!uSnap.exists()) return;
+        const d = uSnap.data() || {};
+        const failCount = Number(d.waOtpFailCount || 0);
+        if (failCount >= V3023_MAX_OTP_ATTEMPTS) {
+            return window.showToast('Terlalu banyak percobaan salah. Minta OTP baru setelah 4 menit.', 'error');
+        }
+        if (!d.waOtpHash || Date.now() > Number(d.waOtpExpiresAt || 0)) {
+            return window.showToast('Kode OTP sudah kedaluwarsa.', 'error');
+        }
+        const hashedInput = await window.sha256Hex(code);
+        if (hashedInput !== d.waOtpHash) {
+            await updateDoc(doc(db, pathUsers, currentUser.uid), { waOtpFailCount: failCount + 1 });
+            return window.showToast(`Kode OTP tidak sesuai (${failCount + 1}/${V3023_MAX_OTP_ATTEMPTS}).`, 'error');
+        }
+        await updateDoc(doc(db, pathUsers, currentUser.uid), {
+            waVerified: true,
+            waOtpHash: '',
+            waOtpExpiresAt: 0,
+            waOtpFailCount: 0
+        });
+        userProfile.waVerified = true;
+        if (inputEl) inputEl.value = '';
+        const verifyBox = document.getElementById('prof-wa-otp-verify-box');
+        if (verifyBox) verifyBox.style.display = 'none';
+        window.syncWaIntegrationVisibilityUser();
+        window.showToast('Nomor WhatsApp berhasil diverifikasi!', 'success');
+    } catch (e) {
+        window.showToast('Gagal memverifikasi OTP: ' + e.message, 'error');
+    }
+};
+
+// 4. Verifikasi 2 Langkah (2FA OTP Login) yang Bisa Diaktifkan/Dimatikan User
+window.syncUserTwoFactorLoginUi = function() {
+    const toggleEl = document.getElementById('prof-2fa-login-toggle');
+    const statusEl = document.getElementById('prof-2fa-status-text');
+    const isEnabled = Boolean(userProfile && userProfile.twoFactorLoginEnabled === true);
+    if (toggleEl) toggleEl.checked = isEnabled;
+    if (statusEl) {
+        statusEl.innerText = isEnabled ? 'Aktif (Wajib OTP Saat Login)' : 'Nonaktif';
+        statusEl.style.color = isEnabled ? '#10b981' : 'var(--text-muted)';
+    }
+};
+
+window.toggleUserTwoFactorLogin = async function(enabled) {
+    if (!currentUser || currentUser.isAnonymous) return;
+    const wantEnable = Boolean(enabled);
+    if (wantEnable && !userProfile?.phone) {
+        const toggleEl = document.getElementById('prof-2fa-login-toggle');
+        if (toggleEl) toggleEl.checked = false;
+        window.showToast('Isi dan simpan nomor WhatsApp di Profil terlebih dahulu.', 'warning');
+        return;
+    }
+    try {
+        const sessionId = window.getOrCreateDeviceSessionId ? window.getOrCreateDeviceSessionId() : '';
+        localStorage.setItem(`vpc_2fa_ok_${currentUser.uid}_${sessionId}`, '1');
+        await updateDoc(doc(db, pathUsers, currentUser.uid), {
+            twoFactorLoginEnabled: wantEnable,
+            twoFactorUpdatedAt: Date.now()
+        });
+        userProfile.twoFactorLoginEnabled = wantEnable;
+        window.syncUserTwoFactorLoginUi();
+        window.showToast(wantEnable ? 'Verifikasi 2 Langkah (OTP Login) diaktifkan.' : 'Verifikasi 2 Langkah dinonaktifkan.', 'success');
+    } catch (e) {
+        window.showToast('Gagal memperbarui pengaturan 2FA: ' + e.message, 'error');
+    }
+};
+
+window.checkAndTriggerTwoFactorLoginChallenge = async function(uData) {
+    if (!currentUser || currentUser.isAnonymous || !uData) return false;
+    if (uData.twoFactorLoginEnabled !== true || !window.isWaIntegrationActive() || !uData.phone) {
+        return false;
+    }
+    const sessionId = window.getOrCreateDeviceSessionId ? window.getOrCreateDeviceSessionId() : '';
+    const verifiedSessionKey = `vpc_2fa_ok_${currentUser.uid}_${sessionId}`;
+    if (localStorage.getItem(verifiedSessionKey) === '1') {
+        return false;
+    }
+    const verifiedList = Array.isArray(uData.twoFactorVerifiedSessionIds) ? uData.twoFactorVerifiedSessionIds : [];
+    if (sessionId && verifiedList.includes(sessionId)) {
+        localStorage.setItem(verifiedSessionKey, '1');
+        return false;
+    }
+
+    // Tampilkan Modal 2FA OTP Login
+    const modal = document.getElementById('twofactor-login-modal');
+    if (modal) {
+        modal.style.display = 'flex';
+        document.body.classList.add('v302-scroll-locked');
+    }
+    const maskedPhone = String(uData.phone || '').replace(/^(\d{4})\d+(\d{3})$/, '$1****$2');
+    const lbl = document.getElementById('twofactor-login-target-label');
+    if (lbl) lbl.innerText = `Kode OTP 6 digit dikirim ke WhatsApp ${maskedPhone}`;
+
+    // Kirim OTP Login jika belum dikirim dalam 4 menit terakhir
+    const lastSent = Number(uData.login2faOtpSentAt || 0);
+    if (Date.now() - lastSent >= V3023_OTP_COOLDOWN_MS) {
+        await window.sendTwoFactorLoginOtpNow(uData.phone);
+    } else {
+        const remMs = V3023_OTP_COOLDOWN_MS - (Date.now() - lastSent);
+        window.startOtpButtonCountdownV3023('btn-resend-2fa-login', 'Kirim Ulang', Date.now() + remMs);
+    }
+    return true;
+};
+
+window.sendTwoFactorLoginOtpNow = async function(phoneOverride = '') {
+    if (!currentUser || currentUser.isAnonymous) return;
+    const targetPhone = window.normalizeIndoPhone(phoneOverride || userProfile?.phone || '');
+    if (!targetPhone) return;
+
+    const cdKey = `vpc_otp_cd_2fa_${currentUser.uid}`;
+    const lastSent = Math.max(Number(userProfile?.login2faOtpSentAt || 0), Number(localStorage.getItem(cdKey) || 0));
+    const elapsed = Date.now() - lastSent;
+    if (lastSent > 0 && elapsed < V3023_OTP_COOLDOWN_MS) {
+        const remMs = V3023_OTP_COOLDOWN_MS - elapsed;
+        window.startOtpButtonCountdownV3023('btn-resend-2fa-login', 'Kirim Ulang', Date.now() + remMs);
+        return window.showToast(`Tunggu ${window.formatRemainingCooldownMmSs(remMs)} lagi untuk kirim ulang OTP.`, 'warning');
+    }
+
+    const otpCode = String(Math.floor(100000 + Math.random() * 900000));
+    const nowMs = Date.now();
+    const senderTitle = siteSettings.waSenderName || siteSettings.storeName || 'VIPERCELL';
+    const msg = `*${senderTitle} - OTP LOGIN 2 LANGKAH*\n\nKode OTP masuk akun kamu: *${otpCode}*\n\nBerlaku 10 menit. Jangan bagikan kode ini kepada siapa pun.`;
+
+    const sendRes = await window.sendVipercellWhatsAppMessage(targetPhone, msg, 'OTP_LOGIN_2FA');
+    if (!sendRes.ok) {
+        return window.showToast(sendRes.message || 'Gagal mengirim OTP Login.', 'error');
+    }
+    localStorage.setItem(cdKey, String(nowMs));
+    await updateDoc(doc(db, pathUsers, currentUser.uid), {
+        login2faOtpHash: await window.sha256Hex(otpCode),
+        login2faOtpExpiresAt: nowMs + (10 * 60 * 1000),
+        login2faOtpSentAt: nowMs,
+        login2faOtpFailCount: 0
+    });
+    if (userProfile) userProfile.login2faOtpSentAt = nowMs;
+    window.startOtpButtonCountdownV3023('btn-resend-2fa-login', 'Kirim Ulang', nowMs + V3023_OTP_COOLDOWN_MS);
+    window.showToast('Kode OTP Login telah dikirim ke WhatsApp kamu.', 'success');
+};
+
+window.resendTwoFactorLoginOtp = async function() {
+    await window.sendTwoFactorLoginOtpNow();
+};
+
+window.verifyTwoFactorLoginOtp = async function() {
+    if (!currentUser || currentUser.isAnonymous) return;
+    const inputEl = document.getElementById('twofactor-login-otp-input');
+    const code = (inputEl?.value || '').trim();
+    if (code.length !== 6) return window.showToast('Masukkan 6 digit kode OTP Login.', 'warning');
+
+    try {
+        const uSnap = await getDoc(doc(db, pathUsers, currentUser.uid));
+        if (!uSnap.exists()) return;
+        const d = uSnap.data() || {};
+        const fails = Number(d.login2faOtpFailCount || 0);
+        if (fails >= V3023_MAX_OTP_ATTEMPTS) {
+            return window.showToast('Terlalu banyak percobaan salah. Minta OTP baru setelah 4 menit.', 'error');
+        }
+        if (!d.login2faOtpHash || Date.now() > Number(d.login2faOtpExpiresAt || 0)) {
+            return window.showToast('Kode OTP sudah kedaluwarsa.', 'error');
+        }
+        const hashed = await window.sha256Hex(code);
+        if (hashed !== d.login2faOtpHash) {
+            await updateDoc(doc(db, pathUsers, currentUser.uid), { login2faOtpFailCount: fails + 1 });
+            return window.showToast(`Kode OTP salah (${fails + 1}/${V3023_MAX_OTP_ATTEMPTS}).`, 'error');
+        }
+        const sessionId = window.getOrCreateDeviceSessionId ? window.getOrCreateDeviceSessionId() : '';
+        localStorage.setItem(`vpc_2fa_ok_${currentUser.uid}_${sessionId}`, '1');
+        const verifiedList = Array.from(new Set([...(Array.isArray(d.twoFactorVerifiedSessionIds) ? d.twoFactorVerifiedSessionIds : []), sessionId])).slice(-20);
+        await updateDoc(doc(db, pathUsers, currentUser.uid), {
+            login2faOtpHash: '',
+            login2faOtpExpiresAt: 0,
+            login2faOtpFailCount: 0,
+            twoFactorVerifiedSessionIds: verifiedList
+        });
+        if (inputEl) inputEl.value = '';
+        const modal = document.getElementById('twofactor-login-modal');
+        if (modal) modal.style.display = 'none';
+        document.body.classList.remove('v302-scroll-locked');
+        window.showToast('Verifikasi 2 Langkah berhasil!', 'success');
+    } catch (e) {
+        window.showToast('Gagal verifikasi OTP: ' + e.message, 'error');
+    }
+};
+
+window.cancelTwoFactorLoginSession = async function() {
+    const modal = document.getElementById('twofactor-login-modal');
+    if (modal) modal.style.display = 'none';
+    document.body.classList.remove('v302-scroll-locked');
+    try {
+        await signOut(auth);
+        await signInAnonymously(auth);
+        window.switchMainTab('auth');
+    } catch (e) {}
+};
+
+// Pastikan INFO_LOGIN hanya dikirim 1 kali per Session ID (Tidak berulang saat refresh!)
+const _origRecordLoginV3022 = window.recordCurrentUserLoginActivity;
+window.recordCurrentUserLoginActivity = async function(userObj, forceNewRecord = false) {
+    if (!userObj || userObj.isAnonymous) return;
+    const sessionId = window.getOrCreateDeviceSessionId ? window.getOrCreateDeviceSessionId() : '';
+    const sessionNotifiedKey = `vpc_login_wa_notified_${userObj.uid}_${sessionId}`;
+    const alreadyNotifiedThisSession = localStorage.getItem(sessionNotifiedKey) === '1';
+
+    await _origRecordLoginV3022(userObj, forceNewRecord && !alreadyNotifiedThisSession);
+    localStorage.setItem(sessionNotifiedKey, '1');
+
+    // Periksa apakah akun mengaktifkan 2FA Login
+    try {
+        const uSnap = await getDoc(doc(db, pathUsers, userObj.uid));
+        if (uSnap.exists()) {
+            const uData = uSnap.data() || {};
+            userProfile.twoFactorLoginEnabled = Boolean(uData.twoFactorLoginEnabled === true);
+            window.syncUserTwoFactorLoginUi();
+            await window.checkAndTriggerTwoFactorLoginChallenge(uData);
+        }
+    } catch (e) {}
+};
+
+// 5. Fitur Nomor Tujuan Favorit (Saved Targets) & Tombol Beli Lagi (Repeat Order)
+window.getSavedTargetsListV3023 = function() {
+    try {
+        const uidKey = (currentUser && !currentUser.isAnonymous) ? currentUser.uid : 'guest';
+        const raw = localStorage.getItem(`vpc_saved_targets_${uidKey}`);
+        const parsed = raw ? JSON.parse(raw) : [];
+        return Array.isArray(parsed) ? parsed : [];
+    } catch (e) {
+        return [];
+    }
+};
+
+window.renderSavedTargetsBarV3023 = function() {
+    const bar = document.getElementById('v3023-saved-targets-bar');
+    const chipsEl = document.getElementById('v3023-saved-targets-chips');
+    if (!bar || !chipsEl) return;
+    const list = window.getSavedTargetsListV3023();
+    bar.style.display = 'block';
+    if (list.length === 0) {
+        chipsEl.innerHTML = `<span style="font-size:0.7rem; color:var(--text-muted);">Belum ada nomor tersimpan. Isi tujuan di bawah lalu klik "+ Simpan Tujuan Ini".</span>`;
+        return;
+    }
+    chipsEl.innerHTML = list.map((item, idx) => `
+        <span class="v3023-saved-target-chip" onclick="window.applySavedTargetV3023(${idx})">
+            <span>${window.escapeHtml(item.label || item.target)}</span>
+            <i class="fa-solid fa-xmark" style="color:var(--danger); margin-left:4px;" onclick="event.stopPropagation(); window.deleteSavedTargetV3023(${idx})"></i>
+        </span>
+    `).join('');
+};
+
+window.saveCurrentCheckoutTarget = function() {
+    const firstInput = document.querySelector('#buy-detail-fields input.form-control');
+    const val = (firstInput?.value || '').trim();
+    if (!val || val.length < 4) {
+        return window.showToast('Isi nomor atau ID tujuan terlebih dahulu.', 'warning');
+    }
+    const secondInput = document.querySelectorAll('#buy-detail-fields input.form-control')[1];
+    const zoneVal = (secondInput?.value || '').trim();
+    const uidKey = (currentUser && !currentUser.isAnonymous) ? currentUser.uid : 'guest';
+    const list = window.getSavedTargetsListV3023().filter(x => x.target !== val);
+    list.unshift({
+        target: val,
+        zone: zoneVal,
+        label: zoneVal ? `${val} (${zoneVal})` : val,
+        savedAt: Date.now()
+    });
+    localStorage.setItem(`vpc_saved_targets_${uidKey}`, JSON.stringify(list.slice(0, 10)));
+    window.renderSavedTargetsBarV3023();
+    window.showToast('Nomor tujuan disimpan ke daftar favorit.', 'success');
+};
+
+window.applySavedTargetV3023 = function(idx) {
+    const list = window.getSavedTargetsListV3023();
+    const item = list[idx];
+    if (!item) return;
+    const inputs = document.querySelectorAll('#buy-detail-fields input.form-control');
+    if (inputs[0]) {
+        inputs[0].value = item.target || '';
+        inputs[0].dispatchEvent(new Event('input', { bubbles: true }));
+        inputs[0].dispatchEvent(new Event('change', { bubbles: true }));
+    }
+    if (inputs[1] && item.zone) {
+        inputs[1].value = item.zone;
+        inputs[1].dispatchEvent(new Event('input', { bubbles: true }));
+        inputs[1].dispatchEvent(new Event('change', { bubbles: true }));
+    }
+    window.showToast(`Tujuan ${item.label} diterapkan.`, 'success');
+};
+
+window.deleteSavedTargetV3023 = function(idx) {
+    const uidKey = (currentUser && !currentUser.isAnonymous) ? currentUser.uid : 'guest';
+    const list = window.getSavedTargetsListV3023();
+    list.splice(idx, 1);
+    localStorage.setItem(`vpc_saved_targets_${uidKey}`, JSON.stringify(list));
+    window.renderSavedTargetsBarV3023();
+};
+
+const _origOpenBuyModalV3023 = window.openBuyModal;
+window.openBuyModal = function(prodId) {
+    if (typeof _origOpenBuyModalV3023 === 'function') {
+        _origOpenBuyModalV3023(prodId);
+    }
+    setTimeout(() => window.renderSavedTargetsBarV3023(), 60);
+};
+
+/* === V30.2.3 EXTRA FEATURES === */
+
+// Tombol "Beli Lagi" (1-Klik Repeat Order) pada Rincian Pesanan & Filter Pencarian Cepat Riwayat
+const _origOpenOrderDetailModalByIdV3023 = window.openOrderDetailModalById;
+window.openOrderDetailModalById = function(invId) {
+    if (typeof _origOpenOrderDetailModalByIdV3023 === 'function') {
+        _origOpenOrderDetailModalByIdV3023(invId);
+    }
+    const cleanInv = String(invId || '').trim().replace(/^#/, '').toUpperCase();
+    const order = (Array.isArray(orders) ? orders : []).find(o => String(o.id || '').toUpperCase() === cleanInv);
+    const modalBody = document.getElementById('modal-order-detail-body');
+    if (!order || !modalBody) return;
+    const isSpecial = Boolean(order.isTopupOrder || order.isMemberPlusOrder || String(order.id || '').startsWith('TOPUP-') || String(order.id || '').startsWith('MPLUS-'));
+    if (!isSpecial && order.items && order.items[0] && order.items[0].productId) {
+        if (!modalBody.querySelector('.v3023-repeat-order-btn')) {
+            const btnHtml = `
+                <div style="margin-top:10px;">
+                    <button type="button" class="btn btn-primary v3023-repeat-order-btn" style="width:100%;" onclick="window.repeatOrderFromHistoryV3023('${window.escapeHtml(order.id)}')">
+                        <i class="fa-solid fa-rotate-right"></i> Beli Lagi Produk Ini
+                    </button>
+                </div>
+            `;
+            modalBody.insertAdjacentHTML('beforeend', btnHtml);
+        }
+    }
+};
+
+window.repeatOrderFromHistoryV3023 = function(invId) {
+    const cleanInv = String(invId || '').trim().replace(/^#/, '').toUpperCase();
+    const order = (Array.isArray(orders) ? orders : []).find(o => String(o.id || '').toUpperCase() === cleanInv);
+    if (!order || !order.items || !order.items[0]) return;
+    const item = order.items[0];
+    window.closeModal('modal-order-detail');
+    if (item.productId) {
+        window.openBuyModal(item.productId);
+        setTimeout(() => {
+            const rawTarget = String(item.playerInfo || order.targetNumber || '').replace(/^(Tujuan|ID|No\.?\s*HP)\s*:\s*/i, '').trim();
+            const inputs = document.querySelectorAll('#buy-detail-fields input.form-control');
+            if (inputs[0] && rawTarget) {
+                inputs[0].value = rawTarget.split('|')[0].trim();
+                inputs[0].dispatchEvent(new Event('input', { bubbles: true }));
+            }
+        }, 140);
+    }
+};
+
+const _origRenderUserOrdersV3023 = window.renderUserOrders;
+window.renderUserOrders = function() {
+    if (typeof _origRenderUserOrdersV3023 === 'function') {
+        _origRenderUserOrdersV3023();
+    }
+    const q = (document.getElementById('v3023-order-search-input')?.value || '').trim().toLowerCase();
+    if (!q) return;
+    const grid = document.getElementById('user-order-grid');
+    if (!grid) return;
+    grid.querySelectorAll('.order-compact-card').forEach(card => {
+        const text = (card.innerText || '').toLowerCase();
+        card.style.display = text.includes(q) ? '' : 'none';
+    });
+};
+
+// Proteksi Brute-Force PIN Transaksi (Kunci 15 Menit jika 5x Salah Berturut-turut)
+const _origSubmitVerifyTrxPinModalV3023 = window.submitVerifyTrxPinModal;
+window.submitVerifyTrxPinModal = async function() {
+    const uidKey = currentUser?.uid || 'guest';
+    const lockUntil = Number(localStorage.getItem(`vpc_pin_lock_until_${uidKey}`) || 0);
+    if (lockUntil > Date.now()) {
+        const mins = Math.ceil((lockUntil - Date.now()) / 60000);
+        return window.showToast(`PIN dikunci sementara karena 5x salah. Coba lagi dalam ${mins} menit.`, 'error');
+    }
+    const pinVal = (document.getElementById('chk-confirm-trx-pin')?.value || '').trim();
+    if (pinVal.length === 6 && userProfile && userProfile.trxPinHash) {
+        const hashed = await window.sha256Hex(pinVal);
+        if (hashed !== userProfile.trxPinHash) {
+            const fails = Number(localStorage.getItem(`vpc_pin_fails_${uidKey}`) || 0) + 1;
+            localStorage.setItem(`vpc_pin_fails_${uidKey}`, String(fails));
+            if (fails >= 5) {
+                localStorage.setItem(`vpc_pin_lock_until_${uidKey}`, String(Date.now() + 15 * 60 * 1000));
+                localStorage.setItem(`vpc_pin_fails_${uidKey}`, '0');
+                return window.showToast('PIN salah 5x! Demi keamanan, transaksi dikunci selama 15 menit.', 'error');
+            }
+        } else {
+            localStorage.setItem(`vpc_pin_fails_${uidKey}`, '0');
+        }
+    }
+    if (typeof _origSubmitVerifyTrxPinModalV3023 === 'function') {
+        return await _origSubmitVerifyTrxPinModalV3023();
+    }
+};
+
+/* === V30.2.3 EXACT HOOKS FIX === */
+
+// 1. Pastikan window.showToast mendukung 2 argumen maupun 3 argumen tanpa menampilkan teks "success"/"error"
+const _origUserShowToastBase = window.showToast;
+window.showToast = function(titleOrMsg, msgOrType, typeOpt = 'info', actionCallback = null) {
+    const validTypes = ['success', 'error', 'warning', 'info'];
+    if (validTypes.includes(String(msgOrType || '').toLowerCase()) && arguments.length === 2) {
+        const t = String(msgOrType).toLowerCase();
+        const defaultTitle = t === 'error' ? 'Gagal' : (t === 'warning' ? 'Perhatian' : (t === 'success' ? 'Berhasil' : 'Info'));
+        return _origUserShowToastBase(defaultTitle, titleOrMsg, t, null);
+    }
+    return _origUserShowToastBase(titleOrMsg, msgOrType, typeOpt, actionCallback);
+};
+
+// 2. Hook tepat pada window.openCategorySubview & window.closeCategorySubviewToHome agar Banner Utama tidak pernah bocor ke Sub-Tab Kategori
+const _origOpenCategorySubviewBase = window.openCategorySubview;
+window.openCategorySubview = function(categoryKey = 'all') {
+    const cleanCat = String(categoryKey || 'all').toLowerCase().trim();
+    document.body.classList.add('v3023-subcatalog-open');
+    const mainBanner = document.getElementById('banner-container');
+    if (mainBanner) mainBanner.style.display = 'none';
+
+    if (typeof _origOpenCategorySubviewBase === 'function') {
+        _origOpenCategorySubviewBase(cleanCat);
+    }
+
+    // Dukung Video YouTube Bisu (Tanpa Suara) pada Banner Sub-Kategori
+    const customCatBanners = (siteSettings.categoryBanners && typeof siteSettings.categoryBanners === 'object') ? siteSettings.categoryBanners : {};
+    const customVal = customCatBanners[cleanCat] || '';
+    const ytId = window.extractYoutubeVideoIdV3023 ? window.extractYoutubeVideoIdV3023(customVal) : '';
+    const bannerImg = document.getElementById('v30-subcatalog-banner-img');
+    const bannerFallback = document.getElementById('v30-subcatalog-banner-fallback');
+    const cardWrap = document.getElementById('v30-subcatalog-banner-card') || (bannerImg ? bannerImg.parentElement : null);
+    if (cardWrap) {
+        const oldYt = cardWrap.querySelector('.subcatalog-yt-wrap');
+        if (oldYt) oldYt.remove();
+        if (ytId) {
+            if (bannerImg) bannerImg.style.display = 'none';
+            if (bannerFallback) bannerFallback.style.display = 'none';
+            cardWrap.insertAdjacentHTML('afterbegin', window.buildSilentYoutubeEmbedHtmlV3023(ytId, 'subcatalog-yt-wrap'));
+        }
+    }
+};
+
+const _origCloseCategorySubviewToHomeBase = window.closeCategorySubviewToHome;
+window.closeCategorySubviewToHome = function() {
+    document.body.classList.remove('v3023-subcatalog-open');
+    if (typeof _origCloseCategorySubviewToHomeBase === 'function') {
+        _origCloseCategorySubviewToHomeBase();
+    }
+    window.renderBanners();
+};
+
+// Listener sinkronisasi pengaturan WA dari dokumen settings/wa_config
+onSnapshot(doc(db, pathSettings, 'wa_config'), (snap) => {
+    if (!snap.exists()) return;
+    const d = snap.data() || {};
+    siteSettings = { ...siteSettings, ...d };
+    if (typeof window.syncWaIntegrationVisibilityUser === 'function') {
+        window.syncWaIntegrationVisibilityUser();
+    }
+}, () => {});
