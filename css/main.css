@@ -1,11 +1,5 @@
-/* ==========================================================================
-   VIPERCELL — NEO-BRUTALISM STOREFRONT STYLESHEET
-   Nama File : css/main.css
-   Desain    : Authentic Neo-Brutalism + Interactive Water Ripple + 90FPS Smooth UI
-   ========================================================================== */
 
 :root {
-    /* Palet Warna Utama — Mode Terang (Light Neo-Brutalism) */
     --bg: #f4f1ea;
     --bg-pattern-line: rgba(15, 23, 42, 0.065);
     --bg-pattern-dot: rgba(37, 99, 235, 0.14);
@@ -28,8 +22,6 @@
     --danger: #ef4444;
     --success: #10b981;
     --warning: #f59e0b;
-
-    /* Variabel Khas Neo-Brutalism */
     --brutal-border: 2.5px solid #0f172a;
     --brutal-border-thin: 2px solid #0f172a;
     --brutal-border-thick: 3px solid #0f172a;
@@ -40,15 +32,11 @@
     --brutal-radius: 14px;
     --brutal-radius-sm: 10px;
     --brutal-radius-lg: 18px;
-
-    /* Tipografi */
     --font-main: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
     --font-heading: 'Space Grotesk', 'Plus Jakarta Sans', sans-serif;
     --ease-spring: cubic-bezier(0.22, 1, 0.36, 1);
 }
-
 html[data-theme="dark"] {
-    /* Palet Warna Utama — Mode Gelap Hitam Karbon Murni (Pure Pitch-Black Neo-Brutalism) */
     --bg: #0a0a0a;
     --bg-pattern-line: rgba(255, 255, 255, 0.045);
     --bg-pattern-dot: rgba(250, 204, 21, 0.14);
@@ -71,7 +59,6 @@ html[data-theme="dark"] {
     --danger: #f87171;
     --success: #34d399;
     --warning: #fbbf24;
-
     --brutal-border: 2.5px solid #475569;
     --brutal-border-thin: 2px solid #475569;
     --brutal-border-thick: 3px solid #64748b;
@@ -80,22 +67,16 @@ html[data-theme="dark"] {
     --brutal-shadow-lg: 7px 7px 0px #020617;
     --brutal-shadow-hover: 2px 2px 0px #020617;
 }
-
-/* ==========================================================================
-   RESET & LATAR BELAKANG NEO-BRUTALISM MATANG
-   ========================================================================== */
 *, *::before, *::after {
     box-sizing: border-box;
     margin: 0;
     padding: 0;
     -webkit-tap-highlight-color: transparent;
 }
-
 html {
     scroll-behavior: smooth;
     font-size: 16px;
 }
-
 body {
     font-family: var(--font-main);
     background-color: var(--bg);
@@ -112,13 +93,10 @@ body {
     position: relative;
     transition: background-color 0.25s ease, color 0.25s ease;
 }
-
 body.no-scroll,
 body.preloader-locked {
     overflow: hidden !important;
 }
-
-/* Canvas Efek Sentuhan Air Berwarna (Water Ripple #9) */
 #water-ripple-canvas {
     position: fixed;
     inset: 0;
@@ -128,7 +106,6 @@ body.preloader-locked {
     z-index: 0;
     opacity: 0.92;
 }
-
 #store-view {
     position: relative;
     z-index: 1;
@@ -136,46 +113,33 @@ body.preloader-locked {
     flex-direction: column;
     min-height: 100dvh;
 }
-
 .container {
     width: 100%;
     max-width: 1200px;
     margin: 0 auto;
     padding: 0 1.15rem;
 }
-
 h1, h2, h3, h4 {
     font-family: var(--font-heading);
     letter-spacing: -0.02em;
     line-height: 1.22;
 }
-
 a {
     color: inherit;
     text-decoration: none;
 }
-
-/* ==========================================================================
-   ANTI BOCOR KE TAB LOGIN SAAT SUDAH LOGIN
-   ========================================================================== */
 body:not(.auth-locked) #tab-auth,
 html.has-saved-session body.preloader-locked #tab-auth {
     display: none !important;
 }
-
 body.auth-locked header .nav-right,
 body.auth-locked #mobile-bottom-nav,
 body.auth-locked footer {
     display: none !important;
 }
-
 body.auth-locked #tab-auth {
     display: block !important;
 }
-
-/* ==========================================================================
-   PRELOADER SOLID & EFEK TRANSISI TEMA
-   ========================================================================== */
 #theme-transition-curtain {
     position: fixed;
     inset: 0;
@@ -188,7 +152,6 @@ body.auth-locked #tab-auth {
 #theme-transition-curtain.active {
     opacity: 1;
 }
-
 .preloader-overlay {
     position: fixed;
     inset: 0;
@@ -205,7 +168,6 @@ body.auth-locked #tab-auth {
     visibility: hidden;
     pointer-events: none;
 }
-
 .preloader-simple-box {
     width: 100%;
     max-width: 320px;
@@ -220,7 +182,6 @@ body.auth-locked #tab-auth {
     align-items: center;
     gap: 10px;
 }
-
 .preloader-circle-spinner {
     width: 42px;
     height: 42px;
@@ -230,18 +191,15 @@ body.auth-locked #tab-auth {
     border-radius: 50%;
     animation: brutalSpin 0.65s linear infinite;
 }
-
 @keyframes brutalSpin {
     to { transform: rotate(360deg); }
 }
-
 .preloader-simple-text {
     font-family: var(--font-heading);
     font-weight: 800;
     font-size: 1rem;
     color: var(--text);
 }
-
 .preloader-stage-bar-wrap {
     width: 100%;
     height: 12px;
@@ -250,22 +208,16 @@ body.auth-locked #tab-auth {
     border-radius: 999px;
     overflow: hidden;
 }
-
 .preloader-stage-bar-fill {
     height: 100%;
     background: linear-gradient(90deg, var(--primary), var(--secondary));
     transition: width 0.25s ease;
 }
-
 .preloader-stage-sub {
     font-size: 0.76rem;
     font-weight: 700;
     color: var(--text-muted);
 }
-
-/* ==========================================================================
-   HEADER & NAVIGASI ATAS NEO-BRUTALISM
-   ========================================================================== */
 header {
     position: sticky;
     top: 0;
@@ -274,14 +226,12 @@ header {
     border-bottom: var(--brutal-border-thick);
     padding: 0.7rem 0;
 }
-
 .nav-container {
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 1rem;
 }
-
 .logo-area {
     display: inline-flex;
     align-items: center;
@@ -289,7 +239,6 @@ header {
     cursor: pointer;
     user-select: none;
 }
-
 .logo-img {
     width: 38px;
     height: 38px;
@@ -298,7 +247,6 @@ header {
     box-shadow: 2px 2px 0px var(--border);
     object-fit: cover;
 }
-
 .logo-text {
     font-family: var(--font-heading);
     font-size: 1.45rem;
@@ -306,7 +254,6 @@ header {
     letter-spacing: -0.03em;
     color: var(--text);
 }
-
 .logo-text span {
     background: var(--secondary);
     color: #0f172a;
@@ -316,7 +263,6 @@ header {
     border-radius: 7px;
     box-shadow: 2px 2px 0px #0f172a;
 }
-
 .store-closed-badge {
     display: none;
     background: var(--danger);
@@ -328,7 +274,6 @@ header {
     border: 2px solid #0f172a;
     box-shadow: 2px 2px 0px #0f172a;
 }
-
 .desktop-pill-nav {
     display: flex;
     align-items: center;
@@ -339,7 +284,6 @@ header {
     border: var(--brutal-border-thin);
     box-shadow: var(--brutal-shadow-sm);
 }
-
 .desktop-pill-nav a {
     display: inline-flex;
     align-items: center;
@@ -353,12 +297,10 @@ header {
     border: 2px solid transparent;
     transition: all 0.18s var(--ease-spring);
 }
-
 .desktop-pill-nav a:hover {
     color: var(--text);
     background: var(--surface-hover);
 }
-
 .desktop-pill-nav a.active {
     background: var(--secondary);
     color: #0f172a;
@@ -366,13 +308,11 @@ header {
     box-shadow: 2px 2px 0px #0f172a;
     transform: translate(-1px, -1px);
 }
-
 .header-actions {
     display: flex;
     align-items: center;
     gap: 8px;
 }
-
 .theme-pill-btn {
     display: inline-flex;
     align-items: center;
@@ -389,32 +329,24 @@ header {
     cursor: pointer;
     transition: transform 0.15s ease, box-shadow 0.15s ease;
 }
-
 .theme-pill-btn:hover {
     transform: translate(-1px, -1px);
     box-shadow: 4px 4px 0px var(--border);
 }
-
 .theme-pill-btn:active {
     transform: translate(2px, 2px);
     box-shadow: 1px 1px 0px var(--border);
 }
-
-/* ==========================================================================
-   TRANSISI ANTAR TAB & PANEL SMOOTH MODERN
-   ========================================================================== */
 .main-tab-content {
     display: none;
     padding: 1.5rem 1.15rem 3rem;
     opacity: 0;
 }
-
 .main-tab-content.active {
     display: block;
     opacity: 1;
     animation: tabSmoothEnter 0.18s ease-out forwards;
 }
-
 @keyframes tabSmoothEnter {
     0% {
         opacity: 0;
@@ -423,10 +355,6 @@ header {
         opacity: 1;
     }
 }
-
-/* ==========================================================================
-   RUNNING TEXT NEO-BRUTALISM RESMI (15 - 20 PESAN #2)
-   ========================================================================== */
 .marquee-container.neo-brutal-marquee {
     display: flex;
     align-items: stretch;
@@ -440,14 +368,12 @@ header {
     min-height: 48px;
     position: relative;
 }
-
 html[data-theme="dark"] .marquee-container.neo-brutal-marquee {
     background: #facc15;
     color: #0f172a;
     border-color: #f8fafc;
     box-shadow: 5px 5px 0px #020617;
 }
-
 .marquee-label {
     display: inline-flex;
     align-items: center;
@@ -464,7 +390,6 @@ html[data-theme="dark"] .marquee-container.neo-brutal-marquee {
     z-index: 2;
     flex-shrink: 0;
 }
-
 .marquee-live-dot {
     width: 8px;
     height: 8px;
@@ -473,12 +398,10 @@ html[data-theme="dark"] .marquee-container.neo-brutal-marquee {
     box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.32);
     animation: pulseLiveDot 1.4s infinite;
 }
-
 @keyframes pulseLiveDot {
     0%, 100% { transform: scale(1); opacity: 1; }
     50% { transform: scale(1.28); opacity: 0.75; }
 }
-
 .marquee-wrapper {
     flex: 1;
     overflow: hidden;
@@ -486,7 +409,6 @@ html[data-theme="dark"] .marquee-container.neo-brutal-marquee {
     align-items: center;
     position: relative;
 }
-
 .marquee-content {
     display: inline-flex;
     align-items: center;
@@ -495,16 +417,13 @@ html[data-theme="dark"] .marquee-container.neo-brutal-marquee {
     padding: 6px 0;
     animation: neoMarqueeScroll var(--marquee-duration, 42s) linear infinite;
 }
-
 .marquee-container:hover .marquee-content {
     animation-play-state: paused;
 }
-
 @keyframes neoMarqueeScroll {
     0% { transform: translate3d(0, 0, 0); }
     100% { transform: translate3d(-50%, 0, 0); }
 }
-
 .marquee-item-pill {
     display: inline-flex;
     align-items: center;
@@ -521,12 +440,10 @@ html[data-theme="dark"] .marquee-container.neo-brutal-marquee {
     cursor: pointer;
     transition: transform 0.15s ease, background-color 0.15s ease;
 }
-
 .marquee-item-pill:hover {
     background: #dbeafe;
     transform: translateY(-1px);
 }
-
 .marquee-item-badge {
     display: inline-flex;
     align-items: center;
@@ -541,22 +458,18 @@ html[data-theme="dark"] .marquee-container.neo-brutal-marquee {
     color: #ffffff;
     border: 1.5px solid #0f172a;
 }
-
 .marquee-item-badge.badge-promo {
     background: #f43f5e;
     color: #ffffff;
 }
-
 .marquee-item-badge.badge-news {
     background: #8b5cf6;
     color: #ffffff;
 }
-
 .marquee-item-badge.badge-product {
     background: #10b981;
     color: #0f172a;
 }
-
 .marquee-sep-star {
     display: inline-flex;
     align-items: center;
@@ -567,10 +480,6 @@ html[data-theme="dark"] .marquee-container.neo-brutal-marquee {
     margin: 0 4px;
     user-select: none;
 }
-
-/* ==========================================================================
-   TOMBOL, FORM, DAN PANEL NEO-BRUTALISM
-   ========================================================================== */
 .btn {
     display: inline-flex;
     align-items: center;
@@ -588,29 +497,24 @@ html[data-theme="dark"] .marquee-container.neo-brutal-marquee {
     user-select: none;
     text-decoration: none;
 }
-
 .btn:hover:not(:disabled) {
     transform: translate(-1.5px, -1.5px);
     box-shadow: 4.5px 4.5px 0px var(--border);
 }
-
 .btn:active:not(:disabled) {
     transform: translate(2px, 2px);
     box-shadow: 1px 1px 0px var(--border);
 }
-
 .btn:disabled {
     opacity: 0.58;
     cursor: not-allowed;
     box-shadow: none;
 }
-
 .btn-sm {
     padding: 7px 13px;
     font-size: 0.78rem;
     border-radius: 10px;
 }
-
 .btn-primary {
     background: var(--primary);
     color: #ffffff;
@@ -618,24 +522,20 @@ html[data-theme="dark"] .marquee-container.neo-brutal-marquee {
 .btn-primary:hover:not(:disabled) {
     background: var(--primary-dark);
 }
-
 .btn-warning {
     background: var(--secondary);
     color: #0f172a;
     border-color: #0f172a;
 }
-
 .btn-success {
     background: var(--success);
     color: #0f172a;
     border-color: #0f172a;
 }
-
 .btn-danger {
     background: var(--danger);
     color: #ffffff;
 }
-
 .btn-outline {
     background: var(--surface);
     color: var(--text);
@@ -643,7 +543,6 @@ html[data-theme="dark"] .marquee-container.neo-brutal-marquee {
 .btn-outline:hover:not(:disabled) {
     background: var(--surface-hover);
 }
-
 .btn-icon-only {
     display: inline-flex;
     align-items: center;
@@ -661,11 +560,9 @@ html[data-theme="dark"] .marquee-container.neo-brutal-marquee {
 .btn-icon-only:active {
     transform: translate(1.5px, 1.5px);
 }
-
 .form-group {
     margin-bottom: 1rem;
 }
-
 .form-group label {
     display: block;
     font-weight: 800;
@@ -673,7 +570,6 @@ html[data-theme="dark"] .marquee-container.neo-brutal-marquee {
     margin-bottom: 6px;
     color: var(--text);
 }
-
 .form-control {
     width: 100%;
     padding: 11px 14px;
@@ -687,19 +583,16 @@ html[data-theme="dark"] .marquee-container.neo-brutal-marquee {
     box-shadow: inset 0 1px 2px rgba(0,0,0,0.03);
     transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.12s ease;
 }
-
 .form-control:focus {
     outline: none;
     border-color: var(--primary);
     box-shadow: 3px 3px 0px var(--primary);
 }
-
 .input-icon-wrap {
     position: relative;
     display: flex;
     align-items: center;
 }
-
 .input-icon-wrap > i {
     position: absolute;
     left: 14px;
@@ -707,11 +600,9 @@ html[data-theme="dark"] .marquee-container.neo-brutal-marquee {
     font-size: 0.95rem;
     pointer-events: none;
 }
-
 .input-icon-wrap .form-control {
     padding-left: 40px;
 }
-
 .pass-eye-btn {
     position: absolute;
     right: 10px;
@@ -722,7 +613,6 @@ html[data-theme="dark"] .marquee-container.neo-brutal-marquee {
     padding: 6px;
     font-size: 0.95rem;
 }
-
 .brutal-panel {
     background: var(--surface);
     border: var(--brutal-border);
@@ -730,7 +620,6 @@ html[data-theme="dark"] .marquee-container.neo-brutal-marquee {
     border-radius: var(--brutal-radius);
     padding: 1.35rem;
 }
-
 .brutal-panel-title {
     font-family: var(--font-heading);
     font-weight: 900;
@@ -743,7 +632,6 @@ html[data-theme="dark"] .marquee-container.neo-brutal-marquee {
     align-items: center;
     gap: 8px;
 }
-
 .brutal-tag {
     display: inline-flex;
     align-items: center;
@@ -756,11 +644,9 @@ html[data-theme="dark"] .marquee-container.neo-brutal-marquee {
     border: 2px solid #0f172a;
     box-shadow: 2px 2px 0px #0f172a;
 }
-
 .tag-primary { background: var(--primary); color: #fff; }
 .tag-success { background: var(--success); color: #0f172a; }
 .tag-amber { background: var(--secondary); color: #0f172a; }
-
 .brutal-alert-box {
     display: flex;
     align-items: center;
@@ -772,15 +658,12 @@ html[data-theme="dark"] .marquee-container.neo-brutal-marquee {
     font-size: 0.82rem;
     font-weight: 800;
 }
-
 .alert-warning { background: #fef3c7; color: #92400e; border-color: #0f172a; }
 .alert-danger { background: #fee2e2; color: #991b1b; border-color: #0f172a; }
 .alert-info { background: #dbeafe; color: #1e40af; border-color: #0f172a; }
-
 html[data-theme="dark"] .alert-warning { background: rgba(245, 158, 11, 0.18); color: #fde68a; border-color: #f59e0b; }
 html[data-theme="dark"] .alert-danger { background: rgba(239, 68, 68, 0.18); color: #fecaca; border-color: #ef4444; }
 html[data-theme="dark"] .alert-info { background: rgba(59, 130, 246, 0.18); color: #bfdbfe; border-color: #3b82f6; }
-
 .brutal-empty-box {
     background: var(--surface);
     border: 2.5px dashed var(--border);
@@ -791,10 +674,6 @@ html[data-theme="dark"] .alert-info { background: rgba(59, 130, 246, 0.18); colo
     color: var(--text-muted);
     font-size: 0.9rem;
 }
-
-/* ==========================================================================
-   BANNER SLIDER & KATALOG PRODUK NEO-BRUTALISM
-   ========================================================================== */
 .banner-slider-container {
     position: relative !important;
     width: 100%;
@@ -805,12 +684,10 @@ html[data-theme="dark"] .alert-info { background: rgba(59, 130, 246, 0.18); colo
     margin-bottom: 1.4rem;
     background: var(--surface);
 }
-
 .banner-track {
     display: flex;
     transition: transform 0.45s var(--ease-spring);
 }
-
 .banner-slide {
     width: 100%;
     flex-shrink: 0;
@@ -818,7 +695,6 @@ html[data-theme="dark"] .alert-info { background: rgba(59, 130, 246, 0.18); colo
     object-fit: cover;
     display: block;
 }
-
 .catalog-control-panel {
     background: var(--surface);
     border: var(--brutal-border);
@@ -827,7 +703,6 @@ html[data-theme="dark"] .alert-info { background: rgba(59, 130, 246, 0.18); colo
     padding: 1.15rem 1.25rem;
     margin-bottom: 1.4rem;
 }
-
 .catalog-top-row {
     display: flex;
     align-items: center;
@@ -835,19 +710,16 @@ html[data-theme="dark"] .alert-info { background: rgba(59, 130, 246, 0.18); colo
     flex-wrap: wrap;
     gap: 12px;
 }
-
 .section-header h2 {
     font-size: 1.45rem;
     font-weight: 900;
 }
-
 .section-header p {
     font-size: 0.86rem;
     font-weight: 700;
     color: var(--text-muted);
     margin-top: 3px;
 }
-
 .catalog-filter-controls {
     display: flex;
     align-items: center;
@@ -857,13 +729,11 @@ html[data-theme="dark"] .alert-info { background: rgba(59, 130, 246, 0.18); colo
     max-width: 520px;
     justify-content: flex-end;
 }
-
 .search-input-box {
     position: relative;
     flex: 1;
     min-width: 190px;
 }
-
 .search-input-box > i {
     position: absolute;
     left: 13px;
@@ -871,12 +741,10 @@ html[data-theme="dark"] .alert-info { background: rgba(59, 130, 246, 0.18); colo
     transform: translateY(-50%);
     color: var(--text-muted);
 }
-
 .search-input-box .form-control {
     padding-left: 36px;
     padding-right: 32px;
 }
-
 .clear-search-btn {
     position: absolute;
     right: 8px;
@@ -888,13 +756,11 @@ html[data-theme="dark"] .alert-info { background: rgba(59, 130, 246, 0.18); colo
     cursor: pointer;
     padding: 4px;
 }
-
 .sort-select {
     width: auto;
     min-width: 155px;
     cursor: pointer;
 }
-
 .tabs {
     display: flex;
     gap: 8px;
@@ -903,7 +769,6 @@ html[data-theme="dark"] .alert-info { background: rgba(59, 130, 246, 0.18); colo
     scrollbar-width: none;
 }
 .tabs::-webkit-scrollbar { display: none; }
-
 .tab-btn {
     display: inline-flex;
     align-items: center;
@@ -921,7 +786,6 @@ html[data-theme="dark"] .alert-info { background: rgba(59, 130, 246, 0.18); colo
     cursor: pointer;
     transition: all 0.15s ease;
 }
-
 .tab-btn.active {
     background: var(--secondary);
     color: #0f172a;
@@ -929,13 +793,11 @@ html[data-theme="dark"] .alert-info { background: rgba(59, 130, 246, 0.18); colo
     box-shadow: 3px 3px 0px #0f172a;
     transform: translate(-1px, -1px);
 }
-
 .grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(225px, 1fr));
     gap: 1.15rem;
 }
-
 .brand-card {
     background: var(--surface);
     border: var(--brutal-border);
@@ -951,23 +813,19 @@ html[data-theme="dark"] .alert-info { background: rgba(59, 130, 246, 0.18); colo
     position: relative;
     overflow: hidden;
 }
-
 .brand-card:hover {
     transform: translate(-3px, -3px);
     box-shadow: var(--brutal-shadow-lg);
     background: var(--surface-hover);
 }
-
 .brand-card:active {
     transform: translate(1px, 1px);
     box-shadow: 2px 2px 0px var(--border);
 }
-
 .brand-card.sold-out {
     opacity: 0.65;
     filter: grayscale(0.35);
 }
-
 .brand-card-top {
     display: flex;
     align-items: flex-start;
@@ -975,7 +833,6 @@ html[data-theme="dark"] .alert-info { background: rgba(59, 130, 246, 0.18); colo
     gap: 10px;
     margin-bottom: 10px;
 }
-
 .brand-img-wrapper {
     width: 60px;
     height: 60px;
@@ -986,13 +843,11 @@ html[data-theme="dark"] .alert-info { background: rgba(59, 130, 246, 0.18); colo
     flex-shrink: 0;
     background: var(--bg);
 }
-
 .brand-img-wrapper img {
     width: 100%;
     height: 100%;
     object-fit: cover;
 }
-
 .brand-top-tag {
     font-family: var(--font-heading);
     font-size: 0.64rem;
@@ -1003,30 +858,25 @@ html[data-theme="dark"] .alert-info { background: rgba(59, 130, 246, 0.18); colo
     box-shadow: 2px 2px 0px #0f172a;
     text-transform: uppercase;
 }
-
 .tag-app { background: #dbeafe; color: #1e3a8a; }
 .tag-game { background: #fef08a; color: #854d0e; }
 .tag-tools { background: #e0e7ff; color: #3730a3; }
 .tag-maint { background: #fecaca; color: #991b1b; }
-
 .brand-content h3 {
     font-size: 1.05rem;
     font-weight: 900;
     color: var(--text);
     margin-bottom: 4px;
 }
-
 .brand-start-price {
     font-size: 0.8rem;
     font-weight: 700;
     color: var(--text-muted);
 }
-
 .brand-start-price b {
     color: var(--primary);
     font-weight: 900;
 }
-
 .brand-meta-footer {
     display: flex;
     align-items: center;
@@ -1036,7 +886,6 @@ html[data-theme="dark"] .alert-info { background: rgba(59, 130, 246, 0.18); colo
     font-size: 0.74rem;
     font-weight: 800;
 }
-
 .sold-pill {
     color: var(--text-muted);
     display: inline-flex;
@@ -1044,7 +893,6 @@ html[data-theme="dark"] .alert-info { background: rgba(59, 130, 246, 0.18); colo
     gap: 4px;
 }
 .sold-pill i { color: var(--warning); }
-
 .buy-arrow-pill {
     background: var(--secondary);
     color: #0f172a;
@@ -1056,15 +904,10 @@ html[data-theme="dark"] .alert-info { background: rgba(59, 130, 246, 0.18); colo
     align-items: center;
     gap: 4px;
 }
-
-/* ==========================================================================
-   PESANAN, LACAK TRANSAKSI & STRUK RINCIAN PESANAN MATANG
-   ========================================================================== */
 .track-single-box {
     display: flex;
     gap: 10px;
 }
-
 .history-toolbar {
     display: flex;
     align-items: center;
@@ -1073,7 +916,6 @@ html[data-theme="dark"] .alert-info { background: rgba(59, 130, 246, 0.18); colo
     flex-wrap: wrap;
     gap: 10px;
 }
-
 .history-filter-pills {
     display: flex;
     gap: 8px;
@@ -1082,7 +924,6 @@ html[data-theme="dark"] .alert-info { background: rgba(59, 130, 246, 0.18); colo
     scrollbar-width: none;
 }
 .history-filter-pills::-webkit-scrollbar { display: none; }
-
 .hist-pill {
     padding: 7px 14px;
     border-radius: 999px;
@@ -1097,20 +938,17 @@ html[data-theme="dark"] .alert-info { background: rgba(59, 130, 246, 0.18); colo
     cursor: pointer;
     transition: all 0.15s ease;
 }
-
 .hist-pill.active {
     background: var(--primary);
     color: #ffffff;
     transform: translate(-1px, -1px);
     box-shadow: 3px 3px 0px var(--border);
 }
-
 .order-history-list {
     display: flex;
     flex-direction: column;
     gap: 12px;
 }
-
 .order-compact-card {
     background: var(--surface);
     border: var(--brutal-border);
@@ -1124,13 +962,11 @@ html[data-theme="dark"] .alert-info { background: rgba(59, 130, 246, 0.18); colo
     cursor: pointer;
     transition: transform 0.15s var(--ease-spring), box-shadow 0.15s var(--ease-spring), background-color 0.15s ease;
 }
-
 .order-compact-card:hover {
     transform: translate(-2px, -2px);
     box-shadow: var(--brutal-shadow);
     background: var(--surface-hover);
 }
-
 .order-compact-left {
     display: flex;
     align-items: center;
@@ -1138,7 +974,6 @@ html[data-theme="dark"] .alert-info { background: rgba(59, 130, 246, 0.18); colo
     min-width: 0;
     flex: 1;
 }
-
 .order-compact-icon {
     width: 44px;
     height: 44px;
@@ -1153,12 +988,10 @@ html[data-theme="dark"] .alert-info { background: rgba(59, 130, 246, 0.18); colo
     color: var(--primary);
     flex-shrink: 0;
 }
-
 .order-compact-info {
     min-width: 0;
     flex: 1;
 }
-
 .order-compact-top {
     display: flex;
     align-items: center;
@@ -1166,20 +999,17 @@ html[data-theme="dark"] .alert-info { background: rgba(59, 130, 246, 0.18); colo
     gap: 6px;
     margin-bottom: 3px;
 }
-
 .order-compact-inv {
     font-family: var(--font-heading);
     font-weight: 900;
     font-size: 0.84rem;
     color: var(--primary);
 }
-
 .order-compact-date {
     font-size: 0.7rem;
     font-weight: 700;
     color: var(--text-muted);
 }
-
 .order-compact-title {
     font-weight: 800;
     font-size: 0.92rem;
@@ -1188,7 +1018,6 @@ html[data-theme="dark"] .alert-info { background: rgba(59, 130, 246, 0.18); colo
     overflow: hidden;
     text-overflow: ellipsis;
 }
-
 .order-compact-sub {
     font-size: 0.75rem;
     font-weight: 700;
@@ -1197,12 +1026,10 @@ html[data-theme="dark"] .alert-info { background: rgba(59, 130, 246, 0.18); colo
     overflow: hidden;
     text-overflow: ellipsis;
 }
-
 .order-compact-right {
     text-align: right;
     flex-shrink: 0;
 }
-
 .order-compact-price {
     display: block;
     font-family: var(--font-heading);
@@ -1210,14 +1037,11 @@ html[data-theme="dark"] .alert-info { background: rgba(59, 130, 246, 0.18); colo
     font-size: 0.98rem;
     color: var(--text);
 }
-
 .order-tap-hint {
     font-size: 0.72rem;
     font-weight: 800;
     color: var(--primary);
 }
-
-/* Status Badges Matang */
 .status-badge {
     display: inline-flex;
     align-items: center;
@@ -1232,29 +1056,23 @@ html[data-theme="dark"] .alert-info { background: rgba(59, 130, 246, 0.18); colo
     box-shadow: 2px 2px 0px #0f172a;
     text-transform: uppercase;
 }
-
 .status-unpaid {
     background: #fef08a;
     color: #854d0e;
 }
-
 .status-pending {
     background: #bae6fd;
     color: #075985;
 }
-
 .status-success {
     background: #6ee7b7;
     color: #064e3b;
 }
-
 .status-failed,
 .status-cancelled {
     background: #fecaca;
     color: #991b1b;
 }
-
-/* Desain Baru Struk Rincian Pesanan (E-Receipt Neo-Brutalist Matang #1) */
 .ereceipt-ticket {
     background: var(--surface);
     border: var(--brutal-border-thick);
@@ -1262,7 +1080,6 @@ html[data-theme="dark"] .alert-info { background: rgba(59, 130, 246, 0.18); colo
     border-radius: 16px;
     overflow: hidden;
 }
-
 .ereceipt-top-banner {
     display: flex;
     align-items: center;
@@ -1273,7 +1090,6 @@ html[data-theme="dark"] .alert-info { background: rgba(59, 130, 246, 0.18); colo
     background: var(--surface-elevated);
     border-bottom: var(--brutal-border-thin);
 }
-
 .ereceipt-inv-code {
     display: inline-flex;
     align-items: center;
@@ -1283,7 +1099,6 @@ html[data-theme="dark"] .alert-info { background: rgba(59, 130, 246, 0.18); colo
     font-weight: 900;
     color: var(--text);
 }
-
 .mini-copy-btn {
     background: var(--surface);
     border: 1.5px solid var(--border);
@@ -1301,8 +1116,6 @@ html[data-theme="dark"] .alert-info { background: rgba(59, 130, 246, 0.18); colo
 .mini-copy-btn:active {
     transform: translate(1px, 1px);
 }
-
-/* Banner Penjelasan Status Pesanan yang Matang */
 .ereceipt-status-hero {
     display: flex;
     align-items: flex-start;
@@ -1311,7 +1124,6 @@ html[data-theme="dark"] .alert-info { background: rgba(59, 130, 246, 0.18); colo
     border-bottom: var(--brutal-border-thin);
     font-size: 0.82rem;
 }
-
 .ereceipt-status-hero.hero-unpaid {
     background: #fef9c3;
     color: #713f12;
@@ -1328,12 +1140,10 @@ html[data-theme="dark"] .alert-info { background: rgba(59, 130, 246, 0.18); colo
     background: #fee2e2;
     color: #7f1d1d;
 }
-
 html[data-theme="dark"] .ereceipt-status-hero.hero-unpaid { background: rgba(250, 204, 21, 0.16); color: #fef08a; }
 html[data-theme="dark"] .ereceipt-status-hero.hero-pending { background: rgba(56, 189, 248, 0.16); color: #bae6fd; }
 html[data-theme="dark"] .ereceipt-status-hero.hero-success { background: rgba(16, 185, 129, 0.16); color: #a7f3d0; }
 html[data-theme="dark"] .ereceipt-status-hero.hero-failed { background: rgba(239, 68, 68, 0.16); color: #fecaca; }
-
 .ereceipt-status-hero-icon {
     width: 36px;
     height: 36px;
@@ -1348,7 +1158,6 @@ html[data-theme="dark"] .ereceipt-status-hero.hero-failed { background: rgba(239
     font-size: 1rem;
     flex-shrink: 0;
 }
-
 .ereceipt-status-hero-text strong {
     display: block;
     font-family: var(--font-heading);
@@ -1356,14 +1165,12 @@ html[data-theme="dark"] .ereceipt-status-hero.hero-failed { background: rgba(239
     font-weight: 900;
     margin-bottom: 2px;
 }
-
 .ereceipt-status-hero-text span {
     font-size: 0.76rem;
     font-weight: 700;
     line-height: 1.4;
     display: block;
 }
-
 .ereceipt-stepper {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
@@ -1372,7 +1179,6 @@ html[data-theme="dark"] .ereceipt-status-hero.hero-failed { background: rgba(239
     background: var(--bg);
     border-bottom: var(--brutal-border-thin);
 }
-
 .estep-item {
     display: flex;
     align-items: center;
@@ -1381,7 +1187,6 @@ html[data-theme="dark"] .ereceipt-status-hero.hero-failed { background: rgba(239
     font-weight: 800;
     color: var(--text-muted);
 }
-
 .estep-dot {
     width: 24px;
     height: 24px;
@@ -1394,7 +1199,6 @@ html[data-theme="dark"] .ereceipt-status-hero.hero-failed { background: rgba(239
     font-size: 0.68rem;
     flex-shrink: 0;
 }
-
 .estep-item.done { color: var(--text); }
 .estep-item.done .estep-dot {
     background: var(--success);
@@ -1402,7 +1206,6 @@ html[data-theme="dark"] .ereceipt-status-hero.hero-failed { background: rgba(239
     border-color: #0f172a;
     box-shadow: 1.5px 1.5px 0px #0f172a;
 }
-
 .estep-item.active { color: var(--primary); }
 .estep-item.active .estep-dot {
     background: var(--secondary);
@@ -1410,32 +1213,27 @@ html[data-theme="dark"] .ereceipt-status-hero.hero-failed { background: rgba(239
     border-color: #0f172a;
     box-shadow: 1.5px 1.5px 0px #0f172a;
 }
-
 .estep-item.failed { color: var(--danger); }
 .estep-item.failed .estep-dot {
     background: var(--danger);
     color: #fff;
     border-color: #0f172a;
 }
-
 .ereceipt-body {
     padding: 1.1rem 1.2rem;
 }
-
 .ereceipt-meta-grid {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
     gap: 8px;
     margin-bottom: 12px;
 }
-
 .ereceipt-meta-cell {
     background: var(--bg);
     border: 1.5px solid var(--border-subtle);
     border-radius: 10px;
     padding: 8px 10px;
 }
-
 .ereceipt-meta-cell span {
     display: block;
     font-size: 0.66rem;
@@ -1443,14 +1241,12 @@ html[data-theme="dark"] .ereceipt-status-hero.hero-failed { background: rgba(239
     color: var(--text-muted);
     text-transform: uppercase;
 }
-
 .ereceipt-meta-cell strong {
     font-size: 0.8rem;
     font-weight: 800;
     color: var(--text);
     word-break: break-word;
 }
-
 .ereceipt-product-box {
     background: var(--surface-elevated);
     border: var(--brutal-border-thin);
@@ -1458,7 +1254,6 @@ html[data-theme="dark"] .ereceipt-status-hero.hero-failed { background: rgba(239
     border-radius: 12px;
     padding: 12px 14px;
 }
-
 .ereceipt-cred-vault {
     margin-top: 14px;
     background: var(--bg);
@@ -1467,7 +1262,6 @@ html[data-theme="dark"] .ereceipt-status-hero.hero-failed { background: rgba(239
     border-radius: 12px;
     padding: 12px 14px;
 }
-
 .ereceipt-cred-content {
     margin-top: 10px;
     background: var(--surface);
@@ -1481,14 +1275,12 @@ html[data-theme="dark"] .ereceipt-status-hero.hero-failed { background: rgba(239
     word-break: break-word;
     line-height: 1.5;
 }
-
 .cred-parsed-grid {
     display: flex;
     flex-direction: column;
     gap: 7px;
     margin-top: 10px;
 }
-
 .cred-copy-item {
     display: flex;
     align-items: center;
@@ -1499,12 +1291,10 @@ html[data-theme="dark"] .ereceipt-status-hero.hero-failed { background: rgba(239
     border-radius: 9px;
     padding: 7px 10px;
 }
-
 .cred-copy-meta {
     min-width: 0;
     flex: 1;
 }
-
 .cred-copy-meta span {
     display: block;
     font-size: 0.65rem;
@@ -1512,7 +1302,6 @@ html[data-theme="dark"] .ereceipt-status-hero.hero-failed { background: rgba(239
     color: var(--text-muted);
     text-transform: uppercase;
 }
-
 .cred-copy-meta strong {
     display: block;
     font-family: 'Courier New', monospace;
@@ -1521,7 +1310,6 @@ html[data-theme="dark"] .ereceipt-status-hero.hero-failed { background: rgba(239
     color: var(--text);
     word-break: break-all;
 }
-
 .email-oauth-vault-box {
     margin-top: 10px;
     background: var(--surface);
@@ -1529,7 +1317,6 @@ html[data-theme="dark"] .ereceipt-status-hero.hero-failed { background: rgba(239
     border-radius: 10px;
     padding: 10px;
 }
-
 .raw-pipe-code {
     font-family: 'Courier New', monospace;
     font-size: 0.76rem;
@@ -1541,13 +1328,11 @@ html[data-theme="dark"] .ereceipt-status-hero.hero-failed { background: rgba(239
     word-break: break-all;
     margin: 7px 0;
 }
-
 .ereceipt-footer {
     padding: 1rem 1.2rem;
     background: var(--bg);
     border-top: var(--brutal-border-thin);
 }
-
 .receipt-row {
     display: flex;
     align-items: center;
@@ -1556,17 +1341,12 @@ html[data-theme="dark"] .ereceipt-status-hero.hero-failed { background: rgba(239
     font-weight: 800;
     margin-bottom: 5px;
 }
-
 .ereceipt-action-grid {
     display: grid;
     grid-template-columns: 1.3fr 1fr;
     gap: 8px;
     margin-top: 12px;
 }
-
-/* ==========================================================================
-   TAB BANTUAN CS & SARAN PRODUK (2 TAB TERPISAH #14)
-   ========================================================================== */
 .bantuan-subtabs-bar {
     display: flex;
     gap: 10px;
@@ -1578,7 +1358,6 @@ html[data-theme="dark"] .ereceipt-status-hero.hero-failed { background: rgba(239
     border: var(--brutal-border);
     box-shadow: var(--brutal-shadow-sm);
 }
-
 .bantuan-subtab-btn {
     flex: 1;
     display: inline-flex;
@@ -1596,21 +1375,18 @@ html[data-theme="dark"] .ereceipt-status-hero.hero-failed { background: rgba(239
     cursor: pointer;
     transition: all 0.18s var(--ease-spring);
 }
-
 .bantuan-subtab-btn.active {
     background: var(--secondary);
     color: #0f172a;
     border-color: #0f172a;
     box-shadow: 2px 2px 0px #0f172a;
 }
-
 .chat-single-wrapper,
 .saran-single-wrapper {
     max-width: 720px;
     margin: 0 auto;
     animation: tabSmoothEnter 0.25s var(--ease-spring);
 }
-
 .chat-brutal-container {
     background: var(--surface);
     border: var(--brutal-border-thick);
@@ -1623,7 +1399,6 @@ html[data-theme="dark"] .ereceipt-status-hero.hero-failed { background: rgba(239
     min-height: 430px;
     max-height: 640px;
 }
-
 .chat-pre-box {
     flex: 1;
     display: flex;
@@ -1631,13 +1406,11 @@ html[data-theme="dark"] .ereceipt-status-hero.hero-failed { background: rgba(239
     justify-content: center;
     padding: 1.5rem;
 }
-
 .chat-pre-card {
     width: 100%;
     max-width: 360px;
     text-align: center;
 }
-
 .chat-avatar-large {
     width: 64px;
     height: 64px;
@@ -1652,7 +1425,6 @@ html[data-theme="dark"] .ereceipt-status-hero.hero-failed { background: rgba(239
     font-size: 1.6rem;
     margin: 0 auto 12px;
 }
-
 .chat-header-bar {
     display: flex;
     align-items: center;
@@ -1661,7 +1433,6 @@ html[data-theme="dark"] .ereceipt-status-hero.hero-failed { background: rgba(239
     background: var(--surface-elevated);
     border-bottom: var(--brutal-border-thin);
 }
-
 .chat-admin-avatar {
     width: 40px;
     height: 40px;
@@ -1674,7 +1445,6 @@ html[data-theme="dark"] .ereceipt-status-hero.hero-failed { background: rgba(239
     justify-content: center;
     font-size: 1.05rem;
 }
-
 .chat-body {
     flex: 1;
     padding: 1rem;
@@ -1684,7 +1454,6 @@ html[data-theme="dark"] .ereceipt-status-hero.hero-failed { background: rgba(239
     gap: 10px;
     background: var(--bg);
 }
-
 .chat-msg {
     max-width: 80%;
     padding: 10px 13px;
@@ -1695,21 +1464,18 @@ html[data-theme="dark"] .ereceipt-status-hero.hero-failed { background: rgba(239
     font-weight: 700;
     line-height: 1.45;
 }
-
 .chat-msg.user {
     align-self: flex-end;
     background: var(--primary);
     color: #ffffff;
     border-bottom-right-radius: 4px;
 }
-
 .chat-msg.admin {
     align-self: flex-start;
     background: var(--surface);
     color: var(--text);
     border-bottom-left-radius: 4px;
 }
-
 .chat-sender-label {
     display: block;
     font-size: 0.66rem;
@@ -1717,7 +1483,6 @@ html[data-theme="dark"] .ereceipt-status-hero.hero-failed { background: rgba(239
     margin-bottom: 2px;
     opacity: 0.9;
 }
-
 .chat-time {
     display: block;
     font-size: 0.62rem;
@@ -1725,7 +1490,6 @@ html[data-theme="dark"] .ereceipt-status-hero.hero-failed { background: rgba(239
     text-align: right;
     margin-top: 4px;
 }
-
 .chat-footer {
     display: flex;
     gap: 8px;
@@ -1733,13 +1497,10 @@ html[data-theme="dark"] .ereceipt-status-hero.hero-failed { background: rgba(239
     background: var(--surface);
     border-top: var(--brutal-border-thin);
 }
-
-/* Kartu Saran Produk */
 .saran-brutal-card {
     border: var(--brutal-border-thick);
     box-shadow: var(--brutal-shadow-lg);
 }
-
 .saran-header-box {
     display: flex;
     align-items: flex-start;
@@ -1748,7 +1509,6 @@ html[data-theme="dark"] .ereceipt-status-hero.hero-failed { background: rgba(239
     margin-bottom: 1.1rem;
     border-bottom: 2px dashed var(--border-subtle);
 }
-
 .saran-icon-badge {
     width: 50px;
     height: 50px;
@@ -1763,22 +1523,16 @@ html[data-theme="dark"] .ereceipt-status-hero.hero-failed { background: rgba(239
     font-size: 1.35rem;
     flex-shrink: 0;
 }
-
 .saran-header-box h3 {
     font-size: 1.18rem;
     font-weight: 900;
     margin-bottom: 3px;
 }
-
 .saran-header-box p {
     font-size: 0.82rem;
     font-weight: 700;
     color: var(--text-muted);
 }
-
-/* ==========================================================================
-   BERITA, PROFIL & CHECKOUT
-   ========================================================================== */
 .community-banner-card {
     background: var(--surface);
     border: var(--brutal-border);
@@ -1792,7 +1546,6 @@ html[data-theme="dark"] .ereceipt-status-hero.hero-failed { background: rgba(239
     gap: 14px;
     margin: 1.3rem 0;
 }
-
 .community-icon {
     width: 50px;
     height: 50px;
@@ -1806,18 +1559,15 @@ html[data-theme="dark"] .ereceipt-status-hero.hero-failed { background: rgba(239
     justify-content: center;
     font-size: 1.6rem;
 }
-
 .community-info {
     flex: 1;
     min-width: 210px;
 }
-
 .news-feed-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
     gap: 1.25rem;
 }
-
 .news-article-card {
     background: var(--surface);
     border: var(--brutal-border);
@@ -1831,14 +1581,12 @@ html[data-theme="dark"] .ereceipt-status-hero.hero-failed { background: rgba(239
     transform: translate(-3px, -3px);
     box-shadow: var(--brutal-shadow-lg);
 }
-
 .news-cover-img {
     width: 100%;
     height: 165px;
     object-fit: cover;
     border-bottom: var(--brutal-border-thin);
 }
-
 .news-cover-placeholder {
     width: 100%;
     height: 130px;
@@ -1850,20 +1598,17 @@ html[data-theme="dark"] .ereceipt-status-hero.hero-failed { background: rgba(239
     font-size: 2.2rem;
     color: var(--primary);
 }
-
 .news-card-body {
     padding: 1.1rem;
     display: flex;
     flex-direction: column;
     gap: 10px;
 }
-
 .news-card-title {
     font-size: 1.05rem;
     font-weight: 900;
     margin: 8px 0 5px;
 }
-
 .news-card-excerpt {
     font-size: 0.82rem;
     color: var(--text-muted);
@@ -1873,18 +1618,15 @@ html[data-theme="dark"] .ereceipt-status-hero.hero-failed { background: rgba(239
     -webkit-box-orient: vertical;
     overflow: hidden;
 }
-
 .article-fullscreen-wrapper {
     max-width: 780px;
     margin: 0 auto;
 }
-
 .article-top-nav {
     display: flex;
     justify-content: space-between;
     margin-bottom: 1rem;
 }
-
 .article-fullscreen-card {
     background: var(--surface);
     border: var(--brutal-border-thick);
@@ -1892,12 +1634,10 @@ html[data-theme="dark"] .ereceipt-status-hero.hero-failed { background: rgba(239
     border-radius: var(--brutal-radius-lg);
     padding: 1.6rem;
 }
-
 .article-meta-header h1 {
     font-size: 1.55rem;
     margin: 10px 0 14px;
 }
-
 .article-hero-image-box img {
     width: 100%;
     max-height: 360px;
@@ -1906,7 +1646,6 @@ html[data-theme="dark"] .ereceipt-status-hero.hero-failed { background: rgba(239
     border: var(--brutal-border-thin);
     margin-bottom: 1.2rem;
 }
-
 .article-content-body {
     font-size: 0.94rem;
     font-weight: 600;
@@ -1914,7 +1653,6 @@ html[data-theme="dark"] .ereceipt-status-hero.hero-failed { background: rgba(239
     white-space: pre-line;
     margin-bottom: 1.5rem;
 }
-
 .article-footer-cta {
     background: var(--surface-elevated);
     border: var(--brutal-border-thin);
@@ -1926,8 +1664,6 @@ html[data-theme="dark"] .ereceipt-status-hero.hero-failed { background: rgba(239
     flex-wrap: wrap;
     gap: 12px;
 }
-
-/* Profil */
 .profile-hero-card {
     background: var(--surface);
     border: var(--brutal-border-thick);
@@ -1940,7 +1676,6 @@ html[data-theme="dark"] .ereceipt-status-hero.hero-failed { background: rgba(239
     gap: 16px;
     margin: 1rem 0 1.3rem;
 }
-
 .profile-avatar-box {
     width: 64px;
     height: 64px;
@@ -1956,37 +1691,31 @@ html[data-theme="dark"] .ereceipt-status-hero.hero-failed { background: rgba(239
     font-size: 1.65rem;
     font-weight: 900;
 }
-
 .profile-hero-info {
     flex: 1;
     min-width: 180px;
 }
-
 .profile-hero-info h3 {
     font-size: 1.2rem;
     font-weight: 900;
     margin-top: 5px;
 }
-
 .profile-hero-info p {
     font-size: 0.82rem;
     font-weight: 700;
     color: var(--text-muted);
 }
-
 .profile-hero-actions {
     display: flex;
     flex-wrap: wrap;
     gap: 8px;
 }
-
 .profile-stats-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
     gap: 1rem;
     margin-bottom: 1.3rem;
 }
-
 .prof-stat-card {
     background: var(--surface);
     border: var(--brutal-border);
@@ -1997,7 +1726,6 @@ html[data-theme="dark"] .ereceipt-status-hero.hero-failed { background: rgba(239
     align-items: center;
     gap: 12px;
 }
-
 .prof-stat-icon {
     width: 46px;
     height: 46px;
@@ -2010,28 +1738,23 @@ html[data-theme="dark"] .ereceipt-status-hero.hero-failed { background: rgba(239
     font-size: 1.15rem;
     color: #0f172a;
 }
-
 .bg-accent-blue { background: #93c5fd; }
 .bg-accent-emerald { background: #6ee7b7; }
 .bg-accent-amber { background: #fde047; }
-
 .prof-stat-label {
     font-size: 0.75rem;
     font-weight: 800;
     color: var(--text-muted);
 }
-
 .prof-stat-card h4 {
     font-size: 1.2rem;
     font-weight: 900;
 }
-
 .profile-settings-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
     gap: 1.25rem;
 }
-
 .notif-toggle-card {
     display: flex;
     align-items: center;
@@ -2042,13 +1765,11 @@ html[data-theme="dark"] .ereceipt-status-hero.hero-failed { background: rgba(239
     border: var(--brutal-border-thin);
     border-radius: 12px;
 }
-
 .notif-toggle-info {
     display: flex;
     align-items: center;
     gap: 10px;
 }
-
 .notif-bell-circle {
     width: 38px;
     height: 38px;
@@ -2058,7 +1779,6 @@ html[data-theme="dark"] .ereceipt-status-hero.hero-failed { background: rgba(239
     justify-content: center;
     border: 1.5px solid var(--border);
 }
-
 .notif-toggle-info strong {
     display: block;
     font-size: 0.85rem;
@@ -2067,8 +1787,6 @@ html[data-theme="dark"] .ereceipt-status-hero.hero-failed { background: rgba(239
     font-size: 0.74rem;
     font-weight: 800;
 }
-
-/* Checkout */
 .checkout-brand-header {
     background: var(--surface);
     border: var(--brutal-border);
@@ -2080,7 +1798,6 @@ html[data-theme="dark"] .ereceipt-status-hero.hero-failed { background: rgba(239
     gap: 14px;
     margin-bottom: 1.25rem;
 }
-
 .checkout-brand-logo {
     width: 66px;
     height: 66px;
@@ -2089,14 +1806,12 @@ html[data-theme="dark"] .ereceipt-status-hero.hero-failed { background: rgba(239
     box-shadow: 3px 3px 0px var(--border);
     object-fit: cover;
 }
-
 .checkout-split-grid {
     display: grid;
     grid-template-columns: 1.45fr 1fr;
     gap: 1.25rem;
     align-items: start;
 }
-
 .checkout-step-card {
     background: var(--surface);
     border: var(--brutal-border);
@@ -2105,12 +1820,10 @@ html[data-theme="dark"] .ereceipt-status-hero.hero-failed { background: rgba(239
     padding: 1.25rem;
     margin-bottom: 1.25rem;
 }
-
 .sticky-checkout-box {
     position: sticky;
     top: 84px;
 }
-
 .step-header {
     display: flex;
     align-items: center;
@@ -2119,7 +1832,6 @@ html[data-theme="dark"] .ereceipt-status-hero.hero-failed { background: rgba(239
     padding-bottom: 0.65rem;
     border-bottom: 2px dashed var(--border-subtle);
 }
-
 .step-num {
     background: var(--secondary);
     color: #0f172a;
@@ -2131,13 +1843,11 @@ html[data-theme="dark"] .ereceipt-status-hero.hero-failed { background: rgba(239
     font-weight: 900;
     font-size: 0.8rem;
 }
-
 .item-selection-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(195px, 1fr));
     gap: 10px;
 }
-
 .item-card {
     background: var(--bg);
     border: var(--brutal-border-thin);
@@ -2151,49 +1861,41 @@ html[data-theme="dark"] .ereceipt-status-hero.hero-failed { background: rgba(239
     cursor: pointer;
     transition: transform 0.14s ease, box-shadow 0.14s ease, background-color 0.14s ease;
 }
-
 .item-card:hover:not(.sold-out) {
     transform: translate(-2px, -2px);
     box-shadow: 5px 5px 0px var(--border);
     background: var(--surface-hover);
 }
-
 .item-card.selected {
     background: #dbeafe;
     border-color: #0f172a;
     border-width: 2.5px;
     box-shadow: 4px 4px 0px #2563eb;
 }
-
 html[data-theme="dark"] .item-card.selected {
     background: rgba(37, 99, 235, 0.25);
     border-color: #60a5fa;
 }
-
 .item-card.sold-out {
     opacity: 0.52;
     cursor: not-allowed;
 }
-
 .item-card h4 {
     font-size: 0.9rem;
     font-weight: 900;
     margin-bottom: 4px;
 }
-
 .item-variant-desc {
     font-size: 0.73rem;
     font-weight: 600;
     color: var(--text-muted);
     margin-bottom: 6px;
 }
-
 .item-badges-row {
     display: flex;
     flex-wrap: wrap;
     gap: 5px;
 }
-
 .item-duration-pill,
 .item-stock-pill {
     font-size: 0.66rem;
@@ -2203,7 +1905,6 @@ html[data-theme="dark"] .item-card.selected {
     background: var(--surface);
     border: 1.5px solid var(--border);
 }
-
 .price-wrapper {
     display: flex;
     align-items: center;
@@ -2211,14 +1912,12 @@ html[data-theme="dark"] .item-card.selected {
     padding-top: 8px;
     border-top: 1.5px dashed var(--border-subtle);
 }
-
 .price-normal {
     font-family: var(--font-heading);
     font-weight: 900;
     font-size: 0.95rem;
     color: var(--primary);
 }
-
 .proc-mode-badge {
     font-family: var(--font-heading);
     font-size: 0.6rem;
@@ -2230,13 +1929,11 @@ html[data-theme="dark"] .item-card.selected {
 .proc-mode-auto { background: #6ee7b7; color: #064e3b; }
 .proc-mode-manual { background: #fde047; color: #713f12; }
 .proc-mode-ask-auto { background: #c4b5fd; color: #4c1d95; }
-
 .variant-accordion-bar {
     margin-top: 12px;
     display: flex;
     justify-content: center;
 }
-
 .qty-control-bar {
     display: flex;
     align-items: center;
@@ -2247,13 +1944,11 @@ html[data-theme="dark"] .item-card.selected {
     border-radius: 12px;
     margin-bottom: 1rem;
 }
-
 .qty-stepper {
     display: flex;
     align-items: center;
     gap: 6px;
 }
-
 .qty-input {
     width: 44px;
     text-align: center;
@@ -2264,18 +1959,15 @@ html[data-theme="dark"] .item-card.selected {
     background: transparent;
     color: var(--text);
 }
-
 .promo-box {
     display: flex;
     gap: 8px;
 }
-
 .promo-msg {
     font-size: 0.76rem;
     font-weight: 800;
     margin-top: 5px;
 }
-
 .member-autofill-card {
     display: flex;
     align-items: center;
@@ -2290,12 +1982,10 @@ html[data-theme="dark"] .item-card.selected {
     color: var(--success);
     font-size: 1.1rem;
 }
-
 .type-grid {
     display: grid;
     gap: 10px;
 }
-
 .type-card {
     background: var(--bg);
     border: var(--brutal-border-thin);
@@ -2308,20 +1998,17 @@ html[data-theme="dark"] .item-card.selected {
     gap: 5px;
     transition: all 0.14s ease;
 }
-
 .type-card.active {
     background: var(--surface-elevated);
     border-color: var(--primary);
     box-shadow: 3px 3px 0px var(--primary);
 }
-
 .pay-method-head {
     display: flex;
     align-items: center;
     gap: 7px;
     font-size: 0.88rem;
 }
-
 .pay-badge {
     align-self: flex-start;
     font-size: 0.62rem;
@@ -2332,7 +2019,6 @@ html[data-theme="dark"] .item-card.selected {
 }
 .badge-green { background: #6ee7b7; color: #064e3b; }
 .badge-yellow { background: #fde047; color: #713f12; }
-
 .cart-total-box {
     display: flex;
     align-items: center;
@@ -2344,33 +2030,28 @@ html[data-theme="dark"] .item-card.selected {
     border-radius: 12px;
     margin: 1rem 0;
 }
-
 .total-label {
     font-family: var(--font-heading);
     font-size: 0.74rem;
     font-weight: 900;
     color: var(--text-muted);
 }
-
 .unique-code-info {
     font-size: 0.7rem;
     font-weight: 700;
     color: var(--text-muted);
 }
-
 .total-nominal {
     font-family: var(--font-heading);
     font-size: 1.35rem;
     font-weight: 900;
     color: var(--primary);
 }
-
 .btn-checkout-submit {
     width: 100%;
     padding: 13px;
     font-size: 0.96rem;
 }
-
 .star-rating {
     display: flex;
     gap: 8px;
@@ -2379,15 +2060,10 @@ html[data-theme="dark"] .item-card.selected {
     margin-bottom: 12px;
     cursor: pointer;
 }
-
-/* ==========================================================================
-   PEMBAYARAN QRIS & TIKET TUNAI
-   ========================================================================== */
 .qris-fullscreen-wrapper {
     max-width: 840px;
     margin: 0 auto;
 }
-
 .qris-fs-topbar {
     display: flex;
     align-items: center;
@@ -2396,7 +2072,6 @@ html[data-theme="dark"] .item-card.selected {
     gap: 10px;
     margin-bottom: 1rem;
 }
-
 .qris-fs-timer-card {
     background: var(--surface);
     border: var(--brutal-border);
@@ -2405,7 +2080,6 @@ html[data-theme="dark"] .item-card.selected {
     padding: 1rem 1.2rem;
     margin-bottom: 1.2rem;
 }
-
 .qris-timer-head {
     display: flex;
     align-items: center;
@@ -2413,19 +2087,16 @@ html[data-theme="dark"] .item-card.selected {
     gap: 10px;
     margin-bottom: 8px;
 }
-
 .timer-label {
     display: block;
     font-size: 0.68rem;
     font-weight: 900;
     color: var(--text-muted);
 }
-
 .timer-item-sub {
     font-size: 0.92rem;
     font-weight: 900;
 }
-
 .qris-countdown-pill {
     background: var(--secondary);
     color: #0f172a;
@@ -2437,7 +2108,6 @@ html[data-theme="dark"] .item-card.selected {
     font-weight: 900;
     font-size: 0.9rem;
 }
-
 .qris-progress-track {
     width: 100%;
     height: 10px;
@@ -2446,20 +2116,17 @@ html[data-theme="dark"] .item-card.selected {
     border-radius: 999px;
     overflow: hidden;
 }
-
 .qris-progress-fill {
     height: 100%;
     background: var(--success);
     transition: width 0.5s linear;
 }
-
 .qris-fs-main-grid {
     display: grid;
     grid-template-columns: 1fr 1.15fr;
     gap: 1.25rem;
     align-items: start;
 }
-
 .qris-white-frame {
     background: #ffffff;
     color: #0f172a;
@@ -2469,11 +2136,9 @@ html[data-theme="dark"] .item-card.selected {
     padding: 1.25rem;
     text-align: center;
 }
-
 .qris-frame-head {
     margin-bottom: 12px;
 }
-
 .qris-standard-badge {
     display: inline-block;
     background: #0f172a;
@@ -2485,19 +2150,16 @@ html[data-theme="dark"] .item-card.selected {
     border-radius: 6px;
     margin-bottom: 4px;
 }
-
 .qris-frame-head strong {
     display: block;
     font-size: 1rem;
     font-weight: 900;
 }
-
 .qris-frame-head span {
     font-size: 0.72rem;
     font-weight: 800;
     color: #475569;
 }
-
 .qrcode-canvas-wrap {
     display: flex;
     justify-content: center;
@@ -2507,7 +2169,6 @@ html[data-theme="dark"] .item-card.selected {
     border: 2px dashed #0f172a;
     border-radius: 12px;
 }
-
 .qris-detail-row {
     display: flex;
     align-items: center;
@@ -2516,20 +2177,17 @@ html[data-theme="dark"] .item-card.selected {
     font-weight: 800;
     margin-bottom: 10px;
 }
-
 .qris-nominal-highlight-box {
     background: var(--surface-elevated);
     border: var(--brutal-border-thin);
     border-radius: 12px;
     padding: 12px;
 }
-
 .nom-label {
     font-size: 0.68rem;
     font-weight: 900;
     color: var(--text-muted);
 }
-
 .nom-value-row {
     display: flex;
     align-items: center;
@@ -2537,21 +2195,18 @@ html[data-theme="dark"] .item-card.selected {
     gap: 10px;
     margin: 6px 0;
 }
-
 .nom-big-text {
     font-family: var(--font-heading);
     font-size: 1.45rem;
     font-weight: 900;
     color: var(--primary);
 }
-
 .nom-warning-note {
     display: block;
     font-size: 0.72rem;
     font-weight: 700;
     color: var(--text-muted);
 }
-
 .qris-live-listener-box {
     background: var(--surface);
     border: var(--brutal-border-thin);
@@ -2563,7 +2218,6 @@ html[data-theme="dark"] .item-card.selected {
     justify-content: space-between;
     gap: 10px;
 }
-
 .qris-live-listener-box strong {
     display: block;
     font-size: 0.84rem;
@@ -2573,12 +2227,10 @@ html[data-theme="dark"] .item-card.selected {
     font-weight: 700;
     color: var(--text-muted);
 }
-
 .qris-action-row {
     display: flex;
     gap: 10px;
 }
-
 .qris-cancel-box {
     margin-top: 12px;
     padding: 10px 12px;
@@ -2590,7 +2242,6 @@ html[data-theme="dark"] .item-card.selected {
     justify-content: space-between;
     gap: 10px;
 }
-
 .qris-expired-card {
     background: var(--surface);
     border: var(--brutal-border-thick);
@@ -2599,7 +2250,6 @@ html[data-theme="dark"] .item-card.selected {
     padding: 2rem 1.4rem;
     text-align: center;
 }
-
 .expired-icon-box {
     width: 60px;
     height: 60px;
@@ -2613,17 +2263,12 @@ html[data-theme="dark"] .item-card.selected {
     font-size: 1.6rem;
     margin: 0 auto 10px;
 }
-
 .expired-actions {
     display: flex;
     justify-content: center;
     gap: 10px;
     margin-top: 1.2rem;
 }
-
-/* ==========================================================================
-   HALAMAN LOGIN & DAFTAR NEO-BRUTALISM RAME & MATANG
-   ========================================================================== */
 .auth-neo-stage {
     display: grid;
     grid-template-columns: 1.12fr 0.95fr;
@@ -2632,7 +2277,6 @@ html[data-theme="dark"] .item-card.selected {
     max-width: 1040px;
     margin: 0.8rem auto 2rem;
 }
-
 .auth-neo-showcase {
     background: var(--surface);
     border: var(--brutal-border-thick);
@@ -2648,13 +2292,11 @@ html[data-theme="dark"] .item-card.selected {
     background-image: radial-gradient(var(--bg-pattern-dot) 1.5px, transparent 1.5px);
     background-size: 20px 20px;
 }
-
 .auth-Neo-top-stickers {
     display: flex;
     flex-wrap: wrap;
     gap: 8px;
 }
-
 .neo-sticker {
     display: inline-flex;
     align-items: center;
@@ -2667,39 +2309,33 @@ html[data-theme="dark"] .item-card.selected {
     border: 2px solid #0f172a;
     box-shadow: 2.5px 2.5px 0px #0f172a;
 }
-
 .sticker-yellow {
     background: #facc15;
     color: #0f172a;
     transform: rotate(-1.5deg);
 }
-
 .sticker-pink {
     background: #fda4af;
     color: #0f172a;
     transform: rotate(1.2deg);
 }
-
 .auth-showcase-heading {
     font-size: 1.85rem;
     font-weight: 900;
     line-height: 1.18;
     color: var(--text);
 }
-
 .auth-showcase-sub {
     font-size: 0.9rem;
     font-weight: 700;
     color: var(--text-muted);
     line-height: 1.55;
 }
-
 .auth-category-bento {
     display: flex;
     flex-direction: column;
     gap: 10px;
 }
-
 .auth-bento-item {
     display: flex;
     align-items: center;
@@ -2711,15 +2347,12 @@ html[data-theme="dark"] .item-card.selected {
     color: #0f172a;
     transition: transform 0.15s ease;
 }
-
 .auth-bento-item:hover {
     transform: translate(-2px, -2px);
 }
-
 .bento-blue { background: #dbeafe; }
 .bento-amber { background: #fef08a; }
 .bento-emerald { background: #a7f3d0; }
-
 .bento-icon {
     width: 42px;
     height: 42px;
@@ -2734,20 +2367,17 @@ html[data-theme="dark"] .item-card.selected {
     color: #0f172a;
     flex-shrink: 0;
 }
-
 .auth-bento-item strong {
     display: block;
     font-family: var(--font-heading);
     font-size: 0.9rem;
     font-weight: 900;
 }
-
 .auth-bento-item span {
     font-size: 0.76rem;
     font-weight: 700;
     color: #1e293b;
 }
-
 .auth-steps-strip {
     display: flex;
     align-items: center;
@@ -2759,7 +2389,6 @@ html[data-theme="dark"] .item-card.selected {
     border: var(--brutal-border-thin);
     border-radius: 12px;
 }
-
 .auth-step-pill {
     display: inline-flex;
     align-items: center;
@@ -2767,7 +2396,6 @@ html[data-theme="dark"] .item-card.selected {
     font-size: 0.75rem;
     font-weight: 800;
 }
-
 .step-idx {
     width: 22px;
     height: 22px;
@@ -2782,12 +2410,10 @@ html[data-theme="dark"] .item-card.selected {
     font-weight: 900;
     font-size: 0.7rem;
 }
-
 .auth-step-arrow {
     font-size: 0.7rem;
     color: var(--text-muted);
 }
-
 .auth-compact-card {
     background: var(--surface);
     border: var(--brutal-border-thick);
@@ -2799,7 +2425,6 @@ html[data-theme="dark"] .item-card.selected {
     flex-direction: column;
     justify-content: center;
 }
-
 .auth-card-floating-badge {
     position: absolute;
     top: -13px;
@@ -2815,22 +2440,18 @@ html[data-theme="dark"] .item-card.selected {
     border: 2px solid #0f172a;
     box-shadow: 2px 2px 0px #0f172a;
 }
-
 .auth-header-text {
     margin-bottom: 1.1rem;
 }
-
 .auth-header-text h2 {
     font-size: 1.45rem;
     font-weight: 900;
 }
-
 .auth-header-text p {
     font-size: 0.84rem;
     font-weight: 700;
     color: var(--text-muted);
 }
-
 .auth-tabs-toggle {
     display: flex;
     gap: 8px;
@@ -2840,7 +2461,6 @@ html[data-theme="dark"] .item-card.selected {
     border: var(--brutal-border-thin);
     margin-bottom: 1.2rem;
 }
-
 .auth-tabs-toggle button {
     flex: 1;
     padding: 9px 12px;
@@ -2858,62 +2478,50 @@ html[data-theme="dark"] .item-card.selected {
     gap: 6px;
     transition: all 0.16s ease;
 }
-
 .auth-tabs-toggle button.active {
     background: var(--secondary);
     color: #0f172a;
     border-color: #0f172a;
     box-shadow: 2px 2px 0px #0f172a;
 }
-
 .auth-forgot-link {
     font-size: 0.78rem;
     font-weight: 800;
     color: var(--primary);
 }
-
 .btn-auth-action {
     width: 100%;
     padding: 12px 16px;
     font-size: 0.9rem;
 }
-
 .auth-divider {
     display: flex;
     align-items: center;
     gap: 10px;
     margin: 1.15rem 0;
 }
-
 .auth-divider hr {
     flex: 1;
     border: none;
     border-top: 2px dashed var(--border-subtle);
 }
-
 .auth-divider span {
     font-family: var(--font-heading);
     font-size: 0.68rem;
     font-weight: 900;
     color: var(--text-muted);
 }
-
 .auth-quick-buttons {
     display: flex;
     flex-direction: column;
     gap: 10px;
 }
-
-/* ==========================================================================
-   MODAL POP-UP & NOTIFIKASI TOAST NEO-BRUTALISM MATANG
-   ========================================================================== */
 .modal-overlay,
 .msg-overlay {
     position: fixed;
     inset: 0;
     z-index: 10000;
     background: rgba(9, 13, 22, 0.66);
-    /* Crisp Neo-Brutalism Overlay without heavy blur */
     display: flex;
     align-items: center;
     justify-content: center;
@@ -2923,14 +2531,12 @@ html[data-theme="dark"] .item-card.selected {
     pointer-events: none;
     transition: opacity 0.22s var(--ease-spring), visibility 0.22s var(--ease-spring);
 }
-
 .modal-overlay.active,
 .msg-overlay.active {
     opacity: 1;
     visibility: visible;
     pointer-events: auto;
 }
-
 .modal-content {
     width: 100%;
     max-width: 500px;
@@ -2944,11 +2550,9 @@ html[data-theme="dark"] .item-card.selected {
     transform: translateY(14px) scale(0.96);
     transition: transform 0.24s var(--ease-spring);
 }
-
 .modal-overlay.active .modal-content {
     transform: translateY(0) scale(1);
 }
-
 .modal-header {
     display: flex;
     align-items: center;
@@ -2958,7 +2562,6 @@ html[data-theme="dark"] .item-card.selected {
     padding-bottom: 0.75rem;
     border-bottom: 2px solid var(--border);
 }
-
 .modal-header h2 {
     font-size: 1.12rem;
     font-weight: 900;
@@ -2966,7 +2569,6 @@ html[data-theme="dark"] .item-card.selected {
     align-items: center;
     gap: 8px;
 }
-
 .close-btn {
     width: 34px;
     height: 34px;
@@ -2981,7 +2583,6 @@ html[data-theme="dark"] .item-card.selected {
     cursor: pointer;
     font-size: 0.95rem;
 }
-
 .msg-box {
     width: 100%;
     max-width: 370px;
@@ -2994,11 +2595,9 @@ html[data-theme="dark"] .item-card.selected {
     transform: translateY(12px) scale(0.95);
     transition: transform 0.22s var(--ease-spring);
 }
-
 .msg-overlay.active .msg-box {
     transform: translateY(0) scale(1);
 }
-
 .msg-icon {
     width: 56px;
     height: 56px;
@@ -3012,26 +2611,21 @@ html[data-theme="dark"] .item-card.selected {
     margin: 0 auto 12px;
     color: #0f172a;
 }
-
 .msg-icon.success { background: #6ee7b7; }
 .msg-icon.warning { background: #fde047; }
 .msg-icon.error { background: #fca5a5; }
 .msg-icon.info { background: #93c5fd; }
-
 .msg-title {
     font-size: 1.15rem;
     font-weight: 900;
     margin-bottom: 6px;
 }
-
 .msg-desc {
     font-size: 0.85rem;
     font-weight: 700;
     color: var(--text-muted);
     line-height: 1.5;
 }
-
-/* Toast Notification Neo-Brutalist Matang */
 .toast-container {
     position: fixed;
     top: 16px;
@@ -3044,7 +2638,6 @@ html[data-theme="dark"] .item-card.selected {
     width: calc(100vw - 32px);
     pointer-events: none;
 }
-
 .toast-item {
     pointer-events: auto;
     display: flex;
@@ -3062,17 +2655,14 @@ html[data-theme="dark"] .item-card.selected {
     opacity: 0;
     transition: transform 0.28s var(--ease-spring), opacity 0.24s ease;
 }
-
 html[data-theme="dark"] .toast-item {
     border-color: #f8fafc;
     box-shadow: 4px 4px 0px #020617;
 }
-
 .toast-item.show {
     transform: translateX(0);
     opacity: 1;
 }
-
 .toast-icon {
     width: 36px;
     height: 36px;
@@ -3086,31 +2676,26 @@ html[data-theme="dark"] .toast-item {
     color: #0f172a;
     flex-shrink: 0;
 }
-
 .toast-success .toast-icon { background: #6ee7b7; }
 .toast-warning .toast-icon { background: #fde047; }
 .toast-error .toast-icon { background: #fca5a5; }
 .toast-info .toast-icon { background: #93c5fd; }
-
 .toast-content {
     flex: 1;
     min-width: 0;
 }
-
 .toast-content h4 {
     font-family: var(--font-heading);
     font-size: 0.88rem;
     font-weight: 900;
     margin-bottom: 2px;
 }
-
 .toast-content p {
     font-size: 0.78rem;
     font-weight: 700;
     color: var(--text-muted);
     line-height: 1.38;
 }
-
 .toast-progress-bar {
     position: absolute;
     bottom: 0;
@@ -3124,13 +2709,10 @@ html[data-theme="dark"] .toast-item {
 .toast-success .toast-progress-bar { background: var(--success); }
 .toast-warning .toast-progress-bar { background: var(--warning); }
 .toast-error .toast-progress-bar { background: var(--danger); }
-
 @keyframes toastProgressShrink {
     from { transform: scaleX(1); }
     to { transform: scaleX(0); }
 }
-
-/* Tiket Tunai & OTP */
 .cash-retail-ticket {
     background: #ffffff;
     color: #0f172a;
@@ -3138,7 +2720,6 @@ html[data-theme="dark"] .toast-item {
     border-radius: 14px;
     padding: 1.15rem;
 }
-
 .retail-ticket-head {
     display: flex;
     justify-content: space-between;
@@ -3147,12 +2728,10 @@ html[data-theme="dark"] .toast-item {
     padding-bottom: 8px;
     margin-bottom: 10px;
 }
-
 .retail-store-name {
     font-family: var(--font-heading);
     font-weight: 900;
 }
-
 .retail-ticket-badge {
     background: #fde047;
     border: 1.5px solid #0f172a;
@@ -3161,13 +2740,11 @@ html[data-theme="dark"] .toast-item {
     font-size: 0.7rem;
     font-weight: 900;
 }
-
 .retail-barcode-box {
     display: flex;
     justify-content: center;
     padding: 8px 0;
 }
-
 .retail-row {
     display: flex;
     justify-content: space-between;
@@ -3175,13 +2752,11 @@ html[data-theme="dark"] .toast-item {
     font-weight: 800;
     margin-top: 6px;
 }
-
 .retail-row.total {
     border-top: 2px solid #0f172a;
     padding-top: 8px;
     font-size: 0.95rem;
 }
-
 .otp-badge-icon {
     width: 56px;
     height: 56px;
@@ -3196,7 +2771,6 @@ html[data-theme="dark"] .toast-item {
     font-size: 1.5rem;
     margin: 0 auto 10px;
 }
-
 .otp-code-input {
     text-align: center;
     font-family: 'Space Grotesk', monospace;
@@ -3204,8 +2778,6 @@ html[data-theme="dark"] .toast-item {
     font-weight: 900;
     letter-spacing: 0.35em;
 }
-
-/* Animasi Sukses Pembayaran */
 .brutal-success-card {
     background: var(--surface);
     border: var(--brutal-border-thick);
@@ -3218,7 +2790,6 @@ html[data-theme="dark"] .toast-item {
     position: relative;
     z-index: 2;
 }
-
 .brutal-success-badge {
     display: inline-flex;
     align-items: center;
@@ -3232,7 +2803,6 @@ html[data-theme="dark"] .toast-item {
     font-size: 0.75rem;
     margin-bottom: 12px;
 }
-
 .checkmark-circle-large {
     width: 68px;
     height: 68px;
@@ -3247,51 +2817,41 @@ html[data-theme="dark"] .toast-item {
     font-size: 2rem;
     margin: 0 auto 12px;
 }
-
 .confetti-wrapper {
     position: absolute;
     inset: 0;
     pointer-events: none;
     overflow: hidden;
 }
-
 .confetti-piece {
     position: absolute;
     top: -20px;
     border: 1.5px solid #0f172a;
     animation: confettiFall linear forwards;
 }
-
 @keyframes confettiFall {
     to {
         transform: translateY(105vh) rotate(540deg);
     }
 }
-
-/* ==========================================================================
-   FOOTER & NAVIGASI BAWAH MOBILE
-   ========================================================================== */
 .footer-new {
     margin-top: auto;
     background: var(--surface);
     border-top: var(--brutal-border-thick);
     padding-top: 2rem;
 }
-
 .footer-enterprise-grid {
     display: grid;
     grid-template-columns: 1.4fr 1fr 1fr 1.1fr;
     gap: 1.5rem;
     padding-bottom: 1.6rem;
 }
-
 .footer-brand {
     display: flex;
     align-items: center;
     gap: 10px;
     margin-bottom: 8px;
 }
-
 .footer-brand h2 span {
     background: var(--secondary);
     color: #0f172a;
@@ -3300,20 +2860,17 @@ html[data-theme="dark"] .toast-item {
     border: 2px solid #0f172a;
     border-radius: 6px;
 }
-
 .footer-tagline {
     font-size: 0.82rem;
     font-weight: 700;
     color: var(--text-muted);
     margin-bottom: 12px;
 }
-
 .footer-social-links {
     display: flex;
     gap: 8px;
     flex-wrap: wrap;
 }
-
 .soc-btn {
     display: inline-flex;
     align-items: center;
@@ -3326,14 +2883,12 @@ html[data-theme="dark"] .toast-item {
     font-weight: 800;
     background: var(--bg);
 }
-
 .footer-col-title {
     font-family: var(--font-heading);
     font-weight: 900;
     font-size: 0.88rem;
     margin-bottom: 10px;
 }
-
 .footer-nav-list {
     display: flex;
     flex-direction: column;
@@ -3342,20 +2897,17 @@ html[data-theme="dark"] .toast-item {
     font-weight: 700;
     color: var(--text-muted);
 }
-
 .footer-nav-list a {
     cursor: pointer;
 }
 .footer-nav-list a:hover {
     color: var(--primary);
 }
-
 .footer-payment-badges {
     display: flex;
     flex-wrap: wrap;
     gap: 8px;
 }
-
 .pay-partner-pill {
     display: inline-flex;
     align-items: center;
@@ -3367,13 +2919,11 @@ html[data-theme="dark"] .toast-item {
     font-size: 0.78rem;
     font-weight: 800;
 }
-
 .footer-support-box {
     display: flex;
     flex-direction: column;
     gap: 8px;
 }
-
 .wa-contact-btn {
     display: inline-flex;
     align-items: center;
@@ -3388,7 +2938,6 @@ html[data-theme="dark"] .toast-item {
     font-weight: 900;
     font-size: 0.8rem;
 }
-
 .footer-bottom-bar {
     border-top: 2px dashed var(--border-subtle);
     padding: 1rem 0;
@@ -3397,8 +2946,6 @@ html[data-theme="dark"] .toast-item {
     color: var(--text-muted);
     text-align: center;
 }
-
-/* Navigasi Bawah Mobile Neo-Brutalist */
 .bottom-nav {
     display: none;
     position: fixed;
@@ -3414,12 +2961,10 @@ html[data-theme="dark"] .toast-item {
     justify-content: space-around;
     align-items: center;
 }
-
 html[data-theme="dark"] .bottom-nav {
     border-color: #cbd5e1;
     box-shadow: 4px 4px 0px #020617;
 }
-
 .bottom-nav a {
     flex: 1;
     display: flex;
@@ -3436,11 +2981,9 @@ html[data-theme="dark"] .bottom-nav {
     border: 2px solid transparent;
     transition: all 0.16s var(--ease-spring);
 }
-
 .bottom-nav a i {
     font-size: 1.05rem;
 }
-
 .bottom-nav a.active {
     background: var(--secondary);
     color: #0f172a;
@@ -3448,108 +2991,82 @@ html[data-theme="dark"] .bottom-nav {
     box-shadow: 2px 2px 0px #0f172a;
     transform: translateY(-2px);
 }
-
 .bottom-nav-spacer {
     height: 0;
 }
-
-/* ==========================================================================
-   RESPONSIVE BREAKPOINTS (TAMPILAN HP LEBIH MATANG #12)
-   ========================================================================== */
 @media (max-width: 900px) {
     .hide-mobile-nav {
         display: none !important;
     }
-
     .bottom-nav {
         display: flex;
     }
-
     .bottom-nav-spacer {
         height: 82px;
     }
-
     .checkout-split-grid,
     .qris-fs-main-grid {
         grid-template-columns: 1fr;
     }
-
     .sticky-checkout-box {
         position: static;
     }
-
     .auth-neo-stage {
         grid-template-columns: 1fr;
         gap: 1.15rem;
         margin-top: 0.3rem;
     }
-
-    /* Di layar HP, form login di atas atau showcase kompak agar langsung mudah diakses & tetap rame */
     .auth-neo-showcase {
         padding: 1.25rem;
         order: 2;
     }
-
     .auth-compact-card {
         padding: 1.4rem 1.2rem;
         order: 1;
     }
-
     .auth-showcase-heading {
         font-size: 1.35rem;
     }
-
     .footer-enterprise-grid {
         grid-template-columns: 1fr 1fr;
     }
 }
-
 @media (max-width: 580px) {
     .hide-mobile {
         display: none !important;
     }
-
     .container {
         padding: 0 0.85rem;
     }
-
     .main-tab-content {
         padding: 1.1rem 0.85rem 2.6rem;
     }
-
     .grid {
         grid-template-columns: repeat(2, 1fr);
         gap: 0.75rem;
     }
-
     .brand-card {
         padding: 0.8rem;
     }
-
     .brand-img-wrapper {
         width: 48px;
         height: 48px;
     }
-
     .brand-content h3 {
         font-size: 0.92rem;
     }
-
     .item-selection-grid {
         grid-template-columns: 1fr;
     }
-
     .ereceipt-meta-grid,
     .ereceipt-action-grid,
     .footer-enterprise-grid {
         grid-template-columns: 1fr;
     }
-
     .marquee-label {
         padding: 0 11px;
         font-size: 0.72rem;
     }
-
     .toast-container {
         top: 12px;
         right: 12px;
@@ -3558,16 +3075,11 @@ html[data-theme="dark"] .bottom-nav {
         max-width: none;
     }
 }
-
-/* ==========================================================================
-   KELENGKAPAN KOMPONEN & UTILITAS NEO-BRUTALISM TAMBAHAN (ANTI-UNSTYLED UI)
-   ========================================================================== */
 .text-center { text-align: center; }
 .text-primary { color: var(--primary) !important; }
 .text-warning { color: var(--warning) !important; }
 .text-success { color: var(--success) !important; }
 .text-danger { color: var(--danger) !important; }
-
 .preloader-brand-tag {
     display: inline-flex;
     align-items: center;
@@ -3583,8 +3095,6 @@ html[data-theme="dark"] .bottom-nav {
     font-size: 0.76rem;
     letter-spacing: 0.04em;
 }
-
-/* Marquee Fallback & Neo-Brutalist Bar */
 .marquee-container,
 .marquee-container.neo-brutal-marquee {
     display: flex;
@@ -3599,7 +3109,6 @@ html[data-theme="dark"] .bottom-nav {
     min-height: 48px;
     position: relative;
 }
-
 html[data-theme="dark"] .marquee-container,
 html[data-theme="dark"] .marquee-container.neo-brutal-marquee {
     background: #facc15;
@@ -3607,34 +3116,26 @@ html[data-theme="dark"] .marquee-container.neo-brutal-marquee {
     border-color: #f8fafc;
     box-shadow: 5px 5px 0px #020617;
 }
-
 .marquee-label-text {
     font-family: var(--font-heading);
     font-weight: 900;
     letter-spacing: 0.05em;
 }
-
-/* Grid 2 Kolom Responsif di Form */
 .grid-2col-form {
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 12px;
 }
-
-/* Expand Deskripsi Checkout & Tombol Accordion Variasi */
 .checkout-wrapper {
     width: 100%;
 }
-
 .checkout-brand-meta h2 {
     font-size: 1.35rem;
     font-weight: 900;
 }
-
 .desc-expand-box {
     position: relative;
 }
-
 .desc-fade-overlay {
     position: absolute;
     bottom: 34px;
@@ -3644,26 +3145,20 @@ html[data-theme="dark"] .marquee-container.neo-brutal-marquee {
     background: linear-gradient(to bottom, transparent, var(--surface));
     pointer-events: none;
 }
-
 .desc-more-btn {
     width: 100%;
     margin-top: 8px;
 }
-
 .neo-accordion-btn {
     width: 100%;
     max-width: 320px;
 }
-
 .neo-accordion-btn.collapse-mode {
     background: var(--surface-elevated);
 }
-
-/* QRIS & Cash Barcode Modal Polish */
 .qris-fintech-modal {
     max-width: 420px;
 }
-
 .qris-top-bar {
     display: flex;
     align-items: center;
@@ -3673,7 +3168,6 @@ html[data-theme="dark"] .marquee-container.neo-brutal-marquee {
     padding-bottom: 10px;
     border-bottom: 2px solid var(--border);
 }
-
 .qris-brand-badge {
     font-family: var(--font-heading);
     font-weight: 900;
@@ -3682,17 +3176,14 @@ html[data-theme="dark"] .marquee-container.neo-brutal-marquee {
     align-items: center;
     gap: 7px;
 }
-
 .qris-countdown-pill.timer-warn {
     background: #fbbf24;
     color: #0f172a;
 }
-
 .qris-countdown-pill.timer-danger {
     background: var(--danger);
     color: #ffffff;
 }
-
 .qris-guest-alert {
     display: block;
     font-size: 0.74rem;
@@ -3703,65 +3194,46 @@ html[data-theme="dark"] .marquee-container.neo-brutal-marquee {
     border-radius: 8px;
     border: 1.5px dashed var(--border);
 }
-
-/* Animasi Sukses Pembayaran Tambahan */
 .brutal-success-title {
     font-size: 1.35rem;
     font-weight: 900;
     margin-bottom: 6px;
 }
-
 .brutal-success-desc {
     font-size: 0.85rem;
     font-weight: 700;
     color: var(--text-muted);
     margin-bottom: 12px;
 }
-
 .brutal-success-loader {
     font-size: 0.78rem;
     font-weight: 800;
     color: var(--primary);
 }
-
-/* E-Receipt OAuth & Stepper Label */
 .email-oauth-head {
     display: flex;
     align-items: center;
     justify-content: space-between;
     margin-bottom: 4px;
 }
-
 .email-oauth-actions {
     margin-top: 6px;
 }
-
 .estep-label {
     font-weight: 800;
 }
-
 .article-footer-cta.linked-highlight {
     border-color: var(--primary);
     box-shadow: 4px 4px 0px var(--primary);
 }
-
 @media (max-width: 580px) {
     .grid-2col-form {
         grid-template-columns: 1fr !important;
     }
 }
-
-
-/* ==========================================================================
-   RUNNING TEXT UJUNG-KE-UJUNG, RUNNING TEXT BAWAH HITAM
-   GLOW MANIK-MANIK DI SEMUA TAB & OPTIMASI PERFORMA GOOGLE 90+
-   ========================================================================== */
-
-/* 1. Hilangkan kotak label INFO yang menghalangi di Running Text Atas & Bawah */
 .marquee-label {
     display: none !important;
 }
-
 .marquee-container.edge-to-edge-marquee {
     width: 100vw;
     margin-left: calc(50% - 50vw);
@@ -3776,20 +3248,17 @@ html[data-theme="dark"] .marquee-container.neo-brutal-marquee {
     margin-bottom: 1.35rem;
     min-height: 50px;
 }
-
 html[data-theme="dark"] .marquee-container.edge-to-edge-marquee {
     border-top-color: #f8fafc;
     border-bottom-color: #f8fafc;
     box-shadow: 0 4px 0px #020617;
 }
-
 .marquee-container.edge-to-edge-marquee .marquee-wrapper {
     width: 100%;
     overflow: hidden;
     display: flex;
     align-items: center;
 }
-
 .marquee-container.edge-to-edge-marquee .marquee-content {
     display: inline-flex;
     align-items: center;
@@ -3802,12 +3271,9 @@ html[data-theme="dark"] .marquee-container.edge-to-edge-marquee {
     -webkit-font-smoothing: antialiased;
     animation: neoMarqueeScroll var(--marquee-duration, 44s) linear infinite;
 }
-
-/* 2. Running Text Bawah: Struktur & Kehalusan Identik dengan Atas, Tema Hitam Elegan & Tidak Berhenti Saat Disentuh */
 body.auth-locked .footer-divider-marquee-wrap {
     display: none !important;
 }
-
 .footer-divider-marquee-wrap {
     width: 100%;
     margin-top: 2.5rem;
@@ -3815,7 +3281,6 @@ body.auth-locked .footer-divider-marquee-wrap {
     position: relative;
     z-index: 15;
 }
-
 .marquee-container.footer-dark-marquee,
 html[data-theme="dark"] .marquee-container.footer-dark-marquee {
     background: #070a12 !important;
@@ -3826,25 +3291,20 @@ html[data-theme="dark"] .marquee-container.footer-dark-marquee {
     margin-bottom: 0 !important;
     min-height: 52px;
 }
-
 html[data-theme="dark"] .marquee-container.footer-dark-marquee {
     border-top-color: #334155 !important;
     border-bottom-color: #334155 !important;
     box-shadow: 0 -4px 0px #020617 !important;
 }
-
 .marquee-container.footer-dark-marquee .marquee-content {
     animation: neoMarqueeScroll var(--footer-marquee-duration, 44s) linear infinite !important;
     animation-play-state: running !important;
 }
-
-/* Pastikan Running Text Bawah TIDAK BERHENTI saat disentuh, di-hover, atau diklik */
 .marquee-container.footer-dark-marquee:hover .marquee-content,
 .marquee-container.footer-dark-marquee:active .marquee-content,
 .marquee-container.footer-dark-marquee:focus .marquee-content {
     animation-play-state: running !important;
 }
-
 .marquee-item-pill.footer-dark-pill {
     background: #131c31;
     color: #f8fafc;
@@ -3853,20 +3313,16 @@ html[data-theme="dark"] .marquee-container.footer-dark-marquee {
     user-select: none;
     -webkit-user-select: none;
 }
-
 .marquee-item-pill.footer-dark-pill:hover {
     background: #1e293b;
     border-color: #facc15;
     transform: none;
 }
-
 .marquee-container.footer-dark-marquee .marquee-sep-star {
     color: #facc15;
     font-size: 0.9rem;
     margin: 0 6px;
 }
-
-/* 3. Tombol Segarkan Katalog & Penyempurnaan UI Neo-Brutalism */
 .catalog-refresh-btn {
     display: inline-flex;
     align-items: center;
@@ -3882,13 +3338,11 @@ html[data-theme="dark"] .marquee-container.footer-dark-marquee {
     white-space: nowrap;
     flex-shrink: 0;
 }
-
 .catalog-refresh-btn:hover {
     background: var(--secondary);
     color: #0f172a;
     border-color: #0f172a;
 }
-
 .brand-card,
 .item-card,
 .brutal-panel,
@@ -3899,62 +3353,49 @@ html[data-theme="dark"] .marquee-container.footer-dark-marquee {
     backface-visibility: hidden;
     transform: translateZ(0);
 }
-
 .brand-card {
     border: 2.5px solid var(--border);
     box-shadow: 4px 4px 0px var(--border);
     transition: transform 0.14s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.14s cubic-bezier(0.22, 1, 0.36, 1), background-color 0.14s ease;
 }
-
 .brand-card:hover {
     transform: translate3d(-2px, -2px, 0);
     box-shadow: 6px 6px 0px var(--border);
 }
-
 .brand-card:active {
     transform: translate3d(2px, 2px, 0);
     box-shadow: 2px 2px 0px var(--border);
 }
-
 .btn {
     transition: transform 0.12s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.12s cubic-bezier(0.22, 1, 0.36, 1), background-color 0.12s ease;
     backface-visibility: hidden;
 }
-
 .btn:active:not(:disabled) {
     transform: translate3d(2px, 2px, 0) !important;
     box-shadow: 1px 1px 0px var(--border) !important;
 }
-
-/* ============================================================================
- * BADGE HABIS KATALOG, INDIKATOR CHAT & JAM OPERASIONAL
- * ============================================================================ */
 .brand-top-tag.tag-soldout {
     background: var(--danger) !important;
     color: #ffffff !important;
     border-color: #0f172a !important;
 }
-
 .proc-mode-badge.proc-mode-op-hours {
     background: #fef08a;
     color: #0f172a;
     border: 1.5px solid #0f172a;
     font-weight: 800;
 }
-
 [data-theme="dark"] .proc-mode-badge.proc-mode-op-hours {
     background: #facc15;
     color: #090d16;
     border-color: #000000;
 }
-
 .proc-mode-badge.proc-mode-soldout {
     background: var(--danger);
     color: #ffffff;
     border: 1.5px solid #0f172a;
     font-weight: 800;
 }
-
 .chat-op-hours-banner {
     display: flex;
     align-items: center;
@@ -3965,16 +3406,10 @@ html[data-theme="dark"] .marquee-container.footer-dark-marquee {
     border: var(--brutal-border-thin);
     box-shadow: var(--brutal-shadow-sm);
 }
-
 .item-card.op-hours-locked {
     opacity: 0.82;
     border-style: dashed;
 }
-
-/* ============================================================================
- * ISOLASI GPU COMPOSITOR LAYER RUNNING TEXT BAWAH ANTI-LAG
- * SAAT PERPINDAHAN TAB (60/120FPS LOCKED)
- * ============================================================================ */
 .footer-divider-marquee-wrap {
     contain: layout paint style;
     isolation: isolate;
@@ -3982,19 +3417,16 @@ html[data-theme="dark"] .marquee-container.footer-dark-marquee {
     backface-visibility: hidden;
     -webkit-backface-visibility: hidden;
 }
-
 .marquee-container.footer-dark-marquee {
     contain: layout paint style;
     transform: translate3d(0, 0, 0);
     backface-visibility: hidden;
     -webkit-backface-visibility: hidden;
 }
-
 .marquee-container.footer-dark-marquee .marquee-wrapper {
     contain: content;
     transform: translate3d(0, 0, 0);
 }
-
 .marquee-container.footer-dark-marquee .marquee-content {
     display: inline-flex;
     width: max-content;
@@ -4006,31 +3438,21 @@ html[data-theme="dark"] .marquee-container.footer-dark-marquee {
     animation: neoMarqueeScroll var(--footer-marquee-duration, 44s) linear infinite !important;
     animation-play-state: running !important;
 }
-
 .marquee-item-pill.footer-dark-pill {
     contain: layout style;
     transform: translate3d(0, 0, 0);
     backface-visibility: hidden;
     transition: background-color 0.15s ease, border-color 0.15s ease !important;
 }
-
 .footer-catalog-text {
     color: #f8fafc;
     font-weight: 800;
     letter-spacing: 0.01em;
 }
-
-
-/* ============================================================================
- * V27.9 ULTRA-FAST QRIS AUTO-VERIFY & STOREFRONT POLISH
- * ============================================================================ */
 .qris-live-listener-box {
     border: 2px solid var(--success);
     background: var(--surface-elevated);
 }
-/* ==========================================
-   DOMPET SALDO AKUN & INTEGRASI DIGIFLAZZ
-   ========================================== */
 .wallet-header-pill {
     display: inline-flex;
     align-items: center;
@@ -4043,7 +3465,6 @@ html[data-theme="dark"] .marquee-container.footer-dark-marquee {
     box-shadow: 2px 2px 0px #0f172a;
     cursor: pointer;
 }
-
 .wallet-plus-badge {
     display: inline-flex;
     align-items: center;
@@ -4056,14 +3477,12 @@ html[data-theme="dark"] .marquee-container.footer-dark-marquee {
     font-size: 0.72rem;
     font-weight: 900;
 }
-
 .topup-quick-grid {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
     gap: 8px;
     margin-top: 6px;
 }
-
 .topup-nom-chip {
     padding: 10px 8px;
     border-radius: 10px;
@@ -4075,14 +3494,12 @@ html[data-theme="dark"] .marquee-container.footer-dark-marquee {
     cursor: pointer;
     transition: all 0.14s ease;
 }
-
 .topup-nom-chip.active,
 .topup-nom-chip:hover {
     border-color: var(--primary);
     background: var(--primary);
     color: #ffffff;
 }
-
 .pln-inquiry-result-card {
     margin-top: 10px;
     padding: 10px 12px;
@@ -4091,7 +3508,6 @@ html[data-theme="dark"] .marquee-container.footer-dark-marquee {
     background: var(--surface);
     font-size: 0.8rem;
 }
-
 @media (max-width: 520px) {
     .checkout-pay-3grid {
         grid-template-columns: 1fr !important;
@@ -4100,14 +3516,6 @@ html[data-theme="dark"] .marquee-container.footer-dark-marquee {
         grid-template-columns: repeat(2, 1fr);
     }
 }
-
-
-/* ==========================================================================
-   PERBAIKAN RESPONSIVITAS SENTUHAN, BADGE KATEGORI & STRUK TOKEN PLN
-   ========================================================================== */
-/* #water-ripple-canvas dikendalikan dinamis melalui pengaturan waterRippleEnabled */
-
-/* Matikan efek goyang/transform pada container statis saat disentuh */
 .brutal-panel:hover,
 .checkout-step-card:hover,
 .prof-stat-card:hover,
@@ -4117,15 +3525,11 @@ html[data-theme="dark"] .marquee-container.footer-dark-marquee {
 .ereceipt-ticket:hover {
     transform: none !important;
 }
-
-/* Sembunyikan elemen dompet saldo secara mutlak jika bukan sesi Member */
 body:not(.is-member-session) #header-wallet-btn,
 body:not(.is-member-session) #prof-wallet-card,
 body:not(.is-member-session) #pay-card-balance {
     display: none !important;
 }
-
-/* Badge Kategori Spesifik: Pulsa, PLN, E-Wallet, Tagihan */
 .tag-pulsa {
     background: #0284c7 !important;
     color: #ffffff !important;
@@ -4142,8 +3546,6 @@ body:not(.is-member-session) #pay-card-balance {
     background: #7c3aed !important;
     color: #ffffff !important;
 }
-
-/* Badge Gangguan vs Stok Habis */
 .proc-mode-gangguan {
     background: #ef4444 !important;
     color: #ffffff !important;
@@ -4155,8 +3557,6 @@ body:not(.is-member-session) #pay-card-balance {
     background: rgba(239, 68, 68, 0.05) !important;
     cursor: not-allowed;
 }
-
-/* Kartu Token PLN Prabayar 20-Digit di Struk Pembayaran */
 .pln-token-highlight-card {
     margin-top: 12px;
     padding: 14px;
@@ -4221,13 +3621,6 @@ body:not(.is-member-session) #pay-card-balance {
     color: #fff;
     border: 1.5px solid #111827;
 }
-
-
-/* ==========================================================================
-   PANEL SAMBUTAN WAKTU, SALDO AKUN, MEMBER PLUS, TABEL PERBANDINGAN HARGA & STRUK
-   ========================================================================== */
-
-/* Utilitas Tata Letak & Tipografi */
 .flex-between {
     display: flex;
     justify-content: space-between;
@@ -4246,13 +3639,9 @@ body:not(.is-member-session) #pay-card-balance {
     background: var(--success) !important;
     color: #0f172a !important;
 }
-
-/* Sembunyikan info saldo di samping tombol ganti tema header */
 #header-wallet-btn {
     display: none !important;
 }
-
-/* Panel Selamat Datang Pengguna */
 .user-greeting-neo-panel {
     background: var(--surface);
     border: var(--brutal-border-thick);
@@ -4268,12 +3657,10 @@ body:not(.is-member-session) #pay-card-balance {
     background-image: radial-gradient(var(--bg-pattern-dot) 1.25px, transparent 1.25px);
     background-size: 20px 20px;
 }
-
 .greeting-left-col {
     flex: 1.2;
     min-width: 240px;
 }
-
 .greeting-badge-row {
     display: flex;
     align-items: center;
@@ -4281,7 +3668,6 @@ body:not(.is-member-session) #pay-card-balance {
     gap: 8px;
     margin-bottom: 6px;
 }
-
 .greeting-time-pill {
     display: inline-flex;
     align-items: center;
@@ -4296,11 +3682,9 @@ body:not(.is-member-session) #pay-card-balance {
     background: var(--secondary);
     color: #0f172a;
 }
-
 .greeting-role-pill {
     display: none !important;
 }
-
 .greeting-main-title {
     font-family: var(--font-heading);
     font-size: 1.38rem;
@@ -4309,7 +3693,6 @@ body:not(.is-member-session) #pay-card-balance {
     margin-bottom: 4px;
     color: var(--text);
 }
-
 .greeting-sub-text {
     font-family: var(--font-main);
     font-size: 0.82rem;
@@ -4317,7 +3700,6 @@ body:not(.is-member-session) #pay-card-balance {
     color: var(--text-muted);
     line-height: 1.45;
 }
-
 .greeting-right-col {
     display: flex;
     flex-direction: column;
@@ -4326,7 +3708,6 @@ body:not(.is-member-session) #pay-card-balance {
     flex: 1;
     min-width: 250px;
 }
-
 .greeting-wallet-card {
     width: 100%;
     max-width: 340px;
@@ -4340,7 +3721,6 @@ body:not(.is-member-session) #pay-card-balance {
     justify-content: space-between;
     gap: 10px;
 }
-
 .greeting-wallet-meta span {
     display: block;
     font-family: var(--font-heading);
@@ -4349,32 +3729,27 @@ body:not(.is-member-session) #pay-card-balance {
     color: var(--text-muted);
     letter-spacing: 0.04em;
 }
-
 .greeting-wallet-meta strong {
     font-family: var(--font-heading);
     font-size: 1.22rem;
     font-weight: 900;
     color: var(--primary);
 }
-
 .greeting-actions-strip {
     display: flex;
     flex-wrap: wrap;
     gap: 8px;
     justify-content: flex-end;
 }
-
 .topup-fullscreen-wrapper {
     max-width: 1040px;
     margin: 0 auto;
 }
-
 .topup-two-subtabs {
     display: grid !important;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 8px;
 }
-
 .topup-two-subtabs .bantuan-subtab-btn {
     font-family: var(--font-heading);
     font-size: 0.82rem;
@@ -4384,18 +3759,11 @@ body:not(.is-member-session) #pay-card-balance {
     overflow: hidden;
     text-overflow: ellipsis;
 }
-
 .bantuan-subtab-btn.memberplus-subtab-gold.active {
     background: linear-gradient(135deg, #facc15, #f59e0b) !important;
     color: #0f172a !important;
     border-color: #0f172a !important;
 }
-
-/* ==========================================================================
-   IDENTITAS EMAS & MAHKOTA MEMBER PLUS (PROFIL, KATALOG, PANEL KELOLA LANGGANAN)
-   ========================================================================== */
-
-/* Lencana Emas Member Plus */
 .memberplus-gold-badge,
 .tag-memberplus-gold {
     display: inline-flex;
@@ -4414,13 +3782,10 @@ body:not(.is-member-session) #pay-card-balance {
     line-height: 1.2;
     text-transform: uppercase;
 }
-
 .memberplus-gold-badge i,
 .tag-memberplus-gold i {
     color: #78350f !important;
 }
-
-/* Kartu Hero Profil Emas Saat Member Plus Aktif */
 .profile-hero-card.profile-hero-memberplus-gold,
 .profile-hero-card.memberplus-profile-gold {
     background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 52%, #fde68a 100%) !important;
@@ -4428,7 +3793,6 @@ body:not(.is-member-session) #pay-card-balance {
     box-shadow: 6px 6px 0px #78350f !important;
     color: #422006 !important;
 }
-
 html[data-theme="dark"] .profile-hero-card.profile-hero-memberplus-gold,
 html[data-theme="dark"] .profile-hero-card.memberplus-profile-gold {
     background: linear-gradient(135deg, #2e1d05 0%, #422006 55%, #713f12 100%) !important;
@@ -4436,39 +3800,31 @@ html[data-theme="dark"] .profile-hero-card.memberplus-profile-gold {
     box-shadow: 6px 6px 0px #ca8a04 !important;
     color: #fef9c3 !important;
 }
-
 .profile-hero-card.profile-hero-memberplus-gold #prof-display-name {
     font-family: var(--font-heading) !important;
     font-weight: 900 !important;
     color: #422006 !important;
 }
-
 html[data-theme="dark"] .profile-hero-card.profile-hero-memberplus-gold #prof-display-name {
     color: #fef08a !important;
 }
-
 .profile-hero-card.profile-hero-memberplus-gold #prof-display-email {
     font-family: var(--font-main) !important;
     font-weight: 700 !important;
     color: #78350f !important;
 }
-
 html[data-theme="dark"] .profile-hero-card.profile-hero-memberplus-gold #prof-display-email {
     color: #fde68a !important;
 }
-
-/* Avatar & Mahkota Emas di Profil */
 .profile-avatar-box {
     position: relative;
 }
-
 .profile-avatar-box.memberplus-gold-avatar {
     background: linear-gradient(135deg, #fde047, #f59e0b) !important;
     color: #0f172a !important;
     border: 3px solid #0f172a !important;
     box-shadow: 4px 4px 0px #0f172a !important;
 }
-
 .profile-avatar-crown-badge,
 .prof-avatar-crown-badge {
     position: absolute;
@@ -4487,7 +3843,6 @@ html[data-theme="dark"] .profile-hero-card.profile-hero-memberplus-gold #prof-di
     font-size: 0.78rem;
     z-index: 3;
 }
-
 .profile-badge-row {
     display: flex;
     flex-wrap: wrap;
@@ -4495,8 +3850,6 @@ html[data-theme="dark"] .profile-hero-card.profile-hero-memberplus-gold #prof-di
     align-items: center;
     margin-bottom: 4px;
 }
-
-/* Kartu Sambutan Aktif di Dalam Tab Kelola Langganan */
 .memberplus-celebration-card,
 .memberplus-active-celebration-card {
     background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 55%, #fde68a 100%);
@@ -4508,7 +3861,6 @@ html[data-theme="dark"] .profile-hero-card.profile-hero-memberplus-gold #prof-di
     margin-bottom: 1.25rem;
     font-family: var(--font-main);
 }
-
 html[data-theme="dark"] .memberplus-celebration-card,
 html[data-theme="dark"] .memberplus-active-celebration-card {
     background: linear-gradient(135deg, #2e1d05 0%, #422006 55%, #713f12 100%);
@@ -4516,7 +3868,6 @@ html[data-theme="dark"] .memberplus-active-celebration-card {
     border-color: #facc15;
     box-shadow: 5px 5px 0px #ca8a04;
 }
-
 .mp-celebration-title {
     margin: 0 0 6px;
     font-family: var(--font-heading);
@@ -4525,7 +3876,6 @@ html[data-theme="dark"] .memberplus-active-celebration-card {
     line-height: 1.25;
     color: inherit;
 }
-
 .mp-celebration-sub {
     margin: 0;
     font-family: var(--font-main);
@@ -4534,14 +3884,12 @@ html[data-theme="dark"] .memberplus-active-celebration-card {
     line-height: 1.5;
     opacity: 0.94;
 }
-
 .memberplus-exp-meta-grid {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 10px;
     margin-top: 12px;
 }
-
 .memberplus-exp-meta-item {
     background: rgba(255, 255, 255, 0.82);
     border: 2px solid #b45309;
@@ -4549,12 +3897,10 @@ html[data-theme="dark"] .memberplus-active-celebration-card {
     padding: 8px 12px;
     box-shadow: 2px 2px 0px rgba(120, 53, 15, 0.35);
 }
-
 html[data-theme="dark"] .memberplus-exp-meta-item {
     background: rgba(15, 23, 42, 0.72);
     border-color: #facc15;
 }
-
 .memberplus-exp-meta-item span {
     display: block;
     font-family: var(--font-heading);
@@ -4565,11 +3911,9 @@ html[data-theme="dark"] .memberplus-exp-meta-item {
     color: #92400e;
     margin-bottom: 2px;
 }
-
 html[data-theme="dark"] .memberplus-exp-meta-item span {
     color: #fde047;
 }
-
 .memberplus-exp-meta-item strong {
     display: block;
     font-family: var(--font-heading);
@@ -4577,12 +3921,9 @@ html[data-theme="dark"] .memberplus-exp-meta-item span {
     font-weight: 900;
     color: #422006;
 }
-
 html[data-theme="dark"] .memberplus-exp-meta-item strong {
     color: #ffffff;
 }
-
-/* Modal Animasi Selamat Datang Member Plus */
 .mp-welcome-celebration-modal {
     max-width: 430px;
     border: 3px solid #f59e0b !important;
@@ -4591,7 +3932,6 @@ html[data-theme="dark"] .memberplus-exp-meta-item strong {
     box-shadow: 8px 8px 0px #000000 !important;
     font-family: var(--font-main);
 }
-
 .mp-welcome-meta-box {
     background: rgba(255, 255, 255, 0.88);
     border: 2px solid #d97706;
@@ -4600,29 +3940,24 @@ html[data-theme="dark"] .memberplus-exp-meta-item strong {
     margin: 12px 0 16px;
     text-align: left;
 }
-
 .mp-welcome-meta-row {
     display: flex;
     justify-content: space-between;
     align-items: center;
     gap: 8px;
 }
-
 .mp-welcome-meta-row span {
     font-family: var(--font-heading);
     font-size: 0.72rem;
     font-weight: 800;
     color: #92400e;
 }
-
 .mp-welcome-meta-row strong {
     font-family: var(--font-heading);
     font-size: 0.82rem;
     font-weight: 900;
     color: #422006;
 }
-
-/* Tata Letak Harga Member Plus di Kartu Variasi Katalog */
 .price-wrapper {
     display: flex;
     align-items: flex-end;
@@ -4632,7 +3967,6 @@ html[data-theme="dark"] .memberplus-exp-meta-item strong {
     padding-top: 8px;
     border-top: 1.5px dashed var(--border-subtle);
 }
-
 .mp-variant-price-stack {
     display: inline-flex;
     flex-direction: column;
@@ -4640,28 +3974,24 @@ html[data-theme="dark"] .memberplus-exp-meta-item strong {
     gap: 2px;
     line-height: 1.2;
 }
-
 .mp-variant-strike-row {
     display: inline-flex;
     align-items: center;
     gap: 5px;
     flex-wrap: wrap;
 }
-
 .mp-variant-final-price {
     font-family: var(--font-heading);
     font-size: 0.96rem;
     font-weight: 900;
     color: var(--primary);
 }
-
 .mp-free-price-label {
     font-family: var(--font-heading);
     font-size: 0.9rem;
     font-weight: 900;
     color: var(--success);
 }
-
 .memberplus-price-strike {
     text-decoration: line-through;
     color: var(--text-muted);
@@ -4669,7 +3999,6 @@ html[data-theme="dark"] .memberplus-exp-meta-item strong {
     font-size: 0.72rem;
     font-weight: 700;
 }
-
 .memberplus-saving-pill,
 .mp-saving-pill {
     display: inline-flex;
@@ -4686,7 +4015,6 @@ html[data-theme="dark"] .memberplus-exp-meta-item strong {
     line-height: 1.2;
     vertical-align: middle;
 }
-
 .mp-price-highlight {
     display: inline-flex;
     align-items: center;
@@ -4700,16 +4028,11 @@ html[data-theme="dark"] .memberplus-exp-meta-item strong {
     border-radius: 7px;
     padding: 2px 8px;
 }
-
 html[data-theme="dark"] .mp-price-highlight {
     color: #fde047;
     background: rgba(250, 204, 21, 0.14);
     border-color: #facc15;
 }
-
-/* ==========================================================================
-   PANEL TABEL PERBANDINGAN HARGA DI DALAM TAB MEMBER PLUS
-   ========================================================================== */
 .mp-comparison-hero-banner {
     background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 55%, #fde68a 100%);
     border: 2.5px solid #b45309;
@@ -4724,14 +4047,12 @@ html[data-theme="dark"] .mp-price-highlight {
     flex-wrap: wrap;
     gap: 12px;
 }
-
 html[data-theme="dark"] .mp-comparison-hero-banner {
     background: linear-gradient(135deg, #2e1d05 0%, #422006 55%, #713f12 100%);
     border-color: #facc15;
     box-shadow: 5px 5px 0px #ca8a04;
     color: #fef9c3;
 }
-
 .mp-compare-hero-title {
     margin: 0 0 4px;
     font-family: var(--font-heading);
@@ -4740,7 +4061,6 @@ html[data-theme="dark"] .mp-comparison-hero-banner {
     line-height: 1.25;
     color: inherit;
 }
-
 .mp-compare-hero-sub {
     margin: 0;
     font-family: var(--font-main);
@@ -4749,27 +4069,23 @@ html[data-theme="dark"] .mp-comparison-hero-banner {
     opacity: 0.92;
     line-height: 1.45;
 }
-
 .mp-compare-filter-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
     gap: 12px;
     margin-bottom: 1rem;
 }
-
 .mp-compare-filter-grid label {
     font-family: var(--font-heading);
     font-size: 0.74rem;
     font-weight: 800;
 }
-
 .mp-compare-stats-strip {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
     gap: 10px;
     margin-bottom: 1rem;
 }
-
 .mp-compare-stat-box {
     background: var(--surface);
     border: 2px solid var(--border);
@@ -4777,7 +4093,6 @@ html[data-theme="dark"] .mp-comparison-hero-banner {
     padding: 10px 13px;
     box-shadow: 3px 3px 0px var(--border);
 }
-
 .mp-compare-stat-box span {
     display: block;
     font-family: var(--font-heading);
@@ -4787,7 +4102,6 @@ html[data-theme="dark"] .mp-comparison-hero-banner {
     text-transform: uppercase;
     letter-spacing: 0.04em;
 }
-
 .mp-compare-stat-box strong {
     display: block;
     font-family: var(--font-heading);
@@ -4796,19 +4110,16 @@ html[data-theme="dark"] .mp-comparison-hero-banner {
     color: var(--text);
     margin-top: 2px;
 }
-
 .mp-open-compare-cta-card {
     background: linear-gradient(135deg, rgba(254, 243, 199, 0.72), rgba(253, 230, 138, 0.45));
     border: 2.5px solid #d97706 !important;
     box-shadow: 4px 4px 0px #92400e !important;
 }
-
 html[data-theme="dark"] .mp-open-compare-cta-card {
     background: linear-gradient(135deg, rgba(66, 32, 6, 0.72), rgba(113, 63, 18, 0.45));
     border-color: #facc15 !important;
     box-shadow: 4px 4px 0px #ca8a04 !important;
 }
-
 .mp-compare-table-wrap,
 .mp-comparison-table-wrap {
     width: 100%;
@@ -4819,7 +4130,6 @@ html[data-theme="dark"] .mp-open-compare-cta-card {
     box-shadow: 3px 3px 0px var(--border);
     margin-top: 10px;
 }
-
 .mp-compare-table,
 .mp-comparison-table {
     width: 100%;
@@ -4828,7 +4138,6 @@ html[data-theme="dark"] .mp-open-compare-cta-card {
     min-width: 520px;
     font-family: var(--font-main);
 }
-
 .mp-compare-table th,
 .mp-comparison-table th {
     background: var(--surface-elevated);
@@ -4841,7 +4150,6 @@ html[data-theme="dark"] .mp-open-compare-cta-card {
     color: var(--text);
     border-bottom: 2px solid var(--border);
 }
-
 .mp-compare-table td,
 .mp-comparison-table td {
     padding: 11px 13px;
@@ -4852,19 +4160,13 @@ html[data-theme="dark"] .mp-open-compare-cta-card {
     border-bottom: 1.5px solid var(--border-subtle);
     vertical-align: middle;
 }
-
 .mp-compare-table tr:last-child td,
 .mp-comparison-table tr:last-child td {
     border-bottom: none;
 }
-
 .mp-compare-table tbody tr:hover {
     background: var(--surface-hover);
 }
-
-/* ==========================================================================
-   STRUK KASIR HITAM PUTIH & BAGIKAN STRUK
-   ========================================================================== */
 .ereceipt-brand-header {
     display: flex;
     align-items: center;
@@ -4875,13 +4177,11 @@ html[data-theme="dark"] .mp-open-compare-cta-card {
     color: #f8fafc;
     border-bottom: 2.5px solid #0f172a;
 }
-
 .ereceipt-brand-identity {
     display: flex;
     align-items: center;
     gap: 10px;
 }
-
 .ereceipt-brand-logo {
     width: 38px;
     height: 38px;
@@ -4890,14 +4190,12 @@ html[data-theme="dark"] .mp-open-compare-cta-card {
     object-fit: cover;
     background: #1e293b;
 }
-
 .ereceipt-brand-title {
     font-family: var(--font-heading);
     font-size: 1.15rem;
     font-weight: 900;
     color: #ffffff;
 }
-
 .ereceipt-brand-title span {
     background: #facc15;
     color: #0f172a;
@@ -4905,7 +4203,6 @@ html[data-theme="dark"] .mp-open-compare-cta-card {
     margin-left: 3px;
     border-radius: 6px;
 }
-
 .ereceipt-ticket.indomaret-receipt-paper {
     background: #ffffff !important;
     color: #000000 !important;
@@ -4919,19 +4216,16 @@ html[data-theme="dark"] .mp-open-compare-cta-card {
     position: relative;
     overflow: hidden;
 }
-
 .indomaret-receipt-paper * {
     color: #000000;
     font-family: 'JetBrains Mono', 'Courier New', Courier, monospace !important;
 }
-
 .indomaret-receipt-header {
     text-align: center;
     padding-bottom: 10px;
     margin-bottom: 10px;
     border-bottom: 2px dashed #000000;
 }
-
 .indomaret-store-title {
     font-size: 1.25rem;
     font-weight: 900;
@@ -4940,7 +4234,6 @@ html[data-theme="dark"] .mp-open-compare-cta-card {
     color: #000000 !important;
     margin: 0;
 }
-
 .indomaret-store-sub {
     font-size: 0.72rem;
     font-weight: 700;
@@ -4948,21 +4241,18 @@ html[data-theme="dark"] .mp-open-compare-cta-card {
     margin-top: 3px;
     line-height: 1.35;
 }
-
 .indomaret-dashed-line {
     border: none;
     border-top: 1.5px dashed #000000;
     margin: 8px 0;
     height: 0;
 }
-
 .indomaret-double-line {
     border: none;
     border-top: 3px double #000000;
     margin: 8px 0;
     height: 0;
 }
-
 .indomaret-kv-row {
     display: flex;
     justify-content: space-between;
@@ -4973,22 +4263,18 @@ html[data-theme="dark"] .mp-open-compare-cta-card {
     margin-bottom: 3px;
     color: #000000 !important;
 }
-
 .indomaret-kv-row span:first-child {
     font-weight: 700;
     flex-shrink: 0;
 }
-
 .indomaret-kv-row strong {
     font-weight: 800;
     text-align: right;
     word-break: break-all;
 }
-
 .indomaret-item-block {
     padding: 6px 0;
 }
-
 .indomaret-item-title {
     font-size: 0.84rem;
     font-weight: 900;
@@ -4996,7 +4282,6 @@ html[data-theme="dark"] .mp-open-compare-cta-card {
     margin-bottom: 3px;
     color: #000000 !important;
 }
-
 .indomaret-total-row {
     display: flex;
     justify-content: space-between;
@@ -5009,7 +4294,6 @@ html[data-theme="dark"] .mp-open-compare-cta-card {
     margin: 6px 0;
     color: #000000 !important;
 }
-
 .indomaret-sn-box {
     border: 2px solid #000000;
     background: #ffffff !important;
@@ -5021,7 +4305,6 @@ html[data-theme="dark"] .mp-open-compare-cta-card {
     word-break: break-word;
     color: #000000 !important;
 }
-
 .indomaret-status-stamp {
     display: inline-block;
     border: 2px solid #000000;
@@ -5034,7 +4317,6 @@ html[data-theme="dark"] .mp-open-compare-cta-card {
     background: #ffffff !important;
     color: #000000 !important;
 }
-
 .indomaret-footer-note {
     text-align: center;
     font-size: 0.7rem;
@@ -5045,7 +4327,6 @@ html[data-theme="dark"] .mp-open-compare-cta-card {
     border-top: 1.5px dashed #000000;
     color: #000000 !important;
 }
-
 .indomaret-actions-bar {
     margin-top: 14px;
     padding-top: 12px;
@@ -5054,13 +4335,11 @@ html[data-theme="dark"] .mp-open-compare-cta-card {
     flex-direction: column;
     gap: 8px;
 }
-
 .indomaret-actions-grid {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
     gap: 8px;
 }
-
 .indomaret-btn-bw {
     background: #000000 !important;
     color: #ffffff !important;
@@ -5076,12 +4355,10 @@ html[data-theme="dark"] .mp-open-compare-cta-card {
     gap: 6px;
     text-transform: uppercase;
 }
-
 .indomaret-btn-bw span,
 .indomaret-btn-bw i {
     color: #ffffff !important;
 }
-
 .indomaret-btn-outline-bw {
     background: #ffffff !important;
     color: #000000 !important;
@@ -5097,20 +4374,14 @@ html[data-theme="dark"] .mp-open-compare-cta-card {
     gap: 6px;
     text-transform: uppercase;
 }
-
 .indomaret-btn-outline-bw span,
 .indomaret-btn-outline-bw i {
     color: #000000 !important;
 }
-
-/* ==========================================================================
-   TAB ISI SALDO & RIWAYAT TERPADU, BANNER GESER & POP-UP MOBILE
-   ========================================================================== */
 .topup-unified-history-col {
     grid-column: 1 / -1;
     margin-top: 0.35rem;
 }
-
 .topup-history-card {
     display: flex;
     justify-content: space-between;
@@ -5124,12 +4395,10 @@ html[data-theme="dark"] .mp-open-compare-cta-card {
     margin-bottom: 10px;
     transition: transform 0.14s ease, box-shadow 0.14s ease;
 }
-
 .topup-history-card:hover {
     transform: translate(-1px, -1px);
     box-shadow: 5px 5px 0px var(--border);
 }
-
 .checkid-shimmer-badge {
     display: inline-flex;
     align-items: center;
@@ -5144,12 +4413,10 @@ html[data-theme="dark"] .mp-open-compare-cta-card {
     font-weight: 900;
     animation: checkIdShimmerAnim 1.2s infinite linear;
 }
-
 @keyframes checkIdShimmerAnim {
     0% { background-position: 200% 0; }
     100% { background-position: -200% 0; }
 }
-
 .bottom-sheet-drag-handle {
     display: none;
     width: 46px;
@@ -5158,8 +4425,6 @@ html[data-theme="dark"] .mp-open-compare-cta-card {
     border-radius: 999px;
     margin: 0 auto 12px;
 }
-
-/* Banner Geser Interaktif */
 #banner-slider {
     position: relative;
     touch-action: pan-y pinch-zoom;
@@ -5167,17 +4432,14 @@ html[data-theme="dark"] .mp-open-compare-cta-card {
     -webkit-user-select: none;
     cursor: grab;
 }
-
 #banner-slider:active {
     cursor: grabbing;
 }
-
 .banner-slide {
     user-select: none;
     -webkit-user-drag: none;
     pointer-events: none;
 }
-
 .banner-nav-btn {
     position: absolute;
     top: 50%;
@@ -5197,20 +4459,16 @@ html[data-theme="dark"] .mp-open-compare-cta-card {
     font-size: 0.85rem;
     transition: background-color 0.15s ease, color 0.15s ease;
 }
-
 .banner-nav-btn:hover {
     background: var(--secondary, #facc15);
     color: #000000;
 }
-
 .banner-nav-prev {
     left: 10px;
 }
-
 .banner-nav-next {
     right: 10px;
 }
-
 #banner-dots,
 .banner-dots {
     position: absolute;
@@ -5226,7 +4484,6 @@ html[data-theme="dark"] .mp-open-compare-cta-card {
     border: 1.5px solid rgba(255, 255, 255, 0.55);
     z-index: 12;
 }
-
 .banner-dot {
     width: 9px;
     height: 9px;
@@ -5237,12 +4494,10 @@ html[data-theme="dark"] .mp-open-compare-cta-card {
     cursor: pointer;
     transition: width 0.2s ease, background-color 0.2s ease;
 }
-
 .banner-dot.active {
     width: 22px;
     background: #facc15;
 }
-
 @media (max-width: 768px) {
     .greeting-right-col {
         align-items: stretch;
@@ -5331,7 +4586,6 @@ html[data-theme="dark"] .mp-open-compare-cta-card {
         display: block;
     }
 }
-
 .wallet-profile-banner {
     background: var(--surface);
     border: 2.5px solid var(--primary);
@@ -5339,37 +4593,29 @@ html[data-theme="dark"] .mp-open-compare-cta-card {
     border-radius: 14px;
     padding: 1rem 1.2rem;
 }
-
-/* === PEMBARUAN v28.6: TAMPILAN MOBILE APP TOP UP & PULSA + PRINT 58MM === */
 @media (max-width: 768px) {
     .main-container {
         padding-left: 10px !important;
         padding-right: 10px !important;
         padding-bottom: 92px !important;
     }
-
     .user-greeting-dashboard {
         padding: 12px 14px !important;
         border-radius: 16px !important;
         margin-bottom: 12px !important;
         box-shadow: 0 4px 0 var(--border-color) !important;
     }
-
     .greeting-title-heading {
         font-size: 1.05rem !important;
     }
-
     .greeting-sub-desc {
         font-size: 0.74rem !important;
         line-height: 1.35 !important;
     }
-
     .greeting-wallet-mini-card {
         padding: 8px 12px !important;
         border-radius: 12px !important;
     }
-
-    /* Kategori ala Aplikasi Top Up & Pulsa (Horizontal Pill Scroll Bersih) */
     .category-tabs {
         display: flex !important;
         flex-wrap: nowrap !important;
@@ -5392,13 +4638,10 @@ html[data-theme="dark"] .mp-open-compare-cta-card {
         white-space: nowrap !important;
         box-shadow: 0 2px 0 var(--border-color) !important;
     }
-
-    /* Grid Produk Katalog Mobile 3 Kolom Kompak ala Aplikasi Top Up & Pulsa */
     .brand-grid {
         grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
         gap: 8px !important;
     }
-
     .brand-card {
         border-radius: 14px !important;
         padding: 8px 7px 10px 7px !important;
@@ -5408,14 +4651,12 @@ html[data-theme="dark"] .mp-open-compare-cta-card {
         align-items: center !important;
         text-align: center !important;
     }
-
     .brand-card .brand-img-wrap {
         width: 54px !important;
         height: 54px !important;
         border-radius: 13px !important;
         margin-bottom: 6px !important;
     }
-
     .brand-card .brand-title {
         font-size: 0.74rem !important;
         line-height: 1.2 !important;
@@ -5425,12 +4666,9 @@ html[data-theme="dark"] .mp-open-compare-cta-card {
         -webkit-box-orient: vertical !important;
         overflow: hidden !important;
     }
-
     .brand-card .brand-price-start {
         font-size: 0.68rem !important;
     }
-
-    /* Modal Pembelian Bottom-Sheet App Feel di Mobile */
     #modal-direct-buy .modal-box {
         width: 100% !important;
         max-width: 100% !important;
@@ -5438,34 +4676,25 @@ html[data-theme="dark"] .mp-open-compare-cta-card {
         border-radius: 20px 20px 0 0 !important;
         max-height: 92vh !important;
     }
-
-    /* Grid Variasi Nominal Pulsa & Top Up 2 Kolom Rapi di Mobile */
     .nominal-grid {
         grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
         gap: 8px !important;
     }
-
     .nominal-card {
         padding: 10px !important;
         border-radius: 12px !important;
     }
 }
-
 @media (max-width: 390px) {
     .brand-grid {
         grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
         gap: 9px !important;
     }
 }
-
-
-/* === PEMBARUAN v28.7: TOP-CENTER TOAST, LAYER WATER RIPPLE, BOTTOM-SHEET MOBILE & PROFIL LIPAT === */
 html, body {
     max-width: 100%;
     overflow-x: hidden !important;
 }
-
-/* 1. Efek Sentuhan Air Murni di Layer Latar Belakang (Tidak Naik ke Footer) */
 #water-ripple-canvas {
     position: fixed !important;
     inset: 0 !important;
@@ -5474,21 +4703,17 @@ html, body {
     pointer-events: none !important;
     z-index: -1 !important;
 }
-
 .footer-new,
 .footer-divider-marquee-wrap,
 #footer-marquee-section {
     position: relative !important;
     z-index: 6 !important;
 }
-
 .navbar {
     position: sticky !important;
     top: 0 !important;
     z-index: 1000 !important;
 }
-
-/* 6. Posisi Notifikasi Toast di Atas-Tengah (Top-Center) */
 #toast-container,
 .toast-container {
     position: fixed !important;
@@ -5505,7 +4730,6 @@ html, body {
     z-index: 99999 !important;
     pointer-events: none !important;
 }
-
 .toast-item {
     width: 100% !important;
     pointer-events: auto !important;
@@ -5513,19 +4737,15 @@ html, body {
     opacity: 0 !important;
     transition: transform 0.22s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.22s ease !important;
 }
-
 .toast-item.show {
     transform: translateY(0) scale(1) !important;
     opacity: 1 !important;
 }
-
-/* 7. Sembunyikan Tombol Panah Banner (Langsung Geser / Swipe) */
 .banner-nav-btn,
 #banner-prev-btn,
 #banner-next-btn {
     display: none !important;
 }
-
 .banner-slider-container {
     touch-action: pan-y pinch-zoom;
     cursor: grab;
@@ -5533,8 +4753,6 @@ html, body {
 .banner-slider-container:active {
     cursor: grabbing;
 }
-
-/* 12. Panel Lipat (Accordion) di Tab Profil */
 .prof-accordion-trigger {
     width: 100%;
     padding: 0.95rem 1.05rem;
@@ -5557,8 +4775,6 @@ html, body {
     color: var(--text-muted);
     transition: transform 0.22s ease;
 }
-
-/* 17. Chip Riwayat Nomor / ID Tujuan Terakhir */
 .recent-targets-strip {
     margin-top: 8px;
     display: flex;
@@ -5594,8 +4810,6 @@ html, body {
     transform: translateY(1px);
     box-shadow: none;
 }
-
-/* 9 & 14. Bottom-Sheet Pembayaran Mobile Saat Pilih Varian */
 .mobile-checkout-sheet-backdrop {
     display: none;
 }
@@ -5603,7 +4817,6 @@ html, body {
 .mobile-only-close-sheet {
     display: none !important;
 }
-
 @media (max-width: 768px) {
     .mobile-checkout-sheet-backdrop {
         position: fixed;
@@ -5620,7 +4833,6 @@ html, body {
         opacity: 1;
         pointer-events: auto;
     }
-
     #checkout-side-col-sheet {
         position: fixed !important;
         left: 0 !important;
@@ -5635,12 +4847,10 @@ html, body {
         margin: 0 !important;
         padding: 0 !important;
     }
-
     #checkout-side-col-sheet.mobile-sheet-open {
         transform: translateY(0) !important;
         pointer-events: auto !important;
     }
-
     #checkout-side-col-sheet #checkout-step-03-card {
         border-radius: 22px 22px 0 0 !important;
         border-bottom: none !important;
@@ -5651,7 +4861,6 @@ html, body {
         box-shadow: 0 -8px 28px rgba(0, 0, 0, 0.28) !important;
         background: var(--surface) !important;
     }
-
     .mobile-sheet-drag-handle {
         display: block !important;
         width: 44px;
@@ -5661,14 +4870,11 @@ html, body {
         margin: 2px auto 10px auto;
         cursor: pointer;
     }
-
     .mobile-only-close-sheet {
         display: inline-flex !important;
         width: 32px !important;
         height: 32px !important;
     }
-
-    /* Pastikan seluruh kartu & grid tidak pernah melewati layar HP */
     .checkout-wrapper,
     .checkout-split-grid,
     .checkout-main-col,
@@ -5677,25 +4883,15 @@ html, body {
         max-width: 100% !important;
         box-sizing: border-box !important;
     }
-
     .item-selection-grid {
         grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
         gap: 8px !important;
     }
 }
-
-
-/* ==========================================================================
-   PERBAIKAN FINAL v28.7: BANNER DOTS, STICKY BOTTOM-NAV MOBILE, HIDE NAV/FOOTER
-   SAAT DI DALAM PRODUK, KELOLA LANGGANAN MOBILE RAPI, & VALIDASI SHEET OTOMATIS
-   ========================================================================== */
-
-/* 1. Indikator Titik Banner (#banner-dots) Selalu Berada di Dalam Banner */
 .banner-slider-container {
     position: relative !important;
     overflow: hidden !important;
 }
-
 #banner-dots,
 .banner-dots {
     position: absolute !important;
@@ -5715,8 +4911,6 @@ html, body {
     border: 1.5px solid rgba(255, 255, 255, 0.55) !important;
     max-width: calc(100% - 24px) !important;
 }
-
-/* 2. Sembunyikan Navigasi Bawah & Footer Saat User Masuk ke Halaman Produk (#tab-checkout) */
 body.in-product-checkout .bottom-nav,
 body.in-product-checkout .bottom-nav-spacer,
 body.in-product-checkout .footer-new,
@@ -5724,13 +4918,10 @@ body.in-product-checkout .footer-divider-marquee-wrap,
 body.in-product-checkout #footer-marquee-section {
     display: none !important;
 }
-
 body.mobile-sheet-locked {
     overflow: hidden !important;
     touch-action: none !important;
 }
-
-/* 3. Kotak Validasi Otomatis Username / ID Pelanggan di Dalam Panel Pembayaran (#sheet-target-validation-box) */
 .sheet-target-validation-card {
     margin-bottom: 12px;
     padding: 10px 12px;
@@ -5740,45 +4931,37 @@ body.mobile-sheet-locked {
     font-size: 0.8rem;
     transition: all 0.2s ease;
 }
-
 .sheet-target-validation-card.state-loading {
     border-color: var(--primary);
     background: rgba(37, 99, 235, 0.07);
 }
-
 .sheet-target-validation-card.state-valid {
     border-color: var(--success);
     background: rgba(22, 163, 74, 0.08);
 }
-
 .sheet-target-validation-card.state-error {
     border-color: var(--danger);
     background: rgba(239, 68, 68, 0.09);
 }
-
 .sheet-target-validation-card.state-warn {
     border-color: var(--warning);
     background: rgba(245, 158, 11, 0.12);
 }
-
 .sheet-target-validation-card .stv-head {
     display: flex;
     align-items: center;
     gap: 10px;
 }
-
 .sheet-target-validation-card .stv-head i {
     font-size: 1.1rem;
     flex-shrink: 0;
 }
-
 .sheet-target-validation-card .stv-head strong {
     display: block;
     font-size: 0.8rem;
     font-weight: 900;
     color: var(--text);
 }
-
 .sheet-target-validation-card .stv-head span {
     display: block;
     font-size: 0.73rem;
@@ -5786,13 +4969,11 @@ body.mobile-sheet-locked {
     color: var(--text-muted);
     margin-top: 1px;
 }
-
 .sheet-target-validation-card .stv-grid {
     display: flex;
     flex-direction: column;
     gap: 5px;
 }
-
 .sheet-target-validation-card .stv-row {
     display: flex;
     justify-content: space-between;
@@ -5800,26 +4981,21 @@ body.mobile-sheet-locked {
     gap: 8px;
     font-size: 0.77rem;
 }
-
 .sheet-target-validation-card .stv-row span {
     color: var(--text-muted);
     font-weight: 700;
 }
-
 .sheet-target-validation-card .stv-row strong {
     font-weight: 900;
     color: var(--text);
     text-align: right;
     word-break: break-word;
 }
-
-/* 4. Kartu Rincian Tagihan Pascabayar di Tab Produk */
 .pasca-bill-result-card {
     display: flex;
     flex-direction: column;
     gap: 8px;
 }
-
 .pasca-bill-head {
     display: flex;
     justify-content: space-between;
@@ -5829,13 +5005,11 @@ body.mobile-sheet-locked {
     padding-bottom: 6px;
     border-bottom: 1.5px dashed var(--border-subtle);
 }
-
 .pasca-bill-rows {
     display: flex;
     flex-direction: column;
     gap: 6px;
 }
-
 .pasca-bill-row {
     display: flex;
     justify-content: space-between;
@@ -5843,25 +5017,20 @@ body.mobile-sheet-locked {
     gap: 10px;
     font-size: 0.8rem;
 }
-
 .pasca-bill-row span {
     color: var(--text-muted);
     font-weight: 700;
 }
-
 .pasca-bill-row strong {
     font-weight: 900;
     color: var(--text);
     text-align: right;
 }
-
 .pasca-bill-row.total-row {
     margin-top: 4px;
     padding-top: 8px;
     border-top: 1.5px solid var(--border-subtle);
 }
-
-/* 5. Perbaikan Navigasi Bawah Mobile & Tampilan Kelola Langganan di Layar HP */
 @media (max-width: 900px) {
     .bottom-nav {
         display: flex !important;
@@ -5871,15 +5040,12 @@ body.mobile-sheet-locked {
         right: 10px !important;
         z-index: 9500 !important;
     }
-
     body.auth-locked .bottom-nav,
     body.in-product-checkout .bottom-nav {
         display: none !important;
     }
 }
-
 @media (max-width: 768px) {
-    /* Kunci semua container utama agar 100% pas di layar HP tanpa geser samping */
     .container,
     #tab-topup,
     .topup-fullscreen-wrapper,
@@ -5896,20 +5062,16 @@ body.mobile-sheet-locked {
         min-width: 0 !important;
         box-sizing: border-box !important;
     }
-
     .checkout-split-grid {
         display: grid !important;
         grid-template-columns: minmax(0, 1fr) !important;
         gap: 0.9rem !important;
     }
-
-    /* Tampilan Tab Isi Saldo & Kelola Langganan Member Plus Kompak & Proporsional di HP */
     #tab-topup {
         padding-top: 0.75rem !important;
         padding-left: 10px !important;
         padding-right: 10px !important;
     }
-
     #tab-topup .checkout-step-card,
     #topup-panel-memberplus .checkout-step-card,
     #topup-panel-memberplus .memberplus-celebration-card {
@@ -5922,61 +5084,49 @@ body.mobile-sheet-locked {
         box-sizing: border-box !important;
         overflow: hidden !important;
     }
-
     #topup-panel-memberplus .mp-celebration-title {
         font-size: 1rem !important;
         line-height: 1.25 !important;
     }
-
     #topup-panel-memberplus .mp-celebration-sub {
         font-size: 0.76rem !important;
         line-height: 1.35 !important;
     }
-
     #topup-panel-memberplus .memberplus-exp-meta-grid {
         display: grid !important;
         grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
         gap: 8px !important;
         margin-top: 10px !important;
     }
-
     #topup-panel-memberplus .memberplus-exp-meta-item {
         padding: 8px 10px !important;
         min-width: 0 !important;
     }
-
     #topup-panel-memberplus .memberplus-exp-meta-item span {
         font-size: 0.64rem !important;
     }
-
     #topup-panel-memberplus .memberplus-exp-meta-item strong {
         font-size: 0.78rem !important;
         word-break: break-word !important;
     }
-
     #topup-panel-memberplus .auth-category-bento {
         display: grid !important;
         grid-template-columns: minmax(0, 1fr) !important;
         gap: 8px !important;
     }
-
     #topup-panel-memberplus .auth-bento-item {
         padding: 10px 12px !important;
         min-width: 0 !important;
     }
-
     #topup-panel-memberplus .step-header h4 {
         font-size: 0.92rem !important;
     }
-
     #topup-panel-memberplus .cart-total-box {
         padding: 10px 12px !important;
     }
-
     #topup-panel-memberplus .total-nominal {
         font-size: 1.15rem !important;
     }
-
     #topup-panel-memberplus .mp-compare-table-wrap,
     #topup-panel-compare .mp-compare-table-wrap {
         width: 100% !important;
@@ -5984,18 +5134,14 @@ body.mobile-sheet-locked {
         overflow-x: auto !important;
         -webkit-overflow-scrolling: touch !important;
     }
-
     #topup-panel-memberplus .mp-compare-table {
         min-width: 420px !important;
     }
-
-    /* Panel Pembayaran Bottom-Sheet di Halaman Produk (#checkout-side-col-sheet) Mulus & Tidak Goyang Saat Digeser */
     #checkout-side-col-sheet {
         overscroll-behavior: contain !important;
         touch-action: pan-y !important;
         will-change: transform;
     }
-
     #checkout-side-col-sheet #checkout-step-03-card {
         overscroll-behavior: contain !important;
         -webkit-overflow-scrolling: touch !important;
@@ -6003,23 +5149,12 @@ body.mobile-sheet-locked {
         padding: 12px 14px calc(20px + env(safe-area-inset-bottom, 0px)) 14px !important;
     }
 }
-
-
-/* ==========================================================================
-   PEMBARUAN MATANG PANEL PEMBAYARAN MOBILE (STICKY HEADER + SMOOTH SCROLL),
-   ANIMASI CEK TAGIHAN PASCABAYAR, & INDIKATOR TOMBOL AKTIF DI SETIAP TOMBOL
-   ========================================================================== */
-
-/* Desktop: Header & Body di dalam kartu pembayaran tampil menyatu normal */
 .sheet-sticky-top-bar {
     margin-bottom: 1rem;
 }
-
 .sheet-scrollable-content {
     display: block;
 }
-
-/* Indikator Tekan & Bekerja di Setiap Tombol (Semua Tombol Memiliki Umpan Balik Aktif) */
 button,
 .btn,
 .type-card,
@@ -6032,17 +5167,14 @@ button,
     position: relative;
     transition: transform 0.14s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.14s ease, filter 0.14s ease;
 }
-
 .btn-tap-pressed {
     transform: translateY(2px) scale(0.985) !important;
     filter: brightness(0.96);
 }
-
 .btn-working-indicator {
     pointer-events: none;
     overflow: hidden !important;
 }
-
 .btn-working-indicator::after {
     content: "";
     position: absolute;
@@ -6054,14 +5186,11 @@ button,
     border-radius: 99px;
     animation: btnBottomWorkBar 0.75s infinite ease-in-out;
 }
-
 @keyframes btnBottomWorkBar {
     0% { left: -45%; width: 40%; }
     50% { left: 30%; width: 55%; }
     100% { left: 100%; width: 40%; }
 }
-
-/* Efek Muncul Mulus (Smooth Reveal) Hasil Cek Tagihan Pascabayar */
 @keyframes pascaSmoothReveal {
     0% {
         opacity: 0;
@@ -6072,19 +5201,14 @@ button,
         transform: translateY(0) scale(1);
     }
 }
-
 .pasca-smooth-enter {
     animation: pascaSmoothReveal 0.28s cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }
-
 @media (max-width: 768px) {
-    /* Hapus kuncian touch-action: none pada body agar panel pembayaran di dalamnya bebas digulir mulus */
     body.mobile-sheet-locked {
         overflow: hidden !important;
         touch-action: auto !important;
     }
-
-    /* Backdrop gelap di belakang panel pembayaran (menutup ~18% bagian atas layar agar tidak memenuhi layar) */
     #mobile-checkout-sheet-backdrop {
         position: fixed !important;
         inset: 0 !important;
@@ -6095,8 +5219,6 @@ button,
         z-index: 9985 !important;
         touch-action: none !important;
     }
-
-    /* Container Bottom-Sheet Pembayaran selalu menempel di viewport layar HP (bukan dokumen) */
     #checkout-side-col-sheet {
         position: fixed !important;
         left: 0 !important;
@@ -6112,13 +5234,10 @@ button,
         transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1) !important;
         pointer-events: none !important;
     }
-
     #checkout-side-col-sheet.mobile-sheet-open {
         transform: translate3d(0, 0, 0) !important;
         pointer-events: auto !important;
     }
-
-    /* Kartu Panel Pembayaran terbuka dari bawah ke atas hingga maks 82% tinggi layar (tidak menutupi seluruh layar) */
     #checkout-side-col-sheet #checkout-step-03-card {
         display: flex !important;
         flex-direction: column !important;
@@ -6136,8 +5255,6 @@ button,
         box-shadow: 0 -10px 32px rgba(15, 23, 42, 0.35) !important;
         overflow: hidden !important;
     }
-
-    /* Header Panel Pembayaran (Nama Panel & Tombol X) Tetap di Atas dan Tidak Ikut Bergeser Saat Digulir */
     #checkout-side-col-sheet .sheet-sticky-top-bar {
         flex: 0 0 auto !important;
         position: relative !important;
@@ -6149,7 +5266,6 @@ button,
         box-shadow: 0 2px 8px rgba(15, 23, 42, 0.06) !important;
         touch-action: none !important;
     }
-
     #checkout-side-col-sheet .mobile-sheet-drag-handle {
         display: block !important;
         width: 46px !important;
@@ -6158,7 +5274,6 @@ button,
         background: var(--border-subtle) !important;
         margin: 0 auto 10px auto !important;
     }
-
     #checkout-side-col-sheet #btn-close-mobile-pay-sheet {
         display: inline-flex !important;
         align-items: center !important;
@@ -6173,13 +5288,10 @@ button,
         flex-shrink: 0 !important;
         box-shadow: 2px 2px 0px var(--border) !important;
     }
-
     #checkout-side-col-sheet #btn-close-mobile-pay-sheet:active {
         transform: translate(1px, 1px) !important;
         box-shadow: none !important;
     }
-
-    /* Area Isi Pembayaran yang Dapat Digulir Mulus dari Atas ke Bawah */
     #checkout-side-col-sheet .sheet-scrollable-content {
         flex: 1 1 auto !important;
         overflow-y: auto !important;
@@ -6190,21 +5302,12 @@ button,
         padding: 14px 16px calc(24px + env(safe-area-inset-bottom, 0px)) 16px !important;
     }
 }
-
-/* ============================================================================
- * PEMBARUAN v28.8: M-BANKING 6-DOT PIN PAD, PEMISAHAN TAB SALDO & MEMBER+,
- * TOMBOL TUNGGAL PASCABAYAR DESKTOP, & EFEK SENTUH TOMBOL UNIVERSAL
- * ============================================================================ */
-
-/* Sembunyikan tombol Lanjutkan Bayar duplikat di kotak hasil cek tagihan pascabayar khusus Desktop */
 @media (min-width: 769px) {
     .btn-pasca-inline-mobile-only,
     #user-pasca-inquiry-box .pasca-bill-result-card > button.btn-success {
         display: none !important;
     }
 }
-
-/* Navigasi Bawah Mobile 6 Item (Katalog, Saldo, Member+, Pesanan, Bantuan, Profil) Rapi & Presisi */
 @media (max-width: 768px) {
     .bottom-nav {
         display: grid !important;
@@ -6233,8 +5336,6 @@ button,
         overflow-x: hidden !important;
     }
 }
-
-/* Panel PIN M-Banking 6 Titik & Keypad Angka Interaktif */
 .mbanking-pin-panel {
     background: var(--surface-elevated);
     border: 2.5px solid var(--border);
@@ -6243,7 +5344,6 @@ button,
     box-shadow: var(--brutal-shadow-sm);
     text-align: center;
 }
-
 .mbanking-pin-header {
     display: flex;
     justify-content: space-between;
@@ -6251,7 +5351,6 @@ button,
     gap: 8px;
     margin-bottom: 10px;
 }
-
 .mbanking-pin-badge {
     display: inline-flex;
     align-items: center;
@@ -6261,7 +5360,6 @@ button,
     color: var(--primary);
     letter-spacing: 0.03em;
 }
-
 .mbanking-pin-dots {
     display: flex;
     justify-content: center;
@@ -6271,7 +5369,6 @@ button,
     margin: 4px auto 6px;
     cursor: pointer;
 }
-
 .mbanking-pin-dots .pin-dot {
     width: 16px;
     height: 16px;
@@ -6280,30 +5377,25 @@ button,
     background: var(--bg);
     transition: transform 0.16s cubic-bezier(0.22, 1, 0.36, 1), background-color 0.16s ease, border-color 0.16s ease;
 }
-
 .mbanking-pin-dots .pin-dot.filled {
     background: var(--primary);
     border-color: var(--border);
     transform: scale(1.18);
     box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.18);
 }
-
 .mbanking-pin-dots.pin-error-shake {
     animation: pinErrorShakeAnim 0.42s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
 }
-
 .mbanking-pin-dots.pin-error-shake .pin-dot {
     border-color: var(--danger);
     background: rgba(239, 68, 68, 0.25);
 }
-
 @keyframes pinErrorShakeAnim {
     10%, 90% { transform: translate3d(-4px, 0, 0); }
     20%, 80% { transform: translate3d(6px, 0, 0); }
     30%, 50%, 70% { transform: translate3d(-8px, 0, 0); }
     40%, 60% { transform: translate3d(8px, 0, 0); }
 }
-
 .mbanking-pin-helper {
     display: block;
     font-size: 0.72rem;
@@ -6311,7 +5403,6 @@ button,
     color: var(--text-muted);
     margin-bottom: 10px;
 }
-
 .mbanking-keypad-grid {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
@@ -6319,7 +5410,6 @@ button,
     max-width: 310px;
     margin: 0 auto;
 }
-
 .mbanking-key-btn {
     height: 44px;
     border-radius: 12px;
@@ -6337,11 +5427,9 @@ button,
     box-shadow: 2px 2px 0px var(--border);
     transition: transform 0.1s ease, box-shadow 0.1s ease, background-color 0.12s ease;
 }
-
 .mbanking-key-btn:hover {
     background: var(--surface-hover);
 }
-
 .mbanking-key-btn:active,
 .mbanking-key-btn.btn-tap-pressed {
     transform: translate(2px, 2px) scale(0.96);
@@ -6349,22 +5437,15 @@ button,
     background: var(--primary);
     color: #ffffff;
 }
-
 .mbanking-key-btn.key-fn {
     background: var(--bg);
     font-size: 0.92rem;
     color: var(--danger);
 }
-
-
-/* ==========================================================================
-   PEMBARUAN v28.9: FULLSCREEN DANA-STYLE PIN PAD & SMOOTH MOBILE TRANSITIONS
-   ========================================================================== */
 .main-tab-content.active {
     animation: v289TabSmoothEnter 0.26s cubic-bezier(0.22, 1, 0.36, 1) both;
     will-change: transform, opacity;
 }
-
 @keyframes v289TabSmoothEnter {
     0% {
         opacity: 0;
@@ -6375,16 +5456,13 @@ button,
         transform: translate3d(0, 0, 0);
     }
 }
-
 .modal-overlay {
     transition: opacity 0.24s cubic-bezier(0.22, 1, 0.36, 1), visibility 0.24s cubic-bezier(0.22, 1, 0.36, 1) !important;
 }
-
 .modal-overlay .modal-content {
     transition: transform 0.28s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.24s cubic-bezier(0.22, 1, 0.36, 1) !important;
     will-change: transform, opacity;
 }
-
 .dana-fullscreen-pin-stage {
     display: flex;
     flex-direction: column;
@@ -6392,7 +5470,6 @@ button,
     padding: 0.25rem 0 0.15rem;
     animation: v289PinStageEnter 0.24s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
-
 @keyframes v289PinStageEnter {
     from {
         opacity: 0;
@@ -6403,7 +5480,6 @@ button,
         transform: translate3d(0, 0, 0) scale(1);
     }
 }
-
 .dana-pin-topbar {
     display: flex;
     align-items: center;
@@ -6413,7 +5489,6 @@ button,
     border-bottom: 1.5px dashed var(--border-subtle);
     margin-bottom: 1rem;
 }
-
 .dana-pin-back-btn {
     background: var(--bg);
     border: 1.5px solid var(--border);
@@ -6428,11 +5503,9 @@ button,
     cursor: pointer;
     transition: transform 0.15s ease, background 0.15s ease;
 }
-
 .dana-pin-back-btn:active {
     transform: scale(0.95);
 }
-
 .dana-pin-brand-pill {
     font-size: 0.72rem;
     font-weight: 900;
@@ -6446,7 +5519,6 @@ button,
     align-items: center;
     gap: 5px;
 }
-
 .dana-pin-forgot-link {
     background: transparent;
     border: none;
@@ -6457,12 +5529,10 @@ button,
     padding: 4px 6px;
     text-decoration: underline;
 }
-
 .dana-pin-center-hero {
     text-align: center;
     padding: 0.4rem 0.5rem 1.1rem;
 }
-
 .dana-pin-lock-badge {
     width: 54px;
     height: 54px;
@@ -6477,14 +5547,12 @@ button,
     border: 2px solid var(--border);
     box-shadow: 3px 3px 0px var(--border);
 }
-
 .dana-pin-main-title {
     font-size: 1.15rem;
     font-weight: 900;
     color: var(--text);
     margin: 0 0 0.4rem;
 }
-
 .dana-pin-amount-pill {
     display: inline-block;
     font-size: 0.85rem;
@@ -6496,27 +5564,22 @@ button,
     padding: 3px 14px;
     margin-bottom: 1.1rem;
 }
-
 .dana-style-dots {
     gap: 14px !important;
     margin: 0.35rem auto 0.75rem !important;
 }
-
 .dana-style-dots .pin-dot {
     width: 18px !important;
     height: 18px !important;
     transition: transform 0.16s cubic-bezier(0.34, 1.56, 0.64, 1), background-color 0.16s ease, border-color 0.16s ease !important;
 }
-
 .dana-style-dots .pin-dot.filled {
     transform: scale(1.18);
 }
-
 .dana-style-keypad {
     gap: 10px !important;
     margin-top: 0.25rem;
 }
-
 .dana-style-keypad .mbanking-key-btn {
     min-height: 54px !important;
     font-size: 1.22rem !important;
@@ -6524,11 +5587,9 @@ button,
     border-radius: 14px !important;
     transition: transform 0.1s ease, background-color 0.12s ease !important;
 }
-
 .dana-style-keypad .mbanking-key-btn:active {
     transform: scale(0.94) !important;
 }
-
 @media (max-width: 640px) {
     #modal-checkout-confirm.pin-fullscreen-mode .modal-content {
         max-width: 100% !important;
@@ -6537,14 +5598,6 @@ button,
         padding: 1.1rem 1.15rem 1.35rem !important;
     }
 }
-
-
-/* ==========================================================================
-   PEMBARUAN v30.0: KATALOG IKON NEO-BRUTALISM, SUB-KATALOG WEGAMES,
-   TOP UP 2 TAB, PERBAIKAN TABEL PERBANDINGAN, PANEL PIN KOTAK, & EFEK TOMBOL LAMPU NEON
-   ========================================================================== */
-
-/* 1. Perbaikan Mutlak Navigasi Bawah HP 4 Kolom Rata Sampai Ujung */
 .bottom-nav,
 #mobile-bottom-nav {
     display: grid !important;
@@ -6555,22 +5608,17 @@ button,
     box-sizing: border-box !important;
     gap: 6px !important;
 }
-
 @media (min-width: 901px) {
     .bottom-nav,
     #mobile-bottom-nav {
         display: none !important;
     }
 }
-
-/* 2. Sembunyikan Paksa Grid Utama Member Plus Saat Membuka Tabel Perbandingan Harga */
 .mp-hidden-force,
 #memberplus-main-content-grid.mp-hidden-force,
 .topup-header-bar.mp-hidden-force {
     display: none !important;
 }
-
-/* 3. Efek Tekan Tombol Cahaya / Lampu Kuning-Neon Masuk Tanpa Bergeser Tempat */
 button,
 .btn,
 .type-card,
@@ -6584,7 +5632,6 @@ button,
     position: relative;
     transition: box-shadow 0.14s ease, background-color 0.14s ease, border-color 0.14s ease !important;
 }
-
 button:active,
 .btn:active,
 .btn-tap-pressed,
@@ -6593,12 +5640,9 @@ button:active,
     box-shadow: inset 0 3px 6px rgba(15, 23, 42, 0.38), 0 0 0 2.5px #facc15, 0 0 16px rgba(250, 204, 21, 0.85), 0 0 26px rgba(56, 189, 248, 0.45) !important;
     filter: brightness(1.04);
 }
-
-/* 4. Beranda Menu Grid Ikon Kategori (Gaya Neo-Brutalism Sesuai Screenshot 7) */
 .v30-launcher-panel {
     padding: 1.15rem !important;
 }
-
 .v30-launcher-header {
     display: flex;
     justify-content: space-between;
@@ -6606,14 +5650,12 @@ button:active,
     gap: 10px;
     margin-bottom: 1rem;
 }
-
 .v30-launcher-title {
     font-size: 1.15rem;
     font-weight: 900;
     margin: 0;
     color: var(--text);
 }
-
 .v30-launcher-sub {
     font-size: 0.76rem;
     font-weight: 700;
@@ -6621,13 +5663,11 @@ button:active,
     display: block;
     margin-top: 2px;
 }
-
 .v30-category-icon-grid {
     display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: 14px 10px;
 }
-
 .v30-cat-icon-item {
     background: transparent;
     border: none;
@@ -6641,7 +5681,6 @@ button:active,
     text-align: center;
     border-radius: 14px;
 }
-
 .v30-cat-circle {
     width: 58px;
     height: 58px;
@@ -6655,12 +5694,10 @@ button:active,
     color: #0f172a;
     background: #e2e8f0;
 }
-
 html[data-theme="dark"] .v30-cat-circle {
     border-color: #cbd5e1;
     box-shadow: 3px 3px 0px #020617;
 }
-
 .bg-cat-game { background: #fde047; color: #0f172a; }
 .bg-cat-pulsa { background: #93c5fd; color: #0f172a; }
 .bg-cat-pln { background: #fcd34d; color: #0f172a; }
@@ -6669,19 +5706,15 @@ html[data-theme="dark"] .v30-cat-circle {
 .bg-cat-ppob { background: #fca5a5; color: #0f172a; }
 .bg-cat-tools { background: #a5f3fc; color: #0f172a; }
 .bg-cat-all { background: #cbd5e1; color: #0f172a; }
-
 .v30-cat-icon-item span {
     font-size: 0.76rem;
     font-weight: 800;
     color: var(--text);
     line-height: 1.2;
 }
-
-/* 5. Halaman Sub-Katalog Kategori (Gaya Neo-Brutalism Sesuai Screenshot 4 "WeGames") */
 .v30-subcatalog-stage {
     animation: v289TabSmoothEnter 0.24s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
-
 .v30-subcatalog-topbar {
     display: flex;
     align-items: center;
@@ -6694,19 +5727,16 @@ html[data-theme="dark"] .v30-cat-circle {
     box-shadow: var(--brutal-shadow);
     border-radius: 14px;
 }
-
 .v30-subcatalog-title-wrap {
     display: flex;
     align-items: center;
     gap: 8px;
 }
-
 .v30-subcatalog-title-wrap h2 {
     font-size: 1.08rem;
     font-weight: 900;
     margin: 0;
 }
-
 .v30-subcatalog-banner {
     margin-bottom: 0.95rem;
     border-radius: 16px;
@@ -6715,14 +5745,12 @@ html[data-theme="dark"] .v30-cat-circle {
     overflow: hidden;
     background: var(--surface);
 }
-
 .v30-subcatalog-banner img {
     width: 100%;
     max-height: 175px;
     object-fit: cover;
     display: block;
 }
-
 .v30-subcatalog-banner-hero {
     padding: 1.15rem 1.25rem;
     background: linear-gradient(135deg, #1e3a8a 0%, #0f172a 65%, #ca8a04 100%);
@@ -6732,7 +5760,6 @@ html[data-theme="dark"] .v30-cat-circle {
     justify-content: space-between;
     gap: 14px;
 }
-
 .v30-banner-tag {
     display: inline-flex;
     align-items: center;
@@ -6746,7 +5773,6 @@ html[data-theme="dark"] .v30-cat-circle {
     border: 1.5px solid #0f172a;
     margin-bottom: 6px;
 }
-
 .v30-banner-hero-left h3 {
     font-size: 1.15rem;
     font-weight: 900;
@@ -6754,14 +5780,12 @@ html[data-theme="dark"] .v30-cat-circle {
     color: #facc15;
     text-shadow: 1px 1px 0px #000;
 }
-
 .v30-banner-hero-left p {
     font-size: 0.76rem;
     font-weight: 700;
     margin: 0;
     color: #e2e8f0;
 }
-
 .v30-banner-hero-icon {
     width: 58px;
     height: 58px;
@@ -6775,14 +5799,12 @@ html[data-theme="dark"] .v30-cat-circle {
     color: #facc15;
     flex-shrink: 0;
 }
-
 .v30-subcatalog-search-row {
     display: flex;
     align-items: center;
     gap: 8px;
     margin-bottom: 0.85rem;
 }
-
 .v30-view-mode-btn {
     min-width: 42px;
     height: 42px;
@@ -6791,7 +5813,6 @@ html[data-theme="dark"] .v30-cat-circle {
     align-items: center;
     justify-content: center;
 }
-
 .v30-subcatalog-pills-strip {
     display: flex;
     gap: 8px;
@@ -6800,7 +5821,6 @@ html[data-theme="dark"] .v30-cat-circle {
     margin-bottom: 0.95rem;
     -webkit-overflow-scrolling: touch;
 }
-
 .v30-subpill {
     white-space: nowrap;
     padding: 7px 14px;
@@ -6813,26 +5833,21 @@ html[data-theme="dark"] .v30-cat-circle {
     cursor: pointer;
     box-shadow: 2px 2px 0px var(--border);
 }
-
 .v30-subpill.active {
     background: var(--primary);
     color: #ffffff;
 }
-
-/* Grid 3 Kolom Ala WeGames dengan Bingkai Neo-Brutalism */
 .grid.v30-compact-3col-grid {
     display: grid !important;
     grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
     gap: 10px !important;
 }
-
 @media (min-width: 769px) {
     .grid.v30-compact-3col-grid {
         grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
         gap: 14px !important;
     }
 }
-
 .v30-subcat-grid-card {
     background: var(--surface);
     border: 2px solid var(--border);
@@ -6846,11 +5861,9 @@ html[data-theme="dark"] .v30-cat-circle {
     cursor: pointer;
     position: relative;
 }
-
 .v30-subcat-grid-card.sold-out {
     opacity: 0.65;
 }
-
 .v30-subcat-thumb {
     width: 62px;
     height: 62px;
@@ -6864,13 +5877,11 @@ html[data-theme="dark"] .v30-cat-circle {
     align-items: center;
     justify-content: center;
 }
-
 .v30-subcat-thumb img {
     width: 100%;
     height: 100%;
     object-fit: cover;
 }
-
 .v30-subcat-title {
     font-size: 0.76rem;
     font-weight: 800;
@@ -6882,38 +5893,31 @@ html[data-theme="dark"] .v30-cat-circle {
     overflow: hidden;
     margin-bottom: 3px;
 }
-
 .v30-subcat-price {
     font-size: 0.66rem;
     font-weight: 800;
     color: var(--primary);
 }
-
-/* 6. Desain Baru Halaman Top Up Saldo 2 Tab (ISI SALDO & RIWAYAT Sesuai Screenshot 5 & 6) */
 .v30-topup-stage {
     max-width: 540px;
     margin: 0 auto;
 }
-
 .v30-topup-topbar {
     display: flex;
     align-items: center;
     gap: 12px;
     margin-bottom: 0.9rem;
 }
-
 .v30-topup-title-box h2 {
     font-size: 1.15rem;
     font-weight: 900;
     margin: 0;
 }
-
 .v30-topup-title-box span {
     font-size: 0.78rem;
     font-weight: 700;
     color: var(--text-muted);
 }
-
 .v30-topup-tabs-bar {
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -6925,7 +5929,6 @@ html[data-theme="dark"] .v30-cat-circle {
     box-shadow: 3px 3px 0px var(--border);
     margin-bottom: 1.1rem;
 }
-
 .v30-topup-tab-btn {
     border: none;
     background: transparent;
@@ -6937,38 +5940,32 @@ html[data-theme="dark"] .v30-cat-circle {
     cursor: pointer;
     letter-spacing: 0.03em;
 }
-
 .v30-topup-tab-btn.active {
     background: var(--secondary);
     color: #0f172a;
     border: 2px solid #0f172a;
     box-shadow: 2px 2px 0px #0f172a;
 }
-
 .v30-topup-card {
     margin-bottom: 0.95rem !important;
     padding: 1.1rem !important;
 }
-
 .v30-topup-card-head {
     display: flex;
     align-items: center;
     gap: 12px;
     margin-bottom: 0.85rem;
 }
-
 .v30-topup-card-head h4 {
     margin: 0;
     font-size: 0.96rem;
     font-weight: 900;
 }
-
 .v30-topup-card-head small {
     font-size: 0.74rem;
     font-weight: 700;
     color: var(--text-muted);
 }
-
 .v30-topup-icon-box {
     width: 42px;
     height: 42px;
@@ -6980,27 +5977,23 @@ html[data-theme="dark"] .v30-cat-circle {
     font-size: 1.1rem;
     flex-shrink: 0;
 }
-
 .v30-topup-big-input {
     font-size: 1.15rem !important;
     font-weight: 900 !important;
     padding: 12px 14px !important;
     border-radius: 12px !important;
 }
-
 .v30-topup-chips-wrap {
     display: flex;
     flex-wrap: wrap;
     gap: 8px;
 }
-
 .v30-topup-chips-wrap .topup-nom-chip {
     border-radius: 999px !important;
     padding: 7px 15px !important;
     font-size: 0.8rem !important;
     font-weight: 800 !important;
 }
-
 .v30-method-selector-row {
     display: flex;
     align-items: center;
@@ -7008,27 +6001,23 @@ html[data-theme="dark"] .v30-cat-circle {
     gap: 10px;
     cursor: pointer;
 }
-
 .v30-method-label-top {
     font-size: 0.72rem;
     font-weight: 700;
     color: var(--text-muted);
     display: block;
 }
-
 .v30-method-selected-title {
     font-size: 0.9rem;
     font-weight: 900;
     color: var(--primary);
 }
-
 .v30-method-choose-link {
     font-size: 0.8rem;
     font-weight: 900;
     color: var(--primary);
     white-space: nowrap;
 }
-
 .v30-topup-auto-info-box {
     display: flex;
     align-items: flex-start;
@@ -7039,7 +6028,6 @@ html[data-theme="dark"] .v30-cat-circle {
     border: 2px solid var(--primary);
     margin-bottom: 1.1rem;
 }
-
 .v30-topup-auto-icon {
     width: 36px;
     height: 36px;
@@ -7051,14 +6039,12 @@ html[data-theme="dark"] .v30-cat-circle {
     justify-content: center;
     flex-shrink: 0;
 }
-
 .v30-topup-auto-info-box strong {
     display: block;
     font-size: 0.86rem;
     font-weight: 900;
     margin-bottom: 2px;
 }
-
 .v30-topup-auto-info-box p {
     margin: 0;
     font-size: 0.76rem;
@@ -7066,7 +6052,6 @@ html[data-theme="dark"] .v30-cat-circle {
     color: var(--text-muted);
     line-height: 1.35;
 }
-
 .v30-topup-submit-btn {
     width: 100%;
     padding: 14px !important;
@@ -7075,15 +6060,12 @@ html[data-theme="dark"] .v30-cat-circle {
     letter-spacing: 0.05em;
     border-radius: 14px !important;
 }
-
-/* 7. Panel Kolom PIN Tanpa Keypad Nomor di Web */
 .v30-pin-input-wrapper {
     position: relative;
     max-width: 310px;
     margin: 0.5rem auto 0.85rem;
     cursor: text;
 }
-
 .v30-native-pin-input {
     position: absolute;
     inset: 0;
@@ -7094,13 +6076,11 @@ html[data-theme="dark"] .v30-cat-circle {
     cursor: text;
     font-size: 1.2rem;
 }
-
 .v30-pin-boxes-row {
     display: grid;
     grid-template-columns: repeat(6, 1fr);
     gap: 8px;
 }
-
 .v30-pin-box {
     width: 100% !important;
     height: 48px !important;
@@ -7116,27 +6096,16 @@ html[data-theme="dark"] .v30-cat-circle {
     color: var(--primary) !important;
     transition: all 0.14s ease !important;
 }
-
 .v30-pin-box.filled {
     background: rgba(37, 99, 235, 0.12) !important;
     border-color: var(--primary) !important;
     transform: translateY(-2px) !important;
 }
-
 .v30-pin-box.filled::after {
     content: "●";
     font-size: 1.1rem;
     color: var(--primary);
 }
-
-
-/* ==========================================================================
-   PEMBARUAN v30.1: PURE BLACK DARK MODE, FIX SHEET PEMBAYARAN BOCOR,
-   PANEL BAYAR COMPACT TANPA SCROLL, RINCIAN FULL-SCREEN MOBILE,
-   PROFIL FULL-SCREEN + AKTIVITAS LOGIN, & BANNER POP-UP NEO-BRUTALISM
-   ========================================================================== */
-
-/* 1. Pastikan Animasi Tab Tidak Menciptakan Containing Block Baru yang Merusak position: fixed */
 @keyframes v289TabSmoothEnter {
     0% { opacity: 0; }
     100% { opacity: 1; }
@@ -7145,16 +6114,12 @@ html[data-theme="dark"] .v30-cat-circle {
     transform: none !important;
     filter: none !important;
 }
-
-/* 2. Sembunyikan Navigasi Bawah Saat Berada di Dalam Halaman Produk / Sub-Halaman Penuh */
 body.in-product-checkout .bottom-nav,
 body.in-product-checkout #mobile-bottom-nav,
 body.in-fullscreen-subpage .bottom-nav,
 body.in-fullscreen-subpage #mobile-bottom-nav {
     display: none !important;
 }
-
-/* 3. Kunci Mutlak Panel Pembayaran (#checkout-side-col-sheet) Agar TIDAK PERNAH Muncul Sebelum Dipicu */
 @media (max-width: 768px) {
     #checkout-side-col-sheet:not(.mobile-sheet-open) {
         display: none !important;
@@ -7162,7 +6127,6 @@ body.in-fullscreen-subpage #mobile-bottom-nav {
         pointer-events: none !important;
         transform: translate3d(0, 115%, 0) !important;
     }
-
     #checkout-side-col-sheet.mobile-sheet-open {
         display: block !important;
         visibility: visible !important;
@@ -7170,77 +6134,61 @@ body.in-fullscreen-subpage #mobile-bottom-nav {
         transform: translate3d(0, 0, 0) !important;
         z-index: 9995 !important;
     }
-
-    /* Panel Pembayaran Ringkas Tanpa Perlu Scroll di Layar HP (Poin #3 & #11) */
     #checkout-side-col-sheet #checkout-step-03-card {
         min-height: 0 !important;
         max-height: 92dvh !important;
         border-radius: 20px 20px 0 0 !important;
         border-top: 3px solid var(--border) !important;
     }
-
     #checkout-side-col-sheet .sheet-sticky-top-bar {
         padding: 8px 14px 8px 14px !important;
     }
-
     #checkout-side-col-sheet .mobile-sheet-drag-handle {
         margin: 0 auto 6px auto !important;
         height: 4px !important;
     }
-
     #checkout-side-col-sheet .sheet-scrollable-content {
         padding: 10px 14px calc(14px + env(safe-area-inset-bottom, 0px)) 14px !important;
     }
-
     #checkout-side-col-sheet .qty-control-bar {
         padding: 7px 10px !important;
         margin-bottom: 8px !important;
     }
-
     #checkout-side-col-sheet .form-group {
         margin-bottom: 8px !important;
     }
-
     #checkout-side-col-sheet .form-group label {
         font-size: 0.72rem !important;
         margin-bottom: 3px !important;
     }
-
     #checkout-side-col-sheet .promo-box input {
         padding: 7px 10px !important;
         font-size: 0.78rem !important;
         min-height: 36px !important;
     }
-
     #checkout-side-col-sheet .promo-box button {
         padding: 7px 12px !important;
         min-height: 36px !important;
         font-size: 0.76rem !important;
     }
-
     #checkout-side-col-sheet #pay-card-balance {
         padding: 8px 12px !important;
         min-height: 44px !important;
         border-radius: 10px !important;
     }
-
     #checkout-side-col-sheet .cart-total-box {
         padding: 9px 12px !important;
         margin: 8px 0 10px 0 !important;
     }
-
     #checkout-side-col-sheet .cart-total-box .total-nominal {
         font-size: 1.15rem !important;
     }
-
     #checkout-side-col-sheet #btn-process-buy {
         padding: 12px 14px !important;
         min-height: 46px !important;
         font-size: 0.92rem !important;
     }
 }
-
-/* 4. Tampilan Rincian Pembayaran, Struk & Konfirmasi Full-Screen di Mode Mobile (Poin #4) */
 @media (max-width: 768px) {
     #modal-order-detail.active,
     #modal-cash-barcode.active,
@@ -7250,7 +6198,6 @@ body.in-fullscreen-subpage #mobile-bottom-nav {
         align-items: stretch !important;
         justify-content: stretch !important;
     }
-
     #modal-order-detail .modal-content,
     #modal-cash-barcode .modal-content,
     #modal-share-receipt .modal-content,
@@ -7270,11 +6217,9 @@ body.in-fullscreen-subpage #mobile-bottom-nav {
         overflow-y: auto !important;
         padding: 14px 16px calc(24px + env(safe-area-inset-bottom, 0px)) 16px !important;
     }
-
     #modal-order-detail .modal-content {
         padding: 0 !important;
     }
-
     #modal-order-detail .modal-header,
     #modal-cash-barcode .modal-header,
     #modal-share-receipt .modal-header,
@@ -7287,7 +6232,6 @@ body.in-fullscreen-subpage #mobile-bottom-nav {
         padding: 12px 14px !important;
         margin-bottom: 12px !important;
     }
-
     #modal-order-detail .bottom-sheet-drag-handle,
     #modal-cash-barcode .bottom-sheet-drag-handle,
     #modal-share-receipt .bottom-sheet-drag-handle,
@@ -7295,14 +6239,11 @@ body.in-fullscreen-subpage #mobile-bottom-nav {
         display: none !important;
     }
 }
-
-/* 5. Daftar Menu Profil & Halaman Sub-Tab Profil Full-Screen (Poin #7a & #12) */
 .v301-profile-menu-list {
     display: flex;
     flex-direction: column;
     gap: 10px;
 }
-
 .v301-profile-menu-item {
     width: 100%;
     text-align: left;
@@ -7318,26 +6259,22 @@ body.in-fullscreen-subpage #mobile-bottom-nav {
     cursor: pointer;
     color: var(--text);
 }
-
 .v301-profile-menu-item.menu-gold {
     border-color: #f59e0b;
     background: linear-gradient(135deg, rgba(250, 204, 21, 0.14), rgba(245, 158, 11, 0.05));
 }
-
 .v301-prof-menu-left {
     display: flex;
     align-items: center;
     gap: 12px;
     min-width: 0;
 }
-
 .v301-prof-menu-left strong {
     font-size: 0.9rem;
     font-weight: 900;
     color: var(--text);
     display: block;
 }
-
 .v301-prof-menu-sub {
     display: block;
     font-size: 0.74rem;
@@ -7345,18 +6282,15 @@ body.in-fullscreen-subpage #mobile-bottom-nav {
     color: var(--text-muted);
     margin-top: 2px;
 }
-
 .v301-prof-arrow {
     font-size: 0.95rem;
     color: var(--text-muted);
     flex-shrink: 0;
 }
-
 .v301-profile-subpage-stage {
     min-height: calc(100dvh - 80px);
     animation: v289TabSmoothEnter 0.18s ease both;
 }
-
 .v301-subpage-topbar {
     display: flex;
     align-items: center;
@@ -7372,7 +6306,6 @@ body.in-fullscreen-subpage #mobile-bottom-nav {
     top: 70px;
     z-index: 40;
 }
-
 .v301-device-session-card {
     background: var(--bg);
     border: 2px solid var(--border);
@@ -7383,12 +6316,10 @@ body.in-fullscreen-subpage #mobile-bottom-nav {
     flex-direction: column;
     gap: 8px;
 }
-
 .v301-device-session-card.current-session {
     border-color: var(--primary);
     background: rgba(59, 130, 246, 0.08);
 }
-
 .v301-device-meta-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(145px, 1fr));
@@ -7396,7 +6327,6 @@ body.in-fullscreen-subpage #mobile-bottom-nav {
     padding-top: 8px;
     border-top: 1.5px dashed var(--border-subtle);
 }
-
 .v301-device-meta-item span {
     display: block;
     font-size: 0.66rem;
@@ -7404,14 +6334,11 @@ body.in-fullscreen-subpage #mobile-bottom-nav {
     text-transform: uppercase;
     color: var(--text-muted);
 }
-
 .v301-device-meta-item strong {
     font-size: 0.78rem;
     font-weight: 900;
     color: var(--text);
 }
-
-/* 6. Modal Banner Pop-Up Awal Buka Web User (Poin #8) */
 .v301-popup-banner-card {
     position: relative !important;
     max-width: 420px !important;
@@ -7423,11 +6350,9 @@ body.in-fullscreen-subpage #mobile-bottom-nav {
     overflow: hidden !important;
     background: var(--surface) !important;
 }
-
 html[data-theme="dark"] .v301-popup-banner-card {
     border-color: #facc15 !important;
 }
-
 .v301-popup-close-x {
     position: absolute !important;
     top: 10px !important;
@@ -7447,7 +6372,6 @@ html[data-theme="dark"] .v301-popup-banner-card {
     z-index: 15 !important;
     cursor: pointer !important;
 }
-
 .v301-popup-img-wrap {
     width: 100%;
     max-height: 72dvh;
@@ -7458,7 +6382,6 @@ html[data-theme="dark"] .v301-popup-banner-card {
     align-items: center;
     justify-content: center;
 }
-
 .v301-popup-img-wrap img {
     width: 100%;
     height: auto;
@@ -7466,28 +6389,23 @@ html[data-theme="dark"] .v301-popup-banner-card {
     object-fit: contain;
     display: block;
 }
-
 .v301-popup-footer {
     padding: 12px 16px;
     background: var(--surface);
     border-top: 2.5px solid var(--border);
     text-align: center;
 }
-
 .v301-popup-footer strong {
     font-size: 0.88rem;
     font-weight: 900;
     color: var(--text);
 }
-
-/* 7. Pematangan Panel Selamat Datang & Default Hero Banner Neo-Brutalism */
 .user-greeting-neo-panel {
     border: 3px solid var(--border) !important;
     box-shadow: 5px 5px 0px #000000 !important;
     border-radius: 16px !important;
     background: var(--surface) !important;
 }
-
 .v301-default-hero-banner {
     width: 100%;
     min-height: 138px;
@@ -7500,28 +6418,18 @@ html[data-theme="dark"] .v301-popup-banner-card {
     gap: 14px;
     box-sizing: border-box;
 }
-
 .v301-default-hero-banner h3 {
     margin: 4px 0;
     font-size: 1.15rem;
     font-weight: 900;
     color: #facc15;
 }
-
 .v301-default-hero-banner p {
     margin: 0;
     font-size: 0.78rem;
     font-weight: 700;
     color: #e2e8f0;
 }
-
-
-/* ==========================================================================
-   PEMBARUAN v30.2: SLIM METODE PEMBAYARAN, LOCK LATAR POP-UP,
-   SEJAJARKAN PANAH PROFIL, & HAPUS UI EMAS BERLEBIHAN MEMBER PLUS
-   ========================================================================== */
-
-/* 1. Kartu Metode Pembayaran Super Ringkas & Kecil (Poin #1) */
 .v302-slim-pay-card,
 #pay-card-balance.v302-slim-pay-card {
     display: flex !important;
@@ -7534,7 +6442,6 @@ html[data-theme="dark"] .v301-popup-banner-card {
     border-radius: 10px !important;
     gap: 8px !important;
 }
-
 .v302-slim-pay-left {
     display: inline-flex !important;
     align-items: center !important;
@@ -7543,47 +6450,36 @@ html[data-theme="dark"] .v301-popup-banner-card {
     font-weight: 900 !important;
     color: var(--text) !important;
 }
-
 .v302-slim-pay-left i {
     font-size: 0.95rem !important;
 }
-
 #pay-card-balance.v302-slim-pay-card .pay-badge {
     font-size: 0.75rem !important;
     padding: 3px 9px !important;
     margin: 0 !important;
 }
-
 #balance-warning-msg {
     display: none !important;
 }
-
-/* 2. Pastikan Semua Item Menu di Tab Profil Selalu Flex Sejajar (Poin #3) */
 .v301-profile-menu-item:not([style*="display: none"]):not([style*="display:none"]) {
     display: flex !important;
     flex-direction: row !important;
     align-items: center !important;
     justify-content: space-between !important;
 }
-
-/* 3. Kunci Mutlak Pergerakan Halaman Belakang Saat Modal / Pop-Up Terbuka (Poin #4) */
 html.v302-modal-scroll-locked,
 body.v302-modal-scroll-locked {
     overflow: hidden !important;
     overscroll-behavior: none !important;
 }
-
 .modal-overlay.active {
     overscroll-behavior: contain !important;
     touch-action: none !important;
 }
-
 .modal-overlay.active .modal-content {
     touch-action: pan-y !important;
     overscroll-behavior: contain !important;
 }
-
-/* 4. Hapus UI Emas Khusus Member Plus — Tampilan Biasa & Serasi, Hanya Label Member Plus (Poin #6) */
 .profile-hero-card.profile-hero-memberplus-gold,
 .profile-hero-card.memberplus-profile-gold,
 html[data-theme="dark"] .profile-hero-card.profile-hero-memberplus-gold,
@@ -7593,38 +6489,26 @@ html[data-theme="dark"] .profile-hero-card.memberplus-profile-gold {
     box-shadow: var(--brutal-shadow) !important;
     color: var(--text) !important;
 }
-
 .profile-hero-card.profile-hero-memberplus-gold #prof-display-name,
 html[data-theme="dark"] .profile-hero-card.profile-hero-memberplus-gold #prof-display-name {
     color: var(--text) !important;
 }
-
 .profile-hero-card.profile-hero-memberplus-gold #prof-display-email,
 html[data-theme="dark"] .profile-hero-card.profile-hero-memberplus-gold #prof-display-email {
     color: var(--text-muted) !important;
 }
-
 .profile-avatar-box.memberplus-gold-avatar {
     background: var(--primary) !important;
     color: #ffffff !important;
 }
-
 #prof-avatar-crown,
 .profile-avatar-crown-badge {
     display: none !important;
 }
-
 .v301-profile-menu-item.menu-gold {
     border-color: var(--border) !important;
     background: var(--surface) !important;
 }
-
-
-/* ==========================================================================
-   PEMBARUAN v30.2.1: LAYOUT TENGAH DESKTOP SAAT PANEL BAYAR BELUM TAMPIL
-   & TOMBOL HAPUS / KELUARKAN SESI LOGIN PER PERANGKAT
-   ========================================================================== */
-
 @media (min-width: 769px) {
     #buy-content-form .checkout-split-grid:not(.desktop-pay-visible) {
         display: flex !important;
@@ -7634,17 +6518,127 @@ html[data-theme="dark"] .profile-hero-card.profile-hero-memberplus-gold #prof-di
         max-width: 760px !important;
         margin: 0 auto !important;
     }
-
     #buy-content-form .checkout-split-grid:not(.desktop-pay-visible) > .checkout-main-col {
         width: 100% !important;
         max-width: 760px !important;
         margin: 0 auto !important;
     }
-
     #buy-content-form .checkout-split-grid.desktop-pay-visible {
         display: grid !important;
         grid-template-columns: 1.45fr 1fr !important;
         gap: 1.35rem !important;
         max-width: 100% !important;
     }
+}
+html.instant-auth-lcp #app-preloader-overlay {
+    display: none !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
+}
+html.instant-auth-lcp body.preloader-locked {
+    overflow: auto !important;
+}
+.preloader-stage-bar-fill {
+    transform-origin: left center;
+    will-change: transform;
+}
+#brand-grid,
+#user-order-grid {
+    content-visibility: auto;
+    contain-intrinsic-size: 1px 320px;
+}
+.banner-slider-container {
+    aspect-ratio: 16 / 6;
+    min-height: 132px;
+}
+
+/* === VIPERCELL v30.2.3: FULL-FIT BANNER TANPA RUANG KOSONG HITAM & ANTI-LEAK SUB-TAB === */
+body.v3023-subcatalog-open #banner-container,
+body.v3023-subcatalog-open #user-greeting-dashboard-panel {
+    display: none !important;
+}
+#banner-container.banner-slider-container {
+    position: relative !important;
+    width: 100% !important;
+    aspect-ratio: 16 / 5.5 !important;
+    min-height: 136px !important;
+    max-height: 300px !important;
+    padding: 0 !important;
+    overflow: hidden !important;
+    background: var(--surface) !important;
+}
+#banner-track.banner-track {
+    display: flex !important;
+    width: 100% !important;
+    height: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    align-items: stretch !important;
+}
+#banner-track > .banner-slide,
+.banner-slide,
+.banner-slide-yt-wrap {
+    width: 100% !important;
+    min-width: 100% !important;
+    max-width: 100% !important;
+    height: 100% !important;
+    min-height: 100% !important;
+    max-height: 100% !important;
+    flex: 0 0 100% !important;
+    object-fit: cover !important;
+    object-position: center center !important;
+    display: block !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: none !important;
+    position: relative !important;
+    overflow: hidden !important;
+}
+#banner-dots:empty,
+.banner-dots:empty,
+#banner-dots[style*="none"] {
+    display: none !important;
+}
+.banner-slide-yt-wrap iframe.banner-yt-iframe,
+.subcatalog-yt-wrap iframe.banner-yt-iframe,
+.popup-yt-wrap iframe.banner-yt-iframe {
+    position: absolute !important;
+    top: 50% !important;
+    left: 50% !important;
+    width: 125% !important;
+    height: 145% !important;
+    transform: translate(-50%, -50%) !important;
+    border: 0 !important;
+    pointer-events: none !important;
+    user-select: none !important;
+}
+.subcatalog-yt-wrap {
+    position: relative !important;
+    width: 100% !important;
+    aspect-ratio: 16 / 5.8 !important;
+    min-height: 136px !important;
+    overflow: hidden !important;
+    background: #09090b !important;
+}
+.popup-yt-wrap {
+    position: relative !important;
+    width: 100% !important;
+    aspect-ratio: 16 / 9 !important;
+    min-height: 190px !important;
+    overflow: hidden !important;
+    background: #09090b !important;
+}
+.v3023-saved-target-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    border-radius: 999px;
+    border: 2px solid #09090b;
+    background: var(--surface);
+    color: var(--text);
+    font-size: 0.72rem;
+    font-weight: 800;
+    cursor: pointer;
+    box-shadow: 2px 2px 0 #09090b;
 }
