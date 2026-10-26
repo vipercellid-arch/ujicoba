@@ -7618,3 +7618,33 @@ html[data-theme="dark"] .profile-hero-card.profile-hero-memberplus-gold #prof-di
     border-color: var(--border) !important;
     background: var(--surface) !important;
 }
+
+
+/* ==========================================================================
+   PEMBARUAN v30.2.1: LAYOUT TENGAH DESKTOP SAAT PANEL BAYAR BELUM TAMPIL
+   & TOMBOL HAPUS / KELUARKAN SESI LOGIN PER PERANGKAT
+   ========================================================================== */
+
+@media (min-width: 769px) {
+    #buy-content-form .checkout-split-grid:not(.desktop-pay-visible) {
+        display: flex !important;
+        flex-direction: column !important;
+        align-items: center !important;
+        justify-content: center !important;
+        max-width: 760px !important;
+        margin: 0 auto !important;
+    }
+
+    #buy-content-form .checkout-split-grid:not(.desktop-pay-visible) > .checkout-main-col {
+        width: 100% !important;
+        max-width: 760px !important;
+        margin: 0 auto !important;
+    }
+
+    #buy-content-form .checkout-split-grid.desktop-pay-visible {
+        display: grid !important;
+        grid-template-columns: 1.45fr 1fr !important;
+        gap: 1.35rem !important;
+        max-width: 100% !important;
+    }
+}

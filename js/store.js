@@ -13280,3 +13280,301 @@ callClientDigiflazzApi = async function(endpointPath, payloadData, explicitSignS
     }
     throw lastErr || new Error('Layanan sedang sibuk. Silakan coba beberapa saat lagi.');
 };
+
+
+// ============================================================================
+// PEMBARUAN v30.2.1: FIX KELUARKAN AKUN / HAPUS RIWAYAT LOGIN, LAYOUT TENGAH
+// DESKTOP CHECKOUT, SINKRONISASI DOKUMEN BANNER TERPISAH, & PROTEKSI SECRET VPS
+// ============================================================================
+
+// Wrapper Promise untuk openConfirm agar window.customConfirm berfungsi penuh
+window.customConfirm = function(title, msg, confirmBtnLabel = 'Ya, Lanjutkan') {
+    return new Promise((resolve) => {
+        if (typeof window.openConfirm === 'function') {
+            window.openConfirm(title, msg, (confirmed) => {
+                resolve(Boolean(confirmed));
+            });
+            const yesBtn = document.getElementById('btn-confirm-yes');
+            if (yesBtn && confirmBtnLabel) {
+                yesBtn.innerText = confirmBtnLabel;
+            }
+        } else {
+            resolve(window.confirm(String(msg || '').replace(/<[^>]+>/g, '')));
+        }
+    });
+};
+
+// Sinkronisasi class .desktop-pay-visible agar kolom variasi berada tepat di tengah saat panel pembayaran belum tampil
+function syncDesktopCheckoutCenterLayout() {
+    const grid = document.querySelector('#buy-content-form .checkout-split-grid');
+    const sheet = document.getElementById('checkout-side-col-sheet');
+    if (!grid || !sheet) return;
+    const isVisible = sheet.style.display !== 'none' && Boolean(selectedProductForBuy);
+    grid.classList.toggle('desktop-pay-visible', isVisible);
+}
+
+const _origOpenMobilePaySheetV3021 = window.openMobilePaymentSheet;
+window.openMobilePaymentSheet = function() {
+    if (typeof _origOpenMobilePaySheetV3021 === 'function') _origOpenMobilePaySheetV3021();
+    syncDesktopCheckoutCenterLayout();
+};
+
+const _origCloseMobilePaySheetV3021 = window.closeMobilePaymentSheet;
+window.closeMobilePaymentSheet = function() {
+    if (typeof _origCloseMobilePaySheetV3021 === 'function') _origCloseMobilePaySheetV3021();
+    const grid = document.querySelector('#buy-content-form .checkout-split-grid');
+    const sheet = document.getElementById('checkout-side-col-sheet');
+    if (grid && (!sheet || sheet.style.display === 'none' || !selectedProductForBuy)) {
+        grid.classList.remove('desktop-pay-visible');
+    }
+};
+
+// Perbaikan Lengkap Render & Hapus / Keluarkan Sesi Login dari Tab Profil
+const _CLIENT_BOOT_TIMESTAMP_MS = Date.now();
+
+window.renderUserLoginActivityList = async function() {
+    const curBox = document.getElementById('prof-current-device-card-box');
+    const listBox = document.getElementById('prof-login-history-list-box');
+    if (!curBox || !listBox) return;
+
+    const currentMeta = userProfile.lastLoginMeta || await detectClientDeviceAndLocationMeta();
+    const fmtTime = (ms) => {
+        if (!ms) return '-';
+        try {
+            return new Date(Number(ms)).toLocaleString('id-ID', {
+                day: '2-digit', month: 'short', year: 'numeric',
+                hour: '2-digit', minute: '2-digit'
+            });
+        } catch (_) {
+            return '-';
+        }
+    };
+
+    curBox.innerHTML = `
+        <div class="v301-device-session-card current-session">
+            <div style="display:flex; justify-content:space-between; align-items:center; gap:8px; flex-wrap:wrap;">
+                <div style="display:flex; align-items:center; gap:8px;">
+                    <i class="fa-solid fa-mobile-screen-button text-primary" style="font-size:1.15rem;"></i>
+                    <strong>${escapeHtmlSafeV301(currentMeta.deviceModel || 'Perangkat Aktif')}</strong>
+                </div>
+                <span class="brutal-tag tag-primary" style="font-size:0.62rem;">${escapeHtmlSafeV301(currentMeta.osVersion || 'Android / Web')}</span>
+            </div>
+            <div class="v301-device-meta-grid">
+                <div class="v301-device-meta-item">
+                    <span>Sistem &amp; Versi</span>
+                    <strong>${escapeHtmlSafeV301(currentMeta.osVersion)} • ${escapeHtmlSafeV301(currentMeta.browserName)}</strong>
+                </div>
+                <div class="v301-device-meta-item">
+                    <span>Lokasi Login</span>
+                    <strong><i class="fa-solid fa-location-dot text-danger"></i> ${escapeHtmlSafeV301(currentMeta.locationText)}</strong>
+                </div>
+                <div class="v301-device-meta-item">
+                    <span>Waktu Masuk</span>
+                    <strong><i class="fa-regular fa-clock text-primary"></i> ${fmtTime(currentMeta.loginAt)}</strong>
+                </div>
+            </div>
+        </div>
+    `;
+
+    const historyArr = Array.isArray(userProfile.loginHistory) && userProfile.loginHistory.length > 0
+        ? userProfile.loginHistory
+        : [currentMeta];
+
+    listBox.innerHTML = historyArr.map((item) => {
+        const isCurrent = item.sessionId === CURRENT_CLIENT_SESSION_ID;
+        const safeSid = escapeHtmlSafeV301(item.sessionId || '');
+        return `
+            <div class="v301-device-session-card ${isCurrent ? 'current-session' : ''}">
+                <div style="display:flex; justify-content:space-between; align-items:center; gap:8px; flex-wrap:wrap;">
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <i class="fa-solid ${/Android|iOS|iPhone|iPad/i.test(item.osVersion || '') ? 'fa-mobile-screen' : 'fa-laptop'} text-primary"></i>
+                        <strong>${escapeHtmlSafeV301(item.deviceModel || 'Perangkat')} (${escapeHtmlSafeV301(item.osVersion || '-')})</strong>
+                    </div>
+                    <div style="display:flex; align-items:center; gap:6px;">
+                        <span class="brutal-tag ${isCurrent ? 'tag-success' : 'tag-amber'}" style="font-size:0.6rem;">
+                            ${isCurrent ? 'PERANGKAT INI' : 'SESI LOGIN'}
+                        </span>
+                        ${!isCurrent ? `
+                        <button type="button" class="btn btn-danger btn-sm" style="padding:3px 9px; min-height:26px; font-size:0.68rem;" onclick="window.removeSingleLoginHistoryItem('${safeSid}')">
+                            <i class="fa-solid fa-right-from-bracket"></i> Keluarkan
+                        </button>` : ''}
+                    </div>
+                </div>
+                <div class="v301-device-meta-grid">
+                    <div class="v301-device-meta-item">
+                        <span>Aplikasi / Browser</span>
+                        <strong>${escapeHtmlSafeV301(item.browserName || '-')}</strong>
+                    </div>
+                    <div class="v301-device-meta-item">
+                        <span>Lokasi &amp; Zona Waktu</span>
+                        <strong>${escapeHtmlSafeV301(item.locationText || '-')}</strong>
+                    </div>
+                    <div class="v301-device-meta-item">
+                        <span>Keterangan Waktu Masuk</span>
+                        <strong>${fmtTime(item.loginAt || item.lastActiveAt)}</strong>
+                    </div>
+                </div>
+            </div>
+        `;
+    }).join('');
+};
+
+window.removeSingleLoginHistoryItem = function(targetSessionId) {
+    if (!currentUser || currentUser.isAnonymous || userProfile.isGuest || !targetSessionId) return;
+    window.openConfirm(
+        'Keluarkan Perangkat Ini?',
+        'Perangkat tersebut akan dikeluarkan dari akunmu dan dihapus dari daftar riwayat login.',
+        async (confirmed) => {
+            if (!confirmed) return;
+            try {
+                const curList = Array.isArray(userProfile.loginHistory) ? [...userProfile.loginHistory] : [];
+                const nextList = curList.filter(item => item && item.sessionId !== targetSessionId);
+                const kickedIds = Array.isArray(userProfile.kickedSessionIds) ? [...userProfile.kickedSessionIds] : [];
+                if (!kickedIds.includes(targetSessionId)) kickedIds.push(targetSessionId);
+
+                await setDoc(doc(db, pathUsers, currentUser.uid), {
+                    loginHistory: nextList,
+                    kickedSessionIds: kickedIds.slice(-30),
+                    updatedAt: Date.now()
+                }, { merge: true });
+
+                userProfile.loginHistory = nextList;
+                userProfile.kickedSessionIds = kickedIds;
+                await window.renderUserLoginActivityList();
+                window.showToast('Perangkat Dikeluarkan', 'Sesi perangkat tersebut berhasil dikeluarkan.', 'success');
+            } catch (e) {
+                window.showToast('Gagal', 'Tidak dapat mengeluarkan sesi perangkat.', 'error');
+            }
+        }
+    );
+};
+
+window.revokeOtherLoginSessions = function() {
+    if (!currentUser || currentUser.isAnonymous || userProfile.isGuest) return;
+    window.openConfirm(
+        'Keluar dari Semua Perangkat Lain?',
+        'Seluruh perangkat lain yang sedang login ke akunmu akan langsung dikeluarkan, dan riwayat sesi lama akan dibersihkan.',
+        async (confirmed) => {
+            if (!confirmed) return;
+            try {
+                const meta = await detectClientDeviceAndLocationMeta();
+                const nowMs = Date.now();
+                await setDoc(doc(db, pathUsers, currentUser.uid), {
+                    loginHistory: [meta],
+                    lastLoginMeta: meta,
+                    trustedSessionRevokedBefore: nowMs,
+                    trustedActiveSessionId: CURRENT_CLIENT_SESSION_ID,
+                    updatedAt: nowMs
+                }, { merge: true });
+                userProfile.loginHistory = [meta];
+                userProfile.lastLoginMeta = meta;
+                await window.renderUserLoginActivityList();
+                window.showToast('Berhasil Dikeluarkan', 'Seluruh perangkat lain telah dikeluarkan dari akunmu.', 'success');
+            } catch (e) {
+                window.showToast('Gagal', 'Terjadi kendala saat mengeluarkan perangkat lain.', 'error');
+            }
+        }
+    );
+};
+
+// Pantau apakah sesi perangkat ini telah dikeluarkan dari perangkat lain
+setInterval(() => {
+    if (!currentUser || currentUser.isAnonymous || userProfile.isGuest) return;
+    const kickedList = Array.isArray(userProfile.kickedSessionIds) ? userProfile.kickedSessionIds : [];
+    const revokedBefore = Number(userProfile.trustedSessionRevokedBefore || 0);
+    const activeTrustedSid = String(userProfile.trustedActiveSessionId || '');
+
+    if (
+        kickedList.includes(CURRENT_CLIENT_SESSION_ID) ||
+        (revokedBefore > _CLIENT_BOOT_TIMESTAMP_MS && activeTrustedSid && activeTrustedSid !== CURRENT_CLIENT_SESSION_ID)
+    ) {
+        sessionStorage.removeItem('vipercell_active_session_id');
+        window.logoutUser();
+    }
+}, 2500);
+
+// Sinkronisasi Dokumen Banner Terpisah (settings/bannersConfig) agar Banner Ukuran Besar Tetap Tampil Cepat
+onSnapshot(doc(db, pathSettings, 'bannersConfig'), (snap) => {
+    if (!snap.exists()) return;
+    const bData = snap.data() || {};
+    if (Array.isArray(bData.banners)) siteSettings.banners = bData.banners;
+    if (bData.popupBannerEnabled !== undefined) siteSettings.popupBannerEnabled = Boolean(bData.popupBannerEnabled);
+    if (bData.popupBannerImg !== undefined) siteSettings.popupBannerImg = bData.popupBannerImg;
+    if (bData.popupBannerTitle !== undefined) siteSettings.popupBannerTitle = bData.popupBannerTitle;
+    if (bData.popupBannerLink !== undefined) siteSettings.popupBannerLink = bData.popupBannerLink;
+    if (bData.categoryBanners && typeof bData.categoryBanners === 'object') {
+        siteSettings.categoryBanners = { ...(siteSettings.categoryBanners || {}), ...bData.categoryBanners };
+    }
+    if (bData.categoryBannerGame !== undefined) siteSettings.categoryBannerGame = bData.categoryBannerGame;
+    if (typeof window.renderBanners === 'function') window.renderBanners();
+    if (typeof window.maybeShowInitialPopupBanner === 'function') window.maybeShowInitialPopupBanner();
+}, () => {});
+
+// Perketat Pemanggilan VPS Bridge di Web User: Jika Kode Rahasia VPS Salah (403), Langsung Tolak!
+callClientDigiflazzApi = async function(endpointPath, payloadData, explicitSignSuffix = '') {
+    const bridgeUrl = (siteSettings.digiflazzBridgeUrl || 'https://api.vipercell.cloud').trim();
+    const envMode = siteSettings.digiflazzEnvMode || 'production';
+    const bridgeSecret = (siteSettings.digiflazzBridgeAccessKey || 'VIPERCELL_BRIDGE_SECRET_2026').trim();
+
+    const basePayload = { ...(payloadData || {}) };
+    delete basePayload.username;
+    delete basePayload.sign;
+
+    if (basePayload.customer_no !== undefined) {
+        basePayload.customer_no = combineGameIdAndZoneForDigiflazz(basePayload.customer_no, basePayload.zone_id || '');
+        delete basePayload.zone_id;
+    }
+
+    const rawBases = [bridgeUrl, 'https://api.vipercell.cloud'];
+    if (typeof window !== 'undefined' && window.location && window.location.protocol === 'http:') {
+        rawBases.push('http://139.59.60.91:3100', 'http://localhost:3100');
+    }
+    const candidateUrls = [];
+    rawBases.forEach(b => {
+        const cb = String(b || '').trim().replace(/\/+$/, '');
+        if (!cb || !cb.startsWith('http')) return;
+        const u1 = cb.endsWith('/api/digiflazz') ? cb : (cb + '/api/digiflazz');
+        const u2 = cb.endsWith('/api/digiflazz') ? cb.replace(/\/api\/digiflazz$/, '') : cb;
+        if (!candidateUrls.includes(u1)) candidateUrls.push(u1);
+        if (!candidateUrls.includes(u2)) candidateUrls.push(u2);
+    });
+
+    const reqBody = {
+        endpoint: endpointPath,
+        envMode: envMode,
+        bridgeAccessKey: bridgeSecret,
+        payload: basePayload
+    };
+
+    let lastErr = null;
+    for (const u of candidateUrls) {
+        try {
+            const res = await fetch(u, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Vipercell-Bridge-Key': bridgeSecret
+                },
+                body: JSON.stringify(reqBody)
+            });
+            const rawJson = await res.json().catch(() => null);
+            if (res.status === 403 || rawJson?.errorCode === 'INVALID_BRIDGE_SECRET') {
+                throw new Error(rawJson?.message || 'Kode Rahasia Endpoint VPS tidak sesuai. Koneksi ditolak.');
+            }
+            const jsonRes = normalizeBridgeResponseJsonClient(rawJson);
+            if (jsonRes && jsonRes.ok === false && jsonRes.data === undefined) {
+                lastErr = new Error(jsonRes.message || 'Gagal menghubungi Server Layanan.');
+                continue;
+            }
+            if (jsonRes && jsonRes.data !== undefined) {
+                return jsonRes;
+            }
+        } catch (err) {
+            lastErr = err;
+            if (String(err.message || '').includes('Kode Rahasia Endpoint VPS')) {
+                throw err;
+            }
+        }
+    }
+    throw lastErr || new Error('Layanan sedang sibuk. Silakan coba beberapa saat lagi.');
+};
