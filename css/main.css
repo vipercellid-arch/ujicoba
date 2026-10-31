@@ -128,9 +128,12 @@ a {
     color: inherit;
     text-decoration: none;
 }
-body:not(.auth-locked) #tab-auth,
-html.has-saved-session body.preloader-locked #tab-auth {
+#tab-auth:not(.active),
+body.preloader-locked #tab-auth {
     display: none !important;
+}
+#tab-auth.active {
+    display: block !important;
 }
 body.auth-locked header .nav-right,
 body.auth-locked #mobile-bottom-nav,
@@ -3759,414 +3762,6 @@ body:not(.is-member-session) #pay-card-balance {
     overflow: hidden;
     text-overflow: ellipsis;
 }
-.bantuan-subtab-btn.memberplus-subtab-gold.active {
-    background: linear-gradient(135deg, #facc15, #f59e0b) !important;
-    color: #0f172a !important;
-    border-color: #0f172a !important;
-}
-.memberplus-gold-badge,
-.tag-memberplus-gold {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    padding: 4px 11px;
-    border-radius: 999px;
-    background: linear-gradient(135deg, #fde047 0%, #facc15 50%, #f59e0b 100%) !important;
-    color: #0f172a !important;
-    border: 2px solid #0f172a !important;
-    box-shadow: 2px 2px 0px #0f172a !important;
-    font-family: var(--font-heading) !important;
-    font-size: 0.72rem;
-    font-weight: 900 !important;
-    letter-spacing: 0.03em;
-    line-height: 1.2;
-    text-transform: uppercase;
-}
-.memberplus-gold-badge i,
-.tag-memberplus-gold i {
-    color: #78350f !important;
-}
-.profile-hero-card.profile-hero-memberplus-gold,
-.profile-hero-card.memberplus-profile-gold {
-    background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 52%, #fde68a 100%) !important;
-    border: 3px solid #b45309 !important;
-    box-shadow: 6px 6px 0px #78350f !important;
-    color: #422006 !important;
-}
-html[data-theme="dark"] .profile-hero-card.profile-hero-memberplus-gold,
-html[data-theme="dark"] .profile-hero-card.memberplus-profile-gold {
-    background: linear-gradient(135deg, #2e1d05 0%, #422006 55%, #713f12 100%) !important;
-    border: 3px solid #facc15 !important;
-    box-shadow: 6px 6px 0px #ca8a04 !important;
-    color: #fef9c3 !important;
-}
-.profile-hero-card.profile-hero-memberplus-gold #prof-display-name {
-    font-family: var(--font-heading) !important;
-    font-weight: 900 !important;
-    color: #422006 !important;
-}
-html[data-theme="dark"] .profile-hero-card.profile-hero-memberplus-gold #prof-display-name {
-    color: #fef08a !important;
-}
-.profile-hero-card.profile-hero-memberplus-gold #prof-display-email {
-    font-family: var(--font-main) !important;
-    font-weight: 700 !important;
-    color: #78350f !important;
-}
-html[data-theme="dark"] .profile-hero-card.profile-hero-memberplus-gold #prof-display-email {
-    color: #fde68a !important;
-}
-.profile-avatar-box {
-    position: relative;
-}
-.profile-avatar-box.memberplus-gold-avatar {
-    background: linear-gradient(135deg, #fde047, #f59e0b) !important;
-    color: #0f172a !important;
-    border: 3px solid #0f172a !important;
-    box-shadow: 4px 4px 0px #0f172a !important;
-}
-.profile-avatar-crown-badge,
-.prof-avatar-crown-badge {
-    position: absolute;
-    top: -10px;
-    right: -10px;
-    width: 28px;
-    height: 28px;
-    border-radius: 50%;
-    background: linear-gradient(135deg, #fde047, #f59e0b);
-    color: #0f172a;
-    border: 2px solid #0f172a;
-    box-shadow: 2px 2px 0px #0f172a;
-    display: none;
-    align-items: center;
-    justify-content: center;
-    font-size: 0.78rem;
-    z-index: 3;
-}
-.profile-badge-row {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
-    align-items: center;
-    margin-bottom: 4px;
-}
-.memberplus-celebration-card,
-.memberplus-active-celebration-card {
-    background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 55%, #fde68a 100%);
-    color: #422006;
-    border: 3px solid #b45309;
-    box-shadow: 5px 5px 0px #78350f;
-    border-radius: 16px;
-    padding: 1.25rem;
-    margin-bottom: 1.25rem;
-    font-family: var(--font-main);
-}
-html[data-theme="dark"] .memberplus-celebration-card,
-html[data-theme="dark"] .memberplus-active-celebration-card {
-    background: linear-gradient(135deg, #2e1d05 0%, #422006 55%, #713f12 100%);
-    color: #fef9c3;
-    border-color: #facc15;
-    box-shadow: 5px 5px 0px #ca8a04;
-}
-.mp-celebration-title {
-    margin: 0 0 6px;
-    font-family: var(--font-heading);
-    font-size: 1.18rem;
-    font-weight: 900;
-    line-height: 1.25;
-    color: inherit;
-}
-.mp-celebration-sub {
-    margin: 0;
-    font-family: var(--font-main);
-    font-size: 0.84rem;
-    font-weight: 700;
-    line-height: 1.5;
-    opacity: 0.94;
-}
-.memberplus-exp-meta-grid {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 10px;
-    margin-top: 12px;
-}
-.memberplus-exp-meta-item {
-    background: rgba(255, 255, 255, 0.82);
-    border: 2px solid #b45309;
-    border-radius: 10px;
-    padding: 8px 12px;
-    box-shadow: 2px 2px 0px rgba(120, 53, 15, 0.35);
-}
-html[data-theme="dark"] .memberplus-exp-meta-item {
-    background: rgba(15, 23, 42, 0.72);
-    border-color: #facc15;
-}
-.memberplus-exp-meta-item span {
-    display: block;
-    font-family: var(--font-heading);
-    font-size: 0.65rem;
-    font-weight: 900;
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
-    color: #92400e;
-    margin-bottom: 2px;
-}
-html[data-theme="dark"] .memberplus-exp-meta-item span {
-    color: #fde047;
-}
-.memberplus-exp-meta-item strong {
-    display: block;
-    font-family: var(--font-heading);
-    font-size: 0.88rem;
-    font-weight: 900;
-    color: #422006;
-}
-html[data-theme="dark"] .memberplus-exp-meta-item strong {
-    color: #ffffff;
-}
-.mp-welcome-celebration-modal {
-    max-width: 430px;
-    border: 3px solid #f59e0b !important;
-    background: linear-gradient(180deg, #fffbeb 0%, #fef3c7 100%) !important;
-    color: #422006 !important;
-    box-shadow: 8px 8px 0px #000000 !important;
-    font-family: var(--font-main);
-}
-.mp-welcome-meta-box {
-    background: rgba(255, 255, 255, 0.88);
-    border: 2px solid #d97706;
-    border-radius: 12px;
-    padding: 10px 14px;
-    margin: 12px 0 16px;
-    text-align: left;
-}
-.mp-welcome-meta-row {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 8px;
-}
-.mp-welcome-meta-row span {
-    font-family: var(--font-heading);
-    font-size: 0.72rem;
-    font-weight: 800;
-    color: #92400e;
-}
-.mp-welcome-meta-row strong {
-    font-family: var(--font-heading);
-    font-size: 0.82rem;
-    font-weight: 900;
-    color: #422006;
-}
-.price-wrapper {
-    display: flex;
-    align-items: flex-end;
-    justify-content: space-between;
-    flex-wrap: wrap;
-    gap: 6px;
-    padding-top: 8px;
-    border-top: 1.5px dashed var(--border-subtle);
-}
-.mp-variant-price-stack {
-    display: inline-flex;
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 2px;
-    line-height: 1.2;
-}
-.mp-variant-strike-row {
-    display: inline-flex;
-    align-items: center;
-    gap: 5px;
-    flex-wrap: wrap;
-}
-.mp-variant-final-price {
-    font-family: var(--font-heading);
-    font-size: 0.96rem;
-    font-weight: 900;
-    color: var(--primary);
-}
-.mp-free-price-label {
-    font-family: var(--font-heading);
-    font-size: 0.9rem;
-    font-weight: 900;
-    color: var(--success);
-}
-.memberplus-price-strike {
-    text-decoration: line-through;
-    color: var(--text-muted);
-    font-family: var(--font-main);
-    font-size: 0.72rem;
-    font-weight: 700;
-}
-.memberplus-saving-pill,
-.mp-saving-pill {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    background: linear-gradient(135deg, #fde047, #facc15);
-    color: #0f172a;
-    border: 1.5px solid #0f172a;
-    border-radius: 6px;
-    padding: 1px 6px;
-    font-family: var(--font-heading);
-    font-size: 0.62rem;
-    font-weight: 900;
-    line-height: 1.2;
-    vertical-align: middle;
-}
-.mp-price-highlight {
-    display: inline-flex;
-    align-items: center;
-    gap: 5px;
-    font-family: var(--font-heading);
-    font-size: 0.88rem;
-    font-weight: 900;
-    color: #b45309;
-    background: rgba(250, 204, 21, 0.22);
-    border: 1.5px solid #d97706;
-    border-radius: 7px;
-    padding: 2px 8px;
-}
-html[data-theme="dark"] .mp-price-highlight {
-    color: #fde047;
-    background: rgba(250, 204, 21, 0.14);
-    border-color: #facc15;
-}
-.mp-comparison-hero-banner {
-    background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 55%, #fde68a 100%);
-    border: 2.5px solid #b45309;
-    border-radius: 14px;
-    padding: 1.15rem 1.25rem;
-    box-shadow: 5px 5px 0px #78350f;
-    color: #422006;
-    margin-bottom: 1.15rem;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 12px;
-}
-html[data-theme="dark"] .mp-comparison-hero-banner {
-    background: linear-gradient(135deg, #2e1d05 0%, #422006 55%, #713f12 100%);
-    border-color: #facc15;
-    box-shadow: 5px 5px 0px #ca8a04;
-    color: #fef9c3;
-}
-.mp-compare-hero-title {
-    margin: 0 0 4px;
-    font-family: var(--font-heading);
-    font-size: 1.25rem;
-    font-weight: 900;
-    line-height: 1.25;
-    color: inherit;
-}
-.mp-compare-hero-sub {
-    margin: 0;
-    font-family: var(--font-main);
-    font-size: 0.82rem;
-    font-weight: 700;
-    opacity: 0.92;
-    line-height: 1.45;
-}
-.mp-compare-filter-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 12px;
-    margin-bottom: 1rem;
-}
-.mp-compare-filter-grid label {
-    font-family: var(--font-heading);
-    font-size: 0.74rem;
-    font-weight: 800;
-}
-.mp-compare-stats-strip {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-    gap: 10px;
-    margin-bottom: 1rem;
-}
-.mp-compare-stat-box {
-    background: var(--surface);
-    border: 2px solid var(--border);
-    border-radius: 10px;
-    padding: 10px 13px;
-    box-shadow: 3px 3px 0px var(--border);
-}
-.mp-compare-stat-box span {
-    display: block;
-    font-family: var(--font-heading);
-    font-size: 0.68rem;
-    font-weight: 800;
-    color: var(--text-muted);
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-}
-.mp-compare-stat-box strong {
-    display: block;
-    font-family: var(--font-heading);
-    font-size: 1rem;
-    font-weight: 900;
-    color: var(--text);
-    margin-top: 2px;
-}
-.mp-open-compare-cta-card {
-    background: linear-gradient(135deg, rgba(254, 243, 199, 0.72), rgba(253, 230, 138, 0.45));
-    border: 2.5px solid #d97706 !important;
-    box-shadow: 4px 4px 0px #92400e !important;
-}
-html[data-theme="dark"] .mp-open-compare-cta-card {
-    background: linear-gradient(135deg, rgba(66, 32, 6, 0.72), rgba(113, 63, 18, 0.45));
-    border-color: #facc15 !important;
-    box-shadow: 4px 4px 0px #ca8a04 !important;
-}
-.mp-compare-table-wrap,
-.mp-comparison-table-wrap {
-    width: 100%;
-    overflow-x: auto;
-    border: 2px solid var(--border);
-    border-radius: 12px;
-    background: var(--surface);
-    box-shadow: 3px 3px 0px var(--border);
-    margin-top: 10px;
-}
-.mp-compare-table,
-.mp-comparison-table {
-    width: 100%;
-    border-collapse: collapse;
-    text-align: left;
-    min-width: 520px;
-    font-family: var(--font-main);
-}
-.mp-compare-table th,
-.mp-comparison-table th {
-    background: var(--surface-elevated);
-    padding: 11px 13px;
-    font-family: var(--font-heading);
-    font-size: 0.74rem;
-    font-weight: 900;
-    text-transform: uppercase;
-    letter-spacing: 0.03em;
-    color: var(--text);
-    border-bottom: 2px solid var(--border);
-}
-.mp-compare-table td,
-.mp-comparison-table td {
-    padding: 11px 13px;
-    font-family: var(--font-main);
-    font-size: 0.83rem;
-    font-weight: 700;
-    color: var(--text);
-    border-bottom: 1.5px solid var(--border-subtle);
-    vertical-align: middle;
-}
-.mp-compare-table tr:last-child td,
-.mp-comparison-table tr:last-child td {
-    border-bottom: none;
-}
-.mp-compare-table tbody tr:hover {
-    background: var(--surface-hover);
-}
 .ereceipt-brand-header {
     display: flex;
     align-items: center;
@@ -5073,70 +4668,6 @@ body.mobile-sheet-locked {
         padding-right: 10px !important;
     }
     #tab-topup .checkout-step-card,
-    #topup-panel-memberplus .checkout-step-card,
-    #topup-panel-memberplus .memberplus-celebration-card {
-        padding: 0.95rem !important;
-        margin-bottom: 0.85rem !important;
-        border-radius: 14px !important;
-        box-shadow: 3px 3px 0px var(--border) !important;
-        width: 100% !important;
-        max-width: 100% !important;
-        box-sizing: border-box !important;
-        overflow: hidden !important;
-    }
-    #topup-panel-memberplus .mp-celebration-title {
-        font-size: 1rem !important;
-        line-height: 1.25 !important;
-    }
-    #topup-panel-memberplus .mp-celebration-sub {
-        font-size: 0.76rem !important;
-        line-height: 1.35 !important;
-    }
-    #topup-panel-memberplus .memberplus-exp-meta-grid {
-        display: grid !important;
-        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
-        gap: 8px !important;
-        margin-top: 10px !important;
-    }
-    #topup-panel-memberplus .memberplus-exp-meta-item {
-        padding: 8px 10px !important;
-        min-width: 0 !important;
-    }
-    #topup-panel-memberplus .memberplus-exp-meta-item span {
-        font-size: 0.64rem !important;
-    }
-    #topup-panel-memberplus .memberplus-exp-meta-item strong {
-        font-size: 0.78rem !important;
-        word-break: break-word !important;
-    }
-    #topup-panel-memberplus .auth-category-bento {
-        display: grid !important;
-        grid-template-columns: minmax(0, 1fr) !important;
-        gap: 8px !important;
-    }
-    #topup-panel-memberplus .auth-bento-item {
-        padding: 10px 12px !important;
-        min-width: 0 !important;
-    }
-    #topup-panel-memberplus .step-header h4 {
-        font-size: 0.92rem !important;
-    }
-    #topup-panel-memberplus .cart-total-box {
-        padding: 10px 12px !important;
-    }
-    #topup-panel-memberplus .total-nominal {
-        font-size: 1.15rem !important;
-    }
-    #topup-panel-memberplus .mp-compare-table-wrap,
-    #topup-panel-compare .mp-compare-table-wrap {
-        width: 100% !important;
-        max-width: 100% !important;
-        overflow-x: auto !important;
-        -webkit-overflow-scrolling: touch !important;
-    }
-    #topup-panel-memberplus .mp-compare-table {
-        min-width: 420px !important;
-    }
     #checkout-side-col-sheet {
         overscroll-behavior: contain !important;
         touch-action: pan-y !important;
@@ -6642,3 +6173,1662 @@ body.v3023-subcatalog-open #user-greeting-dashboard-panel {
     cursor: pointer;
     box-shadow: 2px 2px 0 #09090b;
 }
+
+/* === VIPERCELL v30.2.4: ROUND SPINNER & TRAVELLING BORDER LIGHT BEAM === */
+@property --v3024-beam-angle {
+    syntax: '<angle>';
+    initial-value: 0deg;
+    inherits: false;
+}
+
+@keyframes v3024BorderLightOrbit {
+    0% {
+        --v3024-beam-angle: 0deg;
+        box-shadow: 0 0 0 2px #09090b, 0 0 12px rgba(250, 204, 21, 0.75);
+    }
+    50% {
+        --v3024-beam-angle: 180deg;
+        box-shadow: 0 0 0 2px #09090b, 0 0 16px rgba(56, 189, 248, 0.85);
+    }
+    100% {
+        --v3024-beam-angle: 360deg;
+        box-shadow: 0 0 0 2px #09090b, 0 0 12px rgba(250, 204, 21, 0.75);
+    }
+}
+
+@keyframes v3024PerfectCircleSpin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Pastikan SEMUA ikon loading / spinner 100% bulat sempurna (tidak pernah lonjong/memanjang) */
+i.fa-spin,
+.fa-spinner,
+.fa-circle-notch,
+.fa-rotate.fa-spin,
+.btn i.fa-spin,
+button i.fa-spin {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: 1em !important;
+    height: 1em !important;
+    min-width: 1em !important;
+    min-height: 1em !important;
+    max-width: 1em !important;
+    max-height: 1em !important;
+    aspect-ratio: 1 / 1 !important;
+    line-height: 1 !important;
+    padding: 0 !important;
+    border-radius: 50% !important;
+    flex: 0 0 1em !important;
+    box-sizing: content-box !important;
+    transform-origin: 50% 50% !important;
+    animation: v3024PerfectCircleSpin 0.7s linear infinite !important;
+}
+
+.preloader-circle-spinner {
+    width: 42px !important;
+    height: 42px !important;
+    min-width: 42px !important;
+    min-height: 42px !important;
+    aspect-ratio: 1 / 1 !important;
+    border-radius: 50% !important;
+    flex-shrink: 0 !important;
+}
+
+/* Matikan garis memanjang / spinner ganda lama pada tombol */
+.btn-working-indicator::after,
+button.btn-working-indicator::after,
+.btn.btn-working-indicator::after {
+    content: none !important;
+    display: none !important;
+    width: 0 !important;
+    height: 0 !important;
+    animation: none !important;
+}
+
+/* === VIPERCELL v30.2.5: ANTI-FREEZE SCROLL & POPUP OVERLAY FIX === */
+.modal-overlay:not(.active),
+#modal-initial-popup-banner:not(.active),
+#payment-success-overlay:not(.active),
+#memberplus-welcome-overlay:not(.active) {
+    display: none !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
+    visibility: hidden !important;
+}
+
+html:not(.v302-modal-scroll-locked),
+body:not(.v302-modal-scroll-locked):not(.preloader-locked) {
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+    overscroll-behavior-y: auto !important;
+    touch-action: pan-y !important;
+}
+
+
+/* === PEMBARUAN v31.1: KATALOG MENYATU 4 KOLOM & UI PROFESIONAL MATANG === */
+.v311-catalog-stage {
+    margin-top: 0.75rem;
+}
+.v311-catalog-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    margin-bottom: 0.85rem;
+}
+.v311-unified-4cat-bar {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    overflow-x: auto;
+    padding-bottom: 0.45rem;
+    margin-bottom: 1rem;
+    scrollbar-width: none;
+}
+.v311-unified-4cat-bar::-webkit-scrollbar {
+    display: none;
+}
+.v311-cat-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    padding: 0.55rem 0.95rem;
+    border-radius: 10px;
+    border: 2px solid var(--border-color, #0f172a);
+    background: var(--surface, #ffffff);
+    color: var(--text, #0f172a);
+    font-weight: 800;
+    font-size: 0.8rem;
+    white-space: nowrap;
+    cursor: pointer;
+    transition: all 0.16s ease;
+}
+.v311-cat-pill.active {
+    background: var(--primary, #2563eb);
+    color: #ffffff;
+    border-color: var(--border-color, #0f172a);
+    box-shadow: 2px 2px 0px var(--border-color, #0f172a);
+}
+#brand-grid.v311-unified-4col-grid {
+    display: grid !important;
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+    gap: 0.75rem !important;
+}
+@media (max-width: 640px) {
+    #brand-grid.v311-unified-4col-grid {
+        grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+        gap: 0.5rem !important;
+    }
+    #brand-grid.v311-unified-4col-grid .v30-subcat-grid-card {
+        padding: 0.45rem 0.35rem !important;
+        border-radius: 10px !important;
+    }
+    #brand-grid.v311-unified-4col-grid .v30-subcat-thumb {
+        width: 48px !important;
+        height: 48px !important;
+        border-radius: 10px !important;
+        margin-bottom: 0.35rem !important;
+    }
+    #brand-grid.v311-unified-4col-grid .v30-subcat-title {
+        font-size: 0.68rem !important;
+        line-height: 1.2 !important;
+    }
+    #brand-grid.v311-unified-4col-grid .v30-subcat-price {
+        font-size: 0.6rem !important;
+    }
+}
+.v311-group-section-block {
+    grid-column: 1 / -1;
+    margin-top: 0.65rem;
+    margin-bottom: 0.15rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.45rem 0.75rem;
+    background: var(--surface-hover, rgba(37, 99, 235, 0.07));
+    border-left: 4px solid var(--primary, #2563eb);
+    border-radius: 6px;
+}
+.v311-group-section-title {
+    font-size: 0.86rem;
+    font-weight: 800;
+    color: var(--text, #0f172a);
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    margin: 0;
+}
+.v311-group-section-count {
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: var(--text-muted, #64748b);
+}
+
+
+/* === PEMBARUAN v31.2: PERBAIKAN TAB LOGIN, DRAWER 3 METODE BAYAR & UI KATALOG TOP-UP MODERN === */
+#tab-auth.active {
+    display: block !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+}
+
+.v312-pay-trigger-box {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 11px 14px;
+    border-radius: 12px;
+    border: 2px solid var(--border-color, #0f172a);
+    background: var(--surface, #ffffff);
+    cursor: pointer;
+    box-shadow: 2px 2px 0px var(--border-color, #0f172a);
+    transition: transform 0.14s ease, box-shadow 0.14s ease;
+}
+.v312-pay-trigger-box:active {
+    transform: translate(1px, 1px);
+    box-shadow: 1px 1px 0px var(--border-color, #0f172a);
+}
+.v312-pay-trigger-left {
+    display: flex;
+    align-items: center;
+    gap: 11px;
+    min-width: 0;
+}
+.v312-pay-icon-box {
+    width: 38px;
+    height: 38px;
+    border-radius: 10px;
+    background: rgba(37, 99, 235, 0.12);
+    color: var(--primary, #2563eb);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.1rem;
+    flex-shrink: 0;
+    border: 1.5px solid var(--border-color, #0f172a);
+}
+.v312-pay-trigger-left strong {
+    display: block;
+    font-size: 0.84rem;
+    font-weight: 800;
+    color: var(--text, #0f172a);
+    line-height: 1.25;
+}
+.v312-pay-trigger-left span {
+    display: block;
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: var(--text-muted, #64748b);
+}
+.v312-pay-change-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 5px 10px;
+    border-radius: 8px;
+    background: var(--primary, #2563eb);
+    color: #ffffff;
+    font-size: 0.72rem;
+    font-weight: 800;
+    white-space: nowrap;
+}
+.v312-pay-options-drawer {
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+    margin-top: 8px;
+    padding: 10px;
+    border-radius: 12px;
+    border: 2px dashed var(--border-color, #0f172a);
+    background: var(--bg, #f8fafc);
+}
+.v312-pay-option-card {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    padding: 10px 12px !important;
+    border-radius: 10px !important;
+    cursor: pointer;
+}
+
+/* Desain Kartu Katalog Modern Seperti Platform Top-Up Game Profesional */
+#brand-grid.v311-unified-4col-grid {
+    display: grid !important;
+    grid-template-columns: repeat(auto-fill, minmax(155px, 1fr)) !important;
+    gap: 0.9rem !important;
+}
+@media (max-width: 640px) {
+    #brand-grid.v311-unified-4col-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+        gap: 0.6rem !important;
+    }
+}
+.v312-topup-store-card {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    background: var(--surface, #ffffff);
+    border: 2px solid var(--border-color, #0f172a);
+    border-radius: 14px;
+    overflow: hidden;
+    cursor: pointer;
+    box-shadow: 3px 3px 0px var(--border-color, #0f172a);
+    transition: transform 0.16s ease, box-shadow 0.16s ease;
+}
+.v312-topup-store-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 4px 5px 0px var(--border-color, #0f172a);
+}
+.v312-topup-store-card:active {
+    transform: translate(1px, 1px);
+    box-shadow: 1px 1px 0px var(--border-color, #0f172a);
+}
+.v312-topup-store-card.sold-out {
+    opacity: 0.68;
+}
+.v312-card-art-wrap {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 1 / 1;
+    background: #0f172a;
+    overflow: hidden;
+    border-bottom: 2px solid var(--border-color, #0f172a);
+}
+.v312-card-art-wrap img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+    transition: transform 0.25s ease;
+}
+.v312-topup-store-card:hover .v312-card-art-wrap img {
+    transform: scale(1.04);
+}
+.v312-card-cat-chip {
+    position: absolute;
+    top: 7px;
+    left: 7px;
+    padding: 2px 7px;
+    border-radius: 6px;
+    background: rgba(15, 23, 42, 0.82);
+    color: #facc15;
+    font-size: 0.58rem;
+    font-weight: 800;
+    letter-spacing: 0.03em;
+    backdrop-filter: blur(4px);
+}
+.v312-card-info {
+    padding: 0.6rem 0.65rem 0.65rem;
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    justify-content: space-between;
+    gap: 4px;
+}
+.v312-card-title {
+    font-size: 0.82rem;
+    font-weight: 800;
+    color: var(--text, #0f172a);
+    line-height: 1.25;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+.v312-card-meta-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 4px;
+    margin-top: 2px;
+}
+.v312-card-price {
+    font-size: 0.72rem;
+    font-weight: 800;
+    color: var(--primary, #2563eb);
+}
+@media (max-width: 640px) {
+    .v312-card-info {
+        padding: 0.45rem 0.5rem 0.5rem;
+    }
+    .v312-card-title {
+        font-size: 0.72rem;
+    }
+    .v312-card-price {
+        font-size: 0.64rem;
+    }
+    .v312-card-cat-chip {
+        font-size: 0.52rem;
+        padding: 1px 5px;
+    }
+}
+
+
+/* ==========================================================================
+   PEMBARUAN v31.3 — KONSEP DESAIN 1 (POSTER PORTRAIT 3:4 & VARIASI BERSIH)
+   + PERBAIKAN UKURAN KARTU METODE PEMBAYARAN + TANPA LOADING PRELOADER
+   ========================================================================== */
+
+/* 1. Matikan layar loading awal agar web langsung tampil instan (0 detik) */
+#app-preloader-overlay,
+.preloader-overlay {
+    display: none !important;
+    opacity: 0 !important;
+    visibility: hidden !important;
+    pointer-events: none !important;
+}
+body.preloader-locked {
+    overflow: auto !important;
+}
+
+/* 2. Baris Paling Laris / Populer di Atas Katalog */
+.v313-popular-section {
+    margin: 0.35rem 0 1.15rem;
+    padding: 12px 14px;
+    border-radius: 16px;
+    background: linear-gradient(135deg, rgba(37, 99, 235, 0.08), rgba(15, 23, 42, 0.04));
+    border: 1.5px solid var(--border-color);
+}
+.v313-popular-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 10px;
+}
+.v313-popular-title {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    font-size: 0.9rem;
+    font-weight: 900;
+    color: var(--text);
+}
+.v313-popular-title i {
+    color: #f97316;
+}
+.v313-popular-sub {
+    font-size: 0.7rem;
+    font-weight: 700;
+    color: var(--text-muted);
+}
+.v313-popular-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 9px;
+}
+@media (min-width: 640px) {
+    .v313-popular-grid {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+}
+.v313-pop-mini-card {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 10px;
+    border-radius: 12px;
+    background: var(--card-bg);
+    border: 1.5px solid var(--border-color);
+    cursor: pointer;
+    transition: transform 0.16s ease, border-color 0.16s ease;
+}
+.v313-pop-mini-card:hover {
+    transform: translateY(-2px);
+    border-color: var(--primary);
+}
+.v313-pop-mini-card img {
+    width: 42px;
+    height: 42px;
+    border-radius: 10px;
+    object-fit: cover;
+    flex-shrink: 0;
+}
+.v313-pop-mini-info {
+    min-width: 0;
+    flex: 1;
+}
+.v313-pop-mini-name {
+    font-size: 0.76rem;
+    font-weight: 800;
+    color: var(--text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.v313-pop-mini-cat {
+    font-size: 0.64rem;
+    font-weight: 700;
+    color: var(--primary);
+}
+
+/* 3. Kartu Katalog Poster Portrait 3:4 Full-Bleed (Konsep 1 Ala Takapedia / RRQ Topup) */
+#brand-grid.v313-poster-catalog-grid {
+    display: grid !important;
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    gap: 10px !important;
+}
+@media (min-width: 768px) {
+    #brand-grid.v313-poster-catalog-grid {
+        grid-template-columns: repeat(5, minmax(0, 1fr)) !important;
+        gap: 14px !important;
+    }
+}
+.v313-poster-card {
+    position: relative;
+    aspect-ratio: 3 / 4;
+    border-radius: 14px;
+    overflow: hidden;
+    background: #0f172a;
+    border: 1.5px solid rgba(148, 163, 184, 0.24);
+    cursor: pointer;
+    transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+    box-shadow: 0 6px 16px rgba(15, 23, 42, 0.12);
+    user-select: none;
+}
+.v313-poster-card:hover {
+    transform: translateY(-3px);
+    border-color: var(--primary);
+    box-shadow: 0 12px 24px rgba(37, 99, 235, 0.22);
+}
+.v313-poster-card.sold-out {
+    opacity: 0.62;
+    filter: grayscale(0.45);
+}
+.v313-poster-card img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+    transition: transform 0.28s ease;
+}
+.v313-poster-card:hover img {
+    transform: scale(1.05);
+}
+.v313-poster-cat-badge {
+    position: absolute;
+    top: 7px;
+    left: 7px;
+    z-index: 2;
+    padding: 2px 7px;
+    border-radius: 999px;
+    background: rgba(15, 23, 42, 0.78);
+    backdrop-filter: blur(4px);
+    color: #f8fafc;
+    font-size: 0.56rem;
+    font-weight: 800;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+}
+.v313-poster-overlay {
+    position: absolute;
+    inset: auto 0 0 0;
+    padding: 26px 8px 9px;
+    background: linear-gradient(to top, rgba(9, 13, 24, 0.96) 0%, rgba(9, 13, 24, 0.76) 55%, rgba(9, 13, 24, 0) 100%);
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    text-align: center;
+    z-index: 2;
+}
+.v313-poster-title {
+    font-size: 0.75rem;
+    font-weight: 800;
+    color: #ffffff;
+    line-height: 1.22;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
+}
+.v313-poster-price {
+    margin-top: 3px;
+    font-size: 0.64rem;
+    font-weight: 800;
+    color: #38bdf8;
+}
+
+/* 4. Kartu Variasi Produk Bersih & Rapi (Konsep 1 — Tanpa Pengulangan Nama Produk & Tanpa Badge Penuh) */
+.v313-variant-group-header {
+    grid-column: 1 / -1;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    font-size: 0.76rem;
+    font-weight: 900;
+    color: var(--text);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    padding: 4px 2px 2px;
+    margin-top: 4px;
+    border-bottom: 1.5px dashed var(--border-color);
+}
+.v313-variant-group-header i {
+    color: var(--primary);
+}
+.v313-clean-variant-card {
+    position: relative;
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: space-between !important;
+    align-items: flex-start !important;
+    text-align: left !important;
+    padding: 11px 12px !important;
+    min-height: 70px !important;
+    border-radius: 12px !important;
+    background: var(--card-bg) !important;
+    border: 1.5px solid var(--border-color) !important;
+    cursor: pointer;
+    transition: all 0.15s ease !important;
+    box-shadow: 0 2px 6px rgba(15, 23, 42, 0.04) !important;
+}
+.v313-clean-variant-card:hover {
+    border-color: var(--primary) !important;
+    transform: translateY(-1px);
+}
+.v313-clean-variant-card.active {
+    border: 2px solid var(--primary) !important;
+    background: rgba(37, 99, 235, 0.07) !important;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.14) !important;
+}
+.v313-clean-variant-top {
+    width: 100%;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 6px;
+    margin-bottom: 6px;
+}
+.v313-clean-variant-name {
+    font-size: 0.81rem;
+    font-weight: 800;
+    color: var(--text);
+    line-height: 1.28;
+    word-break: break-word;
+}
+.v313-status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 999px;
+    background: #10b981;
+    flex-shrink: 0;
+    margin-top: 4px;
+    box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.18);
+}
+.v313-status-dot.dot-warn {
+    background: #f59e0b;
+}
+.v313-status-dot.dot-off {
+    background: #ef4444;
+    box-shadow: none;
+}
+.v313-clean-variant-bottom {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px;
+}
+.v313-clean-variant-price {
+    font-size: 0.85rem;
+    font-weight: 900;
+    color: var(--primary);
+}
+.v313-clean-variant-sub {
+    font-size: 0.62rem;
+    font-weight: 700;
+    color: var(--text-muted);
+}
+
+/* 5. Perbaikan Ukuran & Tata Letak 3 Kartu Metode Pembayaran Agar Sama Besar & Presisi */
+#checkout-pay-grid.v312-pay-options-drawer {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 8px;
+}
+#checkout-pay-grid .v312-pay-option-card {
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    width: 100% !important;
+    min-height: 64px !important;
+    height: 64px !important;
+    padding: 10px 13px !important;
+    border-radius: 12px !important;
+    border: 1.5px solid var(--border-color) !important;
+    background: var(--card-bg) !important;
+    box-sizing: border-box !important;
+    gap: 10px !important;
+    margin: 0 !important;
+}
+#checkout-pay-grid .v312-pay-option-card.active {
+    border: 2px solid var(--primary) !important;
+    background: rgba(37, 99, 235, 0.07) !important;
+}
+.v313-pay-card-left {
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    gap: 11px !important;
+    min-width: 0 !important;
+    flex: 1 !important;
+}
+.v313-pay-card-iconbox {
+    width: 40px !important;
+    height: 40px !important;
+    min-width: 40px !important;
+    border-radius: 10px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    font-size: 1.1rem !important;
+    flex-shrink: 0 !important;
+}
+.v313-pay-card-iconbox.icon-qris {
+    background: rgba(37, 99, 235, 0.12);
+    color: #2563eb;
+}
+.v313-pay-card-iconbox.icon-balance {
+    background: rgba(16, 185, 129, 0.12);
+    color: #10b981;
+}
+.v313-pay-card-iconbox.icon-cash {
+    background: rgba(245, 158, 11, 0.14);
+    color: #d97706;
+}
+.v313-pay-card-text {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    text-align: left !important;
+    min-width: 0 !important;
+}
+.v313-pay-card-text strong {
+    font-size: 0.8rem !important;
+    font-weight: 800 !important;
+    color: var(--text) !important;
+    line-height: 1.2 !important;
+}
+.v313-pay-card-text small {
+    font-size: 0.67rem !important;
+    color: var(--text-muted) !important;
+    font-weight: 600 !important;
+    line-height: 1.25 !important;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+}
+.v313-pay-card-badge {
+    padding: 4px 9px !important;
+    border-radius: 999px !important;
+    font-size: 0.66rem !important;
+    font-weight: 800 !important;
+    white-space: nowrap !important;
+    flex-shrink: 0 !important;
+}
+.v313-pay-card-badge.badge-green {
+    background: rgba(16, 185, 129, 0.15);
+    color: #10b981;
+}
+.v313-pay-card-badge.badge-blue {
+    background: rgba(37, 99, 235, 0.15);
+    color: #3b82f6;
+}
+
+/* 6. Kartu Kontak Pembeli Belum Login (Email Wajib + WA Opsional) */
+.v313-guest-contact-card {
+    padding: 12px;
+    border-radius: 12px;
+    background: var(--bg);
+    border: 1.5px solid var(--border-color);
+    margin-bottom: 0.85rem;
+}
+
+/* 7. Tombol Tempel (Paste) Cepat di Kolom ID Tujuan */
+.v313-target-input-wrap {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+.v313-paste-btn {
+    padding: 6px 10px;
+    border-radius: 8px;
+    background: rgba(37, 99, 235, 0.1);
+    color: var(--primary);
+    border: 1px solid rgba(37, 99, 235, 0.28);
+    font-size: 0.7rem;
+    font-weight: 800;
+    cursor: pointer;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+.v313-paste-btn:hover {
+    background: var(--primary);
+    color: #ffffff;
+}
+
+
+/* ==========================================================================
+   PEMBARUAN v31.4 — DESAIN BARU BANNER UTAMA & STRIP SAPAAN KOMPAK DI BAWAHNYA
+   ========================================================================== */
+
+/* 1. Bingkai Banner Utama Lebih Rapi, Proporsional & Modern */
+#banner-container.banner-slider-container {
+    position: relative;
+    border-radius: 18px !important;
+    overflow: hidden !important;
+    border: 1.5px solid var(--border-color) !important;
+    box-shadow: 0 10px 28px rgba(15, 23, 42, 0.14) !important;
+    margin-bottom: 0.75rem !important;
+    background: #0f172a;
+}
+#banner-container .banner-slide {
+    border-radius: 0 !important;
+    object-fit: cover !important;
+}
+#banner-container .banner-dots {
+    position: absolute !important;
+    bottom: 10px !important;
+    left: 50% !important;
+    transform: translateX(-50%) !important;
+    padding: 4px 10px !important;
+    border-radius: 999px !important;
+    background: rgba(15, 23, 42, 0.55) !important;
+    backdrop-filter: blur(6px) !important;
+    display: flex !important;
+    gap: 6px !important;
+    z-index: 4 !important;
+}
+#banner-container .banner-dot {
+    width: 7px !important;
+    height: 7px !important;
+    border-radius: 999px !important;
+    background: rgba(255, 255, 255, 0.45) !important;
+    border: none !important;
+    transition: all 0.2s ease !important;
+}
+#banner-container .banner-dot.active {
+    width: 20px !important;
+    background: #facc15 !important;
+}
+
+/* 2. Strip Sapaan & Pintasan Cepat 1 Baris (Menggantikan Kotak Hitam Lebar Kosong) */
+#user-greeting-dashboard-panel.v314-compact-hero-strip {
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    flex-wrap: wrap !important;
+    gap: 12px !important;
+    padding: 11px 15px !important;
+    margin-bottom: 0.9rem !important;
+    border-radius: 14px !important;
+    background: var(--card-bg) !important;
+    border: 1.5px solid var(--border-color) !important;
+    box-shadow: 0 4px 14px rgba(15, 23, 42, 0.06) !important;
+    min-height: 0 !important;
+}
+.v314-strip-left {
+    display: flex;
+    align-items: center;
+    gap: 11px;
+    min-width: 0;
+    flex: 1 1 240px;
+}
+.v314-strip-avatar-icon {
+    width: 38px;
+    height: 38px;
+    border-radius: 11px;
+    background: linear-gradient(135deg, #2563eb, #1d4ed8);
+    color: #facc15;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1rem;
+    flex-shrink: 0;
+    box-shadow: 0 4px 10px rgba(37, 99, 235, 0.25);
+}
+.v314-strip-text-wrap {
+    min-width: 0;
+}
+.v314-strip-title-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+#user-greeting-dashboard-panel.v314-compact-hero-strip .greeting-main-title {
+    font-size: 0.95rem !important;
+    font-weight: 800 !important;
+    margin: 0 !important;
+    line-height: 1.25 !important;
+    color: var(--text) !important;
+}
+.v314-live-service-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: rgba(16, 185, 129, 0.12);
+    color: #10b981;
+    font-size: 0.65rem;
+    font-weight: 800;
+    border: 1px solid rgba(16, 185, 129, 0.25);
+}
+.v314-live-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 999px;
+    background: #10b981;
+    box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.25);
+}
+#user-greeting-dashboard-panel.v314-compact-hero-strip .greeting-sub-text {
+    font-size: 0.73rem !important;
+    color: var(--text-muted) !important;
+    margin: 2px 0 0 0 !important;
+    font-weight: 600 !important;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.v314-strip-right {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+.v314-wallet-mini-pill {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 5px 8px 5px 11px;
+    border-radius: 10px;
+    background: rgba(37, 99, 235, 0.08);
+    border: 1.5px solid rgba(37, 99, 235, 0.25);
+}
+.v314-wallet-mini-info {
+    display: flex;
+    flex-direction: column;
+    line-height: 1.15;
+}
+.v314-wallet-mini-info span {
+    font-size: 0.58rem;
+    font-weight: 800;
+    color: var(--text-muted);
+}
+.v314-wallet-mini-info strong {
+    font-size: 0.82rem;
+    font-weight: 900;
+    color: var(--primary);
+}
+.v314-quick-pills-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+.v314-quick-action-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 11px;
+    border-radius: 10px;
+    background: var(--bg);
+    border: 1.5px solid var(--border-color);
+    color: var(--text);
+    font-size: 0.73rem;
+    font-weight: 800;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+.v314-quick-action-btn:hover {
+    border-color: var(--primary);
+    background: rgba(37, 99, 235, 0.06);
+}
+@media (max-width: 640px) {
+    #user-greeting-dashboard-panel.v314-compact-hero-strip .greeting-sub-text {
+        white-space: normal;
+    }
+    .v314-strip-right {
+        width: 100%;
+        justify-content: space-between;
+        padding-top: 6px;
+        border-top: 1px dashed var(--border-color);
+    }
+}
+
+
+/* ==========================================================================
+   PEMBARUAN v31.5 — LAYOUT 2 KOLOM CHECKOUT (KIRI VARIAN, KANAN PEMBAYARAN),
+   KONSEP PROFIL 1 (DOMPET DIGITAL MODERN), & PEMILIH AKUN GOOGLE 1-KLIK
+   ========================================================================== */
+
+/* 1. Sembunyikan label Otomatis 24 Jam di sapaan beranda */
+.v314-live-service-pill {
+    display: none !important;
+}
+
+/* 2. Layout 2 Kolom Berdampingan di Halaman Pembelian (Kiri: Tujuan & Varian, Kanan: Pembayaran) */
+#buy-content-form .checkout-split-grid,
+#buy-content-form .checkout-split-grid:not(.desktop-pay-visible),
+#buy-content-form .checkout-split-grid.desktop-pay-visible {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1.45fr) minmax(320px, 1fr) !important;
+    gap: 1.25rem !important;
+    align-items: start !important;
+    max-width: 100% !important;
+    width: 100% !important;
+    margin: 0 auto !important;
+}
+#buy-content-form .checkout-main-col {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    margin: 0 !important;
+}
+#buy-content-form #checkout-side-col-sheet,
+.checkout-side-col {
+    display: block !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+}
+@media (min-width: 769px) {
+    #buy-content-form #checkout-side-col-sheet {
+        position: sticky !important;
+        top: 84px !important;
+        transform: none !important;
+        opacity: 1 !important;
+        visibility: visible !important;
+        pointer-events: auto !important;
+    }
+    #btn-close-mobile-pay-sheet,
+    .mobile-sheet-drag-handle,
+    #mobile-checkout-sheet-backdrop {
+        display: none !important;
+    }
+}
+/* Removed old static mobile checkout sheet rule that caused overscroll */
+
+/* 3. KONSEP PROFIL 1: Kartu Dompet Digital Menyatu & Grid Pengaturan 2 Kolom */
+.v315-ewallet-supercard {
+    background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 55%, #1d4ed8 100%);
+    border-radius: 20px;
+    padding: 1.25rem;
+    color: #ffffff;
+    box-shadow: 0 14px 30px rgba(15, 23, 42, 0.22);
+    border: 1.5px solid rgba(255, 255, 255, 0.14);
+    margin-bottom: 1.15rem;
+}
+.v315-ewallet-top-identity {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 1rem;
+}
+.v315-ewallet-avatar {
+    width: 52px;
+    height: 52px;
+    border-radius: 16px;
+    background: linear-gradient(135deg, #facc15, #f59e0b);
+    color: #0f172a;
+    font-size: 1.35rem;
+    font-weight: 900;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    box-shadow: 0 4px 12px rgba(245, 158, 11, 0.35);
+}
+.v315-ewallet-user-meta {
+    flex: 1;
+    min-width: 0;
+}
+.v315-member-verified-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: rgba(16, 185, 129, 0.22);
+    color: #4ade80;
+    font-size: 0.62rem;
+    font-weight: 800;
+    border: 1px solid rgba(74, 222, 128, 0.35);
+}
+.v315-edit-mini-btn {
+    padding: 6px 11px;
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.12);
+    color: #ffffff;
+    border: 1px solid rgba(255, 255, 255, 0.22);
+    font-size: 0.72rem;
+    font-weight: 800;
+    cursor: pointer;
+    transition: background 0.15s ease;
+}
+.v315-edit-mini-btn:hover {
+    background: rgba(255, 255, 255, 0.22);
+}
+.v315-ewallet-balance-panel {
+    display: flex !important;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
+    padding: 13px 15px;
+    border-radius: 15px;
+    background: rgba(15, 23, 42, 0.45);
+    backdrop-filter: blur(8px);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    margin-bottom: 0.9rem;
+}
+.v315-balance-label {
+    display: block;
+    font-size: 0.66rem;
+    font-weight: 800;
+    color: #93c5fd;
+    letter-spacing: 0.05em;
+}
+.v315-balance-amount {
+    font-size: 1.5rem;
+    font-weight: 900;
+    color: #ffffff;
+    line-height: 1.2;
+    margin-top: 2px;
+}
+.v315-balance-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.v315-wallet-action-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 13px;
+    border-radius: 10px;
+    font-size: 0.76rem;
+    font-weight: 800;
+    cursor: pointer;
+    border: none;
+    transition: transform 0.15s ease;
+}
+.v315-wallet-action-btn:hover {
+    transform: translateY(-1px);
+}
+.v315-wallet-action-btn.primary-topup {
+    background: #facc15;
+    color: #0f172a;
+}
+.v315-wallet-action-btn.secondary-orders {
+    background: rgba(255, 255, 255, 0.15);
+    color: #ffffff;
+    border: 1px solid rgba(255, 255, 255, 0.24);
+}
+.v315-ewallet-stats-strip {
+    display: flex;
+    align-items: center;
+    justify-content: space-around;
+    padding-top: 8px;
+}
+.v315-stat-col {
+    text-align: center;
+    flex: 1;
+}
+.v315-stat-lbl {
+    display: block;
+    font-size: 0.66rem;
+    color: rgba(255, 255, 255, 0.72);
+    font-weight: 700;
+}
+.v315-stat-col strong {
+    font-size: 0.92rem;
+    font-weight: 900;
+    color: #ffffff;
+}
+.v315-stat-divider {
+    width: 1px;
+    height: 26px;
+    background: rgba(255, 255, 255, 0.16);
+}
+.v315-prof-bento-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 11px;
+}
+@media (max-width: 640px) {
+    .v315-prof-bento-grid {
+        grid-template-columns: 1fr;
+    }
+}
+.v315-prof-bento-card {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 13px 14px;
+    border-radius: 15px;
+    background: var(--card-bg);
+    border: 1.5px solid var(--border-color);
+    text-align: left;
+    cursor: pointer;
+    transition: all 0.16s ease;
+    width: 100%;
+}
+.v315-prof-bento-card:hover {
+    border-color: var(--primary);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(37, 99, 235, 0.1);
+}
+.v315-bento-icon {
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.1rem;
+    flex-shrink: 0;
+}
+.v315-bento-icon.icon-blue { background: rgba(37, 99, 235, 0.12); color: #2563eb; }
+.v315-bento-icon.icon-emerald { background: rgba(16, 185, 129, 0.12); color: #10b981; }
+.v315-bento-icon.icon-amber { background: rgba(245, 158, 11, 0.14); color: #d97706; }
+.v315-bento-icon.icon-purple { background: rgba(139, 92, 246, 0.14); color: #7c3aed; }
+.v315-bento-body {
+    flex: 1;
+    min-width: 0;
+}
+.v315-bento-title-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin-bottom: 2px;
+}
+.v315-bento-title-row strong {
+    font-size: 0.85rem;
+    font-weight: 800;
+    color: var(--text);
+}
+.v315-bento-sub {
+    display: block;
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    font-weight: 600;
+    line-height: 1.3;
+}
+.v315-bento-arrow {
+    color: var(--text-muted);
+    font-size: 0.8rem;
+}
+
+/* ================= VIPERCELL v32.0 PURE GLASSMORPHISM, DESKTOP SCROLL FIX & SMOOTH MOBILE SHEET ================= */
+
+:root,
+html[data-theme="light"] {
+    --bg: #e8eef7 !important;
+    --surface: rgba(255, 255, 255, 0.78) !important;
+    --surface-elevated: rgba(255, 255, 255, 0.90) !important;
+    --card-bg: rgba(255, 255, 255, 0.76) !important;
+    --border: rgba(148, 163, 184, 0.30) !important;
+    --border-color: rgba(148, 163, 184, 0.30) !important;
+    --border-subtle: rgba(148, 163, 184, 0.20) !important;
+    --glass-shadow: 0 12px 32px rgba(15, 23, 42, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.85) !important;
+    --brutal-border: 1px solid rgba(148, 163, 184, 0.30) !important;
+    --brutal-border-thin: 1px solid rgba(148, 163, 184, 0.24) !important;
+    --brutal-border-thick: 1px solid rgba(148, 163, 184, 0.32) !important;
+    --brutal-shadow: 0 10px 28px rgba(15, 23, 42, 0.08) !important;
+    --brutal-shadow-sm: 0 4px 14px rgba(15, 23, 42, 0.06) !important;
+    --brutal-shadow-lg: 0 18px 42px rgba(15, 23, 42, 0.12) !important;
+}
+
+html[data-theme="dark"] {
+    --bg: #060a17 !important;
+    --surface: rgba(15, 23, 42, 0.72) !important;
+    --surface-elevated: rgba(30, 41, 59, 0.82) !important;
+    --card-bg: rgba(15, 23, 42, 0.70) !important;
+    --border: rgba(255, 255, 255, 0.14) !important;
+    --border-color: rgba(255, 255, 255, 0.14) !important;
+    --border-subtle: rgba(255, 255, 255, 0.09) !important;
+    --glass-shadow: 0 14px 36px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.12) !important;
+    --brutal-border: 1px solid rgba(255, 255, 255, 0.14) !important;
+    --brutal-border-thin: 1px solid rgba(255, 255, 255, 0.12) !important;
+    --brutal-border-thick: 1px solid rgba(255, 255, 255, 0.16) !important;
+    --brutal-shadow: 0 12px 32px rgba(0, 0, 0, 0.42) !important;
+    --brutal-shadow-sm: 0 6px 18px rgba(0, 0, 0, 0.32) !important;
+    --brutal-shadow-lg: 0 20px 48px rgba(0, 0, 0, 0.52) !important;
+}
+
+/* 1. PERBAIKAN TOTAL BUG PUTIH-PUTIH SAAT SCROLL DI DESKTOP (GPU LAYER + MATIKAN CONTENT-VISIBILITY) */
+html,
+body {
+    background-color: var(--bg) !important;
+    background-image: none !important;
+    background-attachment: scroll !important;
+    min-height: 100%;
+}
+
+body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: -2;
+    pointer-events: none;
+    transform: translateZ(0);
+    will-change: transform;
+    background:
+        radial-gradient(circle at 12% 10%, rgba(59, 130, 246, 0.18) 0%, transparent 42%),
+        radial-gradient(circle at 88% 16%, rgba(139, 92, 246, 0.14) 0%, transparent 40%),
+        radial-gradient(circle at 50% 85%, rgba(16, 185, 129, 0.12) 0%, transparent 45%),
+        linear-gradient(180deg, #e0e7ff 0%, #eef2f9 55%, #e2e8f0 100%);
+}
+
+html[data-theme="dark"] body::before {
+    background:
+        radial-gradient(circle at 15% 12%, rgba(37, 99, 235, 0.24) 0%, transparent 42%),
+        radial-gradient(circle at 85% 18%, rgba(124, 58, 237, 0.18) 0%, transparent 40%),
+        radial-gradient(circle at 50% 88%, rgba(16, 185, 129, 0.14) 0%, transparent 46%),
+        linear-gradient(180deg, #050814 0%, #091024 55%, #060a17 100%);
+}
+
+#brand-grid,
+#user-order-grid,
+.v313-poster-card,
+.item-card {
+    content-visibility: visible !important;
+    contain: none !important;
+}
+
+/* 2. PANEL PEMBAYARAN: DESKTOP 2 KOLOM DI SAMPING KANAN | MOBILE SMOOTH BOTTOM-SHEET DARI BAWAH */
+@media (min-width: 921px) {
+    #buy-content-form .checkout-split-grid,
+    #buy-content-form .checkout-split-grid.desktop-pay-visible {
+        display: grid !important;
+        grid-template-columns: minmax(0, 1.38fr) minmax(330px, 0.92fr) !important;
+        gap: 20px !important;
+        align-items: start !important;
+    }
+    #checkout-side-col-sheet {
+        display: block !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+        pointer-events: auto !important;
+        position: sticky !important;
+        top: 86px !important;
+        transform: none !important;
+        max-height: none !important;
+    }
+    #mobile-checkout-sheet-backdrop,
+    .mobile-sheet-drag-handle,
+    #btn-close-mobile-pay-sheet {
+        display: none !important;
+    }
+}
+
+/* Hentikan ruang kosong / overscroll berlebih saat di halaman Checkout Produk */
+body.in-product-checkout,
+body.in-product-checkout .app-layout-wrapper,
+body.in-product-checkout #main-app-content {
+    min-height: auto !important;
+    height: auto !important;
+    padding-bottom: 0 !important;
+}
+body.in-product-checkout #tab-checkout {
+    padding-bottom: 20px !important;
+    margin-bottom: 0 !important;
+    min-height: auto !important;
+}
+body.in-product-checkout #checkout-reviews-section:empty {
+    display: none !important;
+}
+
+@media (max-width: 920px) {
+    #buy-content-form .checkout-split-grid,
+    #buy-content-form .checkout-split-grid:not(.desktop-pay-visible),
+    #buy-content-form .checkout-split-grid.desktop-pay-visible {
+        display: block !important;
+        padding-bottom: 0 !important;
+        margin-bottom: 0 !important;
+    }
+    #buy-content-form .checkout-main-col {
+        padding-bottom: 0 !important;
+        margin-bottom: 0 !important;
+    }
+    #mobile-checkout-sheet-backdrop {
+        position: fixed !important;
+        inset: 0 !important;
+        background: rgba(2, 6, 23, 0.58) !important;
+        backdrop-filter: blur(5px) !important;
+        -webkit-backdrop-filter: blur(5px) !important;
+        z-index: 9790 !important;
+        opacity: 0;
+        transition: opacity 0.28s ease !important;
+    }
+    #mobile-checkout-sheet-backdrop.active {
+        opacity: 1 !important;
+    }
+    #buy-content-form #checkout-side-col-sheet,
+    #checkout-side-col-sheet {
+        display: block !important;
+        position: fixed !important;
+        left: 0 !important;
+        right: 0 !important;
+        bottom: 0 !important;
+        top: auto !important;
+        width: 100% !important;
+        max-height: 86dvh !important;
+        overflow-y: auto !important;
+        z-index: 9800 !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        border-radius: 24px 24px 0 0 !important;
+        transform: translate3d(0, 110%, 0) !important;
+        opacity: 0 !important;
+        visibility: hidden !important;
+        pointer-events: none !important;
+        transition: transform 0.38s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.28s ease, visibility 0.28s ease !important;
+    }
+    #buy-content-form #checkout-side-col-sheet.mobile-sheet-open,
+    #checkout-side-col-sheet.mobile-sheet-open {
+        transform: translate3d(0, 0, 0) !important;
+        opacity: 1 !important;
+        visibility: visible !important;
+        pointer-events: auto !important;
+    }
+    #checkout-side-col-sheet #checkout-step-03-card {
+        border-radius: 24px 24px 0 0 !important;
+        padding-bottom: calc(20px + env(safe-area-inset-bottom, 0px)) !important;
+        box-shadow: 0 -14px 40px rgba(0, 0, 0, 0.38) !important;
+    }
+    .mobile-sheet-drag-handle {
+        display: block !important;
+        width: 46px !important;
+        height: 5px !important;
+        border-radius: 999px !important;
+        background: rgba(148, 163, 184, 0.45) !important;
+        margin: 4px auto 12px !important;
+        cursor: pointer !important;
+    }
+    #btn-close-mobile-pay-sheet {
+        display: inline-flex !important;
+    }
+}
+
+/* 3. KONTRAS TEKS RUNNING ATAS & BAWAH DI TEMA TERANG MAUPUN GELAP */
+html:not([data-theme="dark"]) .marquee-container,
+html:not([data-theme="dark"]) #marquee-interactive-bar,
+html:not([data-theme="dark"]) #footer-marquee-bar {
+    background: linear-gradient(90deg, rgba(255, 255, 255, 0.84), rgba(239, 246, 255, 0.88)) !important;
+    border-top: 1px solid rgba(37, 99, 235, 0.18) !important;
+    border-bottom: 1px solid rgba(37, 99, 235, 0.18) !important;
+    box-shadow: 0 4px 16px rgba(15, 23, 42, 0.05) !important;
+}
+
+html[data-theme="dark"] .marquee-container,
+html[data-theme="dark"] #marquee-interactive-bar,
+html[data-theme="dark"] #footer-marquee-bar {
+    background: linear-gradient(90deg, rgba(15, 23, 42, 0.86), rgba(30, 41, 59, 0.88)) !important;
+    border-top: 1px solid rgba(148, 163, 184, 0.22) !important;
+    border-bottom: 1px solid rgba(148, 163, 184, 0.22) !important;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.35) !important;
+}
+
+html:not([data-theme="dark"]) .marquee-item-pill,
+html:not([data-theme="dark"]) .marquee-item-pill.footer-dark-pill {
+    background: rgba(255, 255, 255, 0.94) !important;
+    color: #0f172a !important;
+    border: 1px solid rgba(37, 99, 235, 0.24) !important;
+    box-shadow: 0 4px 12px rgba(15, 23, 42, 0.06) !important;
+    border-radius: 999px !important;
+}
+
+html:not([data-theme="dark"]) .marquee-item-pill span:not(.marquee-item-badge),
+html:not([data-theme="dark"]) .marquee-item-pill .footer-catalog-text,
+html:not([data-theme="dark"]) .footer-catalog-text {
+    color: #0f172a !important;
+    font-weight: 700 !important;
+}
+
+html[data-theme="dark"] .marquee-item-pill,
+html[data-theme="dark"] .marquee-item-pill.footer-dark-pill {
+    background: rgba(30, 41, 59, 0.92) !important;
+    color: #f8fafc !important;
+    border: 1px solid rgba(148, 163, 184, 0.30) !important;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.32) !important;
+    border-radius: 999px !important;
+}
+
+html[data-theme="dark"] .marquee-item-pill span:not(.marquee-item-badge),
+html[data-theme="dark"] .marquee-item-pill .footer-catalog-text,
+html[data-theme="dark"] .footer-catalog-text {
+    color: #f8fafc !important;
+    font-weight: 700 !important;
+}
+
+.marquee-item-badge {
+    border: 1px solid rgba(255, 255, 255, 0.28) !important;
+    box-shadow: none !important;
+    border-radius: 999px !important;
+    padding: 2px 9px !important;
+    font-weight: 800 !important;
+}
+.marquee-item-badge.badge-info,
+.marquee-item-badge.badge-product {
+    background: linear-gradient(135deg, #2563eb, #3b82f6) !important;
+    color: #ffffff !important;
+}
+.marquee-item-badge.badge-promo {
+    background: linear-gradient(135deg, #10b981, #059669) !important;
+    color: #ffffff !important;
+}
+
+/* 4. KOMPONEN PURE GLASSMORPHISM MATANG & BERSIH TANPA NEO-BRUTALISM */
+header,
+.top-header,
+.bottom-nav,
+#mobile-bottom-nav,
+.desktop-pill-nav {
+    background: var(--surface) !important;
+    backdrop-filter: blur(18px) saturate(160%) !important;
+    -webkit-backdrop-filter: blur(18px) saturate(160%) !important;
+    border-color: var(--border-color) !important;
+    box-shadow: var(--glass-shadow) !important;
+}
+
+.v314-welcome-strip,
+.v314-trust-card,
+.checkout-step-card,
+.checkout-brand-header,
+.v313-clean-variant-card,
+#checkout-pay-grid .v312-pay-option-card,
+.v312-pay-selected-trigger,
+.v315-bento-card,
+.v315-subpage-panel,
+.order-compact-card,
+.ereceipt-card,
+.auth-neo-card,
+.auth-neo-showcase,
+.modal-content,
+.msg-box,
+.v301-device-session-card,
+.notif-toggle-card,
+.v313-guest-contact-card {
+    background: var(--surface) !important;
+    backdrop-filter: blur(16px) saturate(160%) !important;
+    -webkit-backdrop-filter: blur(16px) saturate(160%) !important;
+    border: 1px solid var(--border-color) !important;
+    box-shadow: var(--glass-shadow) !important;
+    border-radius: 18px !important;
+}
+
+.v313-clean-variant-card.active,
+.v313-clean-variant-card.selected,
+#checkout-pay-grid .v312-pay-option-card.active {
+    background: linear-gradient(135deg, rgba(37, 99, 235, 0.22), rgba(59, 130, 246, 0.10)) !important;
+    border: 1.5px solid rgba(59, 130, 246, 0.78) !important;
+    box-shadow: 0 8px 24px rgba(37, 99, 235, 0.24), inset 0 1px 0 rgba(255, 255, 255, 0.25) !important;
+}
+
+.logo-text span {
+    background: linear-gradient(135deg, #2563eb, #06b6d4) !important;
+    color: #ffffff !important;
+    border: 1px solid rgba(255, 255, 255, 0.35) !important;
+    box-shadow: 0 4px 14px rgba(37, 99, 235, 0.35) !important;
+    border-radius: 10px !important;
+    padding: 2px 9px !important;
+    margin-left: 4px !important;
+}
+
+.desktop-pill-nav a.active,
+.bottom-nav a.active,
+#mobile-bottom-nav a.active,
+.v311-cat-pill.active,
+.hist-pill.active {
+    background: linear-gradient(135deg, #2563eb, #3b82f6) !important;
+    color: #ffffff !important;
+    border: 1px solid rgba(255, 255, 255, 0.32) !important;
+    box-shadow: 0 6px 18px rgba(37, 99, 235, 0.38) !important;
+}
+
+.bottom-nav a.active i,
+.bottom-nav a.active span,
+#mobile-bottom-nav a.active i,
+#mobile-bottom-nav a.active span {
+    color: #ffffff !important;
+}
+
+.step-num,
+.brutal-tag,
+.v314-welcome-badge {
+    background: linear-gradient(135deg, #2563eb, #3b82f6) !important;
+    color: #ffffff !important;
+    border: 1px solid rgba(255, 255, 255, 0.32) !important;
+    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.28) !important;
+    border-radius: 10px !important;
+}
+
+.form-control,
+.search-input-box {
+    background: var(--surface-elevated) !important;
+    border: 1px solid var(--border-color) !important;
+    border-radius: 12px !important;
+    box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.06) !important;
+}
+.form-control:focus {
+    border-color: #3b82f6 !important;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.22) !important;
+}
+
+.btn,
+.btn-primary,
+.btn-secondary,
+.btn-success,
+.btn-danger,
+.btn-warning,
+.btn-outline {
+    border-radius: 13px !important;
+    border: 1px solid rgba(255, 255, 255, 0.24) !important;
+    box-shadow: 0 6px 18px rgba(15, 23, 42, 0.12) !important;
+    transition: all 0.2s ease !important;
+}
+
+.btn-primary {
+    background: linear-gradient(135deg, #2563eb, #3b82f6) !important;
+    color: #ffffff !important;
+    box-shadow: 0 8px 22px rgba(37, 99, 235, 0.32) !important;
+}
+
+.btn-success {
+    background: linear-gradient(135deg, #10b981, #059669) !important;
+    color: #ffffff !important;
+    box-shadow: 0 8px 22px rgba(16, 185, 129, 0.30) !important;
+}
+
+.btn-danger {
+    background: linear-gradient(135deg, #ef4444, #dc2626) !important;
+    color: #ffffff !important;
+    box-shadow: 0 8px 22px rgba(239, 68, 68, 0.28) !important;
+}
+
+.btn-outline {
+    background: var(--surface) !important;
+    color: var(--text) !important;
+    border: 1px solid var(--border-color) !important;
+    box-shadow: 0 4px 12px rgba(15, 23, 42, 0.05) !important;
+}
+
+.v315-ewallet-supercard {
+    background: linear-gradient(135deg, rgba(15, 23, 42, 0.88) 0%, rgba(30, 58, 138, 0.86) 55%, rgba(37, 99, 235, 0.84) 100%) !important;
+    border: 1px solid rgba(255, 255, 255, 0.24) !important;
+    box-shadow: 0 18px 40px rgba(15, 23, 42, 0.32), inset 0 1px 0 rgba(255, 255, 255, 0.25) !important;
+}
+
